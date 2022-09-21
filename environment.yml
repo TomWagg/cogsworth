@@ -1,0 +1,22 @@
+name: cosmic-gala
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python
+  - numpy
+  - pip
+  - matplotlib
+  - gsl
+  - astropy
+  - scipy
+  - jupyter
+  - jupyterlab
+  - ipython
+  - seaborn
+  - nbstripout
+  - astroquery
+  - pytables
+  - pip:
+      - gala
+      - cosmic-popsynth
