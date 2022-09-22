@@ -3,7 +3,7 @@ channels:
   - defaults
   - conda-forge
 dependencies:
-  - python
+  - python=3.8
   - numpy
   - pip
   - matplotlib
@@ -18,5 +18,5 @@ dependencies:
   - astroquery
   - pytables
   - pip:
-      - gala
+      - gala >= 1.5
       - cosmic-popsynth
