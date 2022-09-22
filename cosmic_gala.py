@@ -1,11 +1,15 @@
 import numpy as np
-import gala
+import gala.integrate as gi
+import gala.dynamics as gd
+import gala.potential as gp
 
 import astropy.coordinates as coords
 import astropy.units as u
 import astropy.constants as const
 
 from galaxy import draw_lookback_times, draw_radii, draw_heights, R_exp
+
+from multiprocessing import Pool
 
 
 def get_kick_differential(delta_v_sys_xyz, m_1, m_2, a):
@@ -51,7 +55,7 @@ def get_kick_differential(delta_v_sys_xyz, m_1, m_2, a):
     return kick_differential
 
 
-def integrate_orbit_with_events(w0, potential=gala.potential.MilkyWayPotential(), events=None,
+def integrate_orbit_with_events(w0, potential=gp.MilkyWayPotential(), events=None,
                                 rng=np.random.default_rng(), **integrate_kwargs):
     """Integrate PhaseSpacePosition in a potential with events that occur at certain times
 
@@ -77,7 +81,7 @@ def integrate_orbit_with_events(w0, potential=gala.potential.MilkyWayPotential()
         return potential.integrate_orbit(w0, **integrate_kwargs)
 
     # work out what the timesteps would be without kicks
-    timesteps = gala.integrate.parse_time_specification(units=[u.s], **integrate_kwargs) * u.s
+    timesteps = gi.parse_time_specification(units=[u.s], **integrate_kwargs) * u.s
 
     # start the cursor at the smallest timestep
     time_cursor = timesteps[0]
@@ -89,28 +93,32 @@ def integrate_orbit_with_events(w0, potential=gala.potential.MilkyWayPotential()
     # loop over the events
     for event in events:
         # find the timesteps that occur before the kick
-        matching_timesteps = timesteps[np.logical_and(timesteps >= time_cursor, timesteps < event["time"])]
+        timestep_mask = (timesteps >= time_cursor) & (timesteps < event["time"])
 
-        # integrate the orbit over these timesteps
-        orbit = potential.integrate_orbit(current_w0, t=matching_timesteps)
+        # if any of them occur before the kick then do some integration
+        if any(timestep_mask):
+            matching_timesteps = timesteps[timestep_mask]
 
-        # save the orbit data
-        orbit_data.append(orbit.data)
+            # integrate the orbit over these timesteps
+            orbit = potential.integrate_orbit(current_w0, t=matching_timesteps)
+
+            # save the orbit data
+            orbit_data.append(orbit.data)
+
+            # get new PhaseSpacePosition(s)
+            current_w0 = orbit[-1]
 
         # adjust the time
         time_cursor = event["time"]
-
-        # get new PhaseSpacePosition(s)
-        current_w0 = orbit[-1]
 
         # calculate the kick differential
         kick_differential = get_kick_differential(delta_v_sys_xyz=event["delta_v_sys_xyz"],
                                                   m_1=event["m_1"], m_2=event["m_2"], a=event["a"])
 
         # update the velocity of the current PhaseSpacePosition
-        current_w0 = gala.dynamics.PhaseSpacePosition(pos=current_w0.pos,
-                                                      vel=current_w0.vel + kick_differential,
-                                                      frame=current_w0.frame)
+        current_w0 = gd.PhaseSpacePosition(pos=current_w0.pos,
+                                           vel=current_w0.vel + kick_differential,
+                                           frame=current_w0.frame)
 
     # if we still have time left after the last event (very likely)
     if time_cursor < timesteps[-1]:
@@ -120,9 +128,9 @@ def integrate_orbit_with_events(w0, potential=gala.potential.MilkyWayPotential()
         orbit_data.append(orbit.data)
 
     orbit_data = coords.concatenate_representations(orbit_data)
-    full_orbit = gala.dynamics.orbit.Orbit(pos=orbit_data.without_differentials(),
-                                           vel=orbit_data.differentials["s"],
-                                           t=timesteps.to(u.Myr))
+    full_orbit = gd.orbit.Orbit(pos=orbit_data.without_differentials(),
+                                vel=orbit_data.differentials["s"],
+                                t=timesteps.to(u.Myr))
 
     return full_orbit
 
@@ -224,8 +232,9 @@ def fling_binary_through_galaxy(w0, potential, lookback_time, bpp, kick_info, bi
 
 
 def evolve_binaries_in_galaxy(bpp, kick_info, galaxy_model=None,
-                              galactic_potential=gala.potential.MilkyWayPotential(),
-                              dispersion=5 * u.km / u.s, max_ev_time=13.7 * u.Gyr, dt=1 * u.Myr):
+                              galactic_potential=gp.MilkyWayPotential(),
+                              dispersion=5 * u.km / u.s, max_ev_time=13.7 * u.Gyr, dt=1 * u.Myr,
+                              pool=None, nproc=1):
     # work out how many binaries we are going to evolve
     bin_nums = bpp["bin_num"].unique()
     n_bin = len(bin_nums)
@@ -243,7 +252,7 @@ def evolve_binaries_in_galaxy(bpp, kick_info, galaxy_model=None,
 
     # calculate the Galactic circular velocity at the given positions
     x, y = rho * np.cos(phi), rho * np.sin(phi)
-    v_circ = gala.potential.MilkyWayPotential().circular_velocity(q=[x, y, z]).to(vel_units)
+    v_circ = gp.MilkyWayPotential().circular_velocity(q=[x, y, z]).to(vel_units)
 
     # add some velocity dispersion
     v_R, v_T, v_z = np.random.normal([np.zeros_like(v_circ), v_circ, np.zeros_like(v_circ)],
@@ -258,14 +267,27 @@ def evolve_binaries_in_galaxy(bpp, kick_info, galaxy_model=None,
         dif = coords.CylindricalDifferential(v_R, (v_T / rho).to(u.rad / u.Gyr), v_z)
 
     # combine the representation and differentials into a Gala PhaseSpacePosition
-    w0s = gala.dynamics.PhaseSpacePosition(rep.with_differentials(dif))
+    w0s = gd.PhaseSpacePosition(rep.with_differentials(dif))
 
     # evolve the orbits from birth until present day
-    orbits = []
-    for i, bin_num in enumerate(bin_nums):
-        orbits.append(fling_binary_through_galaxy(w0=w0s[i], potential=galactic_potential,
-                                                  lookback_time=lookback_time[i], bpp=bpp,
-                                                  kick_info=kick_info, bin_num=bin_num,
-                                                  max_ev_time=max_ev_time, dt=dt))
+    if pool is not None or nproc > 1:
+        pool_existed = pool is not None
+        if not pool_existed:
+            pool = Pool(nproc)
+
+        args = [(w0s[i], galactic_potential, lookback_time[i],
+                 bpp, kick_info, bin_num, max_ev_time, dt) for i, bin_num in enumerate(bin_nums)]
+
+        orbits = pool.starmap(fling_binary_through_galaxy, args)
+        if not pool_existed:
+            pool.close()
+            pool.join()
+    else:
+        orbits = []
+        for i, bin_num in enumerate(bin_nums):
+            orbits.append(fling_binary_through_galaxy(w0=w0s[i], potential=galactic_potential,
+                                                      lookback_time=lookback_time[i], bpp=bpp,
+                                                      kick_info=kick_info, bin_num=bin_num,
+                                                      max_ev_time=max_ev_time, dt=dt))
 
     return orbits
