@@ -127,7 +127,11 @@ def integrate_orbit_with_events(w0, potential=gp.MilkyWayPotential(), events=Non
         orbit = potential.integrate_orbit(current_w0, t=matching_timesteps)
         orbit_data.append(orbit.data)
 
-    orbit_data = coords.concatenate_representations(orbit_data)
+    if len(orbit_data) > 1:
+        orbit_data = coords.concatenate_representations(orbit_data)
+    else:
+        orbit_data = orbit_data[0]
+
     full_orbit = gd.orbit.Orbit(pos=orbit_data.without_differentials(),
                                 vel=orbit_data.differentials["s"],
                                 t=timesteps.to(u.Myr))
@@ -244,6 +248,7 @@ def evolve_binaries_in_galaxy(bpp, kick_info, galaxy_model=None,
     # draw random positions and birth times in the galaxy
     # TODO: actually make this change based on the `galaxy model`
     lookback_time = draw_lookback_times(n_bin, tm=12 * u.Gyr, tsfr=6.8 * u.Gyr, component="low_alpha_disc")
+    print(lookback_time.max())
     scale_length = R_exp(lookback_time, alpha=0.4)
     rho = draw_radii(n_bin, R_0=scale_length)
     scale_height = 0.3 * u.kpc
