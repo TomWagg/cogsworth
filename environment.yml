@@ -14,9 +14,7 @@ dependencies:
   - jupyterlab
   - ipython
   - seaborn
-  - nbstripout
-  - astroquery
-  - pytables
+  - pandas
   - pip:
       - gala >= 1.5
       - cosmic-popsynth

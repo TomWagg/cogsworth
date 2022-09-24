@@ -2,7 +2,7 @@ from cosmic.sample.initialbinarytable import InitialBinaryTable
 from cosmic.sample.sampler import independent
 from cosmic.evolve import Evolve
 
-import cosmic_gala
+import kicker.kicks as kicks
 import time
 from multiprocessing import Pool
 
@@ -58,7 +58,7 @@ def run_sim(n_binaries, BSESettings={}, nproc=8, with_timing=True, m1_cutoff=7):
             print(f"[{time.time() - lap:1.1f}s] Evolve binaries (run COSMIC)")
             lap = time.time()
 
-        orbits = cosmic_gala.evolve_binaries_in_galaxy(bpp, kick_info, pool=pool)
+        orbits = kicks.evolve_binaries_in_galaxy(bpp, kick_info, pool=pool)
 
     if with_timing:
         print(f"[{time.time() - lap:1.1f}s] Get orbits (run gala)")

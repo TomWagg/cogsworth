@@ -7,7 +7,7 @@ import astropy.coordinates as coords
 import astropy.units as u
 import astropy.constants as const
 
-from galaxy import draw_lookback_times, draw_radii, draw_heights, R_exp
+from kicker.galaxy import draw_lookback_times, draw_radii, draw_heights, R_exp
 
 from multiprocessing import Pool
 
@@ -248,7 +248,6 @@ def evolve_binaries_in_galaxy(bpp, kick_info, galaxy_model=None,
     # draw random positions and birth times in the galaxy
     # TODO: actually make this change based on the `galaxy model`
     lookback_time = draw_lookback_times(n_bin, tm=12 * u.Gyr, tsfr=6.8 * u.Gyr, component="low_alpha_disc")
-    print(lookback_time.max())
     scale_length = R_exp(lookback_time, alpha=0.4)
     rho = draw_radii(n_bin, R_0=scale_length)
     scale_height = 0.3 * u.kpc
