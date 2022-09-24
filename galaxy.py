@@ -46,6 +46,10 @@ class Galaxy():
         Distance from Galactic centre
     D : `np.array`
         Distance from Sun
+    x : `np.array`
+        Galactocentric distance along x-axis (parallel with vector pointing at Sun)
+    y : `np.array`
+        Galactocentric distance along y-axis (perpendicular with vector pointing at Sun)
 
     """
     def __init__(self, size, components=None, component_masses=None,
@@ -61,6 +65,8 @@ class Galaxy():
         self._theta = None
         self._rho = None
         self._D = None
+        self._x = None
+        self._y = None
 
         if immediately_sample:
             self.sample()
@@ -119,6 +125,18 @@ class Galaxy():
         if self._rho is None:
             self._rho = (self._R**2 + self._z**2)**(0.5)
         return self._rho
+
+    @property
+    def x(self):
+        if self._x is None:
+            self._x = self._R * np.cos(self._theta)
+        return self._x
+
+    @property
+    def y(self):
+        if self._y is None:
+            self._y = self._R * np.sin(self._theta)
+        return self._y
 
     def sample(self):
         """Sample from the Galaxy distributions for each component, combine and save in class attributes"""
