@@ -7,7 +7,7 @@ import astropy.coordinates as coords
 import astropy.units as u
 import astropy.constants as const
 
-from kicker.galaxy import draw_lookback_times, draw_radii, draw_heights, R_exp
+# from kicker.galaxy import draw_lookback_times, draw_radii, draw_heights, R_exp
 
 from multiprocessing import Pool
 
