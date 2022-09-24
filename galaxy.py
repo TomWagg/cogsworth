@@ -181,6 +181,30 @@ class Galaxy():
 
 
 class Frankel2018(Galaxy):
+    """A semi-empirical galaxy model based on Frankel+2018. This model was used in detail in Wagg+2022 -
+    see Figure 1 and Section 2.2.1 for a detailed explanation.
+
+    Attributes
+    ----------
+    As `Galaxy` but additionally the following:
+
+    galaxy_age : `float`, optional
+        Maximum lookback time, by default 12*u.Gyr
+    tsfr : `float`, optional
+        Star formation timescale, by default 6.8*u.Gyr
+    alpha : `float`, optional
+        Disc inside-out growth parameter, by default 0.3
+    Fm : `int`, optional
+        Metallicity at centre of disc at tm, by default -1
+    gradient : `float`, optional
+        Metallicity gradient, by default -0.075/u.kpc
+    Rnow : `float`, optional
+        Radius at which present day metallicity is solar, by default 8.7*u.kpc
+    gamma : `float`, optional
+        Time dependence of chemical enrichment, by default 0.3
+    zsun : `float`, optional
+        Solar metallicity, by default 0.0142
+    """
     def __init__(self, components=["low_alpha_disc", "high_alpha_disc", "bulge"],
                  component_masses=[2.585e10, 2.585e10, 0.91e10],
                  tsfr=6.8 * u.Gyr, alpha=0.3, Fm=-1, gradient=-0.075 / u.kpc, Rnow=8.7 * u.kpc,
@@ -197,8 +221,8 @@ class Frankel2018(Galaxy):
 
     def draw_lookback_times(self, size=None, component="low_alpha_disc"):
         """Inverse CDF sampling of lookback times. low_alpha and high_alpha discs uses Frankel+2018 Eq.4,
-        separated at 8 Gyr. The bulge matches the distribution in Fig.7 of Bovy+19 but accounts for
-        sample's bias.
+        separated and normalised at 8 Gyr. The bulge matches the distribution in Fig.7 of Bovy+19 but accounts
+        for sample's bias.
 
         Parameters
         ----------
@@ -228,14 +252,16 @@ class Frankel2018(Galaxy):
         return tau
 
     def draw_radii(self, size=None, component="low_alpha_disc"):
-        """Inverse CDF sampling of galactocentric radii.
+        """Inverse CDF sampling of galactocentric radii using Frankel+2018 Eq.5. The scale length is
+        calculated using Eq. 6 the low_alpha disc and is fixed at 1/0.43 and 1.5 kpc respectively for the
+        high_alpha disc and bulge.
 
         Parameters
         ----------
         size : `int`
-            How many samples to draw
-        R_0 : `float`
-            Scale length
+            How many radii to draw
+        component: `str`
+            Which component of the Milky Way
 
         Returns
         -------
@@ -257,14 +283,14 @@ class Frankel2018(Galaxy):
         return R
 
     def draw_heights(self, size=None, component="low_alpha_disc"):
-        """Inverse CDF sampling of lookback times using McMillan 2011 Eq. 3
+        """Inverse CDF sampling of heights using McMillan 2011 Eq. 3 and various scale lengths.
 
         Parameters
         ----------
         size : `int`
-            How many samples to draw
-        zd : `float`, optional
-            Disc scale height, by default 0.3*u.kpc
+            How many heights to draw
+        component: `str`
+            Which component of the Milky Way
 
         Returns
         -------
@@ -285,6 +311,18 @@ class Frankel2018(Galaxy):
         return z
 
     def draw_theta(self, size=None):
+        """Draw random azimuthal angles
+
+        Parameters
+        ----------
+        size : `int`, optional
+            How many angles to draw, by default self._size
+
+        Returns
+        -------
+        theta : `np.array`
+            Azimuthal angles
+        """
         # if no size is given then use the class value
         size = self._size if size is None else size
         return np.random.uniform(0, 2 * np.pi, size) * u.rad
