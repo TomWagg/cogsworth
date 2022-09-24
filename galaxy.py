@@ -3,6 +3,8 @@ import astropy.units as u
 from scipy.integrate import quad
 from scipy.special import lambertw
 from scipy.stats import beta
+import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
 
 
 class Galaxy():
@@ -196,6 +198,52 @@ class Galaxy():
 
     def get_metallicity(self):
         raise NotImplementedError("This Galaxy model has not implemented this method")
+
+    def plot(self, coordinates="cartesian", component=None, colour_by=None, show=True, cbar_norm=LogNorm(),
+             cbar_label=r"Metallicity, $Z$", cmap="plasma", **kwargs):
+        fig, axes = plt.subplots(2, 1, figsize=(10 * 1.2475, 14), gridspec_kw={'height_ratios': [4, 14]},
+                                 sharex=True)
+        if colour_by is None:
+            colour_by = self.Z.value
+
+        if coordinates == "cylindrical":
+            x = self.R
+            y1 = self.z
+            y2 = self.theta
+        elif coordinates == "cartesian":
+            x = self.x
+            y1 = self.z
+            y2 = self.y
+            axes[1].set_aspect("equal")
+        else:
+            raise ValueError("Invalid coordinates specified")
+
+        if component is not None:
+            mask = self._which_comp == component
+            x = x[mask]
+            y1 = y1[mask]
+            y2 = y2[mask]
+            colour_by = colour_by[mask]
+
+        fig.subplots_adjust(hspace=0)
+
+        axes[0].scatter(x, y1, c=colour_by, s=0.1, cmap=cmap, norm=cbar_norm, **kwargs)
+
+        axes[0].set_xlabel(r"$x$ [kpc]", labelpad=15)
+        axes[0].xaxis.tick_top()
+        axes[0].xaxis.set_label_position("top")
+
+        axes[0].set_ylabel(r"$z$ [kpc]")
+
+        scatt = axes[1].scatter(x.value, y2.value, c=colour_by, s=0.1, cmap=cmap, norm=cbar_norm, **kwargs)
+        cbar = fig.colorbar(scatt, ax=axes, pad=0.0)
+        cbar.set_label(cbar_label)
+
+        axes[1].set_xlabel(r"$x$ [kpc]")
+        axes[1].set_ylabel(r"$y$ [kpc]")
+
+        if show:
+            plt.show()
 
 
 class Frankel2018(Galaxy):
