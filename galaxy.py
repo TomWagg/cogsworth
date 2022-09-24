@@ -6,12 +6,52 @@ from scipy.stats import beta
 
 
 class Galaxy():
-    def __init__(self, size, components=["low_alpha_disc", "high_alpha_disc", "bulge"],
-                 component_masses=[2.585e10, 2.585e10, 0.91e10],
-                 galaxy_age=12 * u.Gyr, immediately_sample=True, R_sun=8.2 * u.kpc):
+    """Class for a generic galaxy model from which to sample
+
+    This class sets out an outline for sampling from a galaxy model but a subclass will be needed for things
+    to function properly.
+
+    Parameters
+    ----------
+    size : `int`
+        Number of points to sample from the galaxy model
+    components : `list`, optional
+        List of component names, by default None
+    component_masses : `list`, optional
+        List of masses associated with each component (must be the same length as `components`),
+        by default None
+    immediately_sample : `bool`, optional
+        Whether to immediately sample the points from the galaxy, by default True
+    R_sun : `float`, optional
+        Distance of the Sun from the Galactic centre, used for calculating distances, by default 8.2*u.kpc
+
+
+    Attributes
+    ----------
+    Each attribute listed below is a given value for the sampled points in the galaxy. If it hasn't been
+    sampled/calculated when accessed then it will be automatically sampled/calculated. If sampling, ALL values
+    will be sampled.
+
+    tau : `np.array`
+        Lookback time
+    Z : `np.array`
+        Metallicity
+    z : `np.array`
+        Galactocentric height
+    R : `np.array`
+        Galactocentric radius
+    theta : `np.array`
+        Galactocentric azimuthal angle relative to Sun
+    rho : `np.array`
+        Distance from Galactic centre
+    D : `np.array`
+        Distance from Sun
+
+    """
+    def __init__(self, size, components=None, component_masses=None,
+                 immediately_sample=True, R_sun=8.2 * u.kpc):
         self._components = components
         self._component_masses = component_masses
-        self._galaxy_age = galaxy_age
         self._size = size
         self._R_sun = R_sun
         self._tau = None
@@ -36,10 +76,6 @@ class Galaxy():
     @property
     def component_masses(self):
         return self._component_masses
-
-    @property
-    def galaxy_age(self):
-        return self._galaxy_age
 
     @property
     def tau(self):
@@ -85,7 +121,8 @@ class Galaxy():
         return self._rho
 
     def sample(self):
-        # reset other values
+        """Sample from the Galaxy distributions for each component, combine and save in class attributes"""
+        # reset calculated values 
         self._D = None
         self._rho = None
 
@@ -99,6 +136,7 @@ class Galaxy():
             sizes[i] = np.round(mass_fractions[i] * self._size)
         sizes[-1] = self._size - np.sum(sizes)
 
+        # create an array of which component each point belongs to
         self._which_comp = np.concatenate([[com] * sizes[i] for i, com in enumerate(self._components)])
 
         self._tau = np.zeros(self._size) * u.Gyr
@@ -112,7 +150,7 @@ class Galaxy():
             self._R[com_mask] = self.draw_radii(sizes[i], component=com)
             self._z[com_mask] = self.draw_heights(sizes[i], component=com)
 
-        # shuffle the samples so components are mixed
+        # shuffle the samples so components are well mixed (mostly for plotting)
         random_order = np.random.permutation(self._size)
         self._tau = self._tau[random_order]
         self._R = self._R[random_order]
@@ -122,7 +160,7 @@ class Galaxy():
         # compute the metallicity given the other values
         self._Z = self.get_metallicity()
 
-        # draw a random azimuthal angle uniformly
+        # draw a random azimuthal angle
         self._theta = self.draw_theta()
         return self._tau, (self._R, self.z, self.theta), self.Z
 
@@ -143,8 +181,10 @@ class Galaxy():
 
 
 class Frankel2018(Galaxy):
-    def __init__(self, tsfr=6.8 * u.Gyr, alpha=0.3, Fm=-1, gradient=-0.075 / u.kpc, Rnow=8.7 * u.kpc,
-                 gamma=0.3, zsun=0.0142, **kwargs):
+    def __init__(self, components=["low_alpha_disc", "high_alpha_disc", "bulge"],
+                 component_masses=[2.585e10, 2.585e10, 0.91e10],
+                 tsfr=6.8 * u.Gyr, alpha=0.3, Fm=-1, gradient=-0.075 / u.kpc, Rnow=8.7 * u.kpc,
+                 gamma=0.3, zsun=0.0142, galaxy_age=12 * u.Gyr, **kwargs):
         self.tsfr = tsfr
         self.alpha = alpha
         self.Fm = Fm
@@ -152,14 +192,18 @@ class Frankel2018(Galaxy):
         self.Rnow = Rnow
         self.gamma = gamma
         self.zsun = zsun
-        super().__init__(**kwargs)
+        self.galaxy_age = galaxy_age
+        super().__init__(components=components, component_masses=component_masses, **kwargs)
 
     def draw_lookback_times(self, size=None, component="low_alpha_disc"):
         """Inverse CDF sampling of lookback times. low_alpha and high_alpha discs uses Frankel+2018 Eq.4,
-        separated at 8 Gyr. The bulge matches the distribution in Fig.7 of Bovy+19 but accounts for sample's bias.
+        separated at 8 Gyr. The bulge matches the distribution in Fig.7 of Bovy+19 but accounts for
+        sample's bias.
 
         Parameters
         ----------
+        size : `int`
+            How many times to draw
         component: `str`
             Which component of the Milky Way
 
@@ -168,8 +212,8 @@ class Frankel2018(Galaxy):
         tau: `float/array`
             Random lookback times
         """
-        if size is None:
-            size = self._size
+        # if no size is given then use the class value
+        size = self._size if size is None else size
         if component == "low_alpha_disc":
             U = np.random.rand(size)
             norm = 1 / quad(lambda x: np.exp(-(self.galaxy_age.value - x) / self.tsfr.value), 0, 8)[0]
@@ -198,8 +242,8 @@ class Frankel2018(Galaxy):
         R: `float/array`
             Random Galactocentric radius
         """
-        if size is None:
-            size = self._size
+        # if no size is given then use the class value
+        size = self._size if size is None else size
 
         if component == "low_alpha_disc":
             R_0 = 4 * u.kpc * (1 - self.alpha * (self._tau[self._which_comp == component] / (8 * u.Gyr)))
@@ -227,8 +271,8 @@ class Frankel2018(Galaxy):
         z: `float/array`
             Random heights
         """
-        if size is None:
-            size = self._size
+        # if no size is given then use the class value
+        size = self._size if size is None else size
 
         if component == "low_alpha_disc":
             z_d = 0.3 * u.kpc
@@ -240,8 +284,10 @@ class Frankel2018(Galaxy):
         z = np.random.choice([-1, 1], size) * z_d * np.log(1 - U)
         return z
 
-    def draw_theta(self):
-        return np.random.uniform(0, 2 * np.pi, self._size) * u.rad
+    def draw_theta(self, size=None):
+        # if no size is given then use the class value
+        size = self._size if size is None else size
+        return np.random.uniform(0, 2 * np.pi, size) * u.rad
 
     def get_metallicity(self):
         """Convert radius and time to metallicity using Frankel+2018 Eq.7 and Bertelli+1994 Eq.9
