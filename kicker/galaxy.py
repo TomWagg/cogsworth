@@ -40,11 +40,11 @@ class Galaxy():
         Metallicity
     z : `np.array`
         Galactocentric height
-    R : `np.array`
-        Galactocentric radius
-    theta : `np.array`
-        Galactocentric azimuthal angle relative to Sun
     rho : `np.array`
+        Galactocentric radius
+    phi : `np.array`
+        Galactocentric azimuthal angle relative to Sun
+    Dg : `np.array`
         Distance from Galactic centre
     D : `np.array`
         Distance from Sun
@@ -63,9 +63,9 @@ class Galaxy():
         self._tau = None
         self._Z = None
         self._z = None
-        self._R = None
-        self._theta = None
         self._rho = None
+        self._phi = None
+        self._Dg = None
         self._D = None
         self._x = None
         self._y = None
@@ -92,10 +92,10 @@ class Galaxy():
         return self._tau
 
     @property
-    def R(self):
-        if self._R is None:
+    def rho(self):
+        if self._rho is None:
             self.sample()
-        return self._R
+        return self._rho
 
     @property
     def z(self):
@@ -104,10 +104,10 @@ class Galaxy():
         return self._z
 
     @property
-    def theta(self):
-        if self._theta is None:
+    def phi(self):
+        if self._phi is None:
             self.sample()
-        return self._theta
+        return self._phi
 
     @property
     def Z(self):
@@ -118,26 +118,26 @@ class Galaxy():
     @property
     def D(self):
         if self._D is None:
-            self._D = np.sqrt(self._z**2 + self._R**2 + self._R_sun**2
-                              - 2 * self._R_sun * self._R * np.cos(self._theta))
+            self._D = np.sqrt(self._z**2 + self._rho**2 + self._R_sun**2
+                              - 2 * self._R_sun * self._rho * np.cos(self._phi))
         return self._D
 
     @property
-    def rho(self):
-        if self._rho is None:
-            self._rho = (self._R**2 + self._z**2)**(0.5)
-        return self._rho
+    def Dg(self):
+        if self._Dg is None:
+            self._Dg = (self._rho**2 + self._z**2)**(0.5)
+        return self._Dg
 
     @property
     def x(self):
         if self._x is None:
-            self._x = self._R * np.cos(self._theta)
+            self._x = self._rho * np.cos(self._phi)
         return self._x
 
     @property
     def y(self):
         if self._y is None:
-            self._y = self._R * np.sin(self._theta)
+            self._y = self._rho * np.sin(self._phi)
         return self._y
 
     def sample(self):
@@ -160,20 +160,20 @@ class Galaxy():
         self._which_comp = np.concatenate([[com] * sizes[i] for i, com in enumerate(self._components)])
 
         self._tau = np.zeros(self._size) * u.Gyr
-        self._R = np.zeros(self._size) * u.kpc
+        self._rho = np.zeros(self._size) * u.kpc
         self._z = np.zeros(self._size) * u.kpc
 
         # go through each component and get lookback time, radius and height
         for i, com in enumerate(self._components):
             com_mask = self._which_comp == com
             self._tau[com_mask] = self.draw_lookback_times(sizes[i], component=com)
-            self._R[com_mask] = self.draw_radii(sizes[i], component=com)
+            self._rho[com_mask] = self.draw_radii(sizes[i], component=com)
             self._z[com_mask] = self.draw_heights(sizes[i], component=com)
 
         # shuffle the samples so components are well mixed (mostly for plotting)
         random_order = np.random.permutation(self._size)
         self._tau = self._tau[random_order]
-        self._R = self._R[random_order]
+        self._rho = self._rho[random_order]
         self._z = self._z[random_order]
         self._which_comp = self._which_comp[random_order]
 
@@ -181,8 +181,8 @@ class Galaxy():
         self._Z = self.get_metallicity()
 
         # draw a random azimuthal angle
-        self._theta = self.draw_theta()
-        return self._tau, (self._R, self.z, self.theta), self.Z
+        self._phi = self.draw_phi()
+        return self._tau, (self._rho, self.z, self.phi), self.Z
 
     def draw_lookback_times(self, size=None, component=None):
         raise NotImplementedError("This Galaxy model has not implemented this method")
@@ -193,7 +193,7 @@ class Galaxy():
     def draw_heights(self, size=None, component=None):
         raise NotImplementedError("This Galaxy model has not implemented this method")
 
-    def draw_theta(self, size=None, component=None):
+    def draw_phi(self, size=None, component=None):
         raise NotImplementedError("This Galaxy model has not implemented this method")
 
     def get_metallicity(self):
@@ -207,9 +207,9 @@ class Galaxy():
             colour_by = self.Z.value
 
         if coordinates == "cylindrical":
-            x = self.R
+            x = self.rho
             y1 = self.z
-            y2 = self.theta
+            y2 = self.phi
         elif coordinates == "cartesian":
             x = self.x
             y1 = self.z
@@ -331,7 +331,7 @@ class Frankel2018(Galaxy):
 
         Returns
         -------
-        R: `float/array`
+        rho: `float/array`
             Random Galactocentric radius
         """
         # if no size is given then use the class value
@@ -345,8 +345,8 @@ class Frankel2018(Galaxy):
             R_0 = 1.5 * u.kpc
 
         U = np.random.rand(size)
-        R = - R_0 * (lambertw((U - 1) / np.exp(1), k=-1).real + 1)
-        return R
+        rho = - R_0 * (lambertw((U - 1) / np.exp(1), k=-1).real + 1)
+        return rho
 
     def draw_heights(self, size=None, component="low_alpha_disc"):
         """Inverse CDF sampling of heights using McMillan 2011 Eq. 3 and various scale lengths.
@@ -376,7 +376,7 @@ class Frankel2018(Galaxy):
         z = np.random.choice([-1, 1], size) * z_d * np.log(1 - U)
         return z
 
-    def draw_theta(self, size=None):
+    def draw_phi(self, size=None):
         """Draw random azimuthal angles
 
         Parameters
@@ -386,7 +386,7 @@ class Frankel2018(Galaxy):
 
         Returns
         -------
-        theta : `np.array`
+        phi : `np.array`
             Azimuthal angles
         """
         # if no size is given then use the class value
@@ -401,6 +401,6 @@ class Frankel2018(Galaxy):
         Z: `float/array`
             Metallicities corresponding to radii and times
         """
-        FeH = self.Fm + self.gradient * self._R - (self.Fm + self.gradient * self.Rnow)\
+        FeH = self.Fm + self.gradient * self._rho - (self.Fm + self.gradient * self.Rnow)\
             * (1 - (self._tau / self.galaxy_age))**self.gamma
         return np.power(10, 0.977 * FeH + np.log10(self.zsun))
