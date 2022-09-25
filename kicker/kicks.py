@@ -7,7 +7,7 @@ import astropy.coordinates as coords
 import astropy.units as u
 import astropy.constants as const
 
-# from kicker.galaxy import draw_lookback_times, draw_radii, draw_heights, R_exp
+from kicker.galaxy import Frankel2018
 
 from multiprocessing import Pool
 
@@ -56,7 +56,7 @@ def get_kick_differential(delta_v_sys_xyz, m_1, m_2, a):
 
 
 def integrate_orbit_with_events(w0, potential=gp.MilkyWayPotential(), events=None,
-                                rng=np.random.default_rng(), **integrate_kwargs):
+                                **integrate_kwargs):
     """Integrate PhaseSpacePosition in a potential with events that occur at certain times
 
     Parameters
@@ -238,25 +238,20 @@ def fling_binary_through_galaxy(w0, potential, lookback_time, bpp, kick_info, bi
 def evolve_binaries_in_galaxy(bpp, kick_info, galaxy_model=None,
                               galactic_potential=gp.MilkyWayPotential(),
                               dispersion=5 * u.km / u.s, max_ev_time=13.7 * u.Gyr, dt=1 * u.Myr,
-                              pool=None, nproc=1):
+                              pool=None, processes=1):
     # work out how many binaries we are going to evolve
     bin_nums = bpp["bin_num"].unique()
     n_bin = len(bin_nums)
 
+    if galaxy_model is None:
+        galaxy_model = Frankel2018(size=n_bin)
+
     vel_units = u.km / u.s
 
-    # draw random positions and birth times in the galaxy
-    # TODO: actually make this change based on the `galaxy model`
-    lookback_time = draw_lookback_times(n_bin, tm=12 * u.Gyr, tsfr=6.8 * u.Gyr, component="low_alpha_disc")
-    scale_length = R_exp(lookback_time, alpha=0.4)
-    rho = draw_radii(n_bin, R_0=scale_length)
-    scale_height = 0.3 * u.kpc
-    z = draw_heights(n_bin, z_d=scale_height)
-    phi = np.random.uniform(0, 2 * np.pi, size=n_bin) * u.rad
-
     # calculate the Galactic circular velocity at the given positions
-    x, y = rho * np.cos(phi), rho * np.sin(phi)
-    v_circ = gp.MilkyWayPotential().circular_velocity(q=[x, y, z]).to(vel_units)
+    v_circ = gp.MilkyWayPotential().circular_velocity(q=[galaxy_model.x,
+                                                         galaxy_model.y,
+                                                         galaxy_model.z]).to(vel_units)
 
     # add some velocity dispersion
     v_R, v_T, v_z = np.random.normal([np.zeros_like(v_circ), v_circ, np.zeros_like(v_circ)],
@@ -264,22 +259,22 @@ def evolve_binaries_in_galaxy(bpp, kick_info, galaxy_model=None,
     v_R, v_T, v_z = v_R * vel_units, v_T * vel_units, v_z * vel_units
 
     # turn the drawn coordinates into an astropy representation
-    rep = coords.CylindricalRepresentation(rho, phi, z)
+    rep = coords.CylindricalRepresentation(galaxy_model.rho, galaxy_model.phi, galaxy_model.z)
 
     # create differentials based on the velocities (dimensionless angles allows radians conversion)
     with u.set_enabled_equivalencies(u.dimensionless_angles()):
-        dif = coords.CylindricalDifferential(v_R, (v_T / rho).to(u.rad / u.Gyr), v_z)
+        dif = coords.CylindricalDifferential(v_R, (v_T / galaxy_model.rho).to(u.rad / u.Gyr), v_z)
 
     # combine the representation and differentials into a Gala PhaseSpacePosition
     w0s = gd.PhaseSpacePosition(rep.with_differentials(dif))
 
     # evolve the orbits from birth until present day
-    if pool is not None or nproc > 1:
+    if pool is not None or processes > 1:
         pool_existed = pool is not None
         if not pool_existed:
-            pool = Pool(nproc)
+            pool = Pool(processes)
 
-        args = [(w0s[i], galactic_potential, lookback_time[i],
+        args = [(w0s[i], galactic_potential, galaxy_model.tau[i],
                  bpp, kick_info, bin_num, max_ev_time, dt) for i, bin_num in enumerate(bin_nums)]
 
         orbits = pool.starmap(fling_binary_through_galaxy, args)
@@ -290,7 +285,7 @@ def evolve_binaries_in_galaxy(bpp, kick_info, galaxy_model=None,
         orbits = []
         for i, bin_num in enumerate(bin_nums):
             orbits.append(fling_binary_through_galaxy(w0=w0s[i], potential=galactic_potential,
-                                                      lookback_time=lookback_time[i], bpp=bpp,
+                                                      lookback_time=galaxy_model.tau[i], bpp=bpp,
                                                       kick_info=kick_info, bin_num=bin_num,
                                                       max_ev_time=max_ev_time, dt=dt))
 
