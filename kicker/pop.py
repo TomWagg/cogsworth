@@ -33,49 +33,82 @@ class Population():
                              'bhspinflag': 0, 'bhspinmag': 0.0, 'rejuv_fac': 1.0, 'rejuvflag': 0, 'htpmb': 1,
                              'ST_cr': 1, 'ST_tide': 1, 'bdecayfac': 1, 'rembar_massloss': 0.5, 'kickflag': 0,
                              'zsun': 0.014, 'bhms_coll_flag': 0, 'don_lim': -1, 'acc_lim': -1}
-        pass
+
+    @property
+    def initial_binaries(self):
+        if self._initial_binaries is None:
+            self.sample_initial_binaries()
+        return self._initial_binaries
+
+    @property
+    def mass_singles(self):
+        if self._mass_singles is None:
+            self.sample_initial_binaries()
+        return self._mass_singles
+
+    @property
+    def mass_binaries(self):
+        if self._mass_binaries is None:
+            self.sample_initial_binaries()
+        return self._mass_binaries
+
+    @property
+    def n_singles_req(self):
+        if self._n_singles_req is None:
+            self.sample_initial_binaries()
+        return self._n_singles_req
+
+    @property
+    def n_bin_req(self):
+        if self._n_bin_req is None:
+            self.sample_initial_binaries()
+        return self._n_bin_req
 
     def create_population(self, with_timing=True):
         if with_timing:
             start = time.time()
             print(f"Run for {self.n_binaries} binaries")
 
-        InitialBinaries, mass_singles, mass_binaries, n_singles,\
-            n_binaries = InitialBinaryTable.sampler('independent', self.final_kstar1, self.final_kstar2,
-                                                    binfrac_model=0.5, primary_model='kroupa01',
-                                                    ecc_model='sana12', porb_model='sana12',
-                                                    qmin=-1, SF_start=13700.0, SF_duration=0.0,
-                                                    met=0.02, size=self.n_binaries)
-
-        InitialBinaries = InitialBinaries[InitialBinaries["mass_1"] >= self.m1_cutoff]
-
-        print(f"Ended up with {len(InitialBinaries)} binaries with masses > {self.m1_cutoff} solar masses")
-
+        self.sample_initial_binaries()
         if with_timing:
+            print(f"Ended up with {len(self._initial_binaries)} binaries with masses > {self.m1_cutoff} solar masses")
             print(f"[{time.time() - start:1.0e}s] Sample binaries")
             lap = time.time()
 
-        with Pool(self.processes) as pool:
-            bpp, bcm, initC, kick_info = Evolve.evolve(initialbinarytable=InitialBinaries,
-                                                       BSEDict=self.BSE_settings, pool=pool)
+        self.pool = Pool(self.processes) if self.processes else None
+        self.perform_stellar_evolution()
+        if with_timing:
+            print(f"[{time.time() - lap:1.1f}s] Evolve binaries (run COSMIC)")
+            lap = time.time()
 
-            if with_timing:
-                print(f"[{time.time() - lap:1.1f}s] Evolve binaries (run COSMIC)")
-                lap = time.time()
-
-            orbits = kicks.evolve_binaries_in_galaxy(bpp, kick_info, pool=pool)
-
+        self._orbits = kicks.evolve_binaries_in_galaxy(self._bpp, self._kick_info, pool=self.pool)
         if with_timing:
             print(f"[{time.time() - lap:1.1f}s] Get orbits (run gala)")
+
+        if self.pool is not None:
+            self.pool.close()
+            self.pool.join()
+            self.pool = None
+
+        if with_timing:
             print(f"Overall: {time.time() - start:1.1f}s")
 
-        return bpp, kick_info, orbits
+    def sample_initial_binaries(self):
+        self._initial_binaries, self._mass_singles, self._mass_binaries, self._n_singles_req,\
+            self._n_bin_req = InitialBinaryTable.sampler('independent', self.final_kstar1, self.final_kstar2,
+                                                         binfrac_model=0.5, primary_model='kroupa01',
+                                                         ecc_model='sana12', porb_model='sana12',
+                                                         qmin=-1, SF_start=13700.0, SF_duration=0.0,
+                                                         met=0.02, size=self.n_binaries)
+        self._initial_binaries = self._initial_binaries[self._initial_binaries["mass_1"] >= self.m1_cutoff]
 
-    def sample_initial_binaries():
-        pass
     def sample_initial_galaxy():
         pass
-    def perform_stellar_evolution():
-        pass
+
+    def perform_stellar_evolution(self):
+        self._bpp, self._bcm, self._initC,\
+            self._kick_info = Evolve.evolve(initialbinarytable=self._initial_binaries,
+                                            BSEDict=self.BSE_settings, pool=self.pool)
+
     def perform_galactic_evolution():
         pass
