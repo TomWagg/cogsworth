@@ -1,5 +1,6 @@
 from cosmic.sample.initialbinarytable import InitialBinaryTable
 from cosmic.evolve import Evolve
+from kicker.galaxy import Frankel2018
 
 import kicker.kicks as kicks
 import time
@@ -8,12 +9,14 @@ from multiprocessing import Pool
 
 class Population():
     def __init__(self, n_binaries, processes=8, m1_cutoff=7, final_kstar1=list(range(14)),
-                 final_kstar2=list(range(14))):
+                 final_kstar2=list(range(14)), galaxy_model=Frankel2018):
         self.n_binaries = n_binaries
+        self.n_binaries_match = n_binaries
         self.processes = processes
         self.m1_cutoff = m1_cutoff
         self.final_kstar1 = final_kstar1
         self.final_kstar2 = final_kstar2
+        self.galaxy_model = galaxy_model
 
         self.BSE_settings = {'xi': 1.0, 'bhflag': 1, 'neta': 0.5, 'windflag': 3, 'wdflag': 1, 'alpha1': 1.0,
                              'pts1': 0.001, 'pts3': 0.02, 'pts2': 0.01, 'epsnov': 0.001, 'hewind': 0.5,
@@ -95,8 +98,8 @@ class Population():
 
         self.sample_initial_binaries()
         if with_timing:
-            print(f"Ended up with {len(self._initial_binaries)} binaries with masses > {self.m1_cutoff} solar masses")
-            print(f"[{time.time() - start:1.0e}s] Sample binaries")
+            print(f"Ended up with {self.n_binaries_match} binaries with masses > {self.m1_cutoff} solar masses")
+            print(f"[{time.time() - start:1.0e}s] Sample initial binaries")
             lap = time.time()
 
         self.pool = Pool(self.processes) if self.processes else None
@@ -125,9 +128,10 @@ class Population():
                                                          qmin=-1, SF_start=13700.0, SF_duration=0.0,
                                                          met=0.02, size=self.n_binaries)
         self._initial_binaries = self._initial_binaries[self._initial_binaries["mass_1"] >= self.m1_cutoff]
+        self.n_binaries_match = len(self._initial_binaries)
 
-    def sample_initial_galaxy():
-        pass
+        self.initial_galaxy = self.galaxy_model(size=self.n_binaries_match)
+        self._initial_binaries["metallicity"] = self.initial_galaxy.Z
 
     def perform_stellar_evolution(self):
         if self._initial_binaries is None:
