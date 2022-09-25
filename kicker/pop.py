@@ -8,6 +8,44 @@ from multiprocessing import Pool
 
 
 class Population():
+    """Class for creating and evolving populations of binaries throughout the Milky Way
+
+    Parameters
+    ----------
+    n_binaries : `int`
+        How many binaries to sample for the population
+    processes : `int`, optional
+        How many processes to run if you want multithreading, by default 8
+    m1_cutoff : `float`, optional
+        The minimum allowed primary mass, by default 7
+    final_kstar1 : `list`, optional
+        Desired final types for primary star, by default list(range(14))
+    final_kstar2 : `list`, optional
+        Desired final types for secondary star, by default list(range(14))
+    galaxy_model : `kicker.galaxy.Galaxy`, optional
+        A Galaxy class to use for sampling the initial galaxy parameters, by default kicker.galaxy.Frankel2018
+
+    Attributes
+    ----------
+    initial_binaries : `pandas.DataFrame`
+        Table of inital binaries that have been sampled
+    mass_singles : `float`
+        Total mass in single stars needed to generate population
+    mass_binaries : `float`
+        Total mass in binaries needed to generate population
+    n_singles_req : `int`
+        Number of single stars needed to generate population
+    n_bin_req : `int`
+        Number of binaries needed to generate population
+    bpp : `pandas.DataFrame`
+        Evolutionary history of each binary
+    bcm : `pandas.DataFrame`
+        Final state of each binary
+    initC : `pandas.DataFrame`
+        Initial conditions for each binary
+    kick_info : `pandas.DataFrame`
+        Information about the kicks that occur for each binary
+    """
     def __init__(self, n_binaries, processes=8, m1_cutoff=7, final_kstar1=list(range(14)),
                  final_kstar2=list(range(14)), galaxy_model=Frankel2018):
         self.n_binaries = n_binaries
@@ -92,6 +130,16 @@ class Population():
         return self._kick_info
 
     def create_population(self, with_timing=True):
+        """Create an entirely evolved population of binaries.
+
+        This will sample the initial binaries and initial galaxy and then 
+        perform both the COSMIC and Gala evolution
+
+        Parameters
+        ----------
+        with_timing : `bool`, optional
+            Whether to print messages about the timing, by default True
+        """
         if with_timing:
             start = time.time()
             print(f"Run for {self.n_binaries} binaries")
@@ -121,19 +169,28 @@ class Population():
             print(f"Overall: {time.time() - start:1.1f}s")
 
     def sample_initial_binaries(self):
+        """Sample the initial binary parameters for the population"""
         self._initial_binaries, self._mass_singles, self._mass_binaries, self._n_singles_req,\
             self._n_bin_req = InitialBinaryTable.sampler('independent', self.final_kstar1, self.final_kstar2,
                                                          binfrac_model=0.5, primary_model='kroupa01',
                                                          ecc_model='sana12', porb_model='sana12',
                                                          qmin=-1, SF_start=13700.0, SF_duration=0.0,
                                                          met=0.02, size=self.n_binaries)
+
+        # apply the mass cutoff
         self._initial_binaries = self._initial_binaries[self._initial_binaries["mass_1"] >= self.m1_cutoff]
+
+        # count how many binaries actually match the criteria (may be larger than `n_binaries` due to sampler)
         self.n_binaries_match = len(self._initial_binaries)
 
+        # initialise the initial galaxy class with correct number of binaries
         self.initial_galaxy = self.galaxy_model(size=self.n_binaries_match)
+
+        # update the metallicity of the binaries to match the galaxy
         self._initial_binaries["metallicity"] = self.initial_galaxy.Z
 
     def perform_stellar_evolution(self):
+        """Perform the (binary) stellar evolution of the sampled binaries"""
         if self._initial_binaries is None:
             print("Warning: Initial binaries not yet sampled, performing sampling now.")
             self.sample_initial_binaries()
