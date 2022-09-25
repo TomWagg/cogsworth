@@ -216,6 +216,23 @@ class Population():
         # initialise the initial galaxy class with correct number of binaries
         self.initial_galaxy = self.galaxy_model(size=self.n_binaries_match)
 
+        # work out the initial velocities of each binary
+        vel_units = u.km / u.s
+
+        # calculate the Galactic circular velocity at the initial positions
+        v_circ = self.galactic_potential.circular_velocity(q=[self.initial_galaxy.x,
+                                                              self.initial_galaxy.y,
+                                                              self.initial_galaxy.z]).to(vel_units)
+
+        # add some velocity dispersion
+        v_R, v_T, v_z = np.random.normal([np.zeros_like(v_circ), v_circ, np.zeros_like(v_circ)],
+                                         self.v_dispersion.to(vel_units) / np.sqrt(3),
+                                         size=(3, self.n_binaries_match))
+        v_R, v_T, v_z = v_R * vel_units, v_T * vel_units, v_z * vel_units
+        self.initial_galaxy.v_R = v_R
+        self.initial_galaxy.v_T = v_T
+        self.initial_galaxy.v_z = v_z
+
         # update the metallicity of the binaries to match the galaxy
         self._initial_binaries["metallicity"] = self.initial_galaxy.Z
 
@@ -231,19 +248,6 @@ class Population():
     def perform_galactic_evolution(self):
         # work out how many binaries we are going to evolve
         bin_nums = self._bpp["bin_num"].unique()
-        n_bin = len(bin_nums)
-
-        vel_units = u.km / u.s
-
-        # calculate the Galactic circular velocity at the given positions
-        v_circ = self.galactic_potential.circular_velocity(q=[self.initial_galaxy.x,
-                                                              self.initial_galaxy.y,
-                                                              self.initial_galaxy.z]).to(vel_units)
-
-        # add some velocity dispersion
-        v_R, v_T, v_z = np.random.normal([np.zeros_like(v_circ), v_circ, np.zeros_like(v_circ)],
-                                         self.v_dispersion.to(vel_units) / np.sqrt(3), size=(3, n_bin))
-        v_R, v_T, v_z = v_R * vel_units, v_T * vel_units, v_z * vel_units
 
         # turn the drawn coordinates into an astropy representation
         rep = coords.CylindricalRepresentation(self.initial_galaxy.rho,
@@ -252,7 +256,10 @@ class Population():
 
         # create differentials based on the velocities (dimensionless angles allows radians conversion)
         with u.set_enabled_equivalencies(u.dimensionless_angles()):
-            dif = coords.CylindricalDifferential(v_R, (v_T / self.initial_galaxy.rho).to(u.rad / u.Gyr), v_z)
+            dif = coords.CylindricalDifferential(self.initial_galaxy.v_R,
+                                                 (self.initial_galaxy.v_T
+                                                  / self.initial_galaxy.rho).to(u.rad / u.Gyr),
+                                                 self.initial_galaxy.v_z)
 
         # combine the representation and differentials into a Gala PhaseSpacePosition
         w0s = gd.PhaseSpacePosition(rep.with_differentials(dif))
