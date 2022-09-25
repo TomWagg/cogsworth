@@ -64,6 +64,30 @@ class Population():
             self.sample_initial_binaries()
         return self._n_bin_req
 
+    @property
+    def bpp(self):
+        if self._bpp is None:
+            self.perform_stellar_evolution()
+        return self._bpp
+
+    @property
+    def bcm(self):
+        if self._bcm is None:
+            self.perform_stellar_evolution()
+        return self._bcm
+
+    @property
+    def initC(self):
+        if self._initC is None:
+            self.perform_stellar_evolution()
+        return self._initC
+
+    @property
+    def kick_info(self):
+        if self._kick_info is None:
+            self.perform_stellar_evolution()
+        return self._kick_info
+
     def create_population(self, with_timing=True):
         if with_timing:
             start = time.time()
@@ -106,6 +130,9 @@ class Population():
         pass
 
     def perform_stellar_evolution(self):
+        if self._initial_binaries is None:
+            print("Warning: Initial binaries not yet sampled, performing sampling now.")
+            self.sample_initial_binaries()
         self._bpp, self._bcm, self._initC,\
             self._kick_info = Evolve.evolve(initialbinarytable=self._initial_binaries,
                                             BSEDict=self.BSE_settings, pool=self.pool)
