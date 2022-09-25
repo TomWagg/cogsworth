@@ -52,7 +52,7 @@ def get_kick_differential(delta_v_sys_xyz, m_1, m_2, a):
 
 
 def integrate_orbit_with_events(w0, potential=gp.MilkyWayPotential(), events=None,
-                                **integrate_kwargs):
+                                t1=None, t2=None, dt=None):
     """Integrate PhaseSpacePosition in a potential with events that occur at certain times
 
     Parameters
@@ -74,10 +74,16 @@ def integrate_orbit_with_events(w0, potential=gp.MilkyWayPotential(), events=Non
     """
     # if there are no events then just integrate the whole thing
     if events is None:
-        return potential.integrate_orbit(w0, **integrate_kwargs)
+        return potential.integrate_orbit(w0, t1=t1, t2=t2, dt=dt)
+
+    # if there are two lists (due to a disruption) then recursively call the function
+    if isinstance(events[0], list):
+        assert len(events) == 2
+        return [integrate_orbit_with_events(w0=w0, potential=potential, events=events[i],
+                                            t1=t1, t2=t2, dt=dt) for i in range(len(events))]
 
     # work out what the timesteps would be without kicks
-    timesteps = gi.parse_time_specification(units=[u.s], **integrate_kwargs) * u.s
+    timesteps = gi.parse_time_specification(units=[u.s], t1=t1, t2=t2, dt=dt) * u.s
 
     # start the cursor at the smallest timestep
     time_cursor = timesteps[0]
@@ -134,98 +140,3 @@ def integrate_orbit_with_events(w0, potential=gp.MilkyWayPotential(), events=Non
 
     return full_orbit
 
-
-def fling_binary_through_galaxy(w0, potential, lookback_time, bpp, kick_info, bin_num,
-                                max_ev_time=13.7 * u.Gyr, dt=1 * u.Myr):
-    """Evolve the orbit of a binary through the Galaxy using information from COSMIC bpp and kick info tables
-
-    Parameters
-    ----------
-    w0 : `gala.dynamics.PhaseSpacePosition`
-        Phase space position of the binary
-    potential : `gala.potential.PotentialBase`
-        Galactic potential
-    lookback_time : `float`
-        Lookback time of binary
-    bpp : `Pandas DataFrame`
-        Table of evolution phase events from COSMIC
-    kick_info : `Pandas DataFrame`
-        Table of information about kicks from COSMIC
-    bin_num : `int`
-        Binary number of binary in COSMIC tables
-    max_ev_time : `float`, optional
-        Maximum evolution time in COSMIC simulation, by default 13.7*u.Gyr
-    dt : `float`, optional
-        Timestep size for integration, by default 1*u.Myr
-
-    Returns
-    -------
-    orbit(s) : `gala.dynamics.Orbit or list`
-        Either a single orbit of the binary or a list of two orbits (one for each star)
-    """
-    # reduce tables to just the given binary
-    bpp = bpp.loc[bin_num]
-    kick_info = kick_info.loc[bin_num]
-    kick_info = kick_info[kick_info["star"] > 0.0]
-
-    # mask for the rows that contain supernova events
-    supernova_event_rows = bpp["evol_type"].isin([15, 16])
-
-    # if no supernova occurs then just do regular orbit integration
-    if not supernova_event_rows.any():
-        return potential.integrate_orbit(w0, t1=lookback_time, t2=max_ev_time, dt=dt)
-
-    # reduce to just the supernova rows and ensure we have the same length in each table
-    bpp = bpp[supernova_event_rows]
-    assert len(kick_info) == len(bpp)
-
-    # check if the the binary is going to disrupt at any point
-    it_will_disrupt = (kick_info["disrupted"] == 1.0).any()
-
-    # iterate over the kick file and store the relevant information (for both stars if disruption will occur)
-    if it_will_disrupt:
-        events_1, events_2 = [], []
-        for i in range(len(kick_info)):
-            default_event = {
-                "time": lookback_time + bpp.iloc[i]["tphys"] * u.Myr,
-                "m_1": bpp.iloc[i]["mass_1"] * u.Msun,
-                "m_2": bpp.iloc[i]["mass_2"] * u.Msun,
-                "a": bpp.iloc[i]["sep"] * u.Rsun,
-                "ecc": bpp.iloc[i]["ecc"],
-                "delta_v_sys_xyz": [kick_info.iloc[i]["delta_vsysx_1"],
-                                    kick_info.iloc[i]["delta_vsysy_1"],
-                                    kick_info.iloc[i]["delta_vsysz_1"]] * u.km / u.s
-            }
-            if kick_info.iloc[i]["disrupted"] == 1.0:
-                events_1.append(default_event)
-                events_2.append({
-                    "time": lookback_time + bpp.iloc[i]["tphys"] * u.Myr,
-                    "m_1": bpp.iloc[i]["mass_1"] * u.Msun,
-                    "m_2": bpp.iloc[i]["mass_2"] * u.Msun,
-                    "a": bpp.iloc[i]["sep"] * u.Rsun,
-                    "ecc": bpp.iloc[i]["ecc"],
-                    "delta_v_sys_xyz": [kick_info.iloc[i]["delta_vsysx_2"],
-                                        kick_info.iloc[i]["delta_vsysy_2"],
-                                        kick_info.iloc[i]["delta_vsysz_2"]] * u.km / u.s
-                })
-            else:
-                events_1.append(default_event)
-                events_2.append(default_event)
-        return [integrate_orbit_with_events(w0, potential=potential, events=events_1,
-                                            t1=lookback_time, t2=max_ev_time, dt=dt),
-                integrate_orbit_with_events(w0, potential=potential, events=events_2,
-                                            t1=lookback_time, t2=max_ev_time, dt=dt)]
-
-    else:
-        events = [{
-            "time": lookback_time + bpp.iloc[i]["tphys"] * u.Myr,
-            "m_1": bpp.iloc[i]["mass_1"] * u.Msun,
-            "m_2": bpp.iloc[i]["mass_2"] * u.Msun,
-            "a": bpp.iloc[i]["sep"] * u.Rsun,
-            "ecc": bpp.iloc[i]["ecc"],
-            "delta_v_sys_xyz": [kick_info.iloc[i]["delta_vsysx_1"],
-                                kick_info.iloc[i]["delta_vsysy_1"],
-                                kick_info.iloc[i]["delta_vsysz_1"]] * u.km / u.s
-        } for i in range(len(kick_info))]
-        return integrate_orbit_with_events(w0, potential=potential, events=events,
-                                           t1=lookback_time, t2=max_ev_time, dt=dt)

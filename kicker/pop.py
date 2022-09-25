@@ -10,7 +10,8 @@ import gala.potential as gp
 import gala.dynamics as gd
 
 from kicker.galaxy import Frankel2018
-from kicker.kicks import fling_binary_through_galaxy
+from kicker.kicks import integrate_orbit_with_events
+from kicker.events import identify_events
 
 
 class Population():
@@ -78,6 +79,7 @@ class Population():
         self.v_dispersion = v_dispersion
         self.max_ev_time = max_ev_time
         self.timestep_size = timestep_size
+        self.pool = None
 
         # TODO: give users access to changing these settings
         self.BSE_settings = {'xi': 1.0, 'bhflag': 1, 'neta': 0.5, 'windflag': 3, 'wdflag': 1, 'alpha1': 1.0,
@@ -241,14 +243,20 @@ class Population():
         if self._initial_binaries is None:
             print("Warning: Initial binaries not yet sampled, performing sampling now.")
             self.sample_initial_binaries()
+
+        no_pool_existed = self.pool is None and self.processes > 1
+        if no_pool_existed:
+            self.pool = Pool(self.processes)
+
         self._bpp, self._bcm, self._initC,\
             self._kick_info = Evolve.evolve(initialbinarytable=self._initial_binaries,
                                             BSEDict=self.BSE_settings, pool=self.pool)
 
-    def perform_galactic_evolution(self):
-        # work out how many binaries we are going to evolve
-        bin_nums = self._bpp["bin_num"].unique()
+        if no_pool_existed:
+            self.pool.close()
+            self.pool.join()
 
+    def perform_galactic_evolution(self):
         # turn the drawn coordinates into an astropy representation
         rep = coords.CylindricalRepresentation(self.initial_galaxy.rho,
                                                self.initial_galaxy.phi,
@@ -264,27 +272,35 @@ class Population():
         # combine the representation and differentials into a Gala PhaseSpacePosition
         w0s = gd.PhaseSpacePosition(rep.with_differentials(dif))
 
-        # evolve the orbits from birth until present day
+        # identify the pertinent events in the evolution
+        events = identify_events(lookback_times=self.initial_galaxy.tau, full_bpp=self.bpp,
+                                 full_kick_info=self.kick_info)
+
+        # if we want to use multiprocessing
         if self.pool is not None or self.processes > 1:
+            # track whether a pool already existed
             pool_existed = self.pool is not None
+
+            # if not, create one
             if not pool_existed:
                 self.pool = Pool(self.processes)
 
-            args = [(w0s[i], self.galactic_potential, self.initial_galaxy.tau[i],
-                     self.bpp, self.kick_info, bin_num,
-                     self.max_ev_time, self.timestep_size) for i, bin_num in enumerate(bin_nums)]
+            # setup arguments and evolve the orbits from birth until present day
+            args = [(w0s[i], self.galactic_potential, events[i],
+                     self.initial_galaxy.tau[i], self.max_ev_time,
+                     self.timestep_size) for i in range(self.n_binaries_match)]
+            orbits = self.pool.starmap(integrate_orbit_with_events, args)
 
-            orbits = self.pool.starmap(fling_binary_through_galaxy, args)
+            # if a pool didn't exist before then close the one just created
             if not pool_existed:
                 self.pool.close()
                 self.pool.join()
         else:
+            # otherwise just use a for loop to evolve the orbits from birth until present day
             orbits = []
-            for i, bin_num in enumerate(bin_nums):
-                orbits.append(fling_binary_through_galaxy(w0=w0s[i], potential=self.galactic_potential,
-                                                          lookback_time=self.initial_galaxy.tau[i],
-                                                          bpp=self.bpp, kick_info=self.kick_info,
-                                                          bin_num=bin_num, max_ev_time=self.max_ev_time,
-                                                          dt=self.timestep_size))
+            for i in range(self.n_binaries_match):
+                orbits.append(integrate_orbit_with_events(w0=w0s[i], potential=self.galactic_potential,
+                                                          events=events[i], t1=self.initial_galaxy.tau[i],
+                                                          t2=self.max_ev_time, dt=self.timestep_size))
 
         self._orbits = orbits
