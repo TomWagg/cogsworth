@@ -80,7 +80,6 @@ class Population():
         self.max_ev_time = max_ev_time
         self.timestep_size = timestep_size
         self.pool = None
-        self.test = False
 
         # TODO: give users access to changing these settings
         self.BSE_settings = {'xi': 1.0, 'bhflag': 1, 'neta': 0.5, 'windflag': 3, 'wdflag': 1, 'alpha1': 1.0,
@@ -238,12 +237,10 @@ class Population():
 
         # update the metallicity and birth times of the binaries to match the galaxy
         self._initial_binaries["metallicity"] = self.initial_galaxy.Z
+        self._initial_binaries["tphysf"] = (self.max_ev_time - self.initial_galaxy.tau).to(u.Myr).value
 
     def perform_stellar_evolution(self):
         """Perform the (binary) stellar evolution of the sampled binaries"""
-
-        if self.test:
-            self._initial_binaries["tphys"] = (self.max_ev_time - self.initial_galaxy.tau).to(u.Myr).value
         if self._initial_binaries is None:
             print("Warning: Initial binaries not yet sampled, performing sampling now.")
             self.sample_initial_binaries()
