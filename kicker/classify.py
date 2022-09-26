@@ -2,29 +2,71 @@ import pandas as pd
 import astropy.units as u
 
 
-def determine_final_class(population=None, bpp=None, bcm=None, kick_info=None, orbits=None, potential=None):
+def determine_final_classes(population=None, bpp=None, bcm=None, kick_info=None, orbits=None, potential=None):
+    """Determine the classes of each member of a population at the last point in the evolution (usually
+    present day).
+
+    Either supply a Population class or each individual table separately
+
+    Parameters
+    ----------
+    population : `pop.Population`, optional
+        A full population class created from the pop module, by default None
+    bpp : `pandas.DataFrame`
+        Evolutionary history of each binary
+    bcm : `pandas.DataFrame`
+        Final state of each binary
+    initC : `pandas.DataFrame`
+        Initial conditions for each binary
+    kick_info : `pandas.DataFrame`
+        Information about the kicks that occur for each binary
+    orbits : `list of gala.dynamics.Orbit`
+        The orbits of each binary within the galaxy. Disrupted binaries should have two entries
+        (for both stars).
+    galactic_potential : `gala.potential.PotentialBase`, optional
+        Galactic potential to use for evolving the orbits of binaries
+
+    Returns
+    -------
+    classes : `list`
+        A list of classes pertaining to each binary. Each entry will either be a list of strings that apply
+        (see `list_classes` for options) or None if there are no matching classes.
+
+    Raises
+    ------
+    ValueError
+        If either `population` is None OR any another parameter is None
+    """
+    # ensure that there's enough input
     if population is None and (bpp is None or bcm is None or kick_info is None
                                or orbits is None or potential is None):
         raise ValueError("Either `population` must be supplied or all other parameters")
 
+    # split up the input so that I can use a single interface
     if population is not None:
         bpp, bcm, kick_info, orbits, potential = population.bpp, population.bcm, population.kick_info,\
             population.orbits, population.galactic_potential
 
+    # get the binary indices and also reduce the tables to just the final row in each
     bin_nums = bpp["bin_num"].unique()
-
-    classes = [None for _ in range(len(bin_nums))]
     final_bpp = bpp[~bpp.index.duplicated(keep="last")]
     final_bcm = bcm[~bcm.index.duplicated(keep="last")]
 
+    # set up an empty class list
+    classes = [None for _ in range(len(bin_nums))]
+
+    # go through each binary in the population
     for i, bin_num in enumerate(bin_nums):
+        # set up class list for this binary and get the bpp row for just this binary
         binary_classes = []
         this_bpp = final_bpp.loc[bin_num]
 
+        # check the binary state
         bound = this_bpp["sep"] > 0.0
         merger = this_bpp["sep"] == 0.0
         disrupted = this_bpp["sep"] == -1.0
 
+        # check the state of the primary/secondary stars
         primary_is_star = this_bpp["kstar_1"] <= 9
         primary_is_wd = this_bpp["kstar_1"] in [10, 11, 12]
         primary_is_bh_ns = this_bpp["kstar_1"] in [13, 14]
@@ -40,6 +82,8 @@ def determine_final_class(population=None, bpp=None, bcm=None, kick_info=None, o
             if secondary_is_bh_ns and primary_is_wd:
                 binary_classes.append("co-2")
             if (primary_is_bh_ns and secondary_is_star) or (secondary_is_bh_ns and primary_is_star):
+                # TODO: improve this, maybe with this paper:
+                # https://ui.adsabs.harvard.edu/abs/2022arXiv220905505M/abstract
                 binary_classes.append("xrb")
 
         if disrupted:
@@ -89,9 +133,9 @@ def determine_final_class(population=None, bpp=None, bcm=None, kick_info=None, o
         # check for any compact objects coming from mergers
         if merger:
             if primary_is_bh_ns:
-                binary_classes.append("merger-co-1")
+                binary_classes.append("stellar-merger-co-1")
             if secondary_is_bh_ns:
-                binary_classes.append("merger-co-2")
+                binary_classes.append("stellar-merger-co-2")
 
         # look for pisn
         if final_bcm["SN_1"].loc[bin_num] in [6, 7]:
@@ -106,6 +150,7 @@ def determine_final_class(population=None, bpp=None, bcm=None, kick_info=None, o
 
 
 def list_classes():
+    """List out the available classes that are used in other functions"""
     classes = [
         {
             "name": "runaway-t",
@@ -148,7 +193,7 @@ def list_classes():
             "condition": ("Any compact object or binary containing a compact object")
         },
         {
-            "name": "merger-co",
+            "name": "stellar-merger-co",
             "full_name": "Compact object from merger",
             "condition": ("Any compact object resulting from a stellar merger")
         },
@@ -175,34 +220,3 @@ def list_classes():
     for c in classes:
         print(f'{c["full_name"]} ({c["name"]})')
         print(f'    {c["condition"]}\n')
-
-
-# theory runaway
-## If the star is moving faster than 30km/s after the disruptive supernova
-
-# observed runaway
-## Relative galactic velocity > 30km/s
-
-# walkaway same as runaway but 0-30km/s
-
-# widowed star
-## the companion to a CO
-
-# single CO
-
-# binary with CO
-
-# xrb
-# any star + CO
-
-# double compact object
-
-# any companion to type 15 that used to be white dwarf
-
-# check about PISN
-## BCM SN_1 column
-
-
-
-
-# https://ui.adsabs.harvard.edu/abs/2022arXiv220905505M/abstract
