@@ -72,72 +72,85 @@ def integrate_orbit_with_events(w0, potential=gp.MilkyWayPotential(), events=Non
     full_orbit : `ga.orbit.Orbit`
         Orbit that have been integrated
     """
-    # if there are no events then just integrate the whole thing
-    if events is None:
-        return potential.integrate_orbit(w0, t1=t1, t2=t2, dt=dt, Integrator=gi.DOPRI853Integrator)
-
     # if there are two lists (due to a disruption) then recursively call the function
-    if isinstance(events[0], list):
+    if events is not None and isinstance(events[0], list):
         assert len(events) == 2
         return [integrate_orbit_with_events(w0=w0, potential=potential, events=events[i],
                                             t1=t1, t2=t2, dt=dt) for i in range(len(events))]
+    MAX_DT_RESIZE = 10
+    for n in range(MAX_DT_RESIZE):
+        try:
+            success = False
+            # if there are no events then just integrate the whole thing
+            if events is None:
+                return potential.integrate_orbit(w0, t1=t1, t2=t2, dt=dt, Integrator=gi.DOPRI853Integrator)
 
-    # work out what the timesteps would be without kicks
-    timesteps = gi.parse_time_specification(units=[u.s], t1=t1, t2=t2, dt=dt) * u.s
+            # work out what the timesteps would be without kicks
+            timesteps = gi.parse_time_specification(units=[u.s], t1=t1, t2=t2, dt=dt) * u.s
 
-    # start the cursor at the smallest timestep
-    time_cursor = timesteps[0]
-    current_w0 = w0
+            # start the cursor at the smallest timestep
+            time_cursor = timesteps[0]
+            current_w0 = w0
 
-    # keep track of the orbit data throughout
-    orbit_data = []
+            # keep track of the orbit data throughout
+            orbit_data = []
 
-    # loop over the events
-    for event in events:
-        # find the timesteps that occur before the kick
-        timestep_mask = (timesteps >= time_cursor) & (timesteps < event["time"])
+            # loop over the events
+            for event in events:
+                # find the timesteps that occur before the kick
+                timestep_mask = (timesteps >= time_cursor) & (timesteps < event["time"])
 
-        # if any of them occur before the kick then do some integration
-        if any(timestep_mask):
-            matching_timesteps = timesteps[timestep_mask]
+                # if any of them occur before the kick then do some integration
+                if any(timestep_mask):
+                    matching_timesteps = timesteps[timestep_mask]
 
-            # integrate the orbit over these timesteps
-            orbit = potential.integrate_orbit(current_w0, t=matching_timesteps,
-                                              Integrator=gi.DOPRI853Integrator)
+                    # integrate the orbit over these timesteps
+                    orbit = potential.integrate_orbit(current_w0, t=matching_timesteps,
+                                                    Integrator=gi.DOPRI853Integrator)
 
-            # save the orbit data
-            orbit_data.append(orbit.data)
+                    # save the orbit data
+                    orbit_data.append(orbit.data)
 
-            # get new PhaseSpacePosition(s)
-            current_w0 = orbit[-1]
+                    # get new PhaseSpacePosition(s)
+                    current_w0 = orbit[-1]
 
-        # adjust the time
-        time_cursor = event["time"]
+                # adjust the time
+                time_cursor = event["time"]
 
-        # calculate the kick differential
-        kick_differential = get_kick_differential(delta_v_sys_xyz=event["delta_v_sys_xyz"],
-                                                  m_1=event["m_1"], m_2=event["m_2"], a=event["a"])
+                # calculate the kick differential
+                kick_differential = get_kick_differential(delta_v_sys_xyz=event["delta_v_sys_xyz"],
+                                                        m_1=event["m_1"], m_2=event["m_2"], a=event["a"])
 
-        # update the velocity of the current PhaseSpacePosition
-        current_w0 = gd.PhaseSpacePosition(pos=current_w0.pos,
-                                           vel=current_w0.vel + kick_differential,
-                                           frame=current_w0.frame)
+                # update the velocity of the current PhaseSpacePosition
+                current_w0 = gd.PhaseSpacePosition(pos=current_w0.pos,
+                                                vel=current_w0.vel + kick_differential,
+                                                frame=current_w0.frame)
 
-    # if we still have time left after the last event (very likely)
-    if time_cursor < timesteps[-1]:
-        # evolve the rest of the orbit out
-        matching_timesteps = timesteps[timesteps >= time_cursor]
-        orbit = potential.integrate_orbit(current_w0, t=matching_timesteps, Integrator=gi.DOPRI853Integrator)
-        orbit_data.append(orbit.data)
+            # if we still have time left after the last event (very likely)
+            if time_cursor < timesteps[-1]:
+                # evolve the rest of the orbit out
+                matching_timesteps = timesteps[timesteps >= time_cursor]
+                orbit = potential.integrate_orbit(current_w0, t=matching_timesteps, Integrator=gi.DOPRI853Integrator)
+                orbit_data.append(orbit.data)
 
-    if len(orbit_data) > 1:
-        orbit_data = coords.concatenate_representations(orbit_data)
-    else:
-        orbit_data = orbit_data[0]
+            if len(orbit_data) > 1:
+                orbit_data = coords.concatenate_representations(orbit_data)
+            else:
+                orbit_data = orbit_data[0]
 
-    full_orbit = gd.orbit.Orbit(pos=orbit_data.without_differentials(),
-                                vel=orbit_data.differentials["s"],
-                                t=timesteps.to(u.Myr))
+            full_orbit = gd.orbit.Orbit(pos=orbit_data.without_differentials(),
+                                        vel=orbit_data.differentials["s"],
+                                        t=timesteps.to(u.Myr))
+            success = True
+            break
+
+        except Exception:
+            dt /= 8.
+
+    if not success:
+        print(w0.pos, w0.vel)
+        print(t1)
+        print(events)
+        raise RuntimeError("Hit max number of dt resizes: this orbit is, to put it mildly, not doing well")
 
     return full_orbit
-
