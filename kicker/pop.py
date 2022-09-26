@@ -12,6 +12,7 @@ import gala.dynamics as gd
 from kicker.galaxy import Frankel2018
 from kicker.kicks import integrate_orbit_with_events
 from kicker.events import identify_events
+from kicker.classify import determine_final_classes
 
 
 class Population():
@@ -63,6 +64,9 @@ class Population():
     orbits : `list of gala.dynamics.Orbit`
         The orbits of each binary within the galaxy from its birth until `self.max_ev_time` with timesteps of
         `self.timestep_size`. Note that disrupted binaries will have two entries (for both stars).
+    classes : `list`
+        The classes associated with each produced binary (see classify.list_classes for a list of available
+        classes and their meanings)
     """
     def __init__(self, n_binaries, processes=8, m1_cutoff=7, final_kstar1=list(range(14)),
                  final_kstar2=list(range(14)), galaxy_model=Frankel2018,
@@ -80,6 +84,18 @@ class Population():
         self.max_ev_time = max_ev_time
         self.timestep_size = timestep_size
         self.pool = None
+
+        self._initial_binaries = None
+        self._mass_singles = None
+        self._mass_binaries = None
+        self._n_singles_req = None
+        self._n_bin_req = None
+        self._bpp = None
+        self._bcm = None
+        self._initC = None
+        self._kick_info = None
+        self._orbits = None
+        self._classes = None
 
         # TODO: give users access to changing these settings
         self.BSE_settings = {'xi': 1.0, 'bhflag': 1, 'neta': 0.5, 'windflag': 3, 'wdflag': 1, 'alpha1': 1.0,
@@ -160,6 +176,12 @@ class Population():
         if self._orbits is None:
             self.perform_galactic_evolution()
         return self._orbits
+
+    @property
+    def classes(self):
+        if self._classes is None:
+            self._classes = determine_final_classes(population=self)
+        return self._classes
 
     def create_population(self, with_timing=True):
         """Create an entirely evolved population of binaries.
