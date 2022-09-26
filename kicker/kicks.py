@@ -74,7 +74,7 @@ def integrate_orbit_with_events(w0, potential=gp.MilkyWayPotential(), events=Non
     """
     # if there are no events then just integrate the whole thing
     if events is None:
-        return potential.integrate_orbit(w0, t1=t1, t2=t2, dt=dt)
+        return potential.integrate_orbit(w0, t1=t1, t2=t2, dt=dt, Integrator=gi.DOPRI853Integrator)
 
     # if there are two lists (due to a disruption) then recursively call the function
     if isinstance(events[0], list):
@@ -102,7 +102,8 @@ def integrate_orbit_with_events(w0, potential=gp.MilkyWayPotential(), events=Non
             matching_timesteps = timesteps[timestep_mask]
 
             # integrate the orbit over these timesteps
-            orbit = potential.integrate_orbit(current_w0, t=matching_timesteps)
+            orbit = potential.integrate_orbit(current_w0, t=matching_timesteps,
+                                              Integrator=gi.DOPRI853Integrator)
 
             # save the orbit data
             orbit_data.append(orbit.data)
@@ -126,7 +127,7 @@ def integrate_orbit_with_events(w0, potential=gp.MilkyWayPotential(), events=Non
     if time_cursor < timesteps[-1]:
         # evolve the rest of the orbit out
         matching_timesteps = timesteps[timesteps >= time_cursor]
-        orbit = potential.integrate_orbit(current_w0, t=matching_timesteps)
+        orbit = potential.integrate_orbit(current_w0, t=matching_timesteps, Integrator=gi.DOPRI853Integrator)
         orbit_data.append(orbit.data)
 
     if len(orbit_data) > 1:
