@@ -105,10 +105,10 @@ def determine_final_classes(population=None, bpp=None, bcm=None, kick_info=None,
     rel_speed_2 = _get_rel_speed(orbits=orbits[disrupted], potential=potential, which_star=1)
 
     # set the classes based on the relative speeds (non-disrupted as all left as False by default)
-    classes["walkaway-o-1"][disrupted] = rel_speed_1 < 30.0 & primary_is_star
-    classes["walkaway-o-2"][disrupted] = rel_speed_2 < 30.0 & secondary_is_star
-    classes["runaway-o-1"][disrupted] = rel_speed_1 >= 30.0 & primary_is_star
-    classes["runaway-o-2"][disrupted] = rel_speed_2 >= 30.0 & secondary_is_star
+    classes.loc[disrupted, "walkaway-o-1"] = (rel_speed_1 < 30.0) & primary_is_star[disrupted]
+    classes.loc[disrupted, "walkaway-o-2"] = (rel_speed_2 < 30.0) & secondary_is_star[disrupted]
+    classes.loc[disrupted, "runaway-o-1"] = (rel_speed_1 >= 30.0) & primary_is_star[disrupted]
+    classes.loc[disrupted, "runaway-o-2"] = (rel_speed_2 >= 30.0) & secondary_is_star[disrupted]
 
     return classes
 
