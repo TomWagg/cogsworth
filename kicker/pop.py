@@ -5,13 +5,14 @@ import numpy as np
 import astropy.units as u
 import astropy.coordinates as coords
 import h5py as h5
+import pandas as pd
 
 from cosmic.sample.initialbinarytable import InitialBinaryTable
 from cosmic.evolve import Evolve
 import gala.potential as gp
 import gala.dynamics as gd
 
-from kicker.galaxy import Frankel2018
+from kicker import galaxy
 from kicker.kicks import integrate_orbit_with_events
 from kicker.events import identify_events
 from kicker.classify import determine_final_classes
@@ -71,7 +72,7 @@ class Population():
         classes and their meanings)
     """
     def __init__(self, n_binaries, processes=8, m1_cutoff=7, final_kstar1=list(range(14)),
-                 final_kstar2=list(range(14)), galaxy_model=Frankel2018,
+                 final_kstar2=list(range(14)), galaxy_model=galaxy.Frankel2018,
                  galactic_potential=gp.MilkyWayPotential(), v_dispersion=5 * u.km / u.s,
                  max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr):
         self.n_binaries = n_binaries
@@ -345,7 +346,7 @@ class Population():
         self.initC.to_hdf(file_name, key="initC")
         self.kick_info.to_hdf(file_name, key="kick_info")
 
-        self.galactic_potential.save(f"{file_name.replace('.h5', '-potential.txt')}")
+        self.galactic_potential.save(file_name.replace('.h5', '-potential.txt'))
         self.initial_galaxy.save(file_name, key="initial_galaxy")
         np.save(file_name.replace(".h5", "-orbits.npy"), np.array(self.orbits, dtype="object"))
 
@@ -359,3 +360,36 @@ class Population():
 
             k_stars = np.array([self.final_kstar1, self.final_kstar2])
             file.create_dataset("k_stars", data=k_stars)
+
+
+def load(file_name):
+    if file_name[-3:] != ".h5":
+        file_name += ".h5"
+    with h5.File(file_name, "r") as file:
+        numeric_params = file["numeric_params"][...]
+        k_stars = file["k_stars"][...]
+
+    initial_galaxy = galaxy.load(file_name, key="initial_galaxy")
+    galactic_potential = gp.potential.load(file_name.replace('.h5', '-potential.txt'))
+
+    p = Population(n_binaries=numeric_params[0], processes=numeric_params[2], m1_cutoff=numeric_params[3],
+                   final_kstar1=k_stars[0], final_kstar2=k_stars[1],
+                   galaxy_model=initial_galaxy.__class__.__name__, galactic_potential=galactic_potential,
+                   v_dispersion=numeric_params[4] * u.km / u.s, max_ev_time=numeric_params[5] * u.Gyr,
+                   timestep_size=numeric_params[6] * u.Myr)
+
+    p.n_binaries_match = numeric_params[1]
+    p._mass_singles = numeric_params[7]
+    p._mass_binaries = numeric_params[8]
+    p._n_singles_req = numeric_params[9]
+    p._n_bin_req = numeric_params[10]
+
+    p._initial_binaries = pd.read_hdf(file_name, key="initial_binaries")
+    p._bpp = pd.read_hdf(file_name, key="bpp")
+    p._bcm = pd.read_hdf(file_name, key="bcm")
+    p._initC = pd.read_hdf(file_name, key="initC")
+    p._kick_info = pd.read_hdf(file_name, key="kick_info")
+
+    p._orbits = np.load(file_name.replace(".h5", "-orbits.npy"), allow_pickle=True)
+
+    return p

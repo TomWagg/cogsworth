@@ -73,8 +73,6 @@ class Galaxy():
         self._x = None
         self._y = None
 
-        print(self._x)
-
         if immediately_sample:
             self.sample()
 
@@ -487,7 +485,7 @@ def load(file_name, key="galaxy"):
         file_name += ".h5"
 
     # load the parameters back in using yaml
-    with open(file_name.replace(".h5", ".txt"), "r") as file:
+    with open(file_name.replace(".h5", "-galaxy-params.txt"), "r") as file:
         params = yaml.load(file.read(), Loader=yaml.Loader)
 
     # get the current module, get a class using the name, delete it from parameters that will be passed
@@ -519,7 +517,7 @@ def load(file_name, key="galaxy"):
 
 
 def simplify_params(params, dont_save=["_tau", "_Z", "_z", "_rho", "_phi", "_Dg",
-                                       "_D", "_x", "_y", "_which_comp"]):
+                                       "_D", "_x", "_y", "_which_comp", "v_R", "v_T", "v_z"]):
     # delete any keys that we don't want to save
     delete_keys = [key for key in params.keys() if key in dont_save]
     for key in delete_keys:
