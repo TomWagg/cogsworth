@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import astropy.units as u
 
 
@@ -145,6 +146,102 @@ def determine_final_classes(population=None, bpp=None, bcm=None, kick_info=None,
 
         # either add the classes or just leave it as None if there weren't any
         classes[i] = binary_classes if binary_classes != [] else None
+
+    return classes
+
+
+def determine_final_classes_pandas(population=None, bpp=None, bcm=None, kick_info=None, orbits=None, potential=None):
+    """Determine the classes of each member of a population at the last point in the evolution (usually
+    present day).
+
+    Either supply a Population class or each individual table separately
+
+    Parameters
+    ----------
+    population : `pop.Population`, optional
+        A full population class created from the pop module, by default None
+    bpp : `pandas.DataFrame`
+        Evolutionary history of each binary
+    bcm : `pandas.DataFrame`
+        Final state of each binary
+    initC : `pandas.DataFrame`
+        Initial conditions for each binary
+    kick_info : `pandas.DataFrame`
+        Information about the kicks that occur for each binary
+    orbits : `list of gala.dynamics.Orbit`
+        The orbits of each binary within the galaxy. Disrupted binaries should have two entries
+        (for both stars).
+    galactic_potential : `gala.potential.PotentialBase`, optional
+        Galactic potential to use for evolving the orbits of binaries
+
+    Returns
+    -------
+    classes : `list`
+        A list of classes pertaining to each binary. Each entry will either be a list of strings that apply
+        (see `list_classes` for options) or None if there are no matching classes.
+
+    Raises
+    ------
+    ValueError
+        If either `population` is None OR any another parameter is None
+    """
+    # ensure that there's enough input
+    if population is None and (bpp is None or bcm is None or kick_info is None
+                               or orbits is None or potential is None):
+        raise ValueError("Either `population` must be supplied or all other parameters")
+
+    # split up the input so that I can use a single interface
+    if population is not None:
+        bpp, bcm, kick_info, orbits, potential = population.bpp, population.bcm, population.kick_info,\
+            population.orbits, population.galactic_potential
+
+    # get the binary indices and also reduce the tables to just the final row in each
+    bin_nums = bpp["bin_num"].unique()
+    final_bpp = bpp[~bpp.index.duplicated(keep="last")]
+    final_bcm = bcm[~bcm.index.duplicated(keep="last")]
+    final_kick_info = kick_info.sort_values(["bin_num", "star"]).drop_duplicates(subset="bin_num",
+                                                                                 keep="last")
+
+    # set up an empty dataframe
+    columns = ["dco", "co-1", "co-2", "xrb", "walkaway-t-1", "walkaway-t-2", "runaway-t-1", "runaway-t-2",
+               "walkaway-o-1", "walkaway-o-2", "runaway-o-1", "runaway-o-2", "widow-1", "widow-2",
+               "stellar-merger-co-1", "stellar-merger-co-2", "pisn-1", "pisn-2"]
+    data = np.zeros(shape=(len(bin_nums), len(columns))).astype(bool)
+    classes = pd.DataFrame(data=data, columns=columns)
+    classes.index = final_bpp["bin_num"].index
+
+    bound = final_bpp["sep"] > 0.0
+    merger = final_bpp["sep"] == 0.0
+    disrupted = final_bpp["sep"] == -1.0
+
+    primary_is_star = final_bpp["kstar_1"] <= 9
+    secondary_is_star = final_bpp["kstar_2"] <= 9
+
+    primary_is_bh_ns = final_bpp["kstar_1"].isin([13, 14])
+    secondary_is_bh_ns = final_bpp["kstar_2"].isin([13, 14])
+
+    primary_ever_bound_bh_ns = final_bpp["bin_num"].isin(bpp[bpp["kstar_1"].isin([13, 14])
+                                                             & bpp["sep"] > 0.0]["bin_num"].unique())
+    secondary_ever_bound_bh_ns = final_bpp["bin_num"].isin(bpp[bpp["kstar_2"].isin([13, 14])
+                                                               & bpp["sep"] > 0.0]["bin_num"].unique())
+
+    classes["dco"] = bound & primary_is_bh_ns & secondary_is_bh_ns
+    classes["co-1"] = ~merger & primary_is_bh_ns
+    classes["co-2"] = ~merger & secondary_is_bh_ns
+    classes["stellar-merger-co-1"] = merger & primary_is_bh_ns
+    classes["stellar-merger-co-2"] = merger & secondary_is_bh_ns
+    classes["xrb"] = bound & ((primary_is_bh_ns & secondary_is_star) | (secondary_is_bh_ns & primary_is_star))
+
+    classes["walkaway-t-1"] = disrupted & (final_kick_info["vsys_1_total"] < 30.0)
+    classes["walkaway-t-2"] = disrupted & (final_kick_info["vsys_2_total"] < 30.0)
+    classes["runaway-t-1"] = disrupted & (final_kick_info["vsys_1_total"] >= 30.0)
+    classes["runaway-t-2"] = disrupted & (final_kick_info["vsys_2_total"] >= 30.0)
+
+    classes["widow-1"] = ~merger & primary_is_star & secondary_ever_bound_bh_ns
+    classes["widow-2"] = ~merger & secondary_is_star & primary_ever_bound_bh_ns
+
+    classes["pisn-1"] = final_bcm["SN_1"].isin([6, 7])
+    classes["pisn-2"] = final_bcm["SN_2"].isin([6, 7])
 
     return classes
 
