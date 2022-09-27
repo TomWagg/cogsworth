@@ -1,3 +1,5 @@
+import sys
+import yaml
 import numpy as np
 import astropy.units as u
 from scipy.integrate import quad
@@ -5,6 +7,7 @@ from scipy.special import lambertw
 from scipy.stats import beta
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
+import pandas as pd
 
 
 class Galaxy():
@@ -54,7 +57,7 @@ class Galaxy():
         Galactocentric distance along y-axis (perpendicular with vector pointing at Sun)
 
     """
-    def __init__(self, size, components=None, component_masses=None,
+    def __init__(self, size=None, components=None, component_masses=None,
                  immediately_sample=True, R_sun=8.2 * u.kpc):
         self._components = components
         self._component_masses = component_masses
@@ -70,12 +73,21 @@ class Galaxy():
         self._x = None
         self._y = None
 
+        print(self._x)
+
         if immediately_sample:
             self.sample()
 
     @property
     def size(self):
         return self._size
+
+    @size.setter
+    def size(self, value):
+        if value <= 0:
+            raise ValueError("Size must be greater than 0")
+        if not isinstance(value, int):
+            raise ValueError("Size must be an integer")
 
     @property
     def components(self):
@@ -140,9 +152,18 @@ class Galaxy():
             self._y = self._rho * np.sin(self._phi)
         return self._y
 
+    @property
+    def which_comp(self):
+        if self._which_comp is None:
+            self.sample()
+        return self._which_comp
+
     def sample(self):
         """Sample from the Galaxy distributions for each component, combine and save in class attributes"""
-        # reset calculated values 
+        if self.size is None:
+            raise ValueError("`self.size` has not been set")
+
+        # reset calculated values
         self._D = None
         self._rho = None
 
@@ -244,6 +265,48 @@ class Galaxy():
 
         if show:
             plt.show()
+
+    def save(self, file_name, key="galaxy"):
+        """Save the entire class to storage.
+
+        Data will be stored in an hdf5 file using `file_name` and a small txt file will be created using the
+        same file name.
+
+        Parameters
+        ----------
+        file_name : `str`
+            A name to use for the hdf5 file in which samples will be stored. If this doesn't end in ".h5" then
+            ".h5" will be appended.
+        key : `str`, optional
+            Key to use for the hdf5 file, by default "galaxy"
+        """
+        # append file extension if necessary
+        if file_name[-3:] != ".h5":
+            file_name += ".h5"
+
+        # store data in a dataframe and save this to file
+        data = {
+            "tau": self.tau.to(u.Gyr),
+            "Z": self.Z,
+            "z": self.z.to(u.kpc),
+            "rho": self.rho.to(u.kpc),
+            "phi": self.phi.to(u.rad),
+            "Dg": self.Dg.to(u.kpc),
+            "D": self.D.to(u.kpc),
+            "x": self.x.to(u.kpc),
+            "y": self.y.to(u.kpc),
+            "which_comp": self.which_comp
+        }
+        df = pd.DataFrame(data=data)
+        df.to_hdf(file_name, key=key)
+
+        # convert parameters into something storable and append the name of the class
+        params = simplify_params(self.__dict__.copy())
+        params["class_name"] = self.__class__.__name__
+
+        # dump it all into a file using yaml
+        with open(file_name.replace(".h5", ".txt"), "w") as file:
+            yaml.dump(params, file, default_flow_style=False)
 
 
 class Frankel2018(Galaxy):
@@ -404,3 +467,88 @@ class Frankel2018(Galaxy):
         FeH = self.Fm + self.gradient * self._rho - (self.Fm + self.gradient * self.Rnow)\
             * (1 - (self._tau / self.galaxy_age))**self.gamma
         return np.power(10, 0.977 * FeH + np.log10(self.zsun))
+
+
+def load(file_name, key="galaxy"):
+    """Load an entire class from storage.
+
+    Data should be stored in an hdf5 file using `file_name` and a small txt file with the
+    same file name.
+
+    Parameters
+    ----------
+    file_name : `str`
+        A name of the .h5 file in which samples are stored and .txt file in which parameters are stored
+    key : `str`, optional
+        Key to use for the hdf5 file, by default "galaxy"
+    """
+    # append file extension if necessary
+    if file_name[-3:] != ".h5":
+        file_name += ".h5"
+
+    # load the parameters back in using yaml
+    with open(file_name.replace(".h5", ".txt"), "r") as file:
+        params = yaml.load(file.read(), Loader=yaml.Loader)
+
+    # get the current module, get a class using the name, delete it from parameters that will be passed
+    module = sys.modules[__name__]
+    galaxy_class = getattr(module, params["class_name"])
+    del params["class_name"]
+
+    # ensure no samples are taken
+    params["immediately_sample"] = False
+
+    # create a new galaxy using the parameters
+    galaxy = galaxy_class(**complicate_params(params))
+
+    # read in the data and save it into the class
+    df = pd.read_hdf(file_name, key=key)
+    galaxy._tau = df["tau"].values * u.Gyr
+    galaxy._Z = df["Z"].values * u.dimensionless_unscaled
+    galaxy._z = df["z"].values * u.kpc
+    galaxy._rho = df["rho"].values * u.kpc
+    galaxy._phi = df["phi"].values * u.rad
+    galaxy._Dg = df["Dg"].values * u.kpc
+    galaxy._D = df["D"].values * u.kpc
+    galaxy._x = df["x"].values * u.kpc
+    galaxy._y = df["y"].values * u.kpc
+    galaxy._which_comp = df["which_comp"].values
+
+    # return the newly created class
+    return galaxy
+
+
+def simplify_params(params, dont_save=["_tau", "_Z", "_z", "_rho", "_phi", "_Dg",
+                                       "_D", "_x", "_y", "_which_comp"]):
+    # delete any keys that we don't want to save
+    delete_keys = [key for key in params.keys() if key in dont_save]
+    for key in delete_keys:
+        del params[key]
+
+    # convert any arrays to lists and split up units from values
+    params_copy = params.copy()
+    for key, item in params_copy.items():
+        if hasattr(item, 'unit'):
+            params[key] = item.value
+            params[key+'_unit'] = str(item.unit)
+
+        if hasattr(params[key], 'tolist'):
+            params[key] = params[key].tolist()
+
+    return params
+
+
+def complicate_params(params):
+    # combine units with their values
+    params_copy = params.copy()
+    for key in params_copy.keys():
+        if "_unit" in key:
+            continue
+        if key + "_unit" in params:
+            params[key] *= u.Unit(params[key + '_unit'])
+            del params[key + '_unit']
+
+        if key[0] == "_":
+            params[key[1:]] = params[key]
+            del params[key]
+    return params
