@@ -1,8 +1,10 @@
 import time
+import os
 from multiprocessing import Pool
 import numpy as np
 import astropy.units as u
 import astropy.coordinates as coords
+import h5py as h5
 
 from cosmic.sample.initialbinarytable import InitialBinaryTable
 from cosmic.evolve import Evolve
@@ -37,7 +39,7 @@ class Population():
     v_dispersion : `float`, optional
         Velocity dispersion to apply relative to the local circular velocity, by default 5*u.km/u.s
     max_ev_time : `float`, optional
-        Maximum evolution time for both COSMIC and Gala, by default 13.7*u.Gyr
+        Maximum evolution time for both COSMIC and Gala, by default 12.0*u.Gyr
     timestep_size : `float`, optional
         Size of timesteps to use in galactic evolution, by default 1*u.Myr
 
@@ -71,7 +73,7 @@ class Population():
     def __init__(self, n_binaries, processes=8, m1_cutoff=7, final_kstar1=list(range(14)),
                  final_kstar2=list(range(14)), galaxy_model=Frankel2018,
                  galactic_potential=gp.MilkyWayPotential(), v_dispersion=5 * u.km / u.s,
-                 max_ev_time=13.7*u.Gyr, timestep_size=1 * u.Myr):
+                 max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr):
         self.n_binaries = n_binaries
         self.n_binaries_match = n_binaries
         self.processes = processes
@@ -327,3 +329,33 @@ class Population():
                                                           t2=self.max_ev_time, dt=self.timestep_size))
 
         self._orbits = orbits
+
+    def to_hdf(self, file_name, overwrite=False):
+        if file_name[-3:] != ".h5":
+            file_name += ".h5"
+        if os.path.isfile(file_name):
+            if overwrite:
+                os.remove(file_name)
+            else:
+                raise FileExistsError((f"{file_name} already exists. Set `overwrite=True` to overwrite "
+                                       "the file."))
+        self.initial_binaries.to_hdf(file_name, key="initial_binaries")
+        self.bpp.to_hdf(file_name, key="bpp")
+        self.bcm.to_hdf(file_name, key="bcm")
+        self.initC.to_hdf(file_name, key="initC")
+        self.kick_info.to_hdf(file_name, key="kick_info")
+
+        self.galactic_potential.save(f"{file_name.replace('.h5', '-potential.txt')}")
+
+        with h5.File(file_name, "a") as file:
+            numeric_params = np.array([self.n_binaries, self.n_binaries_match, self.processes, self.m1_cutoff,
+                                       self.v_dispersion.to(u.km / u.s).value,
+                                       self.max_ev_time.to(u.Gyr).value, self.timestep_size.to(u.Myr).value,
+                                       self.mass_singles, self.mass_binaries, self.n_singles_req,
+                                       self.n_bin_req])
+            file.create_dataset("numeric_params", data=numeric_params)
+
+            k_stars = np.array([self.final_kstar1, self.final_kstar2])
+            file.create_dataset("k_stars", data=k_stars)
+
+        # still need initial_galaxy, orbits
