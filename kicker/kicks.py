@@ -77,7 +77,7 @@ def integrate_orbit_with_events(w0, potential=gp.MilkyWayPotential(), events=Non
         assert len(events) == 2
         return [integrate_orbit_with_events(w0=w0, potential=potential, events=events[i],
                                             t1=t1, t2=t2, dt=dt) for i in range(len(events))]
-    MAX_DT_RESIZE = 5
+    MAX_DT_RESIZE = 2
     for n in range(MAX_DT_RESIZE):
         try:
             success = False
@@ -146,8 +146,7 @@ def integrate_orbit_with_events(w0, potential=gp.MilkyWayPotential(), events=Non
 
         except Exception:
             dt /= 8.
-            if n > 1:
-                print("Orbit is causing problems, attempting reduced timestep size", t1, dt)
+            print("Orbit is causing problems, attempting reduced timestep size", t1, dt)
 
     if not success:
         print("ORBIT FAILED")
@@ -155,6 +154,5 @@ def integrate_orbit_with_events(w0, potential=gp.MilkyWayPotential(), events=Non
         print(t1)
         print(events)
         return None
-        # raise RuntimeError("Hit max number of dt resizes: this orbit is, to put it mildly, not doing well")
 
     return full_orbit
