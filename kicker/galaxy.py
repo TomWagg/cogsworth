@@ -305,7 +305,7 @@ class Galaxy():
         params["class_name"] = self.__class__.__name__
 
         # dump it all into a file using yaml
-        with open(file_name.replace(".h5", ".txt"), "w") as file:
+        with open(file_name.replace(".h5", "-galaxy-params.txt"), "w") as file:
             yaml.dump(params, file, default_flow_style=False)
 
 

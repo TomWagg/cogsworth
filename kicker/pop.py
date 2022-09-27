@@ -330,7 +330,7 @@ class Population():
 
         self._orbits = orbits
 
-    def to_hdf(self, file_name, overwrite=False):
+    def save(self, file_name, overwrite=False):
         if file_name[-3:] != ".h5":
             file_name += ".h5"
         if os.path.isfile(file_name):
@@ -346,6 +346,7 @@ class Population():
         self.kick_info.to_hdf(file_name, key="kick_info")
 
         self.galactic_potential.save(f"{file_name.replace('.h5', '-potential.txt')}")
+        self.initial_galaxy.save(file_name, key="initial_galaxy")
 
         with h5.File(file_name, "a") as file:
             numeric_params = np.array([self.n_binaries, self.n_binaries_match, self.processes, self.m1_cutoff,
@@ -358,4 +359,4 @@ class Population():
             k_stars = np.array([self.final_kstar1, self.final_kstar2])
             file.create_dataset("k_stars", data=k_stars)
 
-        # still need initial_galaxy, orbits
+        # still need orbits
