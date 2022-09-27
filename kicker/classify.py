@@ -67,7 +67,11 @@ def determine_final_classes(population=None, bpp=None, bcm=None, kick_info=None,
     # check the state of the binary
     bound = final_bpp["sep"] > 0.0
     merger = final_bpp["sep"] == 0.0
-    disrupted = final_bpp["sep"] == -1.0
+
+    # HACK: three different markers and only assume it is disrupted if ALL are True
+    disrupted = (final_bpp["bin_num"].isin(kick_info[kick_info["disrupted"] == 1.0]["bin_num"].unique())
+                 & (final_bpp["sep"] < 0.0)
+                 & final_bpp["bin_num"].isin(bpp[bpp["evol_type"] == 11.0]["bin_num"]))
 
     # set some flags for the end conditions of each component
     primary_is_star = final_bpp["kstar_1"] <= 9
