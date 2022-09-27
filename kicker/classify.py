@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import astropy.units as u
+import gala.dynamics as gd
 
 
 def determine_final_classes(population=None, bpp=None, bcm=None, kick_info=None, orbits=None, potential=None):
@@ -196,7 +197,6 @@ def determine_final_classes_pandas(population=None, bpp=None, bcm=None, kick_inf
             population.orbits, population.galactic_potential
 
     # get the binary indices and also reduce the tables to just the final row in each
-    bin_nums = bpp["bin_num"].unique()
     final_bpp = bpp[~bpp.index.duplicated(keep="last")]
     final_bcm = bcm[~bcm.index.duplicated(keep="last")]
     final_kick_info = kick_info.sort_values(["bin_num", "star"]).drop_duplicates(subset="bin_num",
@@ -206,25 +206,30 @@ def determine_final_classes_pandas(population=None, bpp=None, bcm=None, kick_inf
     columns = ["dco", "co-1", "co-2", "xrb", "walkaway-t-1", "walkaway-t-2", "runaway-t-1", "runaway-t-2",
                "walkaway-o-1", "walkaway-o-2", "runaway-o-1", "runaway-o-2", "widow-1", "widow-2",
                "stellar-merger-co-1", "stellar-merger-co-2", "pisn-1", "pisn-2"]
-    data = np.zeros(shape=(len(bin_nums), len(columns))).astype(bool)
+    data = np.zeros(shape=(len(final_bpp), len(columns))).astype(bool)
     classes = pd.DataFrame(data=data, columns=columns)
+
+    # match the index to the final bpp bin_nums
     classes.index = final_bpp["bin_num"].index
 
+    # check the state of the binary
     bound = final_bpp["sep"] > 0.0
     merger = final_bpp["sep"] == 0.0
     disrupted = final_bpp["sep"] == -1.0
 
+    # set some flags for the end conditions of each component
     primary_is_star = final_bpp["kstar_1"] <= 9
     secondary_is_star = final_bpp["kstar_2"] <= 9
-
     primary_is_bh_ns = final_bpp["kstar_1"].isin([13, 14])
     secondary_is_bh_ns = final_bpp["kstar_2"].isin([13, 14])
 
+    # check if there was ever a bound CO
     primary_ever_bound_bh_ns = final_bpp["bin_num"].isin(bpp[bpp["kstar_1"].isin([13, 14])
                                                              & bpp["sep"] > 0.0]["bin_num"].unique())
     secondary_ever_bound_bh_ns = final_bpp["bin_num"].isin(bpp[bpp["kstar_2"].isin([13, 14])
                                                                & bpp["sep"] > 0.0]["bin_num"].unique())
 
+    # create masks based on conditions listed in `list_classes`
     classes["dco"] = bound & primary_is_bh_ns & secondary_is_bh_ns
     classes["co-1"] = ~merger & primary_is_bh_ns
     classes["co-2"] = ~merger & secondary_is_bh_ns
@@ -232,16 +237,61 @@ def determine_final_classes_pandas(population=None, bpp=None, bcm=None, kick_inf
     classes["stellar-merger-co-2"] = merger & secondary_is_bh_ns
     classes["xrb"] = bound & ((primary_is_bh_ns & secondary_is_star) | (secondary_is_bh_ns & primary_is_star))
 
-    classes["walkaway-t-1"] = disrupted & (final_kick_info["vsys_1_total"] < 30.0)
-    classes["walkaway-t-2"] = disrupted & (final_kick_info["vsys_2_total"] < 30.0)
-    classes["runaway-t-1"] = disrupted & (final_kick_info["vsys_1_total"] >= 30.0)
-    classes["runaway-t-2"] = disrupted & (final_kick_info["vsys_2_total"] >= 30.0)
-
     classes["widow-1"] = ~merger & primary_is_star & secondary_ever_bound_bh_ns
     classes["widow-2"] = ~merger & secondary_is_star & primary_ever_bound_bh_ns
 
     classes["pisn-1"] = final_bcm["SN_1"].isin([6, 7])
     classes["pisn-2"] = final_bcm["SN_2"].isin([6, 7])
+
+    classes["walkaway-t-1"] = disrupted & (final_kick_info["vsys_1_total"] < 30.0)
+    classes["walkaway-t-2"] = disrupted & (final_kick_info["vsys_2_total"] < 30.0)
+    classes["runaway-t-1"] = disrupted & (final_kick_info["vsys_1_total"] >= 30.0)
+    classes["runaway-t-2"] = disrupted & (final_kick_info["vsys_2_total"] >= 30.0)
+
+    # observed run/walkways are more complicated
+    # first get the final positions and velocities of each component of a disrupted binary
+    posf_1 = [None for _ in range(len(orbits[disrupted]))]
+    posf_2 = [None for _ in range(len(orbits[disrupted]))]
+    velf_1 = [None for _ in range(len(orbits[disrupted]))]
+    velf_2 = [None for _ in range(len(orbits[disrupted]))]
+    for i, orbit in enumerate(orbits[disrupted]):
+        posf_1[i] = orbit[0][-1].pos.xyz.to(u.kpc).value
+        posf_2[i] = orbit[1][-1].pos.xyz.to(u.kpc).value
+
+        velf_1[i] = orbit[0][-1].vel.d_xyz.to(u.km / u.s)
+        velf_2[i] = orbit[1][-1].vel.d_xyz.to(u.km / u.s)
+    posf_1 *= u.kpc
+    posf_2 *= u.kpc
+    velf_1 *= u.km / u.s
+    velf_2 *= u.km / u.s
+
+    # create gala phase space positions based on them
+    wf_1 = gd.PhaseSpacePosition(pos=posf_1.T, vel=velf_1.T)
+    wf_2 = gd.PhaseSpacePosition(pos=posf_2.T, vel=velf_2.T)
+
+    # calculate the circular velocities at those locations
+    v_circ_1 = potential.circular_velocity(q=wf_1.pos.xyz)
+    v_circ_2 = potential.circular_velocity(q=wf_2.pos.xyz)
+
+    # get the cylindrical velocities and calculate the relative speeds compared to the circular velocity
+    v_R_1 = wf_1.represent_as("cylindrical").vel.d_rho
+    with u.set_enabled_equivalencies(u.dimensionless_angles()):
+        v_T_1 = wf_1.represent_as("cylindrical").vel.d_phi.to(1/u.Myr) * wf_1.represent_as("cylindrical").rho
+    v_z_1 = wf_1.represent_as("cylindrical").vel.d_z
+    rel_speed_1 = (((v_R_1 - v_circ_1)**2 + v_T_1**2 + v_z_1**2)**(0.5)).to(u.km / u.s).value
+
+    # same for secondary
+    v_R_2 = wf_2.represent_as("cylindrical").vel.d_rho
+    with u.set_enabled_equivalencies(u.dimensionless_angles()):
+        v_T_2 = wf_2.represent_as("cylindrical").vel.d_phi.to(1/u.Myr) * wf_2.represent_as("cylindrical").rho
+    v_z_2 = wf_2.represent_as("cylindrical").vel.d_z
+    rel_speed_2 = (((v_R_2 - v_circ_2)**2 + v_T_2**2 + v_z_2**2)**(0.5)).to(u.km / u.s).value
+
+    # set the classes based on the relative speeds (non-disrupted as all left as False by default)
+    classes["walkaway-o-1"][disrupted] = rel_speed_1 < 30.0
+    classes["walkaway-o-2"][disrupted] = rel_speed_2 < 30.0
+    classes["runaway-o-1"][disrupted] = rel_speed_1 >= 30.0
+    classes["runaway-o-2"][disrupted] = rel_speed_2 >= 30.0
 
     return classes
 
