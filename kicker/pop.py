@@ -347,6 +347,7 @@ class Population():
 
         self.galactic_potential.save(f"{file_name.replace('.h5', '-potential.txt')}")
         self.initial_galaxy.save(file_name, key="initial_galaxy")
+        np.save(file_name.replace(".h5", "-orbits.npy"), np.array(self.orbits, dtype="object"))
 
         with h5.File(file_name, "a") as file:
             numeric_params = np.array([self.n_binaries, self.n_binaries_match, self.processes, self.m1_cutoff,
@@ -358,5 +359,3 @@ class Population():
 
             k_stars = np.array([self.final_kstar1, self.final_kstar2])
             file.create_dataset("k_stars", data=k_stars)
-
-        # still need orbits
