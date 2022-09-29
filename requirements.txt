@@ -1,8 +1,7 @@
-python=3.8
+python=3.10
 numpy
 pip
 matplotlib
-gsl
 astropy
 scipy
 jupyter
@@ -11,4 +10,4 @@ ipython
 seaborn
 pandas
 gala >= 1.5
-cosmic-popsynth
+cosmic-popsynth >= 3.6.4
