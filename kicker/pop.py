@@ -286,6 +286,52 @@ class Population():
             self.pool.close()
             self.pool.join()
 
+        # check if there are any NaNs in the final bpp table rows or the kick_info
+        final_bpp = self._bpp[~self._bpp.index.duplicated(keep="last")]
+        nans = np.isnan(final_bpp["sep"])
+        kick_info_nans = np.isnan(self._kick_info["delta_vsysx_1"])
+
+        # if we detect NaNs
+        if nans.any() or kick_info_nans.any():
+            # make sure the user knows bad things have happened
+            print("WARNING! PANIC! THE SKY THE FALLING!")
+            print("------------------------------------")
+            print("(NaNs detected)")
+
+            # store the bad things for later
+            nan_bin_nums = np.concatenate((final_bpp[nans]["bin_num"].values,
+                                           self._kick_info[kick_info_nans]["bin_num"].values))
+            self._bpp[self._bpp["bin_num"].isin(nan_bin_nums)].to_hdf("nans.h5", key="bpp")
+            self._initC[self._initC["bin_num"].isin(nan_bin_nums)].to_hdf("nans.h5", key="initC")
+            self._kick_info[self._kick_info["bin_num"].isin(nan_bin_nums)].to_hdf("nans.h5", key="kick_info")
+
+            # update the population to delete any bad binaries
+            n_nan = len(nan_bin_nums)
+            self.n_binaries_match -= n_nan
+            self._bpp = self._bpp[~self._bpp["bin_num"].isin(nan_bin_nums)]
+            self._bcm = self._bcm[~self._bcm["bin_num"].isin(nan_bin_nums)]
+            self._kick_info = self._kick_info[~self._kick_info["bin_num"].isin(nan_bin_nums)]
+            self._initC = self._initC[~self._initC["bin_num"].isin(nan_bin_nums)]
+
+            not_nan = ~final_bpp["bin_num"].isin(nan_bin_nums)
+            self.initial_galaxy._tau = self.initial_galaxy._tau[not_nan]
+            self.initial_galaxy._Z = self.initial_galaxy._Z[not_nan]
+            self.initial_galaxy._z = self.initial_galaxy._z[not_nan]
+            self.initial_galaxy._rho = self.initial_galaxy._rho[not_nan]
+            self.initial_galaxy._phi = self.initial_galaxy._phi[not_nan]
+            self.initial_galaxy.v_R = self.initial_galaxy.v_R[not_nan]
+            self.initial_galaxy.v_T = self.initial_galaxy.v_T[not_nan]
+            self.initial_galaxy.v_z = self.initial_galaxy.v_z[not_nan]
+            self.initial_galaxy._x = self.initial_galaxy._x[not_nan]
+            self.initial_galaxy._y = self.initial_galaxy._y[not_nan]
+            self.initial_galaxy._which_comp = self.initial_galaxy._which_comp[not_nan]
+            self.initial_galaxy._size -= n_nan
+
+            self.initial_galaxy.save("test")
+
+            print(f"WARNING: {n_nan} bad binaries removed from tables - but normalisation may be off")
+            print("I've added the offending binaries to the `nan.h5` file, do with them what you will")
+
     def perform_galactic_evolution(self):
         # turn the drawn coordinates into an astropy representation
         rep = coords.CylindricalRepresentation(self.initial_galaxy.rho,
