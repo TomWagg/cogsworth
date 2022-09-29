@@ -130,3 +130,6 @@ dmypy.json
 
 local_tests/*
 fort.99
+.vscode
+data/*
+!data/README.md
