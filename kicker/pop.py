@@ -434,6 +434,8 @@ def load(file_name):
     p._n_singles_req = numeric_params[9]
     p._n_bin_req = numeric_params[10]
 
+    p.initial_galaxy = initial_galaxy
+
     p._initial_binaries = pd.read_hdf(file_name, key="initial_binaries")
     p._bpp = pd.read_hdf(file_name, key="bpp")
     p._bcm = pd.read_hdf(file_name, key="bcm")
