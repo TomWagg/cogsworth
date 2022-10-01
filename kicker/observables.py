@@ -1,8 +1,8 @@
 import numpy as np
 import astropy.units as u
 import astropy.constants as const
-from astropy.coordinates import SkyCoord
 from dustmaps.bayestar import BayestarQuery
+from isochrones.utils import addmags
 
 
 def log_g(mass, radius):
@@ -132,44 +132,22 @@ def get_mags(lum, distance, teff, logg, Fe_h, Av, bc_grid, filters):
     return mags_app, mags_abs
 
 
-def addMags(mag1, mag2):
-    """ Adds two stellar magnitudes
+def get_extinction(coords):
+    """Calculates the visual extinction values for a set of coordinates using the dustmaps.bayestar query
+
     Parameters
     ----------
-    mag1, mag2 : `float/array`
-        two magnitudes from two stars
+    coords : `Astropy.coordinates.SkyCoord`
+        The coordinates at which you wish to calculate extinction values
+
     Returns
     -------
-    magsum : `float/array`
-        returns the sum of mag1 and mag2
+    Av : `float/array`
+        Visual extinction values for each set of coordinates
     """
-    magsum = -2.5*np.log10(10**(-mag1*0.4)+10**(-mag2*0.4))
-    return magsum
-
-
-def get_extinction(dat):
-    """Calculates the visual extinction values from the dat
-    DataFrame using the dustmaps. bayestar query
-    Parameters
-    ----------
-    dat : `DataFrame`
-        contains Galactocentric cartesian coordinates
-        with names [units]: X [kpc], Y [kpc], Z [kpc]
-    Returns
-    -------
-    Av : `array`
-        Visual extinction values for all points in dat
-    """
-    c = SkyCoord(x=np.array(dat.X) * u.kpc,
-                 y=np.array(dat.Y) * u.kpc,
-                 z=np.array(dat.Z) * u.kpc,
-                 frame="galactocentric",
-                 galcen_distance=8.5 * u.kpc,
-                 z_sun=36.0e-3 * u.kpc)
     bayestar = BayestarQuery(max_samples=2, version='bayestar2019')
-    ebv = bayestar(c, mode='random_sample')
+    ebv = bayestar(coords, mode='random_sample')
     Av = 3.2 * ebv
-
     return Av
 
 
@@ -214,27 +192,27 @@ def get_photometry_2(dat, bc_grid):
     return m_app_2, J_app_2, H_app_2, K_app_2, G_app_2, BP_app_2, RP_app_2, m_abs_2, J_abs_2, H_abs_2, K_abs_2, G_abs_2, BP_abs_2, RP_abs_2
 
 
-def get_phot(sim_set, sys_type, bc_grid):
-    """Computes J,H,K photometry subject to dust extinction
-    using the MIST boloemtric correction grid which contains
-    filters J,H,K
+def get_phot(final_bpp, final_coords, bc_grid, filters):
+    """Computes photometry subject to dust extinction using the MIST boloemtric correction grid
+
     Parameters
     ----------
-    sim_set : `DataFrame`
-        dataset of cosmic binaries at present dat
-    sys_type : `int`
-        system type; choose from:
-        singles = 0; binaries = 1; bh binaries = 2;
-    bc_grid : `MISTBolometricCorrectionGrid`
-        bolometric correction grid which works with isochrones
-        to compute BCs
+    final_bpp : `pandas.DataFrame`
+        A dataset of COSMIC binaries at present day - must include these columns [TODO]
+    final_coords : `tuple Astropy.coordinates.SkyCoord`
+        Final positions and velocities of the binaries at present day. First entry is for binaries or the
+        primary in a disrupted system, second entry is for secondaries in a disrupted system.
+    bc_grid : `isochrones.bc.MISTBolometricCorrectionGrid`
+        A bolometric correction grid from `isochrones`, must include all `filters`
+    filters : `list of str`
+        Which filters to compute photometry for
+
     Returns
     -------
-    sim_set : `DataFrame`
-        dataset of cosmic binaries at present dat with added 
-        photometry and extinction information
+    photometry : `pandas.DataFrame`
+        Photometry and extinction information for supplied COSMIC binaries in desired `filters`
     """
-    sim_set['Av'] = get_extinction(sim_set)
+    sim_set['Av'] = get_extinction(final_bpp)
     print('pop size before extinction cut: {}'.format(len(sim_set)))
     sim_set.loc[sim_set.Av > 6, ['Av']] = 6
     sim_set = sim_set.fillna(6)
@@ -306,21 +284,21 @@ def get_phot(sim_set, sys_type, bc_grid):
         sim_set['teff_obs'] = teff_obs
 
 
-        sim_set['J_app'] = addMags(J_app_1, J_app_2)
-        sim_set['H_app'] = addMags(H_app_1, H_app_2)
-        sim_set['K_app'] = addMags(K_app_1, K_app_2)
-        sim_set['G_app'] = addMags(G_app_1, G_app_2)
-        sim_set['BP_app'] = addMags(BP_app_1, BP_app_2)
-        sim_set['RP_app'] = addMags(RP_app_1, RP_app_2)
-        sim_set['mbol_app'] = addMags(m_app_1, m_app_2)
+        sim_set['J_app'] = addmags(J_app_1, J_app_2)
+        sim_set['H_app'] = addmags(H_app_1, H_app_2)
+        sim_set['K_app'] = addmags(K_app_1, K_app_2)
+        sim_set['G_app'] = addmags(G_app_1, G_app_2)
+        sim_set['BP_app'] = addmags(BP_app_1, BP_app_2)
+        sim_set['RP_app'] = addmags(RP_app_1, RP_app_2)
+        sim_set['mbol_app'] = addmags(m_app_1, m_app_2)
 
-        sim_set['J_abs'] = addMags(J_abs_1, J_abs_2)
-        sim_set['H_abs'] = addMags(H_abs_1, H_abs_2)
-        sim_set['K_abs'] = addMags(K_abs_1, K_abs_2)
-        sim_set['G_abs'] = addMags(G_abs_1, G_abs_2)
-        sim_set['BP_abs'] = addMags(BP_abs_1, BP_abs_2)
-        sim_set['RP_abs'] = addMags(RP_abs_1, RP_abs_2)
-        sim_set['mbol_abs'] = addMags(m_abs_1, m_abs_2)
+        sim_set['J_abs'] = addmags(J_abs_1, J_abs_2)
+        sim_set['H_abs'] = addmags(H_abs_1, H_abs_2)
+        sim_set['K_abs'] = addmags(K_abs_1, K_abs_2)
+        sim_set['G_abs'] = addmags(G_abs_1, G_abs_2)
+        sim_set['BP_abs'] = addmags(BP_abs_1, BP_abs_2)
+        sim_set['RP_abs'] = addmags(RP_abs_1, RP_abs_2)
+        sim_set['mbol_abs'] = addmags(m_abs_1, m_abs_2)
 
     elif sys_type == 2:
         phot_2 = get_photometry_2(sim_set, bc_grid)
