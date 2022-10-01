@@ -298,9 +298,23 @@ class Galaxy():
         df = pd.DataFrame(data=data)
         df.to_hdf(file_name, key=key)
 
-        # convert parameters into something storable and append the name of the class
+        # convert parameters into something storable
         params = simplify_params(self.__dict__.copy())
-        params["class_name"] = self.__class__.__name__
+
+        # check whether the class is part of the default module, get parent recursively if not
+        module = sys.modules[__name__]
+        class_name = self.__class__.__name__
+        class_obj = self
+        while not hasattr(module, class_name):
+            class_obj = class_obj.__class__.__bases__[0]
+            class_name = class_obj.__name__
+
+        # warn the user if we saved a different class name
+        if class_name != self.__class__.__name__:
+            print((f"Warning: Galaxy class being saved as `{class_name}` instead of "
+                   f"`{self.__class__.__name__}`. Data will be copied but new sampling will draw from the "
+                   f"functions in `{class_name}` rather than the custom class you used."))
+        params["class_name"] = class_name
 
         # dump it all into a file using yaml
         with open(file_name.replace(".h5", "-galaxy-params.txt"), "w") as file:
@@ -490,7 +504,11 @@ def load(file_name, key="galaxy"):
 
     # get the current module, get a class using the name, delete it from parameters that will be passed
     module = sys.modules[__name__]
-    galaxy_class = getattr(module, params["class_name"])
+
+    if hasattr(module, params["class_name"]):
+        galaxy_class = getattr(module, params["class_name"])
+    else:
+        galaxy_class = Frankel2018
     del params["class_name"]
 
     # ensure no samples are taken
