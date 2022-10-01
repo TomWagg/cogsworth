@@ -1,9 +1,10 @@
 python=3.10
-numpy
+numpy >= 1.23
+numba >= 0.56
 pip
 matplotlib
 astropy
-scipy
+scipy >= 1.7.3
 jupyter
 jupyterlab
 ipython
@@ -11,3 +12,7 @@ seaborn
 pandas
 gala >= 1.5
 cosmic-popsynth >= 3.6.4
+nose
+pytables
+isochrones
+dustmaps

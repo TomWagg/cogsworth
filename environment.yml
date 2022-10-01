@@ -4,16 +4,21 @@ channels:
   - conda-forge
 dependencies:
   - python=3.10
-  - numpy
+  - numpy >= 1.23
+  - numba >= 0.56
   - pip
   - matplotlib
   - astropy
-  - scipy
+  - scipy >= 1.7.3
   - jupyter
   - jupyterlab
   - ipython
   - seaborn
   - pandas
+  - nose
+  - pytables
   - pip:
       - gala >= 1.5
       - cosmic-popsynth >= 3.4.6
+      - isochrones >= 2.1
+      - dustmaps
