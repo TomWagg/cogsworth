@@ -46,8 +46,6 @@ class Population():
 
     Attributes
     ----------
-    initial_binaries : `pandas.DataFrame`
-        Table of inital binaries that have been sampled
     mass_singles : `float`
         Total mass in single stars needed to generate population
     mass_binaries : `float`
@@ -75,6 +73,8 @@ class Population():
         For bound binaries only the first SkyCoord is populated, for disrupted binaries each SkyCoord
         corresponds to the individual components. Any missing orbits (where orbit=None or there is no
         secondary component) will be set to `np.inf` for ease of masking.
+    final_bpp : `pandas.DataFrame`
+        The final state of each binary (taken from the final entry in `self.bpp`)
     """
     def __init__(self, n_binaries, processes=8, m1_cutoff=7, final_kstar1=list(range(14)),
                  final_kstar2=list(range(14)), galaxy_model=galaxy.Frankel2018,
@@ -105,6 +105,7 @@ class Population():
         self._orbits = None
         self._classes = None
         self._final_coords = None
+        self._final_bpp = None
 
         # TODO: give users access to changing these settings
         self.BSE_settings = {'xi': 1.0, 'bhflag': 1, 'neta': 0.5, 'windflag': 3, 'wdflag': 1, 'alpha1': 1.0,
@@ -125,12 +126,6 @@ class Population():
                              'bhspinflag': 0, 'bhspinmag': 0.0, 'rejuv_fac': 1.0, 'rejuvflag': 0, 'htpmb': 1,
                              'ST_cr': 1, 'ST_tide': 1, 'bdecayfac': 1, 'rembar_massloss': 0.5, 'kickflag': 0,
                              'zsun': 0.014, 'bhms_coll_flag': 0, 'don_lim': -1, 'acc_lim': -1}
-
-    @property
-    def initial_binaries(self):
-        if self._initial_binaries is None:
-            self.sample_initial_binaries()
-        return self._initial_binaries
 
     @property
     def mass_singles(self):
@@ -197,6 +192,12 @@ class Population():
         if self._final_coords is None:
             self._final_coords = self.get_final_coords()
         return self._final_coords
+
+    @property
+    def final_bpp(self):
+        if self._final_bpp is None:
+            self._final_bpp = self.bpp.drop_duplicates(subset="bin_num", keep="last")
+        return self._final_bpp
 
     def create_population(self, with_timing=True):
         """Create an entirely evolved population of binaries.
@@ -282,9 +283,14 @@ class Population():
 
     def perform_stellar_evolution(self):
         """Perform the (binary) stellar evolution of the sampled binaries"""
-        if self._initial_binaries is None:
+        # delete any cached variables
+        self._final_bpp = None
+
+        if self._initial_binaries is None and self._initC is None:
             print("Warning: Initial binaries not yet sampled, performing sampling now.")
             self.sample_initial_binaries()
+        elif self._initial_binaries is None:
+            self._initial_binaries = self._initC
 
         no_pool_existed = self.pool is None and self.processes > 1
         if no_pool_existed:
@@ -345,6 +351,9 @@ class Population():
             print("I've added the offending binaries to the `nan.h5` file, do with them what you will")
 
     def perform_galactic_evolution(self):
+        # delete any cached variables
+        self._final_coords = None
+
         # turn the drawn coordinates into an astropy representation
         rep = coords.CylindricalRepresentation(self.initial_galaxy.rho,
                                                self.initial_galaxy.phi,
@@ -442,7 +451,6 @@ class Population():
             else:
                 raise FileExistsError((f"{file_name} already exists. Set `overwrite=True` to overwrite "
                                        "the file."))
-        self.initial_binaries.to_hdf(file_name, key="initial_binaries")
         self.bpp.to_hdf(file_name, key="bpp")
         self.bcm.to_hdf(file_name, key="bcm")
         self.initC.to_hdf(file_name, key="initC")
@@ -474,13 +482,13 @@ def load(file_name):
     initial_galaxy = galaxy.load(file_name, key="initial_galaxy")
     galactic_potential = gp.potential.load(file_name.replace('.h5', '-potential.txt'))
 
-    p = Population(n_binaries=numeric_params[0], processes=numeric_params[2], m1_cutoff=numeric_params[3],
-                   final_kstar1=k_stars[0], final_kstar2=k_stars[1],
-                   galaxy_model=initial_galaxy.__class__.__name__, galactic_potential=galactic_potential,
+    p = Population(n_binaries=int(numeric_params[0]), processes=int(numeric_params[2]),
+                   m1_cutoff=numeric_params[3], final_kstar1=k_stars[0], final_kstar2=k_stars[1],
+                   galaxy_model=initial_galaxy.__class__, galactic_potential=galactic_potential,
                    v_dispersion=numeric_params[4] * u.km / u.s, max_ev_time=numeric_params[5] * u.Gyr,
                    timestep_size=numeric_params[6] * u.Myr)
 
-    p.n_binaries_match = numeric_params[1]
+    p.n_binaries_match = int(numeric_params[1])
     p._mass_singles = numeric_params[7]
     p._mass_binaries = numeric_params[8]
     p._n_singles_req = numeric_params[9]
@@ -488,7 +496,6 @@ def load(file_name):
 
     p.initial_galaxy = initial_galaxy
 
-    p._initial_binaries = pd.read_hdf(file_name, key="initial_binaries")
     p._bpp = pd.read_hdf(file_name, key="bpp")
     p._bcm = pd.read_hdf(file_name, key="bcm")
     p._initC = pd.read_hdf(file_name, key="initC")
