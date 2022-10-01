@@ -133,3 +133,4 @@ fort.99
 .vscode
 data/*
 !data/README.md
+dustmaps/*
