@@ -70,6 +70,11 @@ class Population():
     classes : `list`
         The classes associated with each produced binary (see classify.list_classes for a list of available
         classes and their meanings)
+    final_coords : `tuple of Astropy SkyCoord`
+        A SkyCoord object of the final positions of each binary in the galactocentric frame.
+        For bound binaries only the first SkyCoord is populated, for disrupted binaries each SkyCoord
+        corresponds to the individual components. Any missing orbits (where orbit=None or there is no
+        secondary component) will be set to `np.inf` for ease of masking.
     """
     def __init__(self, n_binaries, processes=8, m1_cutoff=7, final_kstar1=list(range(14)),
                  final_kstar2=list(range(14)), galaxy_model=galaxy.Frankel2018,
@@ -99,6 +104,7 @@ class Population():
         self._kick_info = None
         self._orbits = None
         self._classes = None
+        self._final_coords = None
 
         # TODO: give users access to changing these settings
         self.BSE_settings = {'xi': 1.0, 'bhflag': 1, 'neta': 0.5, 'windflag': 3, 'wdflag': 1, 'alpha1': 1.0,
@@ -185,6 +191,12 @@ class Population():
         if self._classes is None:
             self._classes = determine_final_classes(population=self)
         return self._classes
+
+    @property
+    def final_coords(self):
+        if self._final_coords is None:
+            self._final_coords = self.get_final_coords()
+        return self._final_coords
 
     def create_population(self, with_timing=True):
         """Create an entirely evolved population of binaries.
@@ -380,6 +392,46 @@ class Population():
                                                           t2=self.max_ev_time, dt=self.timestep_size))
 
         self._orbits = np.array(orbits, dtype="object")
+
+    def get_final_coords(self):
+        """Get the final coordinates of each binary (or each component in disrupted binaries)
+
+        Returns
+        -------
+        final_coords : `tuple of Astropy SkyCoords`
+            A SkyCoord object of the final positions of each binary in the galactocentric frame.
+            For bound binaries only the first SkyCoord is populated, for disrupted binaries each SkyCoord
+            corresponds to the individual components. Any missing orbits (where orbit=None or there is no
+            secondary component) will be set to `np.inf` for ease of masking.
+        """
+        # pool all of the orbits into a single numpy array
+        final_kinematics = np.ones((len(self.orbits), 2, 6)) * np.inf
+        for i, orbit in enumerate(self.orbits):
+            # check if the orbit is missing
+            if orbit is None:
+                print("Warning: Detected `None` orbit, entering coordinates as `np.inf`")
+
+            # check if it has been disrupted
+            elif isinstance(orbit, list):
+                final_kinematics[i, 0, :3] = orbit[0][-1].pos.xyz.to(u.kpc).value
+                final_kinematics[i, 1, :3] = orbit[1][-1].pos.xyz.to(u.kpc).value
+                final_kinematics[i, 0, 3:] = orbit[0][-1].vel.d_xyz.to(u.km / u.s)
+                final_kinematics[i, 1, 3:] = orbit[1][-1].vel.d_xyz.to(u.km / u.s)
+
+            # otherwise just save the system in the primary
+            else:
+                final_kinematics[i, 0, :3] = orbit[-1].pos.xyz.to(u.kpc).value
+                final_kinematics[i, 0, 3:] = orbit[-1].vel.d_xyz.to(u.km / u.s)
+
+        # turn the array into two SkyCoords
+        final_coords = [coords.SkyCoord(x=final_kinematics[:, i, 0] * u.kpc,
+                                        y=final_kinematics[:, i, 1] * u.kpc,
+                                        z=final_kinematics[:, i, 2] * u.kpc,
+                                        v_x=final_kinematics[:, i, 3] * u.km / u.s,
+                                        v_y=final_kinematics[:, i, 4] * u.km / u.s,
+                                        v_z=final_kinematics[:, i, 5] * u.km / u.s,
+                                        frame="galactocentric") for i in [0, 1]]
+        return final_coords[0], final_coords[1]
 
     def save(self, file_name, overwrite=False):
         if file_name[-3:] != ".h5":
