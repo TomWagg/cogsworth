@@ -237,33 +237,35 @@ def get_phot(final_bpp, final_coords, filters):
 
     # go through each filter
     for i, filter in enumerate(filters):
-        # apply the bolometric corrections to the apparent magnitude of each star
-        filter_mags = [photometry[f"m_app_{ind}"].values - bc[ind - 1][:, i] for ind in [1, 2]]
+        for prefix, mag_type in [("m", "app"), ("M", "abs")]:
+            # apply the bolometric corrections to the apparent magnitude of each star
+            filter_mags = [photometry[f"{prefix}_{mag_type}_{ind}"].values - bc[ind - 1][:, i]
+                           for ind in [1, 2]]
 
-        # total the magnitudes (removing any NaNs)
-        total_filter_mag = add_mags(*filter_mags, remove_nans=True)
+            # total the magnitudes (removing any NaNs)
+            total_filter_mag = add_mags(*filter_mags, remove_nans=True)
 
-        # default to assuming all systems are bound - in this case total magnitude is listed
-        # in primary filter apparent mag, and secondary is non-existent
-        photometry[f"{filter}_app_1"] = total_filter_mag
-        photometry[f"{filter}_app_2"] = np.repeat(np.inf, len(photometry))
+            # default to assuming all systems are bound - in this case total magnitude is listed
+            # in primary filter mag, and secondary is non-existent
+            photometry[f"{filter}_{mag_type}_1"] = total_filter_mag
+            photometry[f"{filter}_{mag_type}_2"] = np.repeat(np.inf, len(photometry))
 
-        # for disrupted systems, change the filter apparent magnitudes to the values for each individual star
-        disrupted = final_bpp["sep"] < 0.0
-        for ind in [1, 2]:
-            photometry.loc[disrupted, f"{filter}_app_{ind}"] = filter_mags[ind - 1][disrupted]
+            # for disrupted systems, change the filter apparent magnitudes to the values for each individual star
+            disrupted = final_bpp["sep"] < 0.0
+            for ind in [1, 2]:
+                photometry.loc[disrupted, f"{filter}_{mag_type}_{ind}"] = filter_mags[ind - 1][disrupted]
 
-        # for the G filter in particular, see which temperature/log-g is getting measured
-        if filter == "G":
-            # by default assume the primary is dominant
-            photometry["teff_obs"] = final_bpp["teff_1"].values
-            photometry["log_g_obs"] = final_bpp["log_g_1"].values
+            # for the G filter in particular, see which temperature/log-g is getting measured
+            if filter == "G" and mag_type == "app":
+                # by default assume the primary is dominant
+                photometry["teff_obs"] = final_bpp["teff_1"].values
+                photometry["log_g_obs"] = final_bpp["log_g_1"].values
 
-            # overwrite any values where the secondary is brighter
-            secondary_brighter = (filter_mags[1] < filter_mags[0]) | (np.isnan(filter_mags[0])
-                                                                      & ~np.isnan(filter_mags[1]))
-            photometry["secondary_brighter"] = secondary_brighter
-            photometry.loc[secondary_brighter, "teff_obs"] = final_bpp["teff_2"].values[secondary_brighter]
-            photometry.loc[secondary_brighter, "log_g_obs"] = final_bpp["log_g_2"].values[secondary_brighter]
+                # overwrite any values where the secondary is brighter
+                two_is_brighter = (filter_mags[1] < filter_mags[0]) | (np.isnan(filter_mags[0])
+                                                                       & ~np.isnan(filter_mags[1]))
+                photometry["secondary_brighter"] = two_is_brighter
+                photometry.loc[two_is_brighter, "teff_obs"] = final_bpp["teff_2"].values[two_is_brighter]
+                photometry.loc[two_is_brighter, "log_g_obs"] = final_bpp["log_g_2"].values[two_is_brighter]
 
     return photometry
