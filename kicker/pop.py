@@ -44,6 +44,8 @@ class Population():
         Maximum evolution time for both COSMIC and Gala, by default 12.0*u.Gyr
     timestep_size : `float`, optional
         Size of timesteps to use in galactic evolution, by default 1*u.Myr
+    BSE_settings : `dict`, optional
+        Any BSE settings to pass to COSMIC
 
     Attributes
     ----------
@@ -82,7 +84,7 @@ class Population():
     def __init__(self, n_binaries, processes=8, m1_cutoff=7, final_kstar1=list(range(14)),
                  final_kstar2=list(range(14)), galaxy_model=galaxy.Frankel2018,
                  galactic_potential=gp.MilkyWayPotential(), v_dispersion=5 * u.km / u.s,
-                 max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr):
+                 max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}):
         self.n_binaries = n_binaries
         self.n_binaries_match = n_binaries
         self.processes = processes
@@ -129,7 +131,8 @@ class Population():
                                                                2.0/21.0, 2.0/21.0, 2.0/21.0, 2.0/21.0],
                              'bhspinflag': 0, 'bhspinmag': 0.0, 'rejuv_fac': 1.0, 'rejuvflag': 0, 'htpmb': 1,
                              'ST_cr': 1, 'ST_tide': 1, 'bdecayfac': 1, 'rembar_massloss': 0.5, 'kickflag': 0,
-                             'zsun': 0.014, 'bhms_coll_flag': 0, 'don_lim': -1, 'acc_lim': -1}
+                             'zsun': 0.014, 'bhms_coll_flag': 0, 'don_lim': -1, 'acc_lim': -1, 'binfrac': 0.5}
+        self.BSE_settings.update(BSE_settings)
 
     @property
     def mass_singles(self):
@@ -254,9 +257,10 @@ class Population():
         """Sample the initial binary parameters for the population"""
         self._initial_binaries, self._mass_singles, self._mass_binaries, self._n_singles_req,\
             self._n_bin_req = InitialBinaryTable.sampler('independent', self.final_kstar1, self.final_kstar2,
-                                                         binfrac_model=0.5, primary_model='kroupa01',
-                                                         ecc_model='sana12', porb_model='sana12',
-                                                         qmin=-1, SF_start=self.max_ev_time.to(u.Myr).value,
+                                                         binfrac_model=self.BSE_settings["binfrac"],
+                                                         primary_model='kroupa01', ecc_model='sana12',
+                                                         porb_model='sana12', qmin=-1,
+                                                         SF_start=self.max_ev_time.to(u.Myr).value,
                                                          SF_duration=0.0, met=0.02, size=self.n_binaries)
 
         # apply the mass cutoff
@@ -472,6 +476,26 @@ class Population():
         return get_phot(self.final_bpp, self.final_coords, filters)
 
     def save(self, file_name, overwrite=False):
+        """Save a Population to disk
+
+        This will produce 4 files:
+            - An HDF5 file containing most of the data
+            - A .npy file containing the orbits
+            - A .txt file detailing the Galactic potential used
+            - A .txt file detailing the initial galaxy model used
+
+        Parameters
+        ----------
+        file_name : `str`
+            A file name to use. Either no file extension or ".h5".
+        overwrite : `bool`, optional
+            Whether to overwrite any existing files, by default False
+
+        Raises
+        ------
+        FileExistsError
+            If `overwrite=False` and files already exist
+        """
         if file_name[-3:] != ".h5":
             file_name += ".h5"
         if os.path.isfile(file_name):
@@ -500,13 +524,36 @@ class Population():
             k_stars = np.array([self.final_kstar1, self.final_kstar2])
             file.create_dataset("k_stars", data=k_stars)
 
+            # save BSE settings
+            d = file.create_dataset("BSE_settings", data=[])
+            for key in self.BSE_settings:
+                d.attrs[key] = self.BSE_settings[key]
+
 
 def load(file_name):
+    """Load a Population from a series of files
+
+    Parameters
+    ----------
+    file_name : `str`
+        Base name of the files to use. Should either have no file extension or ".h5"
+
+    Returns
+    -------
+    pop : `Population`
+        The loaded Population
+    """
     if file_name[-3:] != ".h5":
         file_name += ".h5"
+
+    BSE_settings = {}
     with h5.File(file_name, "r") as file:
         numeric_params = file["numeric_params"][...]
         k_stars = file["k_stars"][...]
+
+        # load in BSE settings
+        for key in file["BSE_settings"].attrs:
+            BSE_settings[key] = file["BSE_settings"].attrs[key]
 
     initial_galaxy = galaxy.load(file_name, key="initial_galaxy")
     galactic_potential = gp.potential.load(file_name.replace('.h5', '-potential.txt'))
@@ -515,7 +562,7 @@ def load(file_name):
                    m1_cutoff=numeric_params[3], final_kstar1=k_stars[0], final_kstar2=k_stars[1],
                    galaxy_model=initial_galaxy.__class__, galactic_potential=galactic_potential,
                    v_dispersion=numeric_params[4] * u.km / u.s, max_ev_time=numeric_params[5] * u.Gyr,
-                   timestep_size=numeric_params[6] * u.Myr)
+                   timestep_size=numeric_params[6] * u.Myr, BSE_settings=BSE_settings)
 
     p.n_binaries_match = int(numeric_params[1])
     p._mass_singles = numeric_params[7]
