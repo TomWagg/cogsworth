@@ -1,7 +1,7 @@
 -e .[docs]
 nbsphinx>=0.8.6
 numpydoc
-sphinx_rtd_theme
+pydata-sphinx-theme
 sphinx_automodapi
 sphinxcontrib.bibtex
 IPython
