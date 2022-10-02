@@ -387,8 +387,7 @@ class Population():
         w0s = gd.PhaseSpacePosition(rep.with_differentials(dif))
 
         # identify the pertinent events in the evolution
-        events = identify_events(lookback_times=self.initial_galaxy.tau, full_bpp=self.bpp,
-                                 full_kick_info=self.kick_info)
+        events = identify_events(full_bpp=self.bpp, full_kick_info=self.kick_info)
 
         # if we want to use multiprocessing
         if self.pool is not None or self.processes > 1:

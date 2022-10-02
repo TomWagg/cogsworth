@@ -1,15 +1,13 @@
 import astropy.units as u
 
 
-def identify_events(lookback_times, full_bpp, full_kick_info):
+def identify_events(full_bpp, full_kick_info):
     """Identify any events that occur in the stellar evolution that would affect the galactic evolution
 
     NOTE: This currently only considers supernovae
 
     Parameters
     ----------
-    lookback_times : `float/array`
-        Lookback times of binary
     full_bpp : `Pandas DataFrame`
         Table of evolution phase events from COSMIC
     full_kick_info : `Pandas DataFrame`
@@ -47,7 +45,7 @@ def identify_events(lookback_times, full_bpp, full_kick_info):
             events_1, events_2 = [], []
             for j in range(len(kick_info)):
                 default_event = {
-                    "time": lookback_times[i] + bpp.iloc[j]["tphys"] * u.Myr,
+                    "time": bpp.iloc[j]["tphys"] * u.Myr,
                     "m_1": bpp.iloc[j]["mass_1"] * u.Msun,
                     "m_2": bpp.iloc[j]["mass_2"] * u.Msun,
                     "a": bpp.iloc[j]["sep"] * u.Rsun,
@@ -61,7 +59,7 @@ def identify_events(lookback_times, full_bpp, full_kick_info):
                 # for rows including the disruption or after it then the secondary component needs editing
                 if kick_info.iloc[j]["disrupted"] == 1.0:
                     events_2.append({
-                        "time": lookback_times[i] + bpp.iloc[j]["tphys"] * u.Myr,
+                        "time": bpp.iloc[j]["tphys"] * u.Myr,
                         "m_1": bpp.iloc[j]["mass_1"] * u.Msun,
                         "m_2": bpp.iloc[j]["mass_2"] * u.Msun,
                         "a": bpp.iloc[j]["sep"] * u.Rsun,
@@ -77,7 +75,7 @@ def identify_events(lookback_times, full_bpp, full_kick_info):
         else:
             # for bound binaries we just need a single list
             events_list[i] = [{
-                "time": lookback_times[i] + bpp.iloc[j]["tphys"] * u.Myr,
+                "time": bpp.iloc[j]["tphys"] * u.Myr,
                 "m_1": bpp.iloc[j]["mass_1"] * u.Msun,
                 "m_2": bpp.iloc[j]["mass_2"] * u.Msun,
                 "a": bpp.iloc[j]["sep"] * u.Rsun,

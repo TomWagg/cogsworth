@@ -72,8 +72,11 @@ def integrate_orbit_with_events(w0, potential=gp.MilkyWayPotential(), events=Non
     full_orbit : `ga.orbit.Orbit`
         Orbit that have been integrated
     """
+    # if there are no events then just integrate the whole thing
+    if events is None:
+        return potential.integrate_orbit(w0, t1=t1, t2=t2, dt=dt, Integrator=gi.DOPRI853Integrator)
     # if there are two lists (due to a disruption) then recursively call the function
-    if events is not None and isinstance(events[0], list):
+    elif isinstance(events[0], list):
         assert len(events) == 2
         return [integrate_orbit_with_events(w0=w0, potential=potential, events=events[i],
                                             t1=t1, t2=t2, dt=dt) for i in range(len(events))]
@@ -81,9 +84,6 @@ def integrate_orbit_with_events(w0, potential=gp.MilkyWayPotential(), events=Non
     for n in range(MAX_DT_RESIZE):
         try:
             success = False
-            # if there are no events then just integrate the whole thing
-            if events is None:
-                return potential.integrate_orbit(w0, t1=t1, t2=t2, dt=dt, Integrator=gi.DOPRI853Integrator)
 
             # work out what the timesteps would be without kicks
             timesteps = gi.parse_time_specification(units=[u.s], t1=t1, t2=t2, dt=dt) * u.s
@@ -98,7 +98,7 @@ def integrate_orbit_with_events(w0, potential=gp.MilkyWayPotential(), events=Non
             # loop over the events
             for event in events:
                 # find the timesteps that occur before the kick
-                timestep_mask = (timesteps >= time_cursor) & (timesteps < event["time"])
+                timestep_mask = (timesteps >= time_cursor) & (timesteps < (t1 + event["time"]))
 
                 # if any of them occur before the kick then do some integration
                 if any(timestep_mask):
@@ -115,7 +115,7 @@ def integrate_orbit_with_events(w0, potential=gp.MilkyWayPotential(), events=Non
                     current_w0 = orbit[-1]
 
                 # adjust the time
-                time_cursor = event["time"]
+                time_cursor = t1 + event["time"]
 
                 # calculate the kick differential
                 kick_differential = get_kick_differential(delta_v_sys_xyz=event["delta_v_sys_xyz"],
