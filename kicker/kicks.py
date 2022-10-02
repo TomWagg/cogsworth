@@ -51,8 +51,7 @@ def get_kick_differential(delta_v_sys_xyz, m_1, m_2, a):
     return kick_differential
 
 
-def integrate_orbit_with_events(w0, potential=gp.MilkyWayPotential(), events=None,
-                                t1=None, t2=None, dt=None):
+def integrate_orbit_with_events(w0, potential=gp.MilkyWayPotential(), t1, t2, dt, events=None, quiet=False):
     """Integrate PhaseSpacePosition in a potential with events that occur at certain times
 
     Parameters
@@ -61,16 +60,26 @@ def integrate_orbit_with_events(w0, potential=gp.MilkyWayPotential(), events=Non
         Initial phase space position
     potential : `ga.potential.PotentialBase`, optional
         Potential in which you which to integrate the orbits, by default the MilkyWayPotential()
-    events : `list of objects`
-        Events that occur during the orbit evolution. Should contain the following parameters: `time`, `m_1`,
-        `m_2`, `a`, `ecc`, `delta_v_sys_xyz`
-    rng : `NumPy RandomNumberGenerator`
-        Which random number generator to use
+    t1 : `Astropy Quantity`
+        Integration start time
+    t2 : `Astropy Quantity`
+        Integration end time
+    dt : `Astropy Quantity`
+        Integration initial timestep size (integrator may adapt timesteps)
+    events : `varies`
+        Events that occur during the orbit evolution (such as supernova resulting in kicks). If no events
+        occur then set `events=None` (this will result in a simple call to `potential.integrate_orbit`). If
+        this is a disrupted binary then supply a list of 2 lists of events. Each event list should contain
+        the following parameters: `time`, `m_1`, `m_2`, `a`, `ecc`, `delta_v_sys_xyz` (and will be passed to
+        `get_kick_differential`).
+    quiet : `bool`, optional
+        Whether to silence warning messages about failing orbits
 
     Returns
     -------
     full_orbit : `ga.orbit.Orbit`
-        Orbit that have been integrated
+        Integrated orbit. If a disrupted binary with two event lists was supplied then two orbit classes will
+        be returned. If the orbit integration failed for any reason then None is returned.
     """
     # if there are no events then just integrate the whole thing
     if events is None:
@@ -146,15 +155,13 @@ def integrate_orbit_with_events(w0, potential=gp.MilkyWayPotential(), events=Non
 
         except Exception:
             dt /= 8.
-            print("Orbit is causing problems, attempting reduced timestep size", t1, dt)
+            if not quiet:
+                print("Orbit is causing problems, attempting reduced timestep size", t1, dt)
 
+    # if the orbit failed event after resizing then just return None
     if not success:
-        print("ORBIT FAILED, returning None")
-        # print(w0.pos, w0.vel)
-        # print(t1)
-        # print(events)
-        # for event in events:
-        #     print("\t", np.sum(event["delta_v_sys_xyz"].value**2)**(0.5))
+        if not quiet:
+            print("ORBIT FAILED, returning None")
         return None
 
     return full_orbit
