@@ -52,7 +52,6 @@ extensions = [
     'IPython.sphinxext.ipython_console_highlighting',
     'IPython.sphinxext.ipython_directive',
     'numpydoc',
-    'sphinx_rtd_theme',
     'sphinxcontrib.bibtex',
     'sphinx.ext.intersphinx',
     'sphinx_copybutton',
@@ -94,9 +93,26 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_rtd_theme'
+html_theme = 'pydata_sphinx_theme'
 
-html_theme_options = {"display_version": True, "logo_only" : True}
+html_theme_options = {
+    "logo": {
+        "link": "index",
+    },
+    "icon_links": [
+        {
+            "name": "GitHub",
+            "url": "https://github.com/TomWagg/cosmic-gala",
+            "icon": "fab fa-github-square",
+        },
+        {
+            "name": "Twitter",
+            "url": "https://twitter.com/tomjwagg",
+            "icon": "fab fa-twitter-square",
+        },
+    ],
+}
+
 html_last_updated_fmt = "%Y %b %d at %H:%M:%S UTC"
 html_show_sourcelink = False
 html_favicon = "_static/favicon.ico"
