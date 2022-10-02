@@ -308,7 +308,7 @@ class Population():
         if self._initial_binaries is None and self._initC is None:
             print("Warning: Initial binaries not yet sampled, performing sampling now.")
             self.sample_initial_binaries()
-        
+
         # if initC exists then we can use that instead of initial binaries
         elif self._initial_binaries is None:
             self._initial_binaries = self._initC
@@ -326,8 +326,7 @@ class Population():
             self.pool.join()
 
         # check if there are any NaNs in the final bpp table rows or the kick_info
-        final_bpp = self._bpp[~self._bpp.index.duplicated(keep="last")]
-        nans = np.isnan(final_bpp["sep"])
+        nans = np.isnan(self.final_bpp["sep"])
         kick_info_nans = np.isnan(self._kick_info["delta_vsysx_1"])
 
         # if we detect NaNs
@@ -338,8 +337,8 @@ class Population():
             print("(NaNs detected)")
 
             # store the bad things for later
-            nan_bin_nums = np.concatenate((final_bpp[nans]["bin_num"].values,
-                                           self._kick_info[kick_info_nans]["bin_num"].values))
+            nan_bin_nums = np.unique(np.concatenate((self.final_bpp[nans]["bin_num"].values,
+                                                     self._kick_info[kick_info_nans]["bin_num"].values)))
             self._bpp[self._bpp["bin_num"].isin(nan_bin_nums)].to_hdf("nans.h5", key="bpp")
             self._initC[self._initC["bin_num"].isin(nan_bin_nums)].to_hdf("nans.h5", key="initC")
             self._kick_info[self._kick_info["bin_num"].isin(nan_bin_nums)].to_hdf("nans.h5", key="kick_info")
@@ -352,7 +351,7 @@ class Population():
             self._kick_info = self._kick_info[~self._kick_info["bin_num"].isin(nan_bin_nums)]
             self._initC = self._initC[~self._initC["bin_num"].isin(nan_bin_nums)]
 
-            not_nan = ~final_bpp["bin_num"].isin(nan_bin_nums)
+            not_nan = ~self.final_bpp["bin_num"].isin(nan_bin_nums)
             self.initial_galaxy._tau = self.initial_galaxy._tau[not_nan]
             self.initial_galaxy._Z = self.initial_galaxy._Z[not_nan]
             self.initial_galaxy._z = self.initial_galaxy._z[not_nan]
@@ -365,6 +364,9 @@ class Population():
             self.initial_galaxy._y = self.initial_galaxy._y[not_nan]
             self.initial_galaxy._which_comp = self.initial_galaxy._which_comp[not_nan]
             self.initial_galaxy._size -= n_nan
+
+            # reset final bpp
+            self._final_bpp = None
 
             print(f"WARNING: {n_nan} bad binaries removed from tables - but normalisation may be off")
             print("I've added the offending binaries to the `nan.h5` file, do with them what you will")
@@ -409,8 +411,8 @@ class Population():
                 self.pool = Pool(self.processes)
 
             # setup arguments and evolve the orbits from birth until present day
-            args = [(w0s[i], self.galactic_potential, self.max_ev_time - self.initial_galaxy.tau[i],
-                     self.max_ev_time, copy(self.timestep_size),
+            args = [(w0s[i], self.max_ev_time - self.initial_galaxy.tau[i], self.max_ev_time,
+                     copy(self.timestep_size), self.galactic_potential,
                      events[i], quiet) for i in range(self.n_binaries_match)]
             orbits = self.pool.starmap(integrate_orbit_with_events, args)
 

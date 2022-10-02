@@ -51,21 +51,21 @@ def get_kick_differential(delta_v_sys_xyz, m_1, m_2, a):
     return kick_differential
 
 
-def integrate_orbit_with_events(w0, potential=gp.MilkyWayPotential(), t1, t2, dt, events=None, quiet=False):
+def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential(), events=None, quiet=False):
     """Integrate PhaseSpacePosition in a potential with events that occur at certain times
 
     Parameters
     ----------
     w0 : `ga.dynamics.PhaseSpacePosition`
         Initial phase space position
-    potential : `ga.potential.PotentialBase`, optional
-        Potential in which you which to integrate the orbits, by default the MilkyWayPotential()
     t1 : `Astropy Quantity`
         Integration start time
     t2 : `Astropy Quantity`
         Integration end time
     dt : `Astropy Quantity`
         Integration initial timestep size (integrator may adapt timesteps)
+    potential : `ga.potential.PotentialBase`, optional
+        Potential in which you which to integrate the orbits, by default the MilkyWayPotential()
     events : `varies`
         Events that occur during the orbit evolution (such as supernova resulting in kicks). If no events
         occur then set `events=None` (this will result in a simple call to `potential.integrate_orbit`). If
