@@ -304,9 +304,12 @@ class Population():
         self._final_bpp = None
         self._observables = None
 
+        # if no initial binaries have been sampled then we need to create some
         if self._initial_binaries is None and self._initC is None:
             print("Warning: Initial binaries not yet sampled, performing sampling now.")
             self.sample_initial_binaries()
+        
+        # if initC exists then we can use that instead of initial binaries
         elif self._initial_binaries is None:
             self._initial_binaries = self._initC
 
@@ -366,7 +369,14 @@ class Population():
             print(f"WARNING: {n_nan} bad binaries removed from tables - but normalisation may be off")
             print("I've added the offending binaries to the `nan.h5` file, do with them what you will")
 
-    def perform_galactic_evolution(self):
+    def perform_galactic_evolution(self, quiet=False):
+        """Use `gala` to perform the orbital integration for each evolved binary
+
+        Parameters
+        ----------
+        quiet : `bool`, optional
+            Whether to silence any warnings about failing orbits, by default False
+        """
         # delete any cached variables
         self._final_coords = None
         self._observables = None
@@ -399,9 +409,9 @@ class Population():
                 self.pool = Pool(self.processes)
 
             # setup arguments and evolve the orbits from birth until present day
-            args = [(w0s[i], self.galactic_potential, events[i],
-                     self.max_ev_time - self.initial_galaxy.tau[i], self.max_ev_time,
-                     copy(self.timestep_size)) for i in range(self.n_binaries_match)]
+            args = [(w0s[i], self.galactic_potential, self.max_ev_time - self.initial_galaxy.tau[i],
+                     self.max_ev_time, copy(self.timestep_size),
+                     events[i], quiet) for i in range(self.n_binaries_match)]
             orbits = self.pool.starmap(integrate_orbit_with_events, args)
 
             # if a pool didn't exist before then close the one just created
@@ -413,9 +423,9 @@ class Population():
             orbits = []
             for i in range(self.n_binaries_match):
                 orbits.append(integrate_orbit_with_events(w0=w0s[i], potential=self.galactic_potential,
-                                                          events=events[i],
                                                           t1=self.max_ev_time - self.initial_galaxy.tau[i],
-                                                          t2=self.max_ev_time, dt=copy(self.timestep_size)))
+                                                          t2=self.max_ev_time, dt=copy(self.timestep_size),
+                                                          events=events[i], quiet=quiet))
 
         self._orbits = np.array(orbits, dtype="object")
 
