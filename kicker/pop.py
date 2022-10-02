@@ -16,6 +16,7 @@ from kicker import galaxy
 from kicker.kicks import integrate_orbit_with_events
 from kicker.events import identify_events
 from kicker.classify import determine_final_classes
+from kicker.observables import get_phot
 
 
 class Population():
@@ -75,6 +76,8 @@ class Population():
         secondary component) will be set to `np.inf` for ease of masking.
     final_bpp : `pandas.DataFrame`
         The final state of each binary (taken from the final entry in `self.bpp`)
+    observables : `pandas.DataFrame`
+        Observables associated with the final binaries. See `get_observables` for more details on the columns
     """
     def __init__(self, n_binaries, processes=8, m1_cutoff=7, final_kstar1=list(range(14)),
                  final_kstar2=list(range(14)), galaxy_model=galaxy.Frankel2018,
@@ -106,6 +109,7 @@ class Population():
         self._classes = None
         self._final_coords = None
         self._final_bpp = None
+        self._observables = None
 
         # TODO: give users access to changing these settings
         self.BSE_settings = {'xi': 1.0, 'bhflag': 1, 'neta': 0.5, 'windflag': 3, 'wdflag': 1, 'alpha1': 1.0,
@@ -197,7 +201,15 @@ class Population():
     def final_bpp(self):
         if self._final_bpp is None:
             self._final_bpp = self.bpp.drop_duplicates(subset="bin_num", keep="last")
+            self._final_bpp.insert(len(self._final_bpp.columns), "metallicity",
+                                   self.initC["metallicity"].values)
         return self._final_bpp
+
+    @property
+    def observables(self):
+        if self._observables is None:
+            self._observables = self.get_observables()
+        return self._observables
 
     def create_population(self, with_timing=True):
         """Create an entirely evolved population of binaries.
@@ -285,6 +297,7 @@ class Population():
         """Perform the (binary) stellar evolution of the sampled binaries"""
         # delete any cached variables
         self._final_bpp = None
+        self._observables = None
 
         if self._initial_binaries is None and self._initC is None:
             print("Warning: Initial binaries not yet sampled, performing sampling now.")
@@ -345,14 +358,13 @@ class Population():
             self.initial_galaxy._which_comp = self.initial_galaxy._which_comp[not_nan]
             self.initial_galaxy._size -= n_nan
 
-            self.initial_galaxy.save("test")
-
             print(f"WARNING: {n_nan} bad binaries removed from tables - but normalisation may be off")
             print("I've added the offending binaries to the `nan.h5` file, do with them what you will")
 
     def perform_galactic_evolution(self):
         # delete any cached variables
         self._final_coords = None
+        self._observables = None
 
         # turn the drawn coordinates into an astropy representation
         rep = coords.CylindricalRepresentation(self.initial_galaxy.rho,
@@ -441,6 +453,23 @@ class Population():
                                         v_z=final_kinematics[:, i, 5] * u.km / u.s,
                                         frame="galactocentric") for i in [0, 1]]
         return final_coords[0], final_coords[1]
+
+    def get_observables(self, filters=['J', 'H', 'K', 'G', 'BP', 'RP']):
+        """Get observables associated with the binaries at present day.
+
+        These include: extinction due to dust, absolute and apparent bolometric magnitudes for each star,
+        apparent magnitudes in each filter and observed temperature and surface gravity for each binary.
+
+        For bound binaries and stellar mergers, only the column `{filter}_app_1` is relevant. For
+        disrupted binaries, `{filter}_app_1` is for the primary star and `{filter}_app_2` is for
+        the secondary star.
+
+        Parameters
+        ----------
+        filters : `list`, optional
+            Which filters to compute observables for, by default ['J', 'H', 'K', 'G', 'BP', 'RP']
+        """
+        return get_phot(self.final_bpp, self.final_coords, filters)
 
     def save(self, file_name, overwrite=False):
         if file_name[-3:] != ".h5":

@@ -1,11 +1,12 @@
 import numpy as np
+import pandas as pd
 import astropy.units as u
 import astropy.constants as const
 from dustmaps.bayestar import BayestarQuery
-from isochrones.utils import addmags
+from isochrones.mist.bc import MISTBolometricCorrectionGrid
 
 
-def log_g(mass, radius):
+def get_log_g(mass, radius):
     """Computes log of the surface gravity in cgs
 
     Parameters
@@ -22,7 +23,9 @@ def log_g(mass, radius):
     """
     g = const.G * mass / radius**2
 
-    return np.log10(g.cgs.value)
+    # avoid division by zero errors (for massless remnants)
+    with np.errstate(divide='ignore'):
+        return np.log10(g.cgs.value)
 
 
 def get_absolute_bol_lum(lum):
@@ -58,7 +61,9 @@ def get_apparent_mag(M_abs, distance):
     m_app : `float/array`
         Apparent magnitude
     """
-    m_app = M_abs + 5 * np.log10(distance / (10 * u.pc))
+    finite_distance = np.isfinite(distance)
+    m_app = np.repeat(np.inf, len(distance))
+    m_app[finite_distance] = M_abs[finite_distance] + 5 * np.log10(distance[finite_distance] / (10 * u.pc))
     return m_app
 
 
@@ -81,55 +86,66 @@ def get_absolute_mag(m_app, distance):
     return M_abs
 
 
-def get_mags(lum, distance, teff, logg, Fe_h, Av, bc_grid, filters):
-    """ uses isochrones bolometric correction method to interpolate 
-    across the MIST bolometric correction grid
+def add_mags(*mags, remove_nans=True):
+    """Add any number of magnitudes
 
-     Parameters
+    Parameters
     ----------
-    lum : `array`
-        luminosity in Lsun
-
-    distance : `array`
-        distance in kpc
-
-    teff : `array`
-        effective temperature in K
-
-    logg : `array`
-        log g in cgs
-
-    Fe_h : `array`
-        metallicity
-
-    Av : `array`
-        extinction correction 
-
-    bc_grid : `isochrones bolometric correction grid object`
-        object which generates bolometric corrections!
+    *mags : `list/np.array/float/int`
+        A series of magnitudes. If arrays are given then all must have the same length. If a mixture of single
+        values and arrays are given then the single values will be added to each array element
+    remove_nans : `bool`, optional
+        Whether to remove NaNs from the total (if not the total will be NaN), by default True
 
     Returns
     -------
-    mags : `list of arrays`
-        list of apparent magnitude arrays that matches the filters provided 
-        prepended with the bolometric apparent magnitude
+    total_mag : `float/array`
+        Total magnitude
+
+    Raises
+    ------
+    ValueError
+        If any magnitude is not a list, float, int or numpy array
+    AssertionError
+        If any magnitude array has a different length from another
     """
-    M_abs = get_absolute_bol_lum(lum=lum)
-    m_app = get_apparent_mag(M_abs=M_abs, dist=distance)
-    BCs_abs = bc_grid.interp([teff, logg, Fe_h, Av], filters)
+    total_mag = 0
 
-    BCs_app = bc_grid.interp([teff, logg, Fe_h, Av], filters)
+    # convert lists to numpy arrays
+    mags = list(mags)
+    for i in range(len(mags)):
+        if isinstance(mags[i], list):
+            mags[i] = np.array(mags[i])
+        if isinstance(mags[i], int):
+            mags[i] = float(mags[i])
 
-    mags_app = []
-    mags_app.append(m_app)
-    for ii, filt in zip(range(len(filters)), filters):
-        mags_app.append(m_app - BCs_app[:, ii])
-    mags_abs = []
-    mags_abs.append(m_app)
-    for ii, filt in zip(range(len(filters)), filters):
-        mags_abs.append(M_abs - BCs_abs[:, ii])
+    # check for dodgy input
+    if isinstance(mags[0], (list, np.ndarray)):
+        length = len(mags[0])
+        for mag in mags[1:]:
+            assert len(mag) == length, ("All magnitude arrays must have the same length - one array is of "
+                                        f"length {length} but another is {len(mag)}")
 
-    return mags_app, mags_abs
+    # go through each supplied magnitude
+    for mag in mags:
+        if not isinstance(mag, (np.ndarray, float, int)):
+            raise ValueError(("All `mag`s must either be a list, numpy array, float or an int. Unfortunately "
+                              f"for us both, what you have given me is of type `{type(mag).__name__}`..."))
+
+        # compute the default additional magnitude
+        additional = 10**(-mag * 0.4)
+
+        # if you want to remove any NaNs then do so
+        if remove_nans:
+            if isinstance(mag, np.ndarray):
+                additional[np.isnan(mag)] = 0.0
+            elif np.isnan(mag):
+                additional = 0.0
+        total_mag += additional
+
+    # hide divide by zero errors (since inf magnitude is correct when all mags are NaN)
+    with np.errstate(divide='ignore'):
+        return -2.5 * np.log10(total_mag)
 
 
 def get_extinction(coords):
@@ -151,48 +167,7 @@ def get_extinction(coords):
     return Av
 
 
-def get_photometry_1(dat, bc_grid):
-    # Now let's check out the brightness of the companions in 2MASS filters
-    # for this we need to calculate log g of the companion
-    dat['logg_1'] = log_g(dat.mass_1, dat.rad_1)
-
-    mags_app, mags_abs = get_mags(lum=dat.lum_1.values,
-                                  distance=dat.dist.values,
-                                  teff=dat.teff_1.values,
-                                  logg=dat.logg_1.values,
-                                  Fe_h=dat.FeH.values,
-                                  Av=dat.Av.values,
-                                  bc_grid=bc_grid,
-                                  filters=['J', 'H', 'K', 'G', 'BP', 'RP'])
-
-    [m_app_1, J_app_1, H_app_1, K_app_1, G_app_1, BP_app_1, RP_app_1] = mags_app 
-    [m_abs_1, J_abs_1, H_abs_1, K_abs_1, G_abs_1, BP_abs_1, RP_abs_1] = mags_abs
-
-
-    return m_app_1, J_app_1, H_app_1, K_app_1, G_app_1, BP_app_1, RP_app_1, m_abs_1, J_abs_1, H_abs_1, K_abs_1, G_abs_1, BP_abs_1, RP_abs_1
-
-
-def get_photometry_2(dat, bc_grid):
-    # Now let's check out the brightness of the companions in 2MASS filters
-    # for this we need to calculate log g of the companion
-    dat['logg_2'] = log_g(dat.mass_2, dat.rad_2)
-
-    mags_app, mags_abs = get_mags(lum=dat.lum_2.values,
-                                  distance=dat.dist.values,
-                                  teff=dat.teff_2.values,
-                                  logg=dat.logg_2.values,
-                                  Fe_h=dat.FeH.values,
-                                  Av=dat.Av.values,
-                                  bc_grid=bc_grid,
-                                  filters=['J', 'H', 'K', 'G', 'BP', 'RP'])
-
-    [m_app_2, J_app_2, H_app_2, K_app_2, G_app_2, BP_app_2, RP_app_2] = mags_app 
-    [m_abs_2, J_abs_2, H_abs_2, K_abs_2, G_abs_2, BP_abs_2, RP_abs_2] = mags_abs
-
-    return m_app_2, J_app_2, H_app_2, K_app_2, G_app_2, BP_app_2, RP_app_2, m_abs_2, J_abs_2, H_abs_2, K_abs_2, G_abs_2, BP_abs_2, RP_abs_2
-
-
-def get_phot(final_bpp, final_coords, bc_grid, filters):
+def get_phot(final_bpp, final_coords, filters):
     """Computes photometry subject to dust extinction using the MIST boloemtric correction grid
 
     Parameters
@@ -202,8 +177,6 @@ def get_phot(final_bpp, final_coords, bc_grid, filters):
     final_coords : `tuple Astropy.coordinates.SkyCoord`
         Final positions and velocities of the binaries at present day. First entry is for binaries or the
         primary in a disrupted system, second entry is for secondaries in a disrupted system.
-    bc_grid : `isochrones.bc.MISTBolometricCorrectionGrid`
-        A bolometric correction grid from `isochrones`, must include all `filters`
     filters : `list of str`
         Which filters to compute photometry for
 
@@ -212,117 +185,84 @@ def get_phot(final_bpp, final_coords, bc_grid, filters):
     photometry : `pandas.DataFrame`
         Photometry and extinction information for supplied COSMIC binaries in desired `filters`
     """
-    sim_set['Av'] = get_extinction(final_bpp)
-    print('pop size before extinction cut: {}'.format(len(sim_set)))
-    sim_set.loc[sim_set.Av > 6, ['Av']] = 6
-    sim_set = sim_set.fillna(6)
-    print('pop size after extinction cut: {}'.format(len(sim_set)))
+    # set up empty photometry table
+    photometry = pd.DataFrame()
 
-    if sys_type == 0:
-        phot_1 = get_photometry_1(sim_set, bc_grid)
-        m_app_1, J_app_1, H_app_1, K_app_1, G_app_1, BP_app_1, RP_app_1, m_abs_1, J_abs_1, H_abs_1, K_abs_1, G_abs_1, BP_abs_1, RP_abs_1 = phot_1          
+    # get extinction for bound binaries and primary of disrupted binaries
+    photometry['Av_1'] = get_extinction(final_coords[0])
 
-        sim_set['mbol_app'] = m_app_1
-        sim_set['J_app'] = J_app_1
-        sim_set['H_app'] = H_app_1
-        sim_set['K_app'] = K_app_1
-        sim_set['G_app'] = G_app_1
-        sim_set['BP_app'] = BP_app_1
-        sim_set['RP_app'] = RP_app_1
+    # get extinction for secondaries of disrupted binaries (leave as np.inf otherwise)
+    photometry['Av_2'] = np.repeat(np.inf, len(final_coords[1]))
+    photometry.loc[final_bpp["sep"] < 0, "Av_2"] = get_extinction(final_coords[1][final_bpp["sep"] < 0])
 
-        sim_set['mbol_abs'] = m_abs_1
-        sim_set['J_abs'] = J_abs_1
-        sim_set['H_abs'] = H_abs_1
-        sim_set['K_abs'] = K_abs_1
-        sim_set['G_abs'] = G_abs_1
-        sim_set['BP_abs'] = BP_abs_1
-        sim_set['RP_abs'] = RP_abs_1
+    # ensure extinction remains in MIST grid range (<= 6) and is not NaN
+    print('pop size before extinction cut: {}'.format(len(photometry)))
+    photometry.loc[photometry.Av_1 > 6, ['Av_1']] = 6
+    photometry.loc[photometry.Av_2 > 6, ['Av_2']] = 6
+    photometry = photometry.fillna(6)
+    print('pop size after extinction cut: {}'.format(len(photometry)))
 
-        # if single: the bright system is just the star
-        sim_set['sys_bright'] = np.ones(len(sim_set))
-        sim_set['logg_obs'] = sim_set.logg_1.values
-        sim_set['teff_obs'] = sim_set.teff_1.values
+    # get Fe/H using e.g. Bertelli+1994 Eq. 10
+    Z_sun = 0.0142
+    FeH = np.log10(final_bpp["metallicity"].values / Z_sun) / 0.977
 
-    elif sys_type == 1:
-        phot_1 = get_photometry_1(sim_set, bc_grid)
-        m_app_1, J_app_1, H_app_1, K_app_1, G_app_1, BP_app_1, RP_app_1, m_abs_1, J_abs_1, H_abs_1, K_abs_1, G_abs_1, BP_abs_1, RP_abs_1 = phot_1  
+    # set up MIST bolometric correction grid
+    bc_grid = MISTBolometricCorrectionGrid(bands=filters)
+    bc = [None, None]
 
-        phot_2 = get_photometry_2(sim_set, bc_grid)
-        m_app_2, J_app_2, H_app_2, K_app_2, G_app_2, BP_app_2, RP_app_2, m_abs_2, J_abs_2, H_abs_2, K_abs_2, G_abs_2, BP_abs_2, RP_abs_2 = phot_2
+    # for each star in the (possibly disrupted/merged) binary
+    for ind in [1, 2]:
+        # calculate the surface gravity
+        final_bpp.insert(len(final_bpp.columns), f"log_g_{ind}",
+                         get_log_g(mass=final_bpp[f"mass_{ind}"].values * u.Msun,
+                                   radius=final_bpp[f"rad_{ind}"].values * u.Rsun))
 
-        # check if the primary or secondary is brighter in 2MASS K
-        sys_bright = np.ones(len(sim_set))
+        # get the bolometric corrections from MIST isochrones
+        bc[ind - 1] = bc_grid.interp([final_bpp[f"teff_{ind}"].values, final_bpp[f"log_g_{ind}"].values,
+                                      FeH, photometry[f"Av_{ind}"]],
+                                     filters)
 
-        # next handle the systems where there was merger and the leftover star
-        # is left in kstar_2 instead of kstar_1
-        kstar_1 = sim_set.kstar_1.values
-        ind_single_1 = np.where(kstar_1 == 15)[0]
-        sys_bright[ind_single_1] = 2.0
+        # calculate the absolute bolometric magnitude and set any BH or massless remnants to invisible
+        photometry[f"M_abs_{ind}"] = get_absolute_bol_lum(lum=final_bpp[f"lum_{ind}"].values * u.Lsun)
+        photometry.loc[final_bpp[f"kstar_{ind}"].isin([14, 15]), f"M_abs_{ind}"] = np.inf
 
-        # next; in some instances, there are systems which are too dim to register
-        # in the isochrones/MIST grids
-        ind_dim_1 = np.where(np.isnan(G_app_1))[0]
-        sys_bright[ind_dim_1] = 2.0
-        ind_dim_2 = np.where(np.isnan(G_app_2))[0]
-        #ind_dim_2 already covered above
+        # work out the distance (if the system is bound always use the first `final_coords` SkyCoord)
+        distance = np.repeat(np.inf, len(final_bpp)) * u.kpc
+        distance[final_bpp["sep"] < 0] = final_coords[ind - 1][final_bpp["sep"] < 0].icrs.distance
+        distance[final_bpp["sep"] >= 0] = final_coords[0][final_bpp["sep"] >= 0].icrs.distance
 
-        ind_2_bright = np.where(G_app_2 < G_app_1)[0]
-        ind_1_bright = np.where(G_app_2 >= G_app_1)[0]
-        sys_bright[ind_2_bright] = 2.0
-        #ind_1_bright already covered above
+        # convert the absolute magnitude to an apparent magnitude
+        photometry[f"m_app_{ind}"] = get_apparent_mag(M_abs=photometry[f"M_abs_{ind}"].values,
+                                                      distance=distance)
 
-        sim_set['sys_bright'] = sys_bright
+    # go through each filter
+    for i, filter in enumerate(filters):
+        # apply the bolometric corrections to the apparent magnitude of each star
+        filter_mags = [photometry[f"m_app_{ind}"].values - bc[ind - 1][:, i] for ind in [1, 2]]
 
-        logg_obs = np.zeros(len(sim_set))
-        logg_obs[sys_bright == 1.0] = sim_set.loc[sim_set.sys_bright == 1].logg_1
-        logg_obs[sys_bright == 2.0] = sim_set.loc[sim_set.sys_bright == 2].logg_2
-        sim_set['logg_obs'] = logg_obs
+        # total the magnitudes (removing any NaNs)
+        total_filter_mag = add_mags(*filter_mags, remove_nans=True)
 
-        teff_obs = np.zeros(len(sim_set))
-        teff_obs[sys_bright == 1.0] = sim_set.loc[sim_set.sys_bright == 1].teff_1
-        teff_obs[sys_bright == 2.0] = sim_set.loc[sim_set.sys_bright == 2].teff_2
-        sim_set['teff_obs'] = teff_obs
+        # default to assuming all systems are bound - in this case total magnitude is listed
+        # in primary filter apparent mag, and secondary is non-existent
+        photometry[f"{filter}_app_1"] = total_filter_mag
+        photometry[f"{filter}_app_2"] = np.repeat(np.inf, len(photometry))
 
+        # for disrupted systems, change the filter apparent magnitudes to the values for each individual star
+        disrupted = final_bpp["sep"] < 0.0
+        for ind in [1, 2]:
+            photometry.loc[disrupted, f"{filter}_app_{ind}"] = filter_mags[ind - 1][disrupted]
 
-        sim_set['J_app'] = addmags(J_app_1, J_app_2)
-        sim_set['H_app'] = addmags(H_app_1, H_app_2)
-        sim_set['K_app'] = addmags(K_app_1, K_app_2)
-        sim_set['G_app'] = addmags(G_app_1, G_app_2)
-        sim_set['BP_app'] = addmags(BP_app_1, BP_app_2)
-        sim_set['RP_app'] = addmags(RP_app_1, RP_app_2)
-        sim_set['mbol_app'] = addmags(m_app_1, m_app_2)
+        # for the G filter in particular, see which temperature/log-g is getting measured
+        if filter == "G":
+            # by default assume the primary is dominant
+            photometry["teff_obs"] = final_bpp["teff_1"].values
+            photometry["log_g_obs"] = final_bpp["log_g_1"].values
 
-        sim_set['J_abs'] = addmags(J_abs_1, J_abs_2)
-        sim_set['H_abs'] = addmags(H_abs_1, H_abs_2)
-        sim_set['K_abs'] = addmags(K_abs_1, K_abs_2)
-        sim_set['G_abs'] = addmags(G_abs_1, G_abs_2)
-        sim_set['BP_abs'] = addmags(BP_abs_1, BP_abs_2)
-        sim_set['RP_abs'] = addmags(RP_abs_1, RP_abs_2)
-        sim_set['mbol_abs'] = addmags(m_abs_1, m_abs_2)
+            # overwrite any values where the secondary is brighter
+            secondary_brighter = (filter_mags[1] < filter_mags[0]) | (np.isnan(filter_mags[0])
+                                                                      & ~np.isnan(filter_mags[1]))
+            photometry.loc[secondary_brighter, "teff_obs"] = final_bpp["teff_2"].values[secondary_brighter]
+            photometry.loc[secondary_brighter, "log_g_obs"] = final_bpp["log_g_2"].values[secondary_brighter]
 
-    elif sys_type == 2:
-        phot_2 = get_photometry_2(sim_set, bc_grid)
-        m_app_2, J_app_2, H_app_2, K_app_2, G_app_2, BP_app_2, RP_app_2, m_abs_2, J_abs_2, H_abs_2, K_abs_2, G_abs_2, BP_abs_2, RP_abs_2 = phot_2
-
-        sim_set['mbol_app'] = m_app_2
-        sim_set['J_app'] = J_app_2
-        sim_set['H_app'] = H_app_2
-        sim_set['K_app'] = K_app_2
-        sim_set['G_app'] = G_app_2
-        sim_set['BP_app'] = BP_app_2
-        sim_set['RP_app'] = RP_app_2
-        
-        sim_set['mbol_abs'] = m_abs_2
-        sim_set['J_abs'] = J_abs_2
-        sim_set['H_abs'] = H_abs_2
-        sim_set['K_abs'] = K_abs_2
-        sim_set['G_abs'] = G_abs_2
-        sim_set['BP_abs'] = BP_abs_2
-        sim_set['RP_abs'] = RP_abs_2
-
-        # if single: the bright system is just the star
-        sim_set['sys_bright'] = 2*np.ones(len(sim_set))
-        sim_set['logg_obs'] = sim_set.logg_2.values
-        sim_set['teff_obs'] = sim_set.teff_2.values
-
-    return sim_set
+    return photometry
