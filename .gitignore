@@ -134,3 +134,4 @@ fort.99
 data/*
 !data/README.md
 dustmaps/*
+docs/api
