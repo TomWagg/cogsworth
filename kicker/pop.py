@@ -1,5 +1,6 @@
 import time
 import os
+from copy import copy
 from multiprocessing import Pool
 import numpy as np
 import astropy.units as u
@@ -400,8 +401,8 @@ class Population():
 
             # setup arguments and evolve the orbits from birth until present day
             args = [(w0s[i], self.galactic_potential, events[i],
-                     self.initial_galaxy.tau[i], self.max_ev_time,
-                     self.timestep_size) for i in range(self.n_binaries_match)]
+                     self.max_ev_time - self.initial_galaxy.tau[i], self.max_ev_time,
+                     copy(self.timestep_size)) for i in range(self.n_binaries_match)]
             orbits = self.pool.starmap(integrate_orbit_with_events, args)
 
             # if a pool didn't exist before then close the one just created
@@ -413,8 +414,9 @@ class Population():
             orbits = []
             for i in range(self.n_binaries_match):
                 orbits.append(integrate_orbit_with_events(w0=w0s[i], potential=self.galactic_potential,
-                                                          events=events[i], t1=self.initial_galaxy.tau[i],
-                                                          t2=self.max_ev_time, dt=self.timestep_size))
+                                                          events=events[i],
+                                                          t1=self.max_ev_time - self.initial_galaxy.tau[i],
+                                                          t2=self.max_ev_time, dt=copy(self.timestep_size)))
 
         self._orbits = np.array(orbits, dtype="object")
 
