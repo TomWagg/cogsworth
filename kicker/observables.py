@@ -262,6 +262,7 @@ def get_phot(final_bpp, final_coords, filters):
             # overwrite any values where the secondary is brighter
             secondary_brighter = (filter_mags[1] < filter_mags[0]) | (np.isnan(filter_mags[0])
                                                                       & ~np.isnan(filter_mags[1]))
+            photometry["secondary_brighter"] = secondary_brighter
             photometry.loc[secondary_brighter, "teff_obs"] = final_bpp["teff_2"].values[secondary_brighter]
             photometry.loc[secondary_brighter, "log_g_obs"] = final_bpp["log_g_2"].values[secondary_brighter]
 
