@@ -47,6 +47,10 @@ class Population():
         Size of timesteps to use in galactic evolution, by default 1*u.Myr
     BSE_settings : `dict`, optional
         Any BSE settings to pass to COSMIC
+    store_entire_orbits : `bool`, optional
+        Whether to store the entire orbit for each binary, by default True. If not then only the final
+        PhaseSpacePosition will be stored. This cuts down on both memory usage and disk space used if you
+        save the Population.
 
     Attributes
     ----------
@@ -85,7 +89,7 @@ class Population():
     def __init__(self, n_binaries, processes=8, m1_cutoff=7, final_kstar1=list(range(14)),
                  final_kstar2=list(range(14)), galaxy_model=galaxy.Frankel2018,
                  galactic_potential=gp.MilkyWayPotential(), v_dispersion=5 * u.km / u.s,
-                 max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}):
+                 max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, store_entire_orbits=True):
         self.n_binaries = n_binaries
         self.n_binaries_match = n_binaries
         self.processes = processes
@@ -98,6 +102,7 @@ class Population():
         self.max_ev_time = max_ev_time
         self.timestep_size = timestep_size
         self.pool = None
+        self.store_entire_orbits = store_entire_orbits
 
         self._initial_binaries = None
         self._mass_singles = None
@@ -114,7 +119,6 @@ class Population():
         self._final_bpp = None
         self._observables = None
 
-        # TODO: give users access to changing these settings
         self.BSE_settings = {'xi': 1.0, 'bhflag': 1, 'neta': 0.5, 'windflag': 3, 'wdflag': 1, 'alpha1': 1.0,
                              'pts1': 0.001, 'pts3': 0.02, 'pts2': 0.01, 'epsnov': 0.001, 'hewind': 0.5,
                              'ck': 1000, 'bwind': 0.0, 'lambdaf': 0.0, 'mxns': 3.0, 'beta': -1.0, 'tflag': 1,
@@ -413,7 +417,7 @@ class Population():
             # setup arguments and evolve the orbits from birth until present day
             args = [(w0s[i], self.max_ev_time - self.initial_galaxy.tau[i], self.max_ev_time,
                      copy(self.timestep_size), self.galactic_potential,
-                     events[i], quiet) for i in range(self.n_binaries_match)]
+                     events[i], self.store_entire_orbits, quiet) for i in range(self.n_binaries_match)]
             orbits = self.pool.starmap(integrate_orbit_with_events, args)
 
             # if a pool didn't exist before then close the one just created
@@ -427,7 +431,8 @@ class Population():
                 orbits.append(integrate_orbit_with_events(w0=w0s[i], potential=self.galactic_potential,
                                                           t1=self.max_ev_time - self.initial_galaxy.tau[i],
                                                           t2=self.max_ev_time, dt=copy(self.timestep_size),
-                                                          events=events[i], quiet=quiet))
+                                                          events=events[i], quiet=quiet,
+                                                          store_entire_orbits=self.store_entire_orbits))
 
         self._orbits = np.array(orbits, dtype="object")
 
@@ -532,7 +537,8 @@ class Population():
                                        self.max_ev_time.to(u.Gyr).value, self.timestep_size.to(u.Myr).value,
                                        self.mass_singles, self.mass_binaries, self.n_singles_req,
                                        self.n_bin_req])
-            file.create_dataset("numeric_params", data=numeric_params)
+            num_par = file.create_dataset("numeric_params", data=numeric_params)
+            num_par.attrs["store_entire_orbits"] = self.store_entire_orbits
 
             k_stars = np.array([self.final_kstar1, self.final_kstar2])
             file.create_dataset("k_stars", data=k_stars)
@@ -564,6 +570,8 @@ def load(file_name):
         numeric_params = file["numeric_params"][...]
         k_stars = file["k_stars"][...]
 
+        store_entire_orbits = file["numeric_params"].attrs["store_entire_orbits"]
+
         # load in BSE settings
         for key in file["BSE_settings"].attrs:
             BSE_settings[key] = file["BSE_settings"].attrs[key]
@@ -575,7 +583,8 @@ def load(file_name):
                    m1_cutoff=numeric_params[3], final_kstar1=k_stars[0], final_kstar2=k_stars[1],
                    galaxy_model=initial_galaxy.__class__, galactic_potential=galactic_potential,
                    v_dispersion=numeric_params[4] * u.km / u.s, max_ev_time=numeric_params[5] * u.Gyr,
-                   timestep_size=numeric_params[6] * u.Myr, BSE_settings=BSE_settings)
+                   timestep_size=numeric_params[6] * u.Myr, BSE_settings=BSE_settings,
+                   store_entire_orbits=store_entire_orbits)
 
     p.n_binaries_match = int(numeric_params[1])
     p._mass_singles = numeric_params[7]

@@ -51,7 +51,8 @@ def get_kick_differential(delta_v_sys_xyz, m_1, m_2, a):
     return kick_differential
 
 
-def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential(), events=None, quiet=False):
+def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential(), events=None,
+                                store_all=True, quiet=False):
     """Integrate PhaseSpacePosition in a potential with events that occur at certain times
 
     Parameters
@@ -72,6 +73,9 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential()
         this is a disrupted binary then supply a list of 2 lists of events. Each event list should contain
         the following parameters: `time`, `m_1`, `m_2`, `a`, `ecc`, `delta_v_sys_xyz` (and will be passed to
         `get_kick_differential`).
+    store_all : `bool`, optional
+        Whether to store the entire orbit, by default True. If not then only the final
+        PhaseSpacePosition will be stored - this cuts down on memory usage.
     quiet : `bool`, optional
         Whether to silence warning messages about failing orbits
 
@@ -83,12 +87,18 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential()
     """
     # if there are no events then just integrate the whole thing
     if events is None:
-        return potential.integrate_orbit(w0, t1=t1, t2=t2, dt=dt, Integrator=gi.DOPRI853Integrator)
+        full_orbit = potential.integrate_orbit(w0, t1=t1, t2=t2, dt=dt, Integrator=gi.DOPRI853Integrator)
+        # jettison everything but the final timestep if user says so
+        if not store_all:
+            full_orbit = full_orbit[-1:]
+        return full_orbit
+
     # if there are two lists (due to a disruption) then recursively call the function
     elif isinstance(events[0], list):
         assert len(events) == 2
         return [integrate_orbit_with_events(w0=w0, potential=potential, events=events[i],
-                                            t1=t1, t2=t2, dt=dt) for i in range(len(events))]
+                                            t1=t1, t2=t2, dt=dt, quiet=quiet, store_all=store_all)
+                for i in range(len(events))]
     MAX_DT_RESIZE = 2
     for n in range(MAX_DT_RESIZE):
         try:
@@ -163,5 +173,9 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential()
         if not quiet:
             print("ORBIT FAILED, returning None")
         return None
+
+    # jettison everything but the final timestep if user says so
+    if not store_all:
+        full_orbit = full_orbit[-1:]
 
     return full_orbit
