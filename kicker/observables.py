@@ -173,7 +173,8 @@ def get_phot(final_bpp, final_coords, filters):
     Parameters
     ----------
     final_bpp : `pandas.DataFrame`
-        A dataset of COSMIC binaries at present day - must include these columns [TODO]
+        A dataset of COSMIC binaries at present day - must include these columns: ["sep", "metallicity"] and
+        for each star it must have the columns ["teff", "lum", "mass", "rad", "kstar"]
     final_coords : `tuple Astropy.coordinates.SkyCoord`
         Final positions and velocities of the binaries at present day. First entry is for binaries or the
         primary in a disrupted system, second entry is for secondaries in a disrupted system.
@@ -193,7 +194,8 @@ def get_phot(final_bpp, final_coords, filters):
 
     # get extinction for secondaries of disrupted binaries (leave as np.inf otherwise)
     photometry['Av_2'] = np.repeat(np.inf, len(final_coords[1]))
-    photometry.loc[final_bpp["sep"] < 0, "Av_2"] = get_extinction(final_coords[1][final_bpp["sep"] < 0])
+    disrupted = final_bpp["sep"].values < 0.0
+    photometry.loc[disrupted, "Av_2"] = get_extinction(final_coords[1][disrupted])
 
     # ensure extinction remains in MIST grid range (<= 6) and is not NaN
     print('pop size before extinction cut: {}'.format(len(photometry)))
@@ -224,12 +226,12 @@ def get_phot(final_bpp, final_coords, filters):
 
         # calculate the absolute bolometric magnitude and set any BH or massless remnants to invisible
         photometry[f"M_abs_{ind}"] = get_absolute_bol_lum(lum=final_bpp[f"lum_{ind}"].values * u.Lsun)
-        photometry.loc[final_bpp[f"kstar_{ind}"].isin([14, 15]), f"M_abs_{ind}"] = np.inf
+        photometry.loc[np.isin(final_bpp[f"kstar_{ind}"].values, [14, 15]), f"M_abs_{ind}"] = np.inf
 
         # work out the distance (if the system is bound always use the first `final_coords` SkyCoord)
         distance = np.repeat(np.inf, len(final_bpp)) * u.kpc
-        distance[final_bpp["sep"] < 0] = final_coords[ind - 1][final_bpp["sep"] < 0].icrs.distance
-        distance[final_bpp["sep"] >= 0] = final_coords[0][final_bpp["sep"] >= 0].icrs.distance
+        distance[disrupted] = final_coords[ind - 1][disrupted].icrs.distance
+        distance[~disrupted] = final_coords[0][~disrupted].icrs.distance
 
         # convert the absolute magnitude to an apparent magnitude
         photometry[f"m_app_{ind}"] = get_apparent_mag(M_abs=photometry[f"M_abs_{ind}"].values,
@@ -250,8 +252,7 @@ def get_phot(final_bpp, final_coords, filters):
             photometry[f"{filter}_{mag_type}_1"] = total_filter_mag
             photometry[f"{filter}_{mag_type}_2"] = np.repeat(np.inf, len(photometry))
 
-            # for disrupted systems, change the filter apparent magnitudes to the values for each individual star
-            disrupted = final_bpp["sep"] < 0.0
+            # for disrupted systems, change filter apparent magnitudes to the values for each individual star
             for ind in [1, 2]:
                 photometry.loc[disrupted, f"{filter}_{mag_type}_{ind}"] = filter_mags[ind - 1][disrupted]
 

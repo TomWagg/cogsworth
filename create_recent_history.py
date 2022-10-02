@@ -18,7 +18,7 @@ class RecentHistory(kicker.galaxy.Frankel2018):
         return tau
 
 
-p = kicker.pop.Population(100_000, processes=6, m1_cutoff=0, galaxy_model=RecentHistory,
+p = kicker.pop.Population(1_000_000, processes=7, m1_cutoff=0, galaxy_model=RecentHistory,
                           max_ev_time=200 * u.Myr, timestep_size=0.5 * u.Myr, BSE_settings={"binfrac": 1.0},
                           store_entire_orbits=False)
 
