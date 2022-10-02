@@ -1,5 +1,5 @@
-kicker modules and API reference
-================================
+API reference
+=============
 
 .. toctree::
    :maxdepth: 4
@@ -9,9 +9,11 @@ kicker modules and API reference
 .. automodapi:: kicker.events
 
 .. automodapi:: kicker.galaxy
+    :no-inheritance-diagram:
 
 .. automodapi:: kicker.kicks
 
 .. automodapi:: kicker.observables
 
 .. automodapi:: kicker.pop
+    :no-inheritance-diagram:
