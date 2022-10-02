@@ -3,6 +3,8 @@ import numpy as np
 import astropy.units as u
 import gala.dynamics as gd
 
+__all__ = ["determine_final_classes", "list_classes"]
+
 
 def determine_final_classes(population=None, bpp=None, bcm=None, kick_info=None, orbits=None, potential=None):
     """Determine the classes of each member of a population at the last point in the evolution (usually

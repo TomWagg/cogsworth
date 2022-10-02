@@ -1,5 +1,7 @@
 import astropy.units as u
 
+__all__ = ["identify_events"]
+
 
 def identify_events(full_bpp, full_kick_info):
     """Identify any events that occur in the stellar evolution that would affect the galactic evolution

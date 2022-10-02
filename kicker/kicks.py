@@ -7,6 +7,8 @@ import astropy.coordinates as coords
 import astropy.units as u
 import astropy.constants as const
 
+__all__ = ["get_kick_differential", "integrate_orbit_with_events"]
+
 
 def get_kick_differential(delta_v_sys_xyz, m_1, m_2, a):
     """Calculate the Differential from a combination of the natal kick, Blauuw kick and orbital motion.

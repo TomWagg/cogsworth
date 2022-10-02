@@ -5,6 +5,9 @@ import astropy.constants as const
 from dustmaps.bayestar import BayestarQuery
 from isochrones.mist.bc import MISTBolometricCorrectionGrid
 
+__all__ = ["get_log_g", "get_absolute_bol_mag", "get_apparent_mag", "get_absolute_mag", "add_mags",
+           "get_extinction", "get_phot"]
+
 
 def get_log_g(mass, radius):
     """Computes log of the surface gravity in cgs
@@ -28,8 +31,8 @@ def get_log_g(mass, radius):
         return np.log10(g.cgs.value)
 
 
-def get_absolute_bol_lum(lum):
-    """Computes the absolute bolometric luminosity
+def get_absolute_bol_mag(lum):
+    """Computes the absolute bolometric magnitude
 
     Parameters
     ----------
@@ -225,7 +228,7 @@ def get_phot(final_bpp, final_coords, filters):
                                      filters)
 
         # calculate the absolute bolometric magnitude and set any BH or massless remnants to invisible
-        photometry[f"M_abs_{ind}"] = get_absolute_bol_lum(lum=final_bpp[f"lum_{ind}"].values * u.Lsun)
+        photometry[f"M_abs_{ind}"] = get_absolute_bol_mag(lum=final_bpp[f"lum_{ind}"].values * u.Lsun)
         photometry.loc[np.isin(final_bpp[f"kstar_{ind}"].values, [14, 15]), f"M_abs_{ind}"] = np.inf
 
         # work out the distance (if the system is bound always use the first `final_coords` SkyCoord)

@@ -19,6 +19,8 @@ from kicker.events import identify_events
 from kicker.classify import determine_final_classes
 from kicker.observables import get_phot
 
+__all__ = ["Population", "load"]
+
 
 class Population():
     """Class for creating and evolving populations of binaries throughout the Milky Way

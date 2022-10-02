@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import pandas as pd
 
+__all__ = ["Galaxy", "Frankel2018", "load"]
+
 
 class Galaxy():
     """Class for a generic galaxy model from which to sample
