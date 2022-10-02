@@ -106,7 +106,7 @@ def integrate_orbit_with_events(w0, potential=gp.MilkyWayPotential(), events=Non
 
                     # integrate the orbit over these timesteps
                     orbit = potential.integrate_orbit(current_w0, t=matching_timesteps,
-                                                    Integrator=gi.DOPRI853Integrator)
+                                                      Integrator=gi.DOPRI853Integrator)
 
                     # save the orbit data
                     orbit_data.append(orbit.data)
@@ -119,12 +119,12 @@ def integrate_orbit_with_events(w0, potential=gp.MilkyWayPotential(), events=Non
 
                 # calculate the kick differential
                 kick_differential = get_kick_differential(delta_v_sys_xyz=event["delta_v_sys_xyz"],
-                                                        m_1=event["m_1"], m_2=event["m_2"], a=event["a"])
+                                                          m_1=event["m_1"], m_2=event["m_2"], a=event["a"])
 
                 # update the velocity of the current PhaseSpacePosition
                 current_w0 = gd.PhaseSpacePosition(pos=current_w0.pos,
-                                                vel=current_w0.vel + kick_differential,
-                                                frame=current_w0.frame)
+                                                   vel=current_w0.vel + kick_differential,
+                                                   frame=current_w0.frame)
 
             # if we still have time left after the last event (very likely)
             if time_cursor < timesteps[-1]:
@@ -149,10 +149,12 @@ def integrate_orbit_with_events(w0, potential=gp.MilkyWayPotential(), events=Non
             print("Orbit is causing problems, attempting reduced timestep size", t1, dt)
 
     if not success:
-        print("ORBIT FAILED")
-        print(w0.pos, w0.vel)
-        print(t1)
-        print(events)
+        print("ORBIT FAILED, returning None")
+        # print(w0.pos, w0.vel)
+        # print(t1)
+        # print(events)
+        # for event in events:
+        #     print("\t", np.sum(event["delta_v_sys_xyz"].value**2)**(0.5))
         return None
 
     return full_orbit
