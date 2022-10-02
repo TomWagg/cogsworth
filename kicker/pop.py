@@ -291,7 +291,7 @@ class Population():
 
         # update the metallicity and birth times of the binaries to match the galaxy
         self._initial_binaries["metallicity"] = self.initial_galaxy.Z
-        self._initial_binaries["tphysf"] = (self.max_ev_time - self.initial_galaxy.tau).to(u.Myr).value
+        self._initial_binaries["tphysf"] = self.initial_galaxy.tau.to(u.Myr).value
 
         # ensure metallicities remain in a range valid for COSMIC - original value still in initial_galaxy.Z
         self._initial_binaries["metallicity"][self._initial_binaries["metallicity"] < 1e-4] = 1e-4
