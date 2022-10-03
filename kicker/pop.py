@@ -445,7 +445,7 @@ class Population():
 
         Returns
         -------
-        final_coords : `tuple` of :class:`~astropy.coordinates.SkyCoord`s
+        final_coords : `tuple` of :class:`~astropy.coordinates.SkyCoord`
             A SkyCoord object of the final positions of each binary in the galactocentric frame.
             For bound binaries only the first SkyCoord is populated, for disrupted binaries each SkyCoord
             corresponds to the individual components. Any missing orbits (where orbit=None or there is no

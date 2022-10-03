@@ -24,7 +24,7 @@ def determine_final_classes(population=None, bpp=None, bcm=None, kick_info=None,
         Initial conditions for each binary
     kick_info : :class:`~pandas.DataFrame`
         Information about the kicks that occur for each binary
-    orbits : `list` of :class:`~gala.dynamics.Orbit`s
+    orbits : `list` of :class:`~gala.dynamics.Orbit`
         The orbits of each binary within the galaxy. Disrupted binaries should have two entries
         (for both stars).
     galactic_potential : :class:`~gala.potential.potential.PotentialBase`, optional
