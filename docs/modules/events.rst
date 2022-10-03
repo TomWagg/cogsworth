@@ -1,5 +1,3 @@
-.. module:: kicker.events
-
 *********************************
 Identify events (`kicker.events`)
 *********************************

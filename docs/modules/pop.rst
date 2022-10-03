@@ -1,5 +1,3 @@
-.. module:: kicker.pop
-
 *********************************
 Binary Populations (`kicker.pop`)
 *********************************

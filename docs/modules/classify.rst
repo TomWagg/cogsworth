@@ -1,5 +1,3 @@
-.. module:: kicker.classify
-
 *****************************************
 Binary classification (`kicker.classify`)
 *****************************************

@@ -1,5 +1,3 @@
-.. module:: kicker.kicks
-
 *******************************************************
 Orbit integration with supernova kicks (`kicker.kicks`)
 *******************************************************

@@ -1,5 +1,3 @@
-.. module:: kicker.observables
-
 **********************************
 Observables (`kicker.observables`)
 **********************************
