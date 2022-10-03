@@ -46,6 +46,7 @@ extensions = [
     "sphinx.ext.mathjax",
     "matplotlib.sphinxext.plot_directive",
     "nbsphinx",
+    'sphinx_design',
     'sphinx_automodapi.automodapi',
     'sphinx_automodapi.smart_resolver',
     'sphinx.ext.graphviz',
@@ -139,7 +140,7 @@ todo_include_todos = True
 nbsphinx_prolog = """
 {% set docname = env.doc2path(env.docname, base=None) %}
 .. note:: This tutorial was generated from a Jupyter notebook that can be
-          `downloaded here <https://github.com/TeamLEGWORK/LEGWORK/tree/main/docs/{{ docname }}>`_.
+          `downloaded here <https://github.com/TomWagg/cosmic-gala/tree/main/docs/{{ docname }}>`_.
           If you'd like to reproduce the results in the notebook, or make changes to the code, we recommend
           downloading this notebook and running it with Jupyter as certain cells (mostly those that change
           plot styles) are excluded from the tutorials.
@@ -181,9 +182,9 @@ def linkcode_resolve(domain, info):
     try:
         file, start, end = find_func()
         # stitch together a github link with specific lines
-        filename = "legwork/{}.py#L{}-L{}".format(file, start, end)
+        filename = "kicker/{}.py#L{}-L{}".format(file, start, end)
 
     # if you can't find it in the file then just link to the correct file
     except Exception:
         filename = info['module'].replace('.', '/') + '.py'
-    return "https://github.com/TeamLEGWORK/LEGWORK/blob/main/{}".format(filename)
+    return "https://github.com/TomWagg/cosmic-gala/blob/main/{}".format(filename)

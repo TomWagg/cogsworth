@@ -3,7 +3,9 @@
    :alt: logo for package
    :align: center
 
-|
+******
+kicker
+******
 
 TODO: Add intro here
 Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text
