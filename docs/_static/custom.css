@@ -35,12 +35,6 @@ a.copybtn > img {
 .o-tooltip--left:hover:after {
     transition-delay: 0.2s;
 }
-
-/* Taken from NumPy */
-
-@import url('https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&family=Open+Sans:ital,wght@0,400;0,600;1,400;1,600&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@600&family=Signika+Negative:wght@300;400;500;600;700&display=swap');
-
 .navbar-brand img {
    height: 60px;
 }
@@ -57,22 +51,11 @@ div.output_area div[class*=highlight] pre {
   white-space: pre-wrap;
 }
 
-/* Make output lighter gray and no italics for the love of all that is holy! */
-.highlight .go {
-  color: #555555;
-  font-style: normal;
-}
-
-/* OMG why would you bold numbers */
-.highlight .mf, .highlight .mi {
-  font-weight: 300;
-}
-
 :root {
   --pst-color-primary: #805bd2!important;
-  --pst-font-family-base: 'Open Sans', sans-serif!important;
-  --pst-font-family-base-system: 'Open Sans', sans-serif!important;
-  --pst-font-family-heading: 'Open Sans', sans-serif!important;
+  --pst-font-family-base: 'Signika', sans-serif!important;
+  --pst-font-family-base-system: 'Signika', sans-serif!important;
+  --pst-font-family-heading: 'Signika', sans-serif!important;
 }
 
 .bd-content {
