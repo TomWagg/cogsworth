@@ -98,6 +98,8 @@ html_theme = 'pydata_sphinx_theme'
 html_theme_options = {
     "logo": {
         "link": "index",
+        "image_light": "logo.png",
+        "image_dark": "logo_darkmode.png",
     },
     "icon_links": [
         {
@@ -105,20 +107,16 @@ html_theme_options = {
             "url": "https://github.com/TomWagg/cosmic-gala",
             "icon": "fab fa-github-square",
         },
-        {
-            "name": "Twitter",
-            "url": "https://twitter.com/tomjwagg",
-            "icon": "fab fa-twitter-square",
-        },
     ],
+    "footer_items": ["copyright", "last-updated"],
 }
 
 html_last_updated_fmt = "%Y %b %d at %H:%M:%S UTC"
 html_show_sourcelink = False
 html_favicon = "_static/favicon.ico"
-html_logo = "_static/logo.png"
 
 html_sidebars = {
+    "index": [],
     "**": ["search-field.html", "sidebar-nav-bs.html"]
 }
 
