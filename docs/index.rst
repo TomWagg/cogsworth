@@ -7,10 +7,14 @@
 
 TODO: Add intro here
 
-.. toctree::
-    :maxdepth: 1
-    :hidden:
+.. ---------------------
+.. Nav bar (top of docs)
 
-    Installation <install>
-    Tutorials <tutorials>
-    Modules <modules>
+.. toctree::
+   :maxdepth: 1
+   :titlesonly:
+
+   install
+   getting_started
+   tutorials
+   modules
