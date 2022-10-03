@@ -32,11 +32,11 @@ class Population():
     processes : `int`, optional
         How many processes to run if you want multithreading, by default 8
     m1_cutoff : `float`, optional
-        The minimum allowed primary mass, by default 7
+        The minimum allowed primary mass, by default 0
     final_kstar1 : `list`, optional
-        Desired final types for primary star, by default list(range(14))
+        Desired final types for primary star, by default list(range(16))
     final_kstar2 : `list`, optional
-        Desired final types for secondary star, by default list(range(14))
+        Desired final types for secondary star, by default list(range(16))
     galaxy_model : :class:`~kicker.galaxy.Galaxy`, optional
         A Galaxy class to use for sampling the initial galaxy parameters, by default
         :class:`~kicker.galaxy.Frankel2018`
@@ -90,8 +90,8 @@ class Population():
     observables : :class:`~pandas.DataFrame`
         Observables associated with the final binaries. See `get_observables` for more details on the columns
     """
-    def __init__(self, n_binaries, processes=8, m1_cutoff=7, final_kstar1=list(range(14)),
-                 final_kstar2=list(range(14)), galaxy_model=galaxy.Frankel2018,
+    def __init__(self, n_binaries, processes=8, m1_cutoff=0, final_kstar1=list(range(16)),
+                 final_kstar2=list(range(16)), galaxy_model=galaxy.Frankel2018,
                  galactic_potential=gp.MilkyWayPotential(), v_dispersion=5 * u.km / u.s,
                  max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, store_entire_orbits=True):
         self.n_binaries = n_binaries
