@@ -158,7 +158,7 @@ def get_extinction(coords):
     extension is done assuming a total-to-selective extinction ratio of 3.1, which is approximately the
     average for Milky Way `Cardelli+1989 <https://ui.adsabs.harvard.edu/abs/1989ApJ...345..245C/abstract>`_
 
-    .. warning
+    .. warning::
         The dustmap used only covers declinations > -30 degrees, any supplied coordinates below this will be
         assigned a value of NaN
 
