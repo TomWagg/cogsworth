@@ -2,6 +2,13 @@
    :width: 400
    :alt: logo for package
    :align: center
+   :class: only-light
+
+.. image:: _static/logo_darkmode.png
+   :width: 400
+   :alt: logo for package
+   :align: center
+   :class: only-dark
 
 ******
 kicker
