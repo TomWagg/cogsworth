@@ -480,7 +480,8 @@ class Frankel2018(Galaxy):
     def get_metallicity(self):
         """Convert radius and time to metallicity using
         `Frankel+2018 <https://ui.adsabs.harvard.edu/abs/2018ApJ...865...96F/abstract>`_ Eq. 7 and
-        `Bertelli+1994 <https://ui.adsabs.harvard.edu/abs/1994A%26AS..106..275B/abstract>`_ Eq. 9
+        `Bertelli+1994 <https://ui.adsabs.harvard.edu/abs/1994A%26AS..106..275B/abstract>`_ Eq. 9 but
+        assuming all stars have the solar abundance pattern (so no factor of 0.977)
 
         Returns
         -------
@@ -489,7 +490,7 @@ class Frankel2018(Galaxy):
         """
         FeH = self.Fm + self.gradient * self._rho - (self.Fm + self.gradient * self.Rnow)\
             * (1 - (self._tau / self.galaxy_age))**self.gamma
-        return np.power(10, 0.977 * FeH + np.log10(self.zsun))
+        return np.power(10, FeH + np.log10(self.zsun))
 
 
 def load(file_name, key="galaxy"):
