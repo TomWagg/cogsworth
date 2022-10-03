@@ -1,19 +1,13 @@
-API reference
-=============
+**********
+User Guide
+**********
 
 .. toctree::
-   :maxdepth: 4
+    :maxdepth: 1
 
-.. automodapi:: kicker.classify
-
-.. automodapi:: kicker.events
-
-.. automodapi:: kicker.galaxy
-    :no-inheritance-diagram:
-
-.. automodapi:: kicker.kicks
-
-.. automodapi:: kicker.observables
-
-.. automodapi:: kicker.pop
-    :no-inheritance-diagram:
+    modules/classify
+    modules/events
+    modules/galaxy
+    modules/kicks
+    modules/observables
+    modules/pop
