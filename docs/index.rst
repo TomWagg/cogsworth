@@ -24,8 +24,8 @@ Really long text Really long text Really long text Really long text Really long 
    :maxdepth: 1
    :titlesonly:
 
-   install
-   getting_started
-   tutorials
-   modules
-   cite
+   pages/install
+   pages/getting_started
+   pages/tutorials
+   pages/modules
+   pages/cite
