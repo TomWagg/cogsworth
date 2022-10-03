@@ -63,7 +63,8 @@ intersphinx_mapping = {'python': ('https://docs.python.org/3', None),
                        'scipy': ('https://docs.scipy.org/doc/scipy', None),
                        'astropy': ('https://docs.astropy.org/en/stable', None),
                        'pandas': ('https://pandas.pydata.org/docs/', None),
-                       'gala': ('http://gala.adrian.pw/en/latest/', None)}
+                       'gala': ('http://gala.adrian.pw/en/latest/', None),
+                       'cosmic': ('https://cosmic-popsynth.github.io/docs/stable/', None)}
 
 bibtex_bibfiles = ['notebooks/refs.bib']
 
