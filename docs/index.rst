@@ -17,9 +17,6 @@ kicker
 TODO: Add intro here
 Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text
 
-.. ---------------------
-.. Nav bar (top of docs)
-
 .. toctree::
    :maxdepth: 1
    :titlesonly:

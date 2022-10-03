@@ -66,7 +66,7 @@ intersphinx_mapping = {'python': ('https://docs.python.org/3', None),
                        'gala': ('http://gala.adrian.pw/en/latest/', None),
                        'cosmic': ('https://cosmic-popsynth.github.io/docs/stable/', None)}
 
-bibtex_bibfiles = ['notebooks/refs.bib']
+bibtex_bibfiles = ['tutorials/refs.bib']
 
 # fix numpydoc autosummary
 numpydoc_show_class_members = False
@@ -119,7 +119,7 @@ html_sidebars = {
     "index": [],
     "pages/install": [],
     "pages/getting_started": ["page-toc"],
-    "pages/tutorials": ["page-toc"],
+    "tutorials/*": ["page-toc"],
     "**": ["sidebar-nav-bs.html"]
 }
 
@@ -139,13 +139,10 @@ autodoc_docstring_signature = True
 todo_include_todos = True
 
 # nbsphinx
-nbsphinx_prolog = """
+nbsphinx_epilog = """
 {% set docname = env.doc2path(env.docname, base=None) %}
 .. note:: This tutorial was generated from a Jupyter notebook that can be
-          `downloaded here <https://github.com/TomWagg/cosmic-gala/tree/main/docs/{{ docname }}>`_.
-          If you'd like to reproduce the results in the notebook, or make changes to the code, we recommend
-          downloading this notebook and running it with Jupyter as certain cells (mostly those that change
-          plot styles) are excluded from the tutorials.
+          `found here <https://github.com/TomWagg/cosmic-gala/tree/main/docs/{{ docname }}>`_.
 """
 nbsphinx_prompt_width = "0"
 
