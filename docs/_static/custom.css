@@ -51,6 +51,18 @@ div.output_area div[class*=highlight] pre {
   white-space: pre-wrap;
 }
 
+dt:target, span.highlighted {
+    background: none!important;
+    border-left: 5px solid var(--pst-color-text-base);
+    padding-left: 10px;
+}
+
+dl blockquote {
+    margin-left: 1rem;
+    padding: 0.4rem 0rem;
+    padding-left: 0.4rem;
+}
+
 :root {
   --pst-color-primary: #805bd2!important;
   --pst-font-family-base: 'Signika', sans-serif!important;
