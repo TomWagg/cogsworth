@@ -116,6 +116,9 @@ html_favicon = "_static/favicon.ico"
 
 html_sidebars = {
     "index": [],
+    "pages/install": [],
+    "pages/getting_started": ["page-toc"],
+    "pages/tutorials": ["page-toc"],
     "**": ["sidebar-nav-bs.html"]
 }
 
