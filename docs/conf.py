@@ -42,14 +42,12 @@ copyright = '{0}, {1}'.format(
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    "sphinx.ext.autodoc",
     "sphinx.ext.mathjax",
     "matplotlib.sphinxext.plot_directive",
     "nbsphinx",
     'sphinx_design',
     'sphinx_automodapi.automodapi',
     'sphinx_automodapi.smart_resolver',
-    'sphinx.ext.graphviz',
     'IPython.sphinxext.ipython_console_highlighting',
     'IPython.sphinxext.ipython_directive',
     'numpydoc',
@@ -57,16 +55,14 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx_copybutton',
     'sphinx.ext.linkcode',
-    'sphinx_tabs.tabs'
 ]
-
-sphinx_tabs_disable_tab_closing = True
 
 intersphinx_mapping = {'python': ('https://docs.python.org/3', None),
                        'matplotlib': ('https://matplotlib.org/stable', None),
                        'seaborn': ('https://seaborn.pydata.org', None),
                        'scipy': ('https://docs.scipy.org/doc/scipy', None),
-                       'astropy': ('https://docs.astropy.org/en/stable', None)}
+                       'astropy': ('https://docs.astropy.org/en/stable', None),
+                       'pandas': ('https://pandas.pydata.org/docs/', None)}
 
 bibtex_bibfiles = ['notebooks/refs.bib']
 
