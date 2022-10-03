@@ -11,9 +11,9 @@ def identify_events(full_bpp, full_kick_info):
 
     Parameters
     ----------
-    full_bpp : :class:`pandas.DataFrame`
+    full_bpp : :class:`~pandas.DataFrame`
         Table of evolution phase events from COSMIC
-    full_kick_info : :class:`pandas.DataFrame`
+    full_kick_info : :class:`~pandas.DataFrame`
         Table of information about kicks from COSMIC
 
     Returns

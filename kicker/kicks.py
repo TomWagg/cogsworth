@@ -15,19 +15,19 @@ def get_kick_differential(delta_v_sys_xyz, m_1, m_2, a):
 
     Parameters
     ----------
-    delta_v_sys_xyz : `float array`
-        Change in systemic velocity due to natal and Blauuw kicks in BSE (v_x, v_y, v_z) frame (see Fig A1 of
-        Hurley+02)
-    m_1 : `float`
+    delta_v_sys_xyz : :class:`~astropy.units.Quantity` [velocity]
+        Change in systemic velocity due to natal and Blauuw kicks in BSE :math:`(v_x, v_y, v_z)` frame
+        (see Fig A1 of `Hurley+02 <https://ui.adsabs.harvard.edu/abs/2002MNRAS.329..897H/abstract>`_)
+    m_1 : :class:`~astropy.units.Quantity` [mass]
         Primary mass
-    m_2 : `float`
+    m_2 : :class:`~astropy.units.Quantity` [mass]
         Secondary Mass
-    a : `float`
+    a : :class:`~astropy.units.Quantity` [length]
         Binary separation
 
     Returns
     -------
-    kick_differential : `CylindricalDifferential`
+    kick_differential : :class:`~astropy.coordinates.CylindricalDifferential`
         Kick differential
     """
     # calculate the orbital velocity ASSUMING A CIRCULAR ORBIT
@@ -59,16 +59,17 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential()
 
     Parameters
     ----------
-    w0 : `ga.dynamics.PhaseSpacePosition`
+    w0 : :class:`~gala.dynamics.PhaseSpacePosition`
         Initial phase space position
-    t1 : `Astropy Quantity`
+    t1 : :class:`~astropy.units.Quantity` [time]
         Integration start time
-    t2 : `Astropy Quantity`
+    t2 : :class:`~astropy.units.Quantity` [time]
         Integration end time
-    dt : `Astropy Quantity`
+    dt : :class:`~astropy.units.Quantity` [time]
         Integration initial timestep size (integrator may adapt timesteps)
-    potential : `ga.potential.PotentialBase`, optional
-        Potential in which you which to integrate the orbits, by default the MilkyWayPotential()
+    potential : :class:`~gala.potential.potential.PotentialBase`, optional
+        Potential in which you which to integrate the orbits, by default the
+        :class:`~gala.potential.potential.MilkyWayPotential`
     events : `varies`
         Events that occur during the orbit evolution (such as supernova resulting in kicks). If no events
         occur then set `events=None` (this will result in a simple call to `potential.integrate_orbit`). If
@@ -83,7 +84,7 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential()
 
     Returns
     -------
-    full_orbit : `ga.orbit.Orbit`
+    full_orbit : :class:`~gala.dynamics.Orbit`
         Integrated orbit. If a disrupted binary with two event lists was supplied then two orbit classes will
         be returned. If the orbit integration failed for any reason then None is returned.
     """

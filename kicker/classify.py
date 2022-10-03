@@ -14,25 +14,25 @@ def determine_final_classes(population=None, bpp=None, bcm=None, kick_info=None,
 
     Parameters
     ----------
-    population : :class:`kicker.pop.Population`, optional
+    population : :class:`~kicker.pop.Population`, optional
         A full population class created from the pop module, by default None
-    bpp : :class:`pandas.DataFrame`
+    bpp : :class:`~pandas.DataFrame`
         Evolutionary history of each binary
-    bcm : :class:`pandas.DataFrame`
+    bcm : :class:`~pandas.DataFrame`
         Final state of each binary
-    initC : :class:`pandas.DataFrame`
+    initC : :class:`~pandas.DataFrame`
         Initial conditions for each binary
-    kick_info : :class:`pandas.DataFrame`
+    kick_info : :class:`~pandas.DataFrame`
         Information about the kicks that occur for each binary
-    orbits : `list` of :class:`gala.dynamics.Orbit`
+    orbits : `list` of :class:`~gala.dynamics.Orbit`s
         The orbits of each binary within the galaxy. Disrupted binaries should have two entries
         (for both stars).
-    galactic_potential : :class:`gala.potential.potential.PotentialBase`, optional
+    galactic_potential : :class:`~gala.potential.potential.PotentialBase`, optional
         Galactic potential to use for evolving the orbits of binaries
 
     Returns
     -------
-    classes : :class:`pandas.DataFrame`
+    classes : :class:`~pandas.DataFrame`
         A DataFrame with a boolean column for each class (see :meth:`list_classes`) and a row for each binary
 
     Raises
