@@ -12,11 +12,6 @@ div.highlight-python.notranslate pre {
     padding-left: 5px;
 }
 
-/* let the content go wider (default is 800px) */
-.wy-nav-content {
-    max-width: 1000px;
-}
-
 /* Customise the copy buttons */
 /* increase size, less transparent, faster transition */
 a.copybtn {
@@ -42,17 +37,70 @@ a.copybtn > img {
 }
 
 
-/* Hack the table of contents to have extra padding and a line */
-.wy-menu > ul:nth-last-child(2) {
-    margin-bottom: 0.3em;
+span#logotext2 {
+    color: #764099;
 }
-.wy-menu > ul:last-child {
-    margin-top: 0.3em;
+
+/* Taken from NumPy */
+
+@import url('https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&family=Open+Sans:ital,wght@0,400;0,600;1,400;1,600&display=swap');
+
+.navbar-brand img {
+   height: 60px;
 }
-.wy-menu > ul:last-child::before {
-    content: "";
-    border-top: 1px solid #484848;
-    width: 100%;
-    display: block;
-    padding-bottom: 0.3em;
+.navbar-brand {
+   height: 75px;
+}
+
+body {
+  font-family: 'Open Sans', sans-serif;
+  color:#4A4A4A; /* numpy.org body color */
+}
+
+pre, code {
+  font-size: 100%;
+  line-height: 155%;
+}
+
+div.output_area div[class*=highlight] pre {
+  white-space: pre-wrap;
+}
+
+/* Make output lighter gray and no italics for the love of all that is holy! */
+.highlight .go {
+  color: #555555;
+  font-style: normal;
+}
+
+/* OMG why would you bold numbers */
+.highlight .mf, .highlight .mi {
+  font-weight: 300;
+}
+
+h1 {
+  font-family: "Lato", sans-serif;
+  color: #013243; /* warm black */
+}
+
+
+h2 {
+  color: #4d77cf; /* han blue */
+  letter-spacing: -.03em;
+}
+
+h3 {
+  color: #013243; /* warm black */
+  letter-spacing: -.03em;
+}
+
+/* Override some aspects of the pydata-sphinx-theme: taken from Pandas */
+
+:root {
+  /* Use softer blue from bootstrap's default info color */
+  --pst-color-info: 23, 162, 184;
+}
+
+.bd-content {
+    flex-grow: 1;
+    max-width: 100%;
 }
