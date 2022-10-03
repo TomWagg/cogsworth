@@ -14,26 +14,26 @@ def determine_final_classes(population=None, bpp=None, bcm=None, kick_info=None,
 
     Parameters
     ----------
-    population : `pop.Population`, optional
+    population : :class:`kicker.pop.Population`, optional
         A full population class created from the pop module, by default None
-    bpp : `pandas.DataFrame`
+    bpp : :class:`pandas.DataFrame`
         Evolutionary history of each binary
-    bcm : `pandas.DataFrame`
+    bcm : :class:`pandas.DataFrame`
         Final state of each binary
-    initC : `pandas.DataFrame`
+    initC : :class:`pandas.DataFrame`
         Initial conditions for each binary
-    kick_info : `pandas.DataFrame`
+    kick_info : :class:`pandas.DataFrame`
         Information about the kicks that occur for each binary
-    orbits : `list of gala.dynamics.Orbit`
+    orbits : `list` of :class:`gala.dynamics.Orbit`
         The orbits of each binary within the galaxy. Disrupted binaries should have two entries
         (for both stars).
-    galactic_potential : `gala.potential.PotentialBase`, optional
+    galactic_potential : :class:`gala.potential.potential.PotentialBase`, optional
         Galactic potential to use for evolving the orbits of binaries
 
     Returns
     -------
-    classes : `pandas.DataFrame`
-        A DataFrame with a boolean column for each class (see `list_classes`) and a row for each binary
+    classes : :class:`pandas.DataFrame`
+        A DataFrame with a boolean column for each class (see :meth:`list_classes`) and a row for each binary
 
     Raises
     ------
@@ -127,7 +127,7 @@ def _get_rel_speed(orbits, potential, which_star):
     ----------
     orbits : `list`
         List of gala Orbits
-    potential : `gala.potential.PotentialBase`
+    potential : :class:`gala.potential.potential.PotentialBase`
         The galactic potential used for finding the circular velocity
     which_star : `int`
         Index of which star to consider, either 0 or 1
