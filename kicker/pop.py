@@ -37,15 +37,17 @@ class Population():
         Desired final types for primary star, by default list(range(14))
     final_kstar2 : `list`, optional
         Desired final types for secondary star, by default list(range(14))
-    galaxy_model : `kicker.galaxy.Galaxy`, optional
-        A Galaxy class to use for sampling the initial galaxy parameters, by default kicker.galaxy.Frankel2018
-    galactic_potential : `gala.potential.PotentialBase`, optional
-        Galactic potential to use for evolving the orbits of binaries, by default gp.MilkyWayPotential()
-    v_dispersion : `float`, optional
+    galaxy_model : :class:`~kicker.galaxy.Galaxy`, optional
+        A Galaxy class to use for sampling the initial galaxy parameters, by default
+        :class:`~kicker.galaxy.Frankel2018`
+    galactic_potential : :class:`~gala.potential.potential.PotentialBase`, optional
+        Galactic potential to use for evolving the orbits of binaries, by default
+        :class:`~gala.potential.potential.MilkyWayPotential`
+    v_dispersion : :class:`~astropy.units.Quantity` [velocity], optional
         Velocity dispersion to apply relative to the local circular velocity, by default 5*u.km/u.s
-    max_ev_time : `float`, optional
+    max_ev_time : :class:`~astropy.units.Quantity` [time], optional
         Maximum evolution time for both COSMIC and Gala, by default 12.0*u.Gyr
-    timestep_size : `float`, optional
+    timestep_size : :class:`~astropy.units.Quantity` [time], optional
         Size of timesteps to use in galactic evolution, by default 1*u.Myr
     BSE_settings : `dict`, optional
         Any BSE settings to pass to COSMIC
@@ -64,28 +66,28 @@ class Population():
         Number of single stars needed to generate population
     n_bin_req : `int`
         Number of binaries needed to generate population
-    bpp : `pandas.DataFrame`
+    bpp : :class:`~pandas.DataFrame`
         Evolutionary history of each binary
-    bcm : `pandas.DataFrame`
+    bcm : :class:`~pandas.DataFrame`
         Final state of each binary
-    initC : `pandas.DataFrame`
+    initC : :class:`~pandas.DataFrame`
         Initial conditions for each binary
-    kick_info : `pandas.DataFrame`
+    kick_info : :class:`~pandas.DataFrame`
         Information about the kicks that occur for each binary
-    orbits : `list of gala.dynamics.Orbit`
+    orbits : `list` of :class:`~gala.dynamics.Orbit`
         The orbits of each binary within the galaxy from its birth until `self.max_ev_time` with timesteps of
         `self.timestep_size`. Note that disrupted binaries will have two entries (for both stars).
     classes : `list`
-        The classes associated with each produced binary (see classify.list_classes for a list of available
-        classes and their meanings)
-    final_coords : `tuple of Astropy SkyCoord`
+        The classes associated with each produced binary (see :meth:`~kicker.classify.list_classes` for a
+        list of available classes and their meanings)
+    final_coords : `tuple` of :class:`~astropy.coordinates.SkyCoord`
         A SkyCoord object of the final positions of each binary in the galactocentric frame.
         For bound binaries only the first SkyCoord is populated, for disrupted binaries each SkyCoord
         corresponds to the individual components. Any missing orbits (where orbit=None or there is no
         secondary component) will be set to `np.inf` for ease of masking.
-    final_bpp : `pandas.DataFrame`
+    final_bpp : :class:`~pandas.DataFrame`
         The final state of each binary (taken from the final entry in `self.bpp`)
-    observables : `pandas.DataFrame`
+    observables : :class:`~pandas.DataFrame`
         Observables associated with the final binaries. See `get_observables` for more details on the columns
     """
     def __init__(self, n_binaries, processes=8, m1_cutoff=7, final_kstar1=list(range(14)),
@@ -378,7 +380,7 @@ class Population():
             print("I've added the offending binaries to the `nan.h5` file, do with them what you will")
 
     def perform_galactic_evolution(self, quiet=False):
-        """Use `gala` to perform the orbital integration for each evolved binary
+        """Use :py:mod:`gala` to perform the orbital integration for each evolved binary
 
         Parameters
         ----------
@@ -443,7 +445,7 @@ class Population():
 
         Returns
         -------
-        final_coords : `tuple of Astropy SkyCoords`
+        final_coords : `tuple` of :class:`~astropy.coordinates.SkyCoord`s
             A SkyCoord object of the final positions of each binary in the galactocentric frame.
             For bound binaries only the first SkyCoord is populated, for disrupted binaries each SkyCoord
             corresponds to the individual components. Any missing orbits (where orbit=None or there is no
