@@ -14,14 +14,14 @@ def get_log_g(mass, radius):
 
     Parameters
     ----------
-    mass : `Astropy Quantity`
+    mass : :class:`~astropy.units.Quantity` [mass]
         Mass of the star
-    radius : `Astropy Quantity`
+    radius : :class:`~astropy.units.Quantity` [radius]
         Radius of the star
 
     Returns
     -------
-    log g : `Astropy Quantity`
+    log g : `float/array`
         Log of the surface gravity in cgs
     """
     g = const.G * mass / radius**2
@@ -36,7 +36,7 @@ def get_absolute_bol_mag(lum):
 
     Parameters
     ----------
-    lum : `Astropy Quantity`
+    lum : :class:`~astropy.units.Quantity` [luminosity]
         Luminosity of the star
 
     Returns
@@ -56,7 +56,7 @@ def get_apparent_mag(M_abs, distance):
     ----------
     M_abs : `float/array`
         Absolute magnitude
-    distance : `float/array`
+    distance : :class:`~astropy.units.Quantity` [length]
         Distance
 
     Returns
@@ -77,7 +77,7 @@ def get_absolute_mag(m_app, distance):
     ----------
     M_abs : `float/array`
         Apparent magnitude
-    distance : `float/array`
+    distance : :class:`~astropy.units.Quantity` [length]
         Distance
 
     Returns
@@ -94,7 +94,7 @@ def add_mags(*mags, remove_nans=True):
 
     Parameters
     ----------
-    *mags : `list/np.array/float/int`
+    *mags : `list` or `np.array` or `float` or `int`
         A series of magnitudes. If arrays are given then all must have the same length. If a mixture of single
         values and arrays are given then the single values will be added to each array element
     remove_nans : `bool`, optional
@@ -108,7 +108,7 @@ def add_mags(*mags, remove_nans=True):
     Raises
     ------
     ValueError
-        If any magnitude is not a list, float, int or numpy array
+        If any magnitude is an invalid type
     AssertionError
         If any magnitude array has a different length from another
     """
@@ -156,7 +156,7 @@ def get_extinction(coords):
 
     Parameters
     ----------
-    coords : `Astropy.coordinates.SkyCoord`
+    coords : :class:`~astropy.coordinates.SkyCoord`
         The coordinates at which you wish to calculate extinction values
 
     Returns
@@ -175,18 +175,18 @@ def get_phot(final_bpp, final_coords, filters):
 
     Parameters
     ----------
-    final_bpp : `pandas.DataFrame`
+    final_bpp : :class:`~pandas.DataFrame`
         A dataset of COSMIC binaries at present day - must include these columns: ["sep", "metallicity"] and
         for each star it must have the columns ["teff", "lum", "mass", "rad", "kstar"]
-    final_coords : `tuple Astropy.coordinates.SkyCoord`
+    final_coords : `tuple` of :class:`~astropy.coordinates.SkyCoord`
         Final positions and velocities of the binaries at present day. First entry is for binaries or the
         primary in a disrupted system, second entry is for secondaries in a disrupted system.
-    filters : `list of str`
-        Which filters to compute photometry for
+    filters : `list` of `str`
+        Which filters to compute photometry for (e.g. ["F", "G"])
 
     Returns
     -------
-    photometry : `pandas.DataFrame`
+    photometry : :class:`~pandas.DataFrame`
         Photometry and extinction information for supplied COSMIC binaries in desired `filters`
     """
     # set up empty photometry table
