@@ -32,7 +32,8 @@ def get_log_g(mass, radius):
 
 
 def get_absolute_bol_mag(lum):
-    """Computes the absolute bolometric magnitude
+    """Computes the absolute bolometric magnitude following
+    `IAU Resolution B2 <https://www.iau.org/news/announcements/detail/ann15023/>`_
 
     Parameters
     ----------
@@ -44,9 +45,8 @@ def get_absolute_bol_mag(lum):
     M_bol : `float/array`
         Absolute bolometric magnitude
     """
-    log_lum = np.log10(lum.to(u.Lsun).value)
-    M_bol = 4.75 - 2.7 * log_lum
-    return M_bol
+    zero_point_lum = 3.0128e28 * u.watt
+    return -2.5 * np.log10(lum / zero_point_lum)
 
 
 def get_apparent_mag(M_abs, distance):
@@ -152,7 +152,15 @@ def add_mags(*mags, remove_nans=True):
 
 
 def get_extinction(coords):
-    """Calculates the visual extinction values for a set of coordinates using the dustmaps.bayestar query
+    """Calculates the visual extinction values for a set of coordinates
+
+    Reddening due to dust is calculated using the Bayestar dustmap. Then the conversion from this to a visual
+    extension is done assuming a total-to-selective extinction ratio of 3.1, which is approximately the
+    average for Milky Way `Cardelli+1989 <https://ui.adsabs.harvard.edu/abs/1989ApJ...345..245C/abstract>`_
+
+    .. warning
+        The dustmap used only covers declinations > -30 degrees, any supplied coordinates below this will be
+        assigned a value of NaN
 
     Parameters
     ----------
@@ -165,8 +173,12 @@ def get_extinction(coords):
         Visual extinction values for each set of coordinates
     """
     bayestar = BayestarQuery(max_samples=2, version='bayestar2019')
+
+    # calculate the reddening due to dust
     ebv = bayestar(coords, mode='random_sample')
-    Av = 3.2 * ebv
+
+    # convert this to a visual extinction
+    Av = 3.1 * ebv
     return Av
 
 
@@ -182,7 +194,7 @@ def get_phot(final_bpp, final_coords, filters):
         Final positions and velocities of the binaries at present day. First entry is for binaries or the
         primary in a disrupted system, second entry is for secondaries in a disrupted system.
     filters : `list` of `str`
-        Which filters to compute photometry for (e.g. ["F", "G"])
+        Which filters to compute photometry for (e.g. ['J', 'H', 'K', 'G', 'BP', 'RP'])
 
     Returns
     -------
@@ -201,15 +213,13 @@ def get_phot(final_bpp, final_coords, filters):
     photometry.loc[disrupted, "Av_2"] = get_extinction(final_coords[1][disrupted])
 
     # ensure extinction remains in MIST grid range (<= 6) and is not NaN
-    print('pop size before extinction cut: {}'.format(len(photometry)))
     photometry.loc[photometry.Av_1 > 6, ['Av_1']] = 6
     photometry.loc[photometry.Av_2 > 6, ['Av_2']] = 6
     photometry = photometry.fillna(6)
-    print('pop size after extinction cut: {}'.format(len(photometry)))
 
-    # get Fe/H using e.g. Bertelli+1994 Eq. 10
+    # get Fe/H using e.g. Bertelli+1994 Eq. 10 (assuming all stars have the solar abundance pattern)
     Z_sun = 0.0142
-    FeH = np.log10(final_bpp["metallicity"].values / Z_sun) / 0.977
+    FeH = np.log10(final_bpp["metallicity"].values / Z_sun)
 
     # set up MIST bolometric correction grid
     bc_grid = MISTBolometricCorrectionGrid(bands=filters)
@@ -223,13 +233,14 @@ def get_phot(final_bpp, final_coords, filters):
                                    radius=final_bpp[f"rad_{ind}"].values * u.Rsun))
 
         # get the bolometric corrections from MIST isochrones
+        # TODO: absolute mags should not include dust, give apparent both with and without
         bc[ind - 1] = bc_grid.interp([final_bpp[f"teff_{ind}"].values, final_bpp[f"log_g_{ind}"].values,
                                       FeH, photometry[f"Av_{ind}"]],
                                      filters)
 
         # calculate the absolute bolometric magnitude and set any BH or massless remnants to invisible
         photometry[f"M_abs_{ind}"] = get_absolute_bol_mag(lum=final_bpp[f"lum_{ind}"].values * u.Lsun)
-        photometry.loc[np.isin(final_bpp[f"kstar_{ind}"].values, [14, 15]), f"M_abs_{ind}"] = np.inf
+        photometry.loc[np.isin(final_bpp[f"kstar_{ind}"].values, [13, 14, 15]), f"M_abs_{ind}"] = np.inf
 
         # work out the distance (if the system is bound always use the first `final_coords` SkyCoord)
         distance = np.repeat(np.inf, len(final_bpp)) * u.kpc
