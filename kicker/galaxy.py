@@ -18,6 +18,10 @@ class Galaxy():
     This class sets out an outline for sampling from a galaxy model but a subclass will be needed for things
     to function properly.
 
+    All attributes listed below are a given value for the sampled points in the galaxy. If ine hasn't been
+    sampled/calculated when accessed then it will be automatically sampled/calculated. If sampling, ALL values
+    will be sampled.
+
     Parameters
     ----------
     size : `int`
@@ -29,33 +33,29 @@ class Galaxy():
         by default None
     immediately_sample : `bool`, optional
         Whether to immediately sample the points from the galaxy, by default True
-    R_sun : `float`, optional
+    R_sun : :class:`~astropy.units.Quantity` [length], optional
         Distance of the Sun from the Galactic centre, used for calculating distances, by default 8.2*u.kpc
 
 
     Attributes
     ----------
-    Each attribute listed below is a given value for the sampled points in the galaxy. If it hasn't been
-    sampled/calculated when accessed then it will be automatically sampled/calculated. If sampling, ALL values
-    will be sampled.
-
-    tau : `np.array`
+    tau : :class:`~astropy.units.Quantity` [time]
         Lookback time
-    Z : `np.array`
+    Z : :class:`~astropy.units.Quantity` [dimensionless]
         Metallicity
-    z : `np.array`
+    z : :class:`~astropy.units.Quantity` [length]
         Galactocentric height
-    rho : `np.array`
+    rho : :class:`~astropy.units.Quantity` [length]
         Galactocentric radius
-    phi : `np.array`
+    phi : :class:`~astropy.units.Quantity` [angle]
         Galactocentric azimuthal angle relative to Sun
-    Dg : `np.array`
+    Dg : :class:`~astropy.units.Quantity` [length]
         Distance from Galactic centre
-    D : `np.array`
+    D : :class:`~astropy.units.Quantity` [length]
         Distance from Sun
-    x : `np.array`
+    x : :class:`~astropy.units.Quantity` [length]
         Galactocentric distance along x-axis (parallel with vector pointing at Sun)
-    y : `np.array`
+    y : :class:`~astropy.units.Quantity` [length]
         Galactocentric distance along y-axis (perpendicular with vector pointing at Sun)
 
     """
@@ -324,24 +324,26 @@ class Galaxy():
 
 
 class Frankel2018(Galaxy):
-    """A semi-empirical galaxy model based on Frankel+2018. This model was used in detail in Wagg+2022 -
+    """A semi-empirical galaxy model based on
+    `Frankel+2018 <https://ui.adsabs.harvard.edu/abs/2018ApJ...865...96F/abstract>`_. This model was used in
+    detail in `Wagg+2022 <https://ui.adsabs.harvard.edu/abs/2021arXiv211113704W/abstract>`_ -
     see Figure 1 and Section 2.2.1 for a detailed explanation.
 
-    Attributes
-    ----------
-    As `Galaxy` but additionally the following:
+    Parameters are the same as :class:`Galaxy` but additionally with the following:
 
-    galaxy_age : `float`, optional
+    Parameters
+    ----------
+    galaxy_age : :class:`~astropy.units.Quantity` [time], optional
         Maximum lookback time, by default 12*u.Gyr
-    tsfr : `float`, optional
+    tsfr : :class:`~astropy.units.Quantity` [time], optional
         Star formation timescale, by default 6.8*u.Gyr
     alpha : `float`, optional
         Disc inside-out growth parameter, by default 0.3
     Fm : `int`, optional
         Metallicity at centre of disc at tm, by default -1
-    gradient : `float`, optional
+    gradient : :class:`~astropy.units.Quantity` [1/length], optional
         Metallicity gradient, by default -0.075/u.kpc
-    Rnow : `float`, optional
+    Rnow : :class:`~astropy.units.Quantity` [length], optional
         Radius at which present day metallicity is solar, by default 8.7*u.kpc
     gamma : `float`, optional
         Time dependence of chemical enrichment, by default 0.3
@@ -363,20 +365,22 @@ class Frankel2018(Galaxy):
         super().__init__(components=components, component_masses=component_masses, **kwargs)
 
     def draw_lookback_times(self, size=None, component="low_alpha_disc"):
-        """Inverse CDF sampling of lookback times. low_alpha and high_alpha discs uses Frankel+2018 Eq.4,
-        separated and normalised at 8 Gyr. The bulge matches the distribution in Fig.7 of Bovy+19 but accounts
+        """Inverse CDF sampling of lookback times. low_alpha and high_alpha discs uses
+        `Frankel+2018 <https://ui.adsabs.harvard.edu/abs/2018ApJ...865...96F/abstract>`_ Eq. 4,
+        separated and normalised at 8 Gyr. The bulge matches the distribution in Fig. 7 of
+        `Bovy+19 <https://ui.adsabs.harvard.edu/abs/2019MNRAS.490.4740B/abstract>`_ but accounts
         for sample's bias.
 
         Parameters
         ----------
         size : `int`
             How many times to draw
-        component: `str`
+        component : `str`
             Which component of the Milky Way
 
         Returns
         -------
-        tau: `float/array`
+        tau : :class:`~astropy.units.Quantity` [time]
             Random lookback times
         """
         # if no size is given then use the class value
@@ -395,20 +399,21 @@ class Frankel2018(Galaxy):
         return tau
 
     def draw_radii(self, size=None, component="low_alpha_disc"):
-        """Inverse CDF sampling of galactocentric radii using Frankel+2018 Eq.5. The scale length is
-        calculated using Eq. 6 the low_alpha disc and is fixed at 1/0.43 and 1.5 kpc respectively for the
-        high_alpha disc and bulge.
+        """Inverse CDF sampling of galactocentric radii using
+        `Frankel+2018 <https://ui.adsabs.harvard.edu/abs/2018ApJ...865...96F/abstract>`_ Eq. 5.
+        The scale length is calculated using Eq. 6 the low_alpha disc and is fixed at 1/0.43 and 1.5 kpc
+        respectively for the high_alpha disc and bulge.
 
         Parameters
         ----------
         size : `int`
             How many radii to draw
-        component: `str`
+        component : `str`
             Which component of the Milky Way
 
         Returns
         -------
-        rho: `float/array`
+        rho : :class:`~astropy.units.Quantity` [length]
             Random Galactocentric radius
         """
         # if no size is given then use the class value
@@ -426,18 +431,20 @@ class Frankel2018(Galaxy):
         return rho
 
     def draw_heights(self, size=None, component="low_alpha_disc"):
-        """Inverse CDF sampling of heights using McMillan 2011 Eq. 3 and various scale lengths.
+        """Inverse CDF sampling of heights using
+        `McMillan 2011 <https://ui.adsabs.harvard.edu/abs/2011MNRAS.414.2446M/abstract>`_ Eq. 3
+        and various scale lengths.
 
         Parameters
         ----------
         size : `int`
             How many heights to draw
-        component: `str`
+        component : `str`
             Which component of the Milky Way
 
         Returns
         -------
-        z: `float/array`
+        z : :class:`~astropy.units.Quantity` [length]
             Random heights
         """
         # if no size is given then use the class value
@@ -463,7 +470,7 @@ class Frankel2018(Galaxy):
 
         Returns
         -------
-        phi : `np.array`
+        phi : :class:`~astropy.units.Quantity` [angle]
             Azimuthal angles
         """
         # if no size is given then use the class value
@@ -471,11 +478,13 @@ class Frankel2018(Galaxy):
         return np.random.uniform(0, 2 * np.pi, size) * u.rad
 
     def get_metallicity(self):
-        """Convert radius and time to metallicity using Frankel+2018 Eq.7 and Bertelli+1994 Eq.9
+        """Convert radius and time to metallicity using
+        `Frankel+2018 <https://ui.adsabs.harvard.edu/abs/2018ApJ...865...96F/abstract>`_ Eq. 7 and
+        `Bertelli+1994 <https://ui.adsabs.harvard.edu/abs/1994A%26AS..106..275B/abstract>`_ Eq. 9
 
         Returns
         -------
-        Z: `float/array`
+        Z : :class:`~astropy.units.Quantity` [dimensionless]
             Metallicities corresponding to radii and times
         """
         FeH = self.Fm + self.gradient * self._rho - (self.Fm + self.gradient * self.Rnow)\
