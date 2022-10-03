@@ -107,6 +107,7 @@ html_theme_options = {
         },
     ],
     "footer_items": ["copyright", "last-updated"],
+    "page_sidebar_items": [],
 }
 
 html_last_updated_fmt = "%Y %b %d at %H:%M:%S UTC"
@@ -115,7 +116,7 @@ html_favicon = "_static/favicon.ico"
 
 html_sidebars = {
     "index": [],
-    "**": ["search-field.html", "sidebar-nav-bs.html"]
+    "**": ["sidebar-nav-bs.html"]
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
