@@ -62,7 +62,8 @@ intersphinx_mapping = {'python': ('https://docs.python.org/3', None),
                        'seaborn': ('https://seaborn.pydata.org', None),
                        'scipy': ('https://docs.scipy.org/doc/scipy', None),
                        'astropy': ('https://docs.astropy.org/en/stable', None),
-                       'pandas': ('https://pandas.pydata.org/docs/', None)}
+                       'pandas': ('https://pandas.pydata.org/docs/', None),
+                       'gala': ('http://gala.adrian.pw/en/latest/', None)}
 
 bibtex_bibfiles = ['notebooks/refs.bib']
 
