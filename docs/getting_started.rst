@@ -18,4 +18,4 @@ Other links
 
 Some text
 
-* :ref:`Link <index.rst>`
+* `Link <index.rst>`

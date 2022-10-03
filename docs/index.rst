@@ -6,6 +6,7 @@
 |
 
 TODO: Add intro here
+Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text
 
 .. ---------------------
 .. Nav bar (top of docs)
@@ -18,3 +19,4 @@ TODO: Add intro here
    getting_started
    tutorials
    modules
+   cite
