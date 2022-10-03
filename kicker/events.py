@@ -6,13 +6,14 @@ __all__ = ["identify_events"]
 def identify_events(full_bpp, full_kick_info):
     """Identify any events that occur in the stellar evolution that would affect the galactic evolution
 
-    NOTE: This currently only considers supernovae
+    .. note::
+        This function currently only considers supernovae when identifying events
 
     Parameters
     ----------
-    full_bpp : `Pandas DataFrame`
+    full_bpp : :class:`pandas.DataFrame`
         Table of evolution phase events from COSMIC
-    full_kick_info : `Pandas DataFrame`
+    full_kick_info : :class:`pandas.DataFrame`
         Table of information about kicks from COSMIC
 
     Returns
