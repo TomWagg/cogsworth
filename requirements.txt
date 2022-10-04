@@ -16,3 +16,4 @@ nose
 pytables
 isochrones
 dustmaps
+healpy
