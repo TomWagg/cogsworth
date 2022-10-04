@@ -22,7 +22,7 @@ Really long text Really long text Really long text Really long text Really long 
    :titlesonly:
 
    pages/install
-   pages/getting_started
+   tutorials/getting_started
    pages/tutorials
    pages/modules
    pages/cite

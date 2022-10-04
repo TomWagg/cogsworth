@@ -59,7 +59,7 @@ extensions = [
 
 intersphinx_mapping = {'python': ('https://docs.python.org/3', None),
                        'matplotlib': ('https://matplotlib.org/stable', None),
-                       'seaborn': ('https://seaborn.pydata.org', None),
+                       'numpy': ('https://numpy.org/doc/stable/', None),
                        'scipy': ('https://docs.scipy.org/doc/scipy', None),
                        'astropy': ('https://docs.astropy.org/en/stable', None),
                        'pandas': ('https://pandas.pydata.org/docs/', None),
