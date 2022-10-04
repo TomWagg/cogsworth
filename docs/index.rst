@@ -10,9 +10,9 @@
    :align: center
    :class: only-dark
 
-******
-kicker
-******
+************
+PACKAGE NAME
+************
 
 TODO: Add intro here
 Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text Really long text
