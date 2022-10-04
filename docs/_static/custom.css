@@ -74,3 +74,7 @@ dl blockquote {
     flex-grow: 1;
     max-width: 100%;
 }
+
+table.dataframe {
+    width: unset;
+}

@@ -1,12 +1,7 @@
-import sys
-import os
 import nbsphinx
 import re
 
 # credit to https://github.com/rodluger/starry_process
-
-# Add the CWD to the path
-sys.path.insert(1, os.path.dirname(os.path.abspath(__file__)))
 
 # Hack `nbsphinx` to enable us to hide certain input cells in the
 # jupyter notebooks. This works with nbsphinx==0.5.0
