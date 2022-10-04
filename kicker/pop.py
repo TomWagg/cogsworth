@@ -7,6 +7,7 @@ import astropy.units as u
 import astropy.coordinates as coords
 import h5py as h5
 import pandas as pd
+from tqdm import tqdm
 
 from cosmic.sample.initialbinarytable import InitialBinaryTable
 from cosmic.sample.sampler.independent import Sample
@@ -443,7 +444,7 @@ class Population():
             args = [(w0s[i], self.max_ev_time - self.initial_galaxy.tau[i], self.max_ev_time,
                      copy(self.timestep_size), self.galactic_potential,
                      events[i], self.store_entire_orbits, quiet) for i in range(self.n_binaries_match)]
-            orbits = self.pool.starmap(integrate_orbit_with_events, args)
+            orbits = self.pool.starmap(integrate_orbit_with_events, tqdm(args, total=self.n_binaries_match))
 
             # if a pool didn't exist before then close the one just created
             if not pool_existed:
