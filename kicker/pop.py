@@ -9,6 +9,7 @@ import h5py as h5
 import pandas as pd
 
 from cosmic.sample.initialbinarytable import InitialBinaryTable
+from cosmic.sample.sampler.independent import Sample
 from cosmic.evolve import Evolve
 import gala.potential as gp
 import gala.dynamics as gd
@@ -264,13 +265,33 @@ class Population():
 
     def sample_initial_binaries(self):
         """Sample the initial binary parameters for the population"""
+        # overwrite the binary fraction is the user just wants single stars
+        binfrac = self.BSE_settings["binfrac"] if self.BSE_settings["binfrac"] != 0.0 else 1.0
         self._initial_binaries, self._mass_singles, self._mass_binaries, self._n_singles_req,\
-            self._n_bin_req = InitialBinaryTable.sampler('independent', self.final_kstar1, self.final_kstar2,
-                                                         binfrac_model=self.BSE_settings["binfrac"],
+            self._n_bin_req = InitialBinaryTable.sampler('independent',
+                                                         self.final_kstar1, self.final_kstar2,
+                                                         binfrac_model=binfrac,
                                                          primary_model='kroupa01', ecc_model='sana12',
                                                          porb_model='sana12', qmin=-1,
                                                          SF_start=self.max_ev_time.to(u.Myr).value,
                                                          SF_duration=0.0, met=0.02, size=self.n_binaries)
+
+        # check if the user just wants single stars instead of binaries
+        if self.BSE_settings["binfrac"] == 0.0:
+            mass_1, mass_tot = Sample().sample_primary(primary_model="kroupa01",
+                                                       size=len(self._initial_binaries))
+            self._initial_binaries["mass_1"] = mass_1
+            self._initial_binaries["kstar_1"] = np.where(mass_1 > 0.7, 1, 0)
+            self._initial_binaries["kstar_2"] = np.zeros(len(self._initial_binaries))
+            self._initial_binaries["mass_2"] = np.zeros(len(self._initial_binaries))
+            self._initial_binaries["porb"] = np.zeros(len(self._initial_binaries))
+            self._initial_binaries["sep"] = np.zeros(len(self._initial_binaries))
+            self._initial_binaries["ecc"] = np.zeros(len(self._initial_binaries))
+
+            self._mass_singles = mass_tot
+            self._mass_binaries = 0.0
+            self._n_singles_req = self.n_binaries
+            self._n_bin_req = 0
 
         # apply the mass cutoff
         self._initial_binaries = self._initial_binaries[self._initial_binaries["mass_1"] >= self.m1_cutoff]
@@ -303,8 +324,8 @@ class Population():
         self._initial_binaries["tphysf"] = self.initial_galaxy.tau.to(u.Myr).value
 
         # ensure metallicities remain in a range valid for COSMIC - original value still in initial_galaxy.Z
-        self._initial_binaries["metallicity"][self._initial_binaries["metallicity"] < 1e-4] = 1e-4
-        self._initial_binaries["metallicity"][self._initial_binaries["metallicity"] > 0.03] = 0.03
+        self._initial_binaries.loc[self._initial_binaries["metallicity"] < 1e-4, "metallicity"] = 1e-4
+        self._initial_binaries.loc[self._initial_binaries["metallicity"] > 0.03, "metallicity"] = 0.03
 
     def perform_stellar_evolution(self):
         """Perform the (binary) stellar evolution of the sampled binaries"""
