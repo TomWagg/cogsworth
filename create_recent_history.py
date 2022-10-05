@@ -23,4 +23,4 @@ p = kicker.pop.Population(1_000_000, processes=7, m1_cutoff=0, galaxy_model=Rece
                           store_entire_orbits=False)
 
 p.create_population()
-p.save("data/recent-pop", overwrite=True)
+p.save("data/recent-pop-binaries", overwrite=True)
