@@ -11,6 +11,9 @@ from tqdm import tqdm
 import healpy as hp
 import matplotlib.pyplot as plt
 
+from gaiaunlimited.selectionfunctions import DR3SelectionFunctionTCG_hpx7
+from gaiaunlimited.utils import get_healpix_centers
+
 from cosmic.sample.initialbinarytable import InitialBinaryTable
 from cosmic.sample.sampler.independent import Sample
 from cosmic.evolve import Evolve
@@ -537,6 +540,64 @@ class Population():
             Which filters to compute observables for, by default ['J', 'H', 'K', 'G', 'BP', 'RP']
         """
         return get_phot(self.final_bpp, self.final_coords, filters)
+
+    def get_gaia_observed_bin_nums(self):
+        """Get a list of ``bin_nums`` of systems that are bright enough to be observed by Gaia.
+
+        This is calculated based on the Gaia selection function provided by :mod:`gaiaunlimited`. This
+        function returns a **random sample** of systems where systems are included in the observed subset
+        with a probability given by Gaia's completeness at their location.
+
+        E.g. if Gaia's completeness is 0 for a source of a given magnitude and location then it will never be
+        included. Similarly, if the completeness is 1 then it will always be included. However, if the
+        completeness is 0.5 then it will only be included in the list of ``bin_nums`` half of the time.
+
+        Returns
+        -------
+        primary_observed : :class:`~numpy.ndarray`
+            A list of binary numbers (that can be used in tables like ``self.final_bpp``) for which the
+            bound binary/disrupted primary would be observed
+        secondary_observed : :class:`~numpy.ndarray`
+            A list of binary numbers (that can be used in tables like ``self.final_bpp``) for which the
+            disrupted secondary would be observed
+        """
+        # get coordinates of the centres of the healpix pixels in a nside=2**7
+        coords_of_centers = get_healpix_centers(7)
+
+        # get the Gaia selection function for this healpix order
+        dr3sf = DR3SelectionFunctionTCG_hpx7()
+
+        # work out the index of each pixel for every binary
+        pix_inds = self.get_healpix_inds(nside=128)
+
+        # loop over first (all bound binaries & primaries from disrupted binaries)
+        # and then (secondaries from disrupted binaries)
+        observed = []
+        all_bin_nums = self.final_bpp["bin_num"].values
+        for pix, g_mags, bin_nums in zip(pix_inds, [self.observables["G_app_1"].values,
+                                                    self.observables["G_app_2"][self.disrupted].values],
+                                         [all_bin_nums, all_bin_nums[self.disrupted]]):
+            # get the coordinates of the corresponding pixels
+            comp_coords = coords_of_centers[pix]
+
+            # ensure any NaNs in the magnitudes are just set to super faint
+            g_mags = np.nan_to_num(g_mags, nan=1000)
+
+            # by default, assume Gaia has 0 completeness for each source
+            completeness = np.zeros(len(g_mags))
+
+            # only bother getting completeness for things brighter than G=22 (everything fainter is 0)
+            bright_enough = g_mags < 22.0
+            if bright_enough.any():
+                completeness[bright_enough] = dr3sf.query(comp_coords[bright_enough], g_mags[bright_enough])
+
+                # draw a random sample from the systems based on Gaia's completeness at each coordinate
+                observed.append(bin_nums[np.random.uniform(size=len(completeness)) < completeness])
+            else:
+                observed.append(np.array([]))
+
+        primary_observed, secondary_observed = observed
+        return primary_observed, secondary_observed
 
     def get_healpix_inds(self, nside=128):
         """Get the indices of the healpix pixels that each binary is in
