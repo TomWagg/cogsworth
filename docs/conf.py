@@ -55,7 +55,18 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx_copybutton',
     'sphinx.ext.linkcode',
+    'sphinx_gallery.gen_gallery'
 ]
+
+sphinx_gallery_conf = {
+     'examples_dirs': '../examples',   # path to your example scripts
+     'gallery_dirs': 'auto_examples',  # path to where to save gallery generated output
+     'reference_url': {
+         # The module you locally document uses None
+        'sphinx_gallery': None,
+    }
+}
+
 
 intersphinx_mapping = {'python': ('https://docs.python.org/3', None),
                        'matplotlib': ('https://matplotlib.org/stable', None),

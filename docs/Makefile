@@ -15,6 +15,7 @@ help:
 .PHONY: help Makefile
 
 clean:
+	rm -rf auto_examples
 	rm -rf api
 	rm -rf $(BUILDDIR)
 

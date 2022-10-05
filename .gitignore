@@ -135,3 +135,4 @@ data/*
 !data/README.md
 dustmaps/*
 docs/api
+docs/auto_examples

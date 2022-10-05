@@ -24,5 +24,6 @@ Really long text Really long text Really long text Really long text Really long 
    pages/install
    tutorials/getting_started
    pages/tutorials
+   auto_examples/index
    pages/modules
    pages/cite
