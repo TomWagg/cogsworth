@@ -59,12 +59,13 @@ extensions = [
 ]
 
 sphinx_gallery_conf = {
-     'examples_dirs': '../examples',   # path to your example scripts
-     'gallery_dirs': 'auto_examples',  # path to where to save gallery generated output
-     'reference_url': {
-         # The module you locally document uses None
+    'examples_dirs': '../examples',   # path to your example scripts
+    'gallery_dirs': 'auto_examples',  # path to where to save gallery generated output
+    'reference_url': {
         'sphinx_gallery': None,
-    }
+    },
+    'download_all_examples': False,
+    'show_signature': False
 }
 
 
