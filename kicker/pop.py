@@ -8,6 +8,8 @@ import astropy.coordinates as coords
 import h5py as h5
 import pandas as pd
 from tqdm import tqdm
+import healpy as hp
+import matplotlib.pyplot as plt
 
 from cosmic.sample.initialbinarytable import InitialBinaryTable
 from cosmic.sample.sampler.independent import Sample
@@ -264,7 +266,7 @@ class Population():
             print(f"[{time.time() - lap:1.1f}s] Evolve binaries (run COSMIC)")
             lap = time.time()
 
-        self.perform_galactic_evolution()
+        self.perform_galactic_evolution(progress_bar=with_timing)
         if with_timing:
             print(f"[{time.time() - lap:1.1f}s] Get orbits (run gala)")
 
@@ -413,7 +415,7 @@ class Population():
             print(f"WARNING: {n_nan} bad binaries removed from tables - but normalisation may be off")
             print("I've added the offending binaries to the `nan.h5` file, do with them what you will")
 
-    def perform_galactic_evolution(self, quiet=False):
+    def perform_galactic_evolution(self, quiet=False, progress_bar=True):
         """Use :py:mod:`gala` to perform the orbital integration for each evolved binary
 
         Parameters
@@ -456,7 +458,12 @@ class Population():
             args = [(w0s[i], self.max_ev_time - self.initial_galaxy.tau[i], self.max_ev_time,
                      copy(self.timestep_size), self.galactic_potential,
                      events[i], self.store_entire_orbits, quiet) for i in range(self.n_binaries_match)]
-            orbits = self.pool.starmap(integrate_orbit_with_events, tqdm(args, total=self.n_binaries_match))
+
+            if progress_bar:
+                orbits = self.pool.starmap(integrate_orbit_with_events,
+                                           tqdm(args, total=self.n_binaries_match))
+            else:
+                orbits = self.pool.starmap(integrate_orbit_with_events, args)
 
             # if a pool didn't exist before then close the one just created
             if not pool_existed:
@@ -530,6 +537,52 @@ class Population():
             Which filters to compute observables for, by default ['J', 'H', 'K', 'G', 'BP', 'RP']
         """
         return get_phot(self.final_bpp, self.final_coords, filters)
+
+    def get_healpix_inds(self, nside=128):
+        # get the coordinates in right format
+        colatitudes = [np.pi/2 - self.final_coords[i].icrs.dec.to(u.rad).value for i in [0, 1]]
+        longitudes = [self.final_coords[i].icrs.ra.to(u.rad).value for i in [0, 1]]
+
+        # find the pixels for each bound binary/primary and for each disrupted secondary
+        pix = hp.ang2pix(nside, nest=True, theta=colatitudes[0], phi=longitudes[0])
+        disrupted_pix = hp.ang2pix(nside, nest=True,
+                                   theta=colatitudes[1][self.disrupted], phi=longitudes[1][self.disrupted])
+        return pix, disrupted_pix
+
+    def plot_map(self, nside=128, coord="C",
+                 cmap="magma", norm="log", unit=None, show=True, **mollview_kwargs):
+        pix, disrupted_pix = self.get_healpix_inds(nside=nside)
+
+        # initialise an empty map
+        m = np.zeros(hp.nside2npix(nside))
+
+        # count the unique pixel values and how many sources are in each
+        inds, counts = np.unique(np.concatenate([pix, disrupted_pix]), return_counts=True)
+
+        # apply a log if desired
+        if norm == "log":
+            counts = np.log10(counts)
+
+        # fill in the map
+        m[inds] = counts
+
+        # if the user wants a different coordinate then use the list format to convert
+        if coord.lower() not in ["c", "celestial"]:
+            coord = ["C", coord]
+        # otherwise just pass plain old celestial
+        else:
+            coord = "C"
+
+        # if a unit isn't provided then we can write one down automatically
+        if unit is None:
+            unit = r"$\log(N_{\rm binaries})$" if norm == "log" else r"$N_{\rm binaries}$"
+
+        # create a mollview plot
+        hp.mollview(m, nest=True, cmap=cmap, coord=coord, unit=unit, **mollview_kwargs)
+
+        # show it if the user wants
+        if show:
+            plt.show()
 
     def save(self, file_name, overwrite=False):
         """Save a Population to disk
