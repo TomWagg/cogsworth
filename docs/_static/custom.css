@@ -78,3 +78,7 @@ dl blockquote {
 table.dataframe {
     width: unset;
 }
+
+.sphx-glr-thumbcontainer[tooltip]:hover::after {
+    text-align: center;
+}
