@@ -6,7 +6,7 @@ from dustmaps.bayestar import BayestarQuery
 from isochrones.mist.bc import MISTBolometricCorrectionGrid
 
 __all__ = ["get_log_g", "get_absolute_bol_mag", "get_apparent_mag", "get_absolute_mag", "add_mags",
-           "get_extinction", "get_phot"]
+           "get_extinction", "get_photometry"]
 
 
 def get_log_g(mass, radius):
@@ -182,7 +182,7 @@ def get_extinction(coords):
     return Av
 
 
-def get_phot(final_bpp, final_coords, filters):
+def get_photometry(final_bpp, final_coords, filters):
     """Computes photometry subject to dust extinction using the MIST boloemtric correction grid
 
     Parameters

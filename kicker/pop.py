@@ -24,7 +24,7 @@ from kicker import galaxy
 from kicker.kicks import integrate_orbit_with_events
 from kicker.events import identify_events
 from kicker.classify import determine_final_classes
-from kicker.observables import get_phot
+from kicker.observables import get_photometry
 
 __all__ = ["Population", "load"]
 
@@ -539,7 +539,7 @@ class Population():
         filters : `list`, optional
             Which filters to compute observables for, by default ['J', 'H', 'K', 'G', 'BP', 'RP']
         """
-        return get_phot(self.final_bpp, self.final_coords, filters)
+        return get_photometry(self.final_bpp, self.final_coords, filters)
 
     def get_gaia_observed_bin_nums(self):
         """Get a list of ``bin_nums`` of systems that are bright enough to be observed by Gaia.
