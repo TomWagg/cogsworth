@@ -89,6 +89,8 @@ class Population():
         secondary component) will be set to `np.inf` for ease of masking.
     final_bpp : :class:`~pandas.DataFrame`
         The final state of each binary (taken from the final entry in `self.bpp`)
+    disrupted : :class:`~numpy.ndarray` of `bool`s
+        A mask on the binaries of whether they were disrupted
     observables : :class:`~pandas.DataFrame`
         Observables associated with the final binaries. See `get_observables` for more details on the columns
     """
@@ -123,6 +125,7 @@ class Population():
         self._classes = None
         self._final_coords = None
         self._final_bpp = None
+        self._disrupted = None
         self._observables = None
 
         self.BSE_settings = {'xi': 1.0, 'bhflag': 1, 'neta': 0.5, 'windflag': 3, 'wdflag': 1, 'alpha1': 1.0,
@@ -218,6 +221,15 @@ class Population():
             self._final_bpp.insert(len(self._final_bpp.columns), "metallicity",
                                    self.initC["metallicity"].values)
         return self._final_bpp
+
+    @property
+    def disrupted(self):
+        if self._disrupted is None:
+            # check for disruptions in THREE different ways because COSMIC isn't always consistent (:
+            self._disrupted = (self.final_bpp["bin_num"].isin(self.kick_info[self.kick_info["disrupted"] == 1.0]["bin_num"].unique())
+                               & (self.final_bpp["sep"] < 0.0)
+                               & self.final_bpp["bin_num"].isin(self.bpp[self.bpp["evol_type"] == 11.0]["bin_num"])).values
+        return self._disrupted
 
     @property
     def observables(self):
