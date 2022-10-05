@@ -82,8 +82,8 @@ class Population():
     kick_info : :class:`~pandas.DataFrame`
         Information about the kicks that occur for each binary
     orbits : `list` of :class:`~gala.dynamics.Orbit`
-        The orbits of each binary within the galaxy from its birth until `self.max_ev_time` with timesteps of
-        `self.timestep_size`. Note that disrupted binaries will have two entries (for both stars).
+        The orbits of each binary within the galaxy from its birth until :attr:`max_ev_time` with timesteps of
+        :attr:`timestep_size`. Note that disrupted binaries will have two entries (for both stars).
     classes : `list`
         The classes associated with each produced binary (see :meth:`~kicker.classify.list_classes` for a
         list of available classes and their meanings)
@@ -93,7 +93,7 @@ class Population():
         corresponds to the individual components. Any missing orbits (where orbit=None or there is no
         secondary component) will be set to `np.inf` for ease of masking.
     final_bpp : :class:`~pandas.DataFrame`
-        The final state of each binary (taken from the final entry in `self.bpp`)
+        The final state of each binary (taken from the final entry in :attr:`bpp`)
     disrupted : :class:`~numpy.ndarray` of `bool`
         A mask on the binaries of whether they were disrupted
     observables : :class:`~pandas.DataFrame`
@@ -555,10 +555,10 @@ class Population():
         Returns
         -------
         primary_observed : :class:`~numpy.ndarray`
-            A list of binary numbers (that can be used in tables like ``self.final_bpp``) for which the
+            A list of binary numbers (that can be used in tables like :attr:`final_bpp`) for which the
             bound binary/disrupted primary would be observed
         secondary_observed : :class:`~numpy.ndarray`
-            A list of binary numbers (that can be used in tables like ``self.final_bpp``) for which the
+            A list of binary numbers (that can be used in tables like :attr:`final_bpp`) for which the
             disrupted secondary would be observed
         """
         # get coordinates of the centres of the healpix pixels in a nside=2**7
@@ -611,10 +611,10 @@ class Population():
         -------
         pix : :class:`~numpy.ndarray`
             The indices for the bound binaries/primaries of disrupted binaries
-            (corresponds to ``self.final_coords``)
+            (corresponds to ``self.final_coords[0]``)
         disrupted_pix : :class:`~numpy.ndarray`
             The indices for the secondaries of disrupted binaries
-            (corresponds to ``self.final_coords[self.disrupted]``)
+            (corresponds to ``self.final_coords[1][self.disrupted]``)
         """
         # get the coordinates in right format
         colatitudes = [np.pi/2 - self.final_coords[i].icrs.dec.to(u.rad).value for i in [0, 1]]
