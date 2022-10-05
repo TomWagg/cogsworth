@@ -91,7 +91,7 @@ class Population():
         secondary component) will be set to `np.inf` for ease of masking.
     final_bpp : :class:`~pandas.DataFrame`
         The final state of each binary (taken from the final entry in `self.bpp`)
-    disrupted : :class:`~numpy.ndarray` of `bool`s
+    disrupted : :class:`~numpy.ndarray` of `bool`
         A mask on the binaries of whether they were disrupted
     observables : :class:`~pandas.DataFrame`
         Observables associated with the final binaries. See `get_observables` for more details on the columns
@@ -539,6 +539,22 @@ class Population():
         return get_phot(self.final_bpp, self.final_coords, filters)
 
     def get_healpix_inds(self, nside=128):
+        """Get the indices of the healpix pixels that each binary is in
+
+        Parameters
+        ----------
+        nside : `int`, optional
+            Healpix nside parameter, by default 128
+
+        Returns
+        -------
+        pix : :class:`~numpy.ndarray`
+            The indices for the bound binaries/primaries of disrupted binaries
+            (corresponds to ``self.final_coords``)
+        disrupted_pix : :class:`~numpy.ndarray`
+            The indices for the secondaries of disrupted binaries
+            (corresponds to ``self.final_coords[self.disrupted]``)
+        """
         # get the coordinates in right format
         colatitudes = [np.pi/2 - self.final_coords[i].icrs.dec.to(u.rad).value for i in [0, 1]]
         longitudes = [self.final_coords[i].icrs.ra.to(u.rad).value for i in [0, 1]]
@@ -551,6 +567,28 @@ class Population():
 
     def plot_map(self, nside=128, coord="C",
                  cmap="magma", norm="log", unit=None, show=True, **mollview_kwargs):
+        r"""Plot a healpix map of the final positions of all binaries in population
+
+        Parameters
+        ----------
+        nside : `int`, optional
+            Healpix nside parameter, by default 128
+        coord : `str`, optional
+            Which coordinates to plot. One of ["C[elestial]", "G[alactic", "E[quatorial]"], by default "C"
+        cmap : `str`, optional
+            A `matplotlib colormap <https://matplotlib.org/stable/gallery/color/colormap_reference.html>`_
+            to use for the plot, by default "magma"
+        norm : `str`, optional
+            How to normalise the total number of binaries (anything linear or log), by default "log"
+        unit : `str`, optional
+            A label to use for the unit of the colour bar, by default ":math:`\log_{10}(N_{\rm binaries})`"
+            if ``norm==log`` and ":math:`N_{\rm binaries}`" if ``norm==linear``
+        show : `bool`, optional
+            Whether to immediately show the plot, by default True
+        **mollview_kwargs
+            Any additional arguments that you want to pass to healpy's
+            `mollview <https://healpy.readthedocs.io/en/latest/generated/healpy.visufunc.mollview.html>`_
+        """
         pix, disrupted_pix = self.get_healpix_inds(nside=nside)
 
         # initialise an empty map
