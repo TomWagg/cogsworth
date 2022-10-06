@@ -156,7 +156,10 @@ def get_extinction(coords):
 
     Reddening due to dust is calculated using the Bayestar dustmap. Then the conversion from this to a visual
     extension is done assuming a total-to-selective extinction ratio of 3.1, which is approximately the
-    average for Milky Way `Cardelli+1989 <https://ui.adsabs.harvard.edu/abs/1989ApJ...345..245C/abstract>`_
+    average for Milky Way `Cardelli+1989 <https://ui.adsabs.harvard.edu/abs/1989ApJ...345..245C/abstract>`_.
+    We use the coefficient from
+    `Schlafly & Finkbeiner 2011 <https://iopscience.iop.org/article/10.1088/0004-637X/737/2/103#apj398709t6>`_
+    to convert to a Landolt V extinction.
 
     .. warning::
         The dustmap used only covers declinations > -30 degrees, any supplied coordinates below this will be
@@ -178,7 +181,7 @@ def get_extinction(coords):
     ebv = bayestar(coords, mode='random_sample')
 
     # convert this to a visual extinction
-    Av = 3.1 * ebv
+    Av = 2.742 * ebv
     return Av
 
 
