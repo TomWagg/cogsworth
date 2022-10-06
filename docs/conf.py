@@ -65,7 +65,8 @@ sphinx_gallery_conf = {
         'sphinx_gallery': None,
     },
     'download_all_examples': False,
-    'show_signature': False
+    'show_signature': False,
+    'matplotlib_animations': True
 }
 
 
