@@ -221,7 +221,7 @@ class Galaxy():
         raise NotImplementedError("This Galaxy model has not implemented this method")
 
     def plot(self, coordinates="cartesian", component=None, colour_by=None, show=True, cbar_norm=LogNorm(),
-             cbar_label=r"Metallicity, $Z$", cmap="plasma", **kwargs):
+             cbar_label=r"Metallicity, $Z$", cmap="plasma", xlim=None, ylim=None, zlim=None, **kwargs):
         fig, axes = plt.subplots(2, 1, figsize=(10 * 1.2475, 14), gridspec_kw={'height_ratios': [4, 14]},
                                  sharex=True)
         if colour_by is None:
@@ -262,6 +262,14 @@ class Galaxy():
 
         axes[1].set_xlabel(r"$x$ [kpc]")
         axes[1].set_ylabel(r"$y$ [kpc]")
+        
+        if xlim is not None:
+            axes[0].set_xlim(xlim)
+            axes[1].set_xlim(xlim)
+        if ylim is not None:
+            axes[1].set_ylim(ylim)
+        if zlim is not None:
+            axes[0].set_ylim(zlim)
 
         if show:
             plt.show()
