@@ -1,9 +1,11 @@
 import pandas as pd
 import numpy as np
 import astropy.units as u
+import astropy.constants as const
 import gala.dynamics as gd
 
-__all__ = ["determine_final_classes", "list_classes"]
+__all__ = ["determine_final_classes", "list_classes", "get_eddington_rate", "get_eddington_lum",
+           "get_schwarzchild_radius", "get_x_ray_lum"]
 
 
 def determine_final_classes(population=None, bpp=None, bcm=None, kick_info=None, orbits=None, potential=None):
@@ -234,3 +236,134 @@ def list_classes():
     for c in classes:
         print(f'{c["full_name"]} ({c["name"]})')
         print(f'    {c["condition"]}\n')
+
+
+def get_eddington_rate(mass, radiative_efficiency=None, radius=None):
+    """Get the eddington accretion rate
+
+    One of either radiative efficiency or radius must be provided.
+
+    Parameters
+    ----------
+    mass : :class:`~astropy.units.Quantity` [mass]
+        Mass
+    radiative_efficiency : :class:`~numpy.ndarray`, optional
+        Fraction of radiated mass that is accreted, by default None
+    radius : :class:`~astropy.units.Quantity` [length], optional
+        Radius, by default None
+
+    Returns
+    -------
+    eddington_rate : :class:`~astropy.units.Quantity` [mass / time]
+        Eddington accretion rate
+
+    Raises
+    ------
+    ValueError
+        If neither radiative efficiency or radius are provided
+    """
+    if radiative_efficiency and radius is None:
+        raise ValueError("Either `radiative_efficiency` or `radius` must be provided")
+    elif radiative_efficiency is None:
+        radiative_efficiency = (const.G * mass / (radius * const.c**2)).decompose()
+    return 4 * np.pi * const.G * mass * const.m_p / (radiative_efficiency * const.c * const.sigma_T)
+
+
+def get_eddington_lum(mass):
+    """Get the eddington luminosity for a given mass
+
+    Parameters
+    ----------
+    mass : :class:`~astropy.units.Quantity` [mass]
+        Mass
+
+    Returns
+    -------
+    eddington_lum : :class:`~astropy.units.Quantity` [energy / time]
+        Eddington luminosity
+    """
+    return 4 * np.pi * const.G * mass * const.c * const.m_p / const.sigma_T
+
+
+def get_schwarzchild_radius(mass):
+    """Get the Schwarzchild radius for a given black hole mass
+
+    Parameters
+    ----------
+    mass : :class:`~astropy.units.Quantity` [mass]
+        Mass
+
+    Returns
+    -------
+    r_s
+        Schwarzchild radius
+    """
+    return 2 * const.G * mass / const.c**2
+
+
+def get_x_ray_lum(m_acc, r_acc, m_acc_dot, porb, kstar, m_don, RRLO_don):
+    """Estimate the X-ray luminosity for a given binary
+
+    We use the prescription from
+    `Misra+2022 <https://ui.adsabs.harvard.edu/abs/2022arXiv220905505M/abstract>`_ to estimate the X-ray
+    luminosity for both RLOF/wind-fed XRBs and Be-XRBs.
+
+    Parameters
+    ----------
+    m_acc : :class:`~astropy.units.Quantity` [mass]
+        Accretor mass
+    r_acc : :class:`~astropy.units.Quantity` [length]
+        Accretor radius
+    m_acc_dot : :class:`~astropy.units.Quantity` [mass / time]
+        Accretion rate
+    porb : :class:`~astropy.units.Quantity` [time]
+        Orbital period
+    kstar : `int`
+        Stellar type
+    m_don : :class:`~astropy.units.Quantity` [mass]
+        Donor mass
+    RRLO_don : :class:`~numpy.ndarray`
+        Donor radius in units of Roche Lobe radius
+
+    Returns
+    -------
+    rlof_wind_fed : :class:`~astropy.units.Quantity` [erg / s]
+        Luminosity for a RLOF/wind fed x-ray binary
+    be_xrb : :class:`~astropy.units.Quantity` [erg / s]
+        Luminosity for Be-XRB
+    """
+    # use 3 R_S as the radius for black holes
+    r_acc[kstar == 14] = 3 * get_schwarzchild_radius(m_acc[kstar == 14])
+
+    # compute radiative efficiency and eddington limit for masses
+    radiative_efficiency = (const.G * m_acc / (r_acc * const.c**2)).decompose()
+    eddington_rate = get_eddington_rate(m_acc, radiative_efficiency)
+    eddington_ratio = (m_acc_dot / eddington_rate).decompose()
+
+    # first calculate for RLOF/wind fed XRBs
+    rlof_wind_fed = np.zeros(len(m_acc)) * u.erg / u.s
+
+    # handle sub eddington accretion
+    regular = eddington_ratio < 1.0
+    rlof_wind_fed[regular] = radiative_efficiency[regular] * m_acc_dot[regular] * const.c**2
+
+    # handle super Eddington
+    super_edd = (eddington_ratio >= 1.0) & (eddington_ratio < 8.5)
+    rlof_wind_fed[super_edd] = get_eddington_lum(m_acc[super_edd]) * (1 + np.log(eddington_ratio[super_edd]))
+
+    # account for beaming effect in extreme super Eddington
+    super_duper_edd = eddington_ratio >= 8.5
+    b = 73 / eddington_ratio[super_duper_edd]**2
+    b[b < 3.2e-3] = 3.2e-3
+    rlof_wind_fed[super_duper_edd] = get_eddington_lum(m_acc[super_duper_edd])\
+        * (1 + np.log(eddington_ratio[super_duper_edd])) / b
+
+    # next calculate for Be=XRBs
+    be_xrb = np.zeros(len(m_acc)) * u.erg / u.s
+
+    # we only want to consider certain systems as potential Be-XRBs based on Misra+2022
+    be_xrb_mask = (porb > 10 * u.day) & (porb < 300 * u.day) & (m_don >= 6 * u.Msun)\
+        & (RRLO_don * 100 > 1.0) & (kstar == 13)
+    be_xrb[be_xrb_mask] = 10**(4.53 - 1.5 * np.log10(porb[be_xrb_mask].to(u.day).value)) * 1e35 * u.erg / u.s
+
+    return rlof_wind_fed, be_xrb
