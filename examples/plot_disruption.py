@@ -32,8 +32,12 @@ secondary_orbit = p.orbits[p.final_bpp["bin_num"] == bin_num][0][1]
 primary_orbit = primary_orbit[primary_orbit.t < (primary_orbit.t[0] + split_time * 10)]
 secondary_orbit = secondary_orbit[secondary_orbit.t < (secondary_orbit.t[0] + split_time * 10)]
 
+times = primary_orbit.t
+times -= times[0]
+
 combined_orbit = gd.Orbit(pos=np.array([primary_orbit.pos.xyz.T, secondary_orbit.pos.xyz.T]).T,
-                          vel=np.array([primary_orbit.vel.d_xyz.T, secondary_orbit.vel.d_xyz.T]).T)
+                          vel=np.array([primary_orbit.vel.d_xyz.T, secondary_orbit.vel.d_xyz.T]).T,
+                          t=times)
 
 fig, axes = plt.subplots(1, 3, figsize=(21, 7))
 
@@ -91,11 +95,15 @@ print(split_time)
 
 faster = 2 / split_time.to(u.Myr).value
 
+segment_style = [{"color": "C0"}, {"color": "C1"}]
+
+
 fig, anim = combined_orbit.animate(stride=1, segment_nsteps=50, underplot_full_orbit=True, axes=axes,
-                                   FuncAnimation_kwargs={"interval": 2 * faster}, segment_style={"color": "C0"}, marker_style={"color": "C1"})
+                                   FuncAnimation_kwargs={"interval": faster},
+                                   segment_style=segment_style, marker_style={"color": "C1"})
 
 plt.show()
 
-# from matplotlib import animation
-# writergif = animation.PillowWriter(fps=100) 
-# anim.save("test.gif", writer=writergif)
+from matplotlib import animation
+writergif = animation.PillowWriter(fps=1000 / faster)
+anim.save("test.gif", writer=writergif)
