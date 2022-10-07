@@ -1,10 +1,10 @@
-.. image:: _static/logo.png
+.. image:: _static/gala_invite_light.png
    :width: 400
    :alt: logo for package
    :align: center
    :class: only-light
 
-.. image:: _static/logo_darkmode.png
+.. image:: _static/gala_invite_dark.png
    :width: 400
    :alt: logo for package
    :align: center
