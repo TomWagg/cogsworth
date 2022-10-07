@@ -21,7 +21,7 @@ def get_log_g(mass, radius):
 
     Returns
     -------
-    log g : `float/array`
+    log g : :class:`~numpy.ndarray`
         Log of the surface gravity in cgs
     """
     g = const.G * mass / radius**2
@@ -42,7 +42,7 @@ def get_absolute_bol_mag(lum):
 
     Returns
     -------
-    M_bol : `float/array`
+    M_bol : :class:`~numpy.ndarray`
         Absolute bolometric magnitude
     """
     zero_point_lum = 3.0128e28 * u.watt
@@ -54,14 +54,14 @@ def get_apparent_mag(M_abs, distance):
 
     Parameters
     ----------
-    M_abs : `float/array`
+    M_abs : :class:`~numpy.ndarray`
         Absolute magnitude
     distance : :class:`~astropy.units.Quantity` [length]
         Distance
 
     Returns
     -------
-    m_app : `float/array`
+    m_app : :class:`~numpy.ndarray`
         Apparent magnitude
     """
     finite_distance = np.isfinite(distance)
@@ -75,14 +75,14 @@ def get_absolute_mag(m_app, distance):
 
     Parameters
     ----------
-    M_abs : `float/array`
+    M_abs : :class:`~numpy.ndarray`
         Apparent magnitude
     distance : :class:`~astropy.units.Quantity` [length]
         Distance
 
     Returns
     -------
-    m_app : `float/array`
+    m_app : :class:`~numpy.ndarray`
         Absolute magnitude
     """
     M_abs = m_app - 5 * np.log10(distance / (10 * u.pc))
@@ -102,7 +102,7 @@ def add_mags(*mags, remove_nans=True):
 
     Returns
     -------
-    total_mag : `float/array`
+    total_mag : :class:`~numpy.ndarray`
         Total magnitude
 
     Raises
@@ -155,11 +155,8 @@ def get_extinction(coords):
     """Calculates the visual extinction values for a set of coordinates
 
     Reddening due to dust is calculated using the Bayestar dustmap. Then the conversion from this to a visual
-    extension is done assuming a total-to-selective extinction ratio of 3.1, which is approximately the
-    average for Milky Way `Cardelli+1989 <https://ui.adsabs.harvard.edu/abs/1989ApJ...345..245C/abstract>`_.
-    We use the coefficient from
-    `Schlafly & Finkbeiner 2011 <https://iopscience.iop.org/article/10.1088/0004-637X/737/2/103#apj398709t6>`_
-    to convert to a Landolt V extinction.
+    extension is done assuming a total-to-selective extinction ratio of 3.3, as is used by
+    `Green+2019 <https://iopscience.iop.org/article/10.3847/1538-4357/ab5362#apjab5362s2>`_
 
     .. warning::
         The dustmap used only covers declinations > -30 degrees, any supplied coordinates below this will be
@@ -172,7 +169,7 @@ def get_extinction(coords):
 
     Returns
     -------
-    Av : `float/array`
+    Av : :class:`~numpy.ndarray`
         Visual extinction values for each set of coordinates
     """
     bayestar = BayestarQuery(max_samples=2, version='bayestar2019')
@@ -181,7 +178,7 @@ def get_extinction(coords):
     ebv = bayestar(coords, mode='random_sample')
 
     # convert this to a visual extinction
-    Av = 2.742 * ebv
+    Av = 3.3 * ebv
     return Av
 
 

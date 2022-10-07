@@ -104,6 +104,6 @@ fig, anim = combined_orbit.animate(stride=1, segment_nsteps=50, underplot_full_o
 
 plt.show()
 
-from matplotlib import animation
-writergif = animation.PillowWriter(fps=1000 / faster)
-anim.save("test.gif", writer=writergif)
+# from matplotlib import animation
+# writergif = animation.PillowWriter(fps=1000 / faster)
+# anim.save("test.gif", writer=writergif)
