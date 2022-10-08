@@ -103,6 +103,11 @@ class Population():
                  final_kstar2=list(range(16)), galaxy_model=galaxy.Frankel2018,
                  galactic_potential=gp.MilkyWayPotential(), v_dispersion=5 * u.km / u.s,
                  max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, store_entire_orbits=True):
+
+        # require a sensible number of binaries
+        if n_binaries <= 0:
+            raise ValueError("You need to input a *nonnegative* number of binaries")
+
         self.n_binaries = n_binaries
         self.n_binaries_match = n_binaries
         self.processes = processes
@@ -317,6 +322,11 @@ class Population():
         # count how many binaries actually match the criteria (may be larger than `n_binaries` due to sampler)
         self.n_binaries_match = len(self._initial_binaries)
 
+        # check that any binaries remain
+        if self.n_binaries_match == 0:
+            raise ValueError(("Your choice of `m1_cutoff` resulted in all samples being thrown out. Consider"
+                              " a larger sample size or a less stringent mass cut"))
+
         # initialise the initial galaxy class with correct number of binaries
         self.initial_galaxy = self.galaxy_model(size=self.n_binaries_match)
 
@@ -371,6 +381,7 @@ class Population():
         if no_pool_existed:
             self.pool.close()
             self.pool.join()
+            self.pool = None
 
         # check if there are any NaNs in the final bpp table rows or the kick_info
         nans = np.isnan(self.final_bpp["sep"])
@@ -466,6 +477,7 @@ class Population():
             if not pool_existed:
                 self.pool.close()
                 self.pool.join()
+                self.pool = None
         else:
             # otherwise just use a for loop to evolve the orbits from birth until present day
             orbits = []
