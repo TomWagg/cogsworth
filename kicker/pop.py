@@ -324,9 +324,9 @@ class Population():
         vel_units = u.km / u.s
 
         # calculate the Galactic circular velocity at the initial positions
-        v_circ = self.galactic_potential.circular_velocity(q=[self.initial_galaxy.x,
-                                                              self.initial_galaxy.y,
-                                                              self.initial_galaxy.z]).to(vel_units)
+        v_circ = self.galactic_potential.circular_velocity(q=[self.initial_galaxy.positions.x,
+                                                              self.initial_galaxy.positions.y,
+                                                              self.initial_galaxy.positions.z]).to(vel_units)
 
         # add some velocity dispersion
         v_R, v_T, v_z = np.random.normal([np.zeros_like(v_circ), v_circ, np.zeros_like(v_circ)],
@@ -401,14 +401,10 @@ class Population():
             not_nan = ~self.final_bpp["bin_num"].isin(nan_bin_nums)
             self.initial_galaxy._tau = self.initial_galaxy._tau[not_nan]
             self.initial_galaxy._Z = self.initial_galaxy._Z[not_nan]
-            self.initial_galaxy._z = self.initial_galaxy._z[not_nan]
-            self.initial_galaxy._rho = self.initial_galaxy._rho[not_nan]
-            self.initial_galaxy._phi = self.initial_galaxy._phi[not_nan]
+            self.initial_galaxy._positions = self.initial_galaxy._positions[not_nan]
             self.initial_galaxy.v_R = self.initial_galaxy.v_R[not_nan]
             self.initial_galaxy.v_T = self.initial_galaxy.v_T[not_nan]
             self.initial_galaxy.v_z = self.initial_galaxy.v_z[not_nan]
-            self.initial_galaxy._x = self.initial_galaxy._x[not_nan]
-            self.initial_galaxy._y = self.initial_galaxy._y[not_nan]
             self.initial_galaxy._which_comp = self.initial_galaxy._which_comp[not_nan]
             self.initial_galaxy._size -= n_nan
 
@@ -431,15 +427,13 @@ class Population():
         self._observables = None
 
         # turn the drawn coordinates into an astropy representation
-        rep = coords.CylindricalRepresentation(self.initial_galaxy.rho,
-                                               self.initial_galaxy.phi,
-                                               self.initial_galaxy.z)
+        rep = self.initial_galaxy.positions.represent_as("cylindrical")
 
         # create differentials based on the velocities (dimensionless angles allows radians conversion)
         with u.set_enabled_equivalencies(u.dimensionless_angles()):
             dif = coords.CylindricalDifferential(self.initial_galaxy.v_R,
                                                  (self.initial_galaxy.v_T
-                                                  / self.initial_galaxy.rho).to(u.rad / u.Gyr),
+                                                  / rep.rho).to(u.rad / u.Gyr),
                                                  self.initial_galaxy.v_z)
 
         # combine the representation and differentials into a Gala PhaseSpacePosition

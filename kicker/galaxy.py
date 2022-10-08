@@ -8,6 +8,7 @@ from scipy.stats import beta
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import pandas as pd
+from astropy.coordinates import SkyCoord
 
 __all__ = ["Galaxy", "Frankel2018", "load"]
 
@@ -33,8 +34,6 @@ class Galaxy():
         by default None
     immediately_sample : `bool`, optional
         Whether to immediately sample the points from the galaxy, by default True
-    R_sun : :class:`~astropy.units.Quantity` [length], optional
-        Distance of the Sun from the Galactic centre, used for calculating distances, by default 8.2*u.kpc
 
 
     Attributes
@@ -43,37 +42,18 @@ class Galaxy():
         Lookback time
     Z : :class:`~astropy.units.Quantity` [dimensionless]
         Metallicity
-    z : :class:`~astropy.units.Quantity` [length]
-        Galactocentric height
-    rho : :class:`~astropy.units.Quantity` [length]
-        Galactocentric radius
-    phi : :class:`~astropy.units.Quantity` [angle]
-        Galactocentric azimuthal angle relative to Sun
-    Dg : :class:`~astropy.units.Quantity` [length]
-        Distance from Galactic centre
-    D : :class:`~astropy.units.Quantity` [length]
-        Distance from Sun
-    x : :class:`~astropy.units.Quantity` [length]
-        Galactocentric distance along x-axis (parallel with vector pointing at Sun)
-    y : :class:`~astropy.units.Quantity` [length]
-        Galactocentric distance along y-axis (perpendicular with vector pointing at Sun)
+    positions : :class:`~astropy.coordinates.SkyCoord`
+        Initial positions in Galactocentric frame
 
     """
     def __init__(self, size=None, components=None, component_masses=None,
-                 immediately_sample=True, R_sun=8.2 * u.kpc):
+                 immediately_sample=True):
         self._components = components
         self._component_masses = component_masses
         self._size = size
-        self._R_sun = R_sun
         self._tau = None
         self._Z = None
-        self._z = None
-        self._rho = None
-        self._phi = None
-        self._Dg = None
-        self._D = None
-        self._x = None
-        self._y = None
+        self._positions = None
 
         if immediately_sample:
             self.sample()
@@ -104,53 +84,16 @@ class Galaxy():
         return self._tau
 
     @property
-    def rho(self):
-        if self._rho is None:
-            self.sample()
-        return self._rho
-
-    @property
-    def z(self):
-        if self._z is None:
-            self.sample()
-        return self._z
-
-    @property
-    def phi(self):
-        if self._phi is None:
-            self.sample()
-        return self._phi
-
-    @property
     def Z(self):
         if self._Z is None:
             self.sample()
         return self._Z
 
     @property
-    def D(self):
-        if self._D is None:
-            self._D = np.sqrt(self._z**2 + self._rho**2 + self._R_sun**2
-                              - 2 * self._R_sun * self._rho * np.cos(self._phi))
-        return self._D
-
-    @property
-    def Dg(self):
-        if self._Dg is None:
-            self._Dg = (self._rho**2 + self._z**2)**(0.5)
-        return self._Dg
-
-    @property
-    def x(self):
-        if self._x is None:
-            self._x = self._rho * np.cos(self._phi)
-        return self._x
-
-    @property
-    def y(self):
-        if self._y is None:
-            self._y = self._rho * np.sin(self._phi)
-        return self._y
+    def positions(self):
+        if self._positions is None:
+            self.sample()
+        return self._positions
 
     @property
     def which_comp(self):
@@ -163,9 +106,8 @@ class Galaxy():
         if self.size is None:
             raise ValueError("`self.size` has not been set")
 
-        # reset calculated values
-        self._D = None
-        self._rho = None
+        if self._component_masses is None or self._components is None:
+            raise ValueError("`self.components` or `self.component_masses` has not been set")
 
         # work out the weight to assign to each component
         total_mass = np.sum(self._component_masses)
@@ -181,29 +123,33 @@ class Galaxy():
         self._which_comp = np.concatenate([[com] * sizes[i] for i, com in enumerate(self._components)])
 
         self._tau = np.zeros(self._size) * u.Gyr
-        self._rho = np.zeros(self._size) * u.kpc
-        self._z = np.zeros(self._size) * u.kpc
+        rho = np.zeros(self._size) * u.kpc
+        z = np.zeros(self._size) * u.kpc
 
         # go through each component and get lookback time, radius and height
         for i, com in enumerate(self._components):
             com_mask = self._which_comp == com
             self._tau[com_mask] = self.draw_lookback_times(sizes[i], component=com)
-            self._rho[com_mask] = self.draw_radii(sizes[i], component=com)
-            self._z[com_mask] = self.draw_heights(sizes[i], component=com)
+            rho[com_mask] = self.draw_radii(sizes[i], component=com)
+            z[com_mask] = self.draw_heights(sizes[i], component=com)
 
         # shuffle the samples so components are well mixed (mostly for plotting)
         random_order = np.random.permutation(self._size)
         self._tau = self._tau[random_order]
-        self._rho = self._rho[random_order]
-        self._z = self._z[random_order]
+        rho = rho[random_order]
+        z = z[random_order]
         self._which_comp = self._which_comp[random_order]
+
+        # draw a random azimuthal angle
+        phi = self.draw_phi()
+
+        self._positions = SkyCoord(x=rho * np.sin(phi), y=rho * np.cos(phi), z=z,
+                                   frame="galactocentric", representation_type="cartesian")
 
         # compute the metallicity given the other values
         self._Z = self.get_metallicity()
 
-        # draw a random azimuthal angle
-        self._phi = self.draw_phi()
-        return self._tau, (self._rho, self.z, self.phi), self.Z
+        return self._tau, self._positions, self.Z
 
     def draw_lookback_times(self, size=None, component=None):
         raise NotImplementedError("This Galaxy model has not implemented this method")
@@ -296,13 +242,9 @@ class Galaxy():
         data = {
             "tau": self.tau.to(u.Gyr),
             "Z": self.Z,
-            "z": self.z.to(u.kpc),
-            "rho": self.rho.to(u.kpc),
-            "phi": self.phi.to(u.rad),
-            "Dg": self.Dg.to(u.kpc),
-            "D": self.D.to(u.kpc),
-            "x": self.x.to(u.kpc),
-            "y": self.y.to(u.kpc),
+            "x": self.positions.x.to(u.kpc),
+            "y": self.positions.y.to(u.kpc),
+            "z": self.positions.z.to(u.kpc),
             "which_comp": self.which_comp
         }
         df = pd.DataFrame(data=data)
@@ -496,7 +438,8 @@ class Frankel2018(Galaxy):
         Z : :class:`~astropy.units.Quantity` [dimensionless]
             Metallicities corresponding to radii and times
         """
-        FeH = self.Fm + self.gradient * self._rho - (self.Fm + self.gradient * self.Rnow)\
+        rho = (self.positions.x**2 + self.positions.y**2)**(0.5)
+        FeH = self.Fm + self.gradient * rho - (self.Fm + self.gradient * self.Rnow)\
             * (1 - (self._tau / self.galaxy_age))**self.gamma
         return np.power(10, FeH + np.log10(self.zsun))
 
@@ -541,21 +484,16 @@ def load(file_name, key="galaxy"):
     df = pd.read_hdf(file_name, key=key)
     galaxy._tau = df["tau"].values * u.Gyr
     galaxy._Z = df["Z"].values * u.dimensionless_unscaled
-    galaxy._z = df["z"].values * u.kpc
-    galaxy._rho = df["rho"].values * u.kpc
-    galaxy._phi = df["phi"].values * u.rad
-    galaxy._Dg = df["Dg"].values * u.kpc
-    galaxy._D = df["D"].values * u.kpc
-    galaxy._x = df["x"].values * u.kpc
-    galaxy._y = df["y"].values * u.kpc
     galaxy._which_comp = df["which_comp"].values
+
+    galaxy._positions = SkyCoord(x=df["x"] * u.kpc, y=df["y"] * u.kpc, z=df["z"] * u.kpc,
+                                 frame="galactocentric", representation_type="cartesian")
 
     # return the newly created class
     return galaxy
 
 
-def simplify_params(params, dont_save=["_tau", "_Z", "_z", "_rho", "_phi", "_Dg",
-                                       "_D", "_x", "_y", "_which_comp", "v_R", "v_T", "v_z"]):
+def simplify_params(params, dont_save=["_tau", "_Z", "_positions", "_which_comp", "v_R", "v_T", "v_z"]):
     # delete any keys that we don't want to save
     delete_keys = [key for key in params.keys() if key in dont_save]
     for key in delete_keys:
