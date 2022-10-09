@@ -3,7 +3,12 @@ import pandas as pd
 import astropy.units as u
 import astropy.constants as const
 from dustmaps.bayestar import BayestarQuery
+
+# HACK around the isochrone import to ignore warnings about Holoview and Multinest
+import logging
+logging.getLogger("isochrones").setLevel("ERROR")
 from isochrones.mist.bc import MISTBolometricCorrectionGrid
+logging.getLogger("isochrones").setLevel("WARNING")
 
 __all__ = ["get_log_g", "get_absolute_bol_mag", "get_apparent_mag", "get_absolute_mag", "add_mags",
            "get_extinction", "get_photometry"]
