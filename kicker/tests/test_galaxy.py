@@ -12,10 +12,37 @@ class Test(unittest.TestCase):
                           immediately_sample=False)
         it_broke = False
         try:
-            g.sample()
+            g.draw_lookback_times()
         except NotImplementedError:
             it_broke = True
+        self.assertTrue(it_broke)
 
+        it_broke = False
+        try:
+            g.draw_radii()
+        except NotImplementedError:
+            it_broke = True
+        self.assertTrue(it_broke)
+
+        it_broke = False
+        try:
+            g.draw_phi()
+        except NotImplementedError:
+            it_broke = True
+        self.assertTrue(it_broke)
+
+        it_broke = False
+        try:
+            g.draw_heights()
+        except NotImplementedError:
+            it_broke = True
+        self.assertTrue(it_broke)
+
+        it_broke = False
+        try:
+            g.get_metallicity()
+        except NotImplementedError:
+            it_broke = True
         self.assertTrue(it_broke)
 
     def test_bad_inputs(self):
@@ -57,3 +84,82 @@ class Test(unittest.TestCase):
 
         os.remove("testing-galaxy-io.h5")
         os.remove("testing-galaxy-io-galaxy-params.txt")
+
+    def test_getters(self):
+        """Test getting attributes"""
+        it_broke = False
+        try:
+            g = galaxy.Frankel2018(size=10, immediately_sample=False)
+            g.components
+            g.component_masses
+            g.tau
+            g = galaxy.Frankel2018(size=10, immediately_sample=False)
+            g.Z
+            g = galaxy.Frankel2018(size=10, immediately_sample=False)
+            g.positions
+            g = galaxy.Frankel2018(size=10, immediately_sample=False)
+            g.which_comp
+        except Exception as e:
+            print(e)
+            it_broke = True
+        self.assertFalse(it_broke)
+
+    def test_setters(self):
+        """Test setting attributes"""
+        g = galaxy.Frankel2018(size=10000, immediately_sample=False)
+        g.size = 100
+        self.assertTrue(g.size == 100)
+
+        # make sure it crashes for invalid inputs
+        it_broke = False
+        try:
+            g.size = -1
+        except ValueError:
+            it_broke = True
+        self.assertTrue(it_broke)
+
+        it_broke = False
+        try:
+            g.size = "not an int"
+        except ValueError:
+            it_broke = True
+        self.assertTrue(it_broke)
+
+    def test_custom_galaxy(self):
+        """Test saving a custom galaxy class"""
+
+        class Custom(galaxy.Frankel2018):
+            def __init__(self, size, components=["low_alpha_disc"], component_masses=[1], **kwargs):
+                super().__init__(size, components, component_masses, **kwargs)
+
+        g = Custom(size=100)
+
+        g.save("testing-galaxy-custom")
+
+        g_loaded = galaxy.load("testing-galaxy-custom")
+
+        self.assertTrue(np.all(g.tau == g_loaded.tau))
+        self.assertTrue(np.all(g.positions.icrs.distance == g_loaded.positions.icrs.distance))
+
+        os.remove("testing-galaxy-custom.h5")
+        os.remove("testing-galaxy-custom-galaxy-params.txt")
+
+    def test_plot(self):
+        """Test plotting capabilities"""
+        g = galaxy.Frankel2018(size=1000)
+
+        it_broke = False
+        try:
+            g.plot(component="low_alpha_disc", xlim=(-20, 20), ylim=(-20, 20), zlim=(-7, 7), show=False)
+            g.plot(coordinates="cylindrical", component="low_alpha_disc", show=False)
+        except Exception as e:
+            print(e)
+            it_broke = True
+        self.assertFalse(it_broke)
+
+        it_broke = False
+        try:
+            g.plot(coordinates="nonsense")
+        except ValueError:
+            it_broke = True
+        self.assertTrue(it_broke)
