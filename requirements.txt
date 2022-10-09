@@ -16,3 +16,4 @@ tables
 isochrones
 dustmaps
 healpy
+gaiaunlimited
