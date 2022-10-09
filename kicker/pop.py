@@ -269,7 +269,7 @@ class Population():
             print(f"[{time.time() - start:1.0e}s] Sample initial binaries")
             lap = time.time()
 
-        self.pool = Pool(self.processes) if self.processes else None
+        self.pool = Pool(self.processes) if self.processes > 1 else None
         self.perform_stellar_evolution()
         if with_timing:
             print(f"[{time.time() - lap:1.1f}s] Evolve binaries (run COSMIC)")
@@ -492,7 +492,7 @@ class Population():
                                                           t1=self.max_ev_time - self.initial_galaxy.tau[i],
                                                           t2=self.max_ev_time, dt=copy(self.timestep_size),
                                                           events=events[i], quiet=quiet,
-                                                          store_entire_orbits=self.store_entire_orbits))
+                                                          store_all=self.store_entire_orbits))
 
         self._orbits = np.array(orbits, dtype="object")
 

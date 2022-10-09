@@ -155,24 +155,21 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential()
                 orbit = potential.integrate_orbit(current_w0, t=matching_timesteps, Integrator=gi.DOPRI853Integrator)
                 orbit_data.append(orbit.data)
 
-            if len(orbit_data) > 1:
-                orbit_data = coords.concatenate_representations(orbit_data)
-            else:
-                orbit_data = orbit_data[0]
+            data = coords.concatenate_representations(orbit_data) if len(orbit_data) > 1 else orbit_data[0]
 
-            full_orbit = gd.orbit.Orbit(pos=orbit_data.without_differentials(),
-                                        vel=orbit_data.differentials["s"],
+            full_orbit = gd.orbit.Orbit(pos=data.without_differentials(),
+                                        vel=data.differentials["s"],
                                         t=timesteps.to(u.Myr))
             success = True
             break
 
-        except Exception:
+        except Exception:   # pragma: no cover
             dt /= 8.
             if not quiet:
                 print("Orbit is causing problems, attempting reduced timestep size", t1, dt)
 
     # if the orbit failed event after resizing then just return None
-    if not success:
+    if not success:   # pragma: no cover
         if not quiet:
             print("ORBIT FAILED, returning None")
         return None
