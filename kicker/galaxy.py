@@ -46,7 +46,7 @@ class Galaxy():
         Initial positions in Galactocentric frame
 
     """
-    def __init__(self, size=None, components=None, component_masses=None,
+    def __init__(self, size, components=None, component_masses=None,
                  immediately_sample=True):
         self._components = components
         self._component_masses = component_masses
@@ -176,13 +176,13 @@ class Galaxy():
             colour_by = self.Z.value
 
         if coordinates == "cylindrical":
-            x = self.rho
-            y1 = self.z
-            y2 = self.phi
+            x = self.positions.represent_as("cylindrical").rho
+            y1 = self.positions.represent_as("cylindrical").z
+            y2 = self.positions.represent_as("cylindrical").phi
         elif coordinates == "cartesian":
-            x = self.x
-            y1 = self.z
-            y2 = self.y
+            x = self.positions.x
+            y1 = self.positions.z
+            y2 = self.positions.y
             axes[1].set_aspect("equal")
         else:
             raise ValueError("Invalid coordinates specified")
@@ -210,7 +210,7 @@ class Galaxy():
 
         axes[1].set_xlabel(r"$x$ [kpc]")
         axes[1].set_ylabel(r"$y$ [kpc]")
-        
+
         if xlim is not None:
             axes[0].set_xlim(xlim)
             axes[1].set_xlim(xlim)
@@ -302,7 +302,7 @@ class Frankel2018(Galaxy):
     zsun : `float`, optional
         Solar metallicity, by default 0.0142
     """
-    def __init__(self, components=["low_alpha_disc", "high_alpha_disc", "bulge"],
+    def __init__(self, size, components=["low_alpha_disc", "high_alpha_disc", "bulge"],
                  component_masses=[2.585e10, 2.585e10, 0.91e10],
                  tsfr=6.8 * u.Gyr, alpha=0.3, Fm=-1, gradient=-0.075 / u.kpc, Rnow=8.7 * u.kpc,
                  gamma=0.3, zsun=0.0142, galaxy_age=12 * u.Gyr, **kwargs):
@@ -314,7 +314,7 @@ class Frankel2018(Galaxy):
         self.gamma = gamma
         self.zsun = zsun
         self.galaxy_age = galaxy_age
-        super().__init__(components=components, component_masses=component_masses, **kwargs)
+        super().__init__(size=size, components=components, component_masses=component_masses, **kwargs)
 
     def draw_lookback_times(self, size=None, component="low_alpha_disc"):
         """Inverse CDF sampling of lookback times. low_alpha and high_alpha discs uses
@@ -470,10 +470,7 @@ def load(file_name, key="galaxy"):
     # get the current module, get a class using the name, delete it from parameters that will be passed
     module = sys.modules[__name__]
 
-    if hasattr(module, params["class_name"]):
-        galaxy_class = getattr(module, params["class_name"])
-    else:
-        galaxy_class = Frankel2018
+    galaxy_class = getattr(module, params["class_name"])
     del params["class_name"]
 
     # ensure no samples are taken
