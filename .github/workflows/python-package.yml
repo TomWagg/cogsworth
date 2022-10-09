@@ -21,6 +21,7 @@ on:
       - 'setup.cfg'
       - 'setup.py'
       - 'pyproject.toml'
+  workflow_dispatch:
 
 jobs:
   build:
