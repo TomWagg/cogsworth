@@ -394,7 +394,7 @@ class Population():
         kick_info_nans = np.isnan(self._kick_info["delta_vsysx_1"])
 
         # if we detect NaNs
-        if nans.any() or kick_info_nans.any():
+        if nans.any() or kick_info_nans.any():      # pragma: no cover
             # make sure the user knows bad things have happened
             print("WARNING! PANIC! THE SKY THE FALLING!")
             print("------------------------------------")
@@ -600,13 +600,14 @@ class Population():
 
             # only bother getting completeness for things brighter than G=22 (everything fainter is 0)
             bright_enough = g_mags < 22.0
+            observed_bin_nums = np.array([])
             if bright_enough.any():
                 completeness[bright_enough] = dr3sf.query(comp_coords[bright_enough], g_mags[bright_enough])
 
                 # draw a random sample from the systems based on Gaia's completeness at each coordinate
-                observed.append(bin_nums[np.random.uniform(size=len(completeness)) < completeness])
-            else:
-                observed.append(np.array([]))
+                observed_bin_nums = bin_nums[np.random.uniform(size=len(completeness)) < completeness]
+
+            observed.append(observed_bin_nums)
 
         primary_observed, secondary_observed = observed
         return primary_observed, secondary_observed
