@@ -1,4 +1,3 @@
-import numpy as np
 import unittest
 import kicker
 import astropy.units as u

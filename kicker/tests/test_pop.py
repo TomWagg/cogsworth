@@ -24,7 +24,8 @@ class Test(unittest.TestCase):
 
     def test_io(self):
         """Check that a population can be saved and re-loaded"""
-        p = pop.Population(100)
+        p = pop.Population(2)
+        p.create_population()
 
         p.save("testing-pop-io", overwrite=True)
 
@@ -66,8 +67,18 @@ class Test(unittest.TestCase):
 
     def test_interface(self):
         """Test the interface of this class with the other modules"""
-        p = pop.Population(1000, m1_cutoff=7)
+        p = pop.Population(10, final_kstar1=[13, 14], store_entire_orbits=False)
         p.create_population()
+
+        # ensure we get something that disrupts to ensure coverage
+        MAX_REPS = 5
+        i = 0
+        while not p.disrupted.any() and i < MAX_REPS:
+            p = pop.Population(10, final_kstar1=[13, 14])
+            p.create_population()
+            i += 1
+        if i == MAX_REPS:
+            raise ValueError("Couldn't make anything disrupt :/")
 
         # test we can get the final distances properly
         self.assertTrue(np.all(p.final_coords[0].icrs.distance.value >= 0.0))
