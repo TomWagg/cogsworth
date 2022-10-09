@@ -54,6 +54,7 @@ class Galaxy():
         self._tau = None
         self._Z = None
         self._positions = None
+        self._which_comp = None
 
         if immediately_sample:
             self.sample()
@@ -64,10 +65,11 @@ class Galaxy():
 
     @size.setter
     def size(self, value):
-        if value <= 0:
-            raise ValueError("Size must be greater than 0")
         if not isinstance(value, int):
             raise ValueError("Size must be an integer")
+        if value <= 0:
+            raise ValueError("Size must be greater than 0")
+        self._size = value
 
     @property
     def components(self):
