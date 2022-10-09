@@ -123,8 +123,8 @@ def determine_final_classes(population=None, bpp=None, bcm=None, kick_info=None,
 
 
 def _get_rel_speed(orbits, potential, which_star):
-    """Calculate the relative speed of a set of stars at the end of their orbits compared to the circular velocity at their
-    final positions (given a galactic potential)
+    """Calculate the relative speed of a set of stars at the end of their orbits compared to the circular
+    velocity at their final positions (given a galactic potential)
 
     Parameters
     ----------

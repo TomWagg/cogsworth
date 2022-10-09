@@ -251,8 +251,8 @@ class Population():
     def create_population(self, with_timing=True):
         """Create an entirely evolved population of binaries.
 
-        This will sample the initial binaries and initial galaxy and then 
-        perform both the COSMIC and Gala evolution
+        This will sample the initial binaries and initial galaxy and then perform both the :py:mod:`cosmic`
+        and :py:mod:`gala` evolution.
 
         Parameters
         ----------
@@ -265,7 +265,7 @@ class Population():
 
         self.sample_initial_binaries()
         if with_timing:
-            print(f"Ended up with {self.n_binaries_match} binaries with masses > {self.m1_cutoff} solar masses")
+            print(f"Ended up with {self.n_binaries_match} binaries with m1 > {self.m1_cutoff} solar masses")
             print(f"[{time.time() - start:1.0e}s] Sample initial binaries")
             lap = time.time()
 
