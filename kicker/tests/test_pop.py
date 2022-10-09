@@ -3,6 +3,13 @@ import unittest
 import kicker.pop as pop
 import os
 
+# get the dustmap file if necessary
+import dustmaps.bayestar
+from dustmaps.std_paths import data_dir
+local_fname = os.path.join(data_dir(), 'bayestar', '{}.h5'.format("bayestar2019"))
+if not os.path.exists(local_fname):
+    dustmaps.bayestar.fetch()
+
 
 class Test(unittest.TestCase):
     def test_bad_inputs(self):
