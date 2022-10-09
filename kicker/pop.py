@@ -2,6 +2,7 @@ import time
 import os
 from copy import copy
 from multiprocessing import Pool
+import warnings
 import numpy as np
 import astropy.units as u
 import astropy.coordinates as coords
@@ -374,9 +375,14 @@ class Population():
         if no_pool_existed:
             self.pool = Pool(self.processes)
 
-        self._bpp, self._bcm, self._initC,\
-            self._kick_info = Evolve.evolve(initialbinarytable=self._initial_binaries,
-                                            BSEDict=self.BSE_settings, pool=self.pool)
+        # catch any warnings about overwrites
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message=".*initial binary table is being overwritten.*")
+
+            # perform the evolution!
+            self._bpp, self._bcm, self._initC,\
+                self._kick_info = Evolve.evolve(initialbinarytable=self._initial_binaries,
+                                                BSEDict=self.BSE_settings, pool=self.pool)
 
         if no_pool_existed:
             self.pool.close()
