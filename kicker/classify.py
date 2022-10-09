@@ -262,7 +262,7 @@ def get_eddington_rate(mass, radiative_efficiency=None, radius=None):
     ValueError
         If neither radiative efficiency or radius are provided
     """
-    if radiative_efficiency and radius is None:
+    if radiative_efficiency is None and radius is None:
         raise ValueError("Either `radiative_efficiency` or `radius` must be provided")
     elif radiative_efficiency is None:
         radiative_efficiency = (const.G * mass / (radius * const.c**2)).decompose()
@@ -337,7 +337,7 @@ def get_x_ray_lum(m_acc, r_acc, m_acc_dot, porb, kstar, m_don, RRLO_don):
 
     # compute radiative efficiency and eddington limit for masses
     radiative_efficiency = (const.G * m_acc / (r_acc * const.c**2)).decompose()
-    eddington_rate = get_eddington_rate(m_acc, radiative_efficiency)
+    eddington_rate = get_eddington_rate(m_acc, radiative_efficiency=radiative_efficiency)
     eddington_ratio = (m_acc_dot / eddington_rate).decompose()
 
     # first calculate for RLOF/wind fed XRBs
