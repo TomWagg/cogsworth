@@ -102,8 +102,9 @@ class Test(unittest.TestCase):
         # test that classes can be identified
         self.assertTrue(p.classes.shape[0] == p.n_binaries_match)
 
-        # test that observable table is done right
+        # test that observable table is done right (with or without extinction)
         p.observables
+        p.get_observables(ignore_extinction=True)
 
         # cheat and make sure at least one binary is bright enough
         p.observables["G_app_1"].iloc[0] = 18.0

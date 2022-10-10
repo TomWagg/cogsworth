@@ -238,10 +238,11 @@ def get_photometry(final_bpp, final_coords, filters, ignore_extinction=False):
 
     # for each star in the (possibly disrupted/merged) binary
     for ind in [1, 2]:
-        # calculate the surface gravity
-        final_bpp.insert(len(final_bpp.columns), f"log_g_{ind}",
-                         get_log_g(mass=final_bpp[f"mass_{ind}"].values * u.Msun,
-                                   radius=final_bpp[f"rad_{ind}"].values * u.Rsun))
+        # calculate the surface gravity if necessary
+        if f"log_g_{ind}" not in final_bpp:
+            final_bpp.insert(len(final_bpp.columns), f"log_g_{ind}",
+                             get_log_g(mass=final_bpp[f"mass_{ind}"].values * u.Msun,
+                                       radius=final_bpp[f"rad_{ind}"].values * u.Rsun))
 
         # get the bolometric corrections from MIST isochrones
         # TODO: absolute mags should not include dust, give apparent both with and without
