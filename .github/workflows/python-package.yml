@@ -51,6 +51,8 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest and generate coverage report
       run: |
+        # ensure a directory exists for gaiaunlimited
+        mkdir ~/.gaiaunlimited
         # test with as many cores as possible for speed
         pytest kicker -n=auto --cov=./ --cov-report=xml
         # test notebooks in addition to the code
