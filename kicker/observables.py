@@ -156,7 +156,7 @@ def add_mags(*mags, remove_nans=True):
         return -2.5 * np.log10(total_mag)
 
 
-def get_extinction(coords):
+def get_extinction(coords):     # pragma: no cover
     """Calculates the visual extinction values for a set of coordinates
 
     Reddening due to dust is calculated using the Bayestar dustmap. Then the conversion from this to a visual
@@ -187,7 +187,7 @@ def get_extinction(coords):
     return Av
 
 
-def get_photometry(final_bpp, final_coords, filters):
+def get_photometry(final_bpp, final_coords, filters, ignore_extinction=False):
     """Computes photometry subject to dust extinction using the MIST boloemtric correction grid
 
     Parameters
@@ -200,6 +200,8 @@ def get_photometry(final_bpp, final_coords, filters):
         primary in a disrupted system, second entry is for secondaries in a disrupted system.
     filters : `list` of `str`
         Which filters to compute photometry for (e.g. ['J', 'H', 'K', 'G', 'BP', 'RP'])
+    ignore_extinction : `bool`
+        Whether to ignore extinction
 
     Returns
     -------
@@ -208,19 +210,23 @@ def get_photometry(final_bpp, final_coords, filters):
     """
     # set up empty photometry table
     photometry = pd.DataFrame()
-
-    # get extinction for bound binaries and primary of disrupted binaries
-    photometry['Av_1'] = get_extinction(final_coords[0])
-
-    # get extinction for secondaries of disrupted binaries (leave as np.inf otherwise)
-    photometry['Av_2'] = np.repeat(np.inf, len(final_coords[1]))
     disrupted = final_bpp["sep"].values < 0.0
-    photometry.loc[disrupted, "Av_2"] = get_extinction(final_coords[1][disrupted])
 
-    # ensure extinction remains in MIST grid range (<= 6) and is not NaN
-    photometry.loc[photometry.Av_1 > 6, ['Av_1']] = 6
-    photometry.loc[photometry.Av_2 > 6, ['Av_2']] = 6
-    photometry = photometry.fillna(6)
+    if not ignore_extinction:       # pragma: no cover
+        # get extinction for bound binaries and primary of disrupted binaries
+        photometry['Av_1'] = get_extinction(final_coords[0])
+
+        # get extinction for secondaries of disrupted binaries (leave as np.inf otherwise)
+        photometry['Av_2'] = np.repeat(np.inf, len(final_coords[1]))
+        photometry.loc[disrupted, "Av_2"] = get_extinction(final_coords[1][disrupted])
+
+        # ensure extinction remains in MIST grid range (<= 6) and is not NaN
+        photometry.loc[photometry.Av_1 > 6, ['Av_1']] = 6
+        photometry.loc[photometry.Av_2 > 6, ['Av_2']] = 6
+        photometry = photometry.fillna(6)
+    else:
+        photometry['Av_1'] = np.zeros(len(final_coords[0]))
+        photometry['Av_2'] = np.zeros(len(final_coords[0]))
 
     # get Fe/H using e.g. Bertelli+1994 Eq. 10 (assuming all stars have the solar abundance pattern)
     Z_sun = 0.0142

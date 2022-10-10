@@ -3,13 +3,6 @@ import unittest
 import kicker.pop as pop
 import os
 
-# get the dustmap file if necessary
-import dustmaps.bayestar
-from dustmaps.std_paths import data_dir
-local_fname = os.path.join(data_dir(), 'bayestar', '{}.h5'.format("bayestar2019"))
-if not os.path.exists(local_fname):
-    dustmaps.bayestar.fetch()
-
 
 class Test(unittest.TestCase):
     def test_bad_inputs(self):
@@ -110,8 +103,7 @@ class Test(unittest.TestCase):
         self.assertTrue(p.classes.shape[0] == p.n_binaries_match)
 
         # test that observable table is done right
-        av_1 = np.nan_to_num(p.observables["Av_1"])
-        self.assertTrue(av_1.min() >= 0.0)
+        p._observables = p.get_observables(ignore_extinction=True)
 
         # cheat and make sure at least one binary is bright enough
         p.observables["G_app_1"].iloc[0] = 18.0

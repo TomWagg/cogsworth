@@ -245,7 +245,7 @@ class Population():
     @property
     def observables(self):
         if self._observables is None:
-            self._observables = self.get_observables()
+            self._observables = self.get_observables()      # pragma: no cover
         return self._observables
 
     def create_population(self, with_timing=True):
@@ -536,7 +536,7 @@ class Population():
                                         frame="galactocentric") for i in [0, 1]]
         return final_coords[0], final_coords[1]
 
-    def get_observables(self, filters=['J', 'H', 'K', 'G', 'BP', 'RP']):
+    def get_observables(self, filters=['J', 'H', 'K', 'G', 'BP', 'RP'], ignore_extinction=False):
         """Get observables associated with the binaries at present day.
 
         These include: extinction due to dust, absolute and apparent bolometric magnitudes for each star,
@@ -550,8 +550,10 @@ class Population():
         ----------
         filters : `list`, optional
             Which filters to compute observables for, by default ['J', 'H', 'K', 'G', 'BP', 'RP']
+        ignore_extinction : `bool`
+            Whether to ignore extinction
         """
-        return get_photometry(self.final_bpp, self.final_coords, filters)
+        return get_photometry(self.final_bpp, self.final_coords, filters, ignore_extinction=ignore_extinction)
 
     def get_gaia_observed_bin_nums(self):
         """Get a list of ``bin_nums`` of systems that are bright enough to be observed by Gaia.
