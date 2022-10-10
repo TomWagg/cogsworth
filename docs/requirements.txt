@@ -11,3 +11,4 @@ sphinx-tabs
 Jinja2==2.11
 markupsafe==2.0.1
 sphinx-gallery
+sphinx-design
