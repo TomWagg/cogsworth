@@ -103,8 +103,7 @@ class Test(unittest.TestCase):
         self.assertTrue(p.classes.shape[0] == p.n_binaries_match)
 
         # test that observable table is done right
-        # but set ignore_extinction=True to avoid downloading a huge data file
-        p._observables = p.get_observables(ignore_extinction=True)
+        p.observables
 
         # cheat and make sure at least one binary is bright enough
         p.observables["G_app_1"].iloc[0] = 18.0

@@ -245,7 +245,7 @@ class Population():
     @property
     def observables(self):
         if self._observables is None:
-            self._observables = self.get_observables()      # pragma: no cover
+            self._observables = self.get_observables()
         return self._observables
 
     def create_population(self, with_timing=True):
