@@ -159,6 +159,16 @@ class Population():
                              'zsun': 0.014, 'bhms_coll_flag': 0, 'don_lim': -1, 'acc_lim': -1, 'binfrac': 0.5}
         self.BSE_settings.update(BSE_settings)
 
+    def __repr__(self):
+        if self._orbits is None:
+            return (f"<{self.__class__.__name__} - "
+                    f"galactic_potential={self.galactic_potential.__class__.__name__}, "
+                    f"SFH={self.galaxy_model.__name__} - {self.n_binaries} systems>")
+        else:
+            return (f"<{self.__class__.__name__} - "
+                    f"galactic_potential={self.galactic_potential.__class__.__name__}, "
+                    f"galaxy_model={self.galaxy_model.__name__} - {self.n_binaries_match} evolved systems>")
+
     @property
     def mass_singles(self):
         if self._mass_singles is None:
