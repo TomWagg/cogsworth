@@ -173,48 +173,57 @@ class Population():
 
     def __getitem__(self, ind):
         # ensure indexing with the right type
-        if not isinstance(ind, (int, slice)):
-            raise ValueError(("Can only index using an `int` or `slice`, you supplied a "
+        if not isinstance(ind, (int, slice, list, np.ndarray, tuple)):
+            raise ValueError(("Can only index using an `int`, `list`, `ndarray` or `slice`, you supplied a "
                               f"`{type(ind).__name__}`"))
 
-        # create a list of bin nums from `ind`
-        indexed_bin_nums = [ind] if isinstance(ind, int) else list(range(ind.stop)[ind])
+        # create a list of bin nums from ind
+        bin_nums = ind
+        if isinstance(ind, int):
+            bin_nums = [ind]
+        if isinstance(ind, slice):
+            bin_nums = list(range(ind.stop)[ind])
 
         # check that the bin_nums are all valid
         possible_bin_nums = self.final_bpp["bin_num"]
-        check_nums = np.isin(indexed_bin_nums, possible_bin_nums)
+        check_nums = np.isin(bin_nums, possible_bin_nums)
         if not check_nums.all():
             raise ValueError(("The index that you supplied includes a `bin_num` that does not exist. "
-                              f"The first bin_num I couldn't find was {indexed_bin_nums[~check_nums][0]}"))
+                              f"The first bin_num I couldn't find was {bin_nums[~check_nums][0]}"))
 
         # start a new population with the same parameters
-        new_pop = Population(n_binaries=len(indexed_bin_nums), processes=self.processes,
-                             m1_cutoff=self.m1_cutoff, final_kstar1=self.final_kstar1,
-                             final_kstar2=self.final_kstar2, galaxy_model=self.galaxy_model,
-                             galactic_potential=self.galactic_potential, v_dispersion=self.v_dispersion,
-                             max_ev_time=self.max_ev_time, timestep_size=self.timestep_size,
-                             BSE_settings=self.BSE_settings, store_entire_orbits=self.store_entire_orbits)
+        new_pop = self.__class__(n_binaries=len(bin_nums), processes=self.processes,
+                                 m1_cutoff=self.m1_cutoff, final_kstar1=self.final_kstar1,
+                                 final_kstar2=self.final_kstar2, galaxy_model=self.galaxy_model,
+                                 galactic_potential=self.galactic_potential, v_dispersion=self.v_dispersion,
+                                 max_ev_time=self.max_ev_time, timestep_size=self.timestep_size,
+                                 BSE_settings=self.BSE_settings, store_entire_orbits=self.store_entire_orbits)
 
-        # new_pop._initial_binaries = self._initial_binaries
-
-        # proxy for checking whether stellar evolution has been done
-        if self._bpp is not None:
+        # proxy for checking whether sampling has been done
+        if self._mass_binaries is not None:
             new_pop._mass_binaries = self._mass_binaries
             new_pop._mass_singles = self._mass_singles
             new_pop._n_singles_req = self._n_singles_req
             new_pop._n_bin_req = self._n_bin_req
 
+        if self._initial_galaxy is not None:
+            # since we are indexing on bin nums, need to convert that to actual indices
+            ind_range = np.arange(len(possible_bin_nums))
+            new_pop._initial_galaxy = self._initial_galaxy[ind_range[possible_bin_nums.isin(bin_nums)]]
+
+        # checking whether stellar evolution has been done
+        if self._bpp is not None:
             # copy over subsets of the stellar evolution tables when they aren't None
-            new_pop._bpp = self._bpp[self._bpp["bin_num"].isin(indexed_bin_nums)]
+            new_pop._bpp = self._bpp[self._bpp["bin_num"].isin(bin_nums)]
             if self._bcm is not None:
-                new_pop._bcm = self._bcm[self._bcm["bin_num"].isin(indexed_bin_nums)]
+                new_pop._bcm = self._bcm[self._bcm["bin_num"].isin(bin_nums)]
             if self._initC is not None:
-                new_pop._initC = self._initC[self._initC["bin_num"].isin(indexed_bin_nums)]
+                new_pop._initC = self._initC[self._initC["bin_num"].isin(bin_nums)]
             if self._kick_info is not None:
-                new_pop._kick_info = self._kick_info[self._kick_info["bin_num"].isin(indexed_bin_nums)]
+                new_pop._kick_info = self._kick_info[self._kick_info["bin_num"].isin(bin_nums)]
 
             # same sort of thing for later parameters
-            mask = self.final_bpp["bin_num"].isin(indexed_bin_nums)
+            mask = self.final_bpp["bin_num"].isin(bin_nums)
             new_pop._final_bpp = self.final_bpp[mask]
 
             if self._orbits is not None:
@@ -231,6 +240,12 @@ class Population():
                 new_pop._observables = new_pop._observables[mask]
 
         return new_pop
+
+    @property
+    def initial_galaxy(self):
+        if self._initial_galaxy is None:
+            self.sample_initial_binaries()
+        return self._initial_galaxy
 
     @property
     def mass_singles(self):
@@ -402,28 +417,28 @@ class Population():
                               " a larger sample size or a less stringent mass cut"))
 
         # initialise the initial galaxy class with correct number of binaries
-        self.initial_galaxy = self.galaxy_model(size=self.n_binaries_match)
+        self._initial_galaxy = self.galaxy_model(size=self.n_binaries_match)
 
         # work out the initial velocities of each binary
         vel_units = u.km / u.s
 
         # calculate the Galactic circular velocity at the initial positions
-        v_circ = self.galactic_potential.circular_velocity(q=[self.initial_galaxy.positions.x,
-                                                              self.initial_galaxy.positions.y,
-                                                              self.initial_galaxy.positions.z]).to(vel_units)
+        v_circ = self.galactic_potential.circular_velocity(q=[self._initial_galaxy.positions.x,
+                                                              self._initial_galaxy.positions.y,
+                                                              self._initial_galaxy.positions.z]).to(vel_units)
 
         # add some velocity dispersion
         v_R, v_T, v_z = np.random.normal([np.zeros_like(v_circ), v_circ, np.zeros_like(v_circ)],
                                          self.v_dispersion.to(vel_units) / np.sqrt(3),
                                          size=(3, self.n_binaries_match))
         v_R, v_T, v_z = v_R * vel_units, v_T * vel_units, v_z * vel_units
-        self.initial_galaxy.v_R = v_R
-        self.initial_galaxy.v_T = v_T
-        self.initial_galaxy.v_z = v_z
+        self._initial_galaxy._v_R = v_R
+        self._initial_galaxy._v_T = v_T
+        self._initial_galaxy._v_z = v_z
 
         # update the metallicity and birth times of the binaries to match the galaxy
-        self._initial_binaries["metallicity"] = self.initial_galaxy.Z
-        self._initial_binaries["tphysf"] = self.initial_galaxy.tau.to(u.Myr).value
+        self._initial_binaries["metallicity"] = self._initial_galaxy.Z
+        self._initial_binaries["tphysf"] = self._initial_galaxy.tau.to(u.Myr).value
 
         # ensure metallicities remain in a range valid for COSMIC - original value still in initial_galaxy.Z
         self._initial_binaries.loc[self._initial_binaries["metallicity"] < 1e-4, "metallicity"] = 1e-4
@@ -489,14 +504,14 @@ class Population():
             self._initC = self._initC[~self._initC["bin_num"].isin(nan_bin_nums)]
 
             not_nan = ~self.final_bpp["bin_num"].isin(nan_bin_nums)
-            self.initial_galaxy._tau = self.initial_galaxy._tau[not_nan]
-            self.initial_galaxy._Z = self.initial_galaxy._Z[not_nan]
-            self.initial_galaxy._positions = self.initial_galaxy._positions[not_nan]
-            self.initial_galaxy.v_R = self.initial_galaxy.v_R[not_nan]
-            self.initial_galaxy.v_T = self.initial_galaxy.v_T[not_nan]
-            self.initial_galaxy.v_z = self.initial_galaxy.v_z[not_nan]
-            self.initial_galaxy._which_comp = self.initial_galaxy._which_comp[not_nan]
-            self.initial_galaxy._size -= n_nan
+            self._initial_galaxy._tau = self._initial_galaxy._tau[not_nan]
+            self._initial_galaxy._Z = self._initial_galaxy._Z[not_nan]
+            self._initial_galaxy._positions = self._initial_galaxy._positions[not_nan]
+            self._initial_galaxy._v_R = self._initial_galaxy._v_R[not_nan]
+            self._initial_galaxy._v_T = self._initial_galaxy._v_T[not_nan]
+            self._initial_galaxy._v_z = self._initial_galaxy._v_z[not_nan]
+            self._initial_galaxy._which_comp = self._initial_galaxy._which_comp[not_nan]
+            self._initial_galaxy._size -= n_nan
 
             # reset final bpp
             self._final_bpp = None
@@ -521,10 +536,10 @@ class Population():
 
         # create differentials based on the velocities (dimensionless angles allows radians conversion)
         with u.set_enabled_equivalencies(u.dimensionless_angles()):
-            dif = coords.CylindricalDifferential(self.initial_galaxy.v_R,
-                                                 (self.initial_galaxy.v_T
+            dif = coords.CylindricalDifferential(self.initial_galaxy._v_R,
+                                                 (self.initial_galaxy._v_T
                                                   / rep.rho).to(u.rad / u.Gyr),
-                                                 self.initial_galaxy.v_z)
+                                                 self.initial_galaxy._v_z)
 
         # combine the representation and differentials into a Gala PhaseSpacePosition
         w0s = gd.PhaseSpacePosition(rep.with_differentials(dif))
@@ -870,7 +885,7 @@ def load(file_name):
     p._n_singles_req = numeric_params[9]
     p._n_bin_req = numeric_params[10]
 
-    p.initial_galaxy = initial_galaxy
+    p._initial_galaxy = initial_galaxy
 
     p._bpp = pd.read_hdf(file_name, key="bpp")
     p._bcm = pd.read_hdf(file_name, key="bcm")
