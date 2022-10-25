@@ -64,8 +64,8 @@ class Galaxy():
 
     def __getitem__(self, ind):
         # ensure indexing with the right type
-        if not isinstance(ind, (int, slice)):
-            raise ValueError(("Can only index using an `int` or `slice`, you supplied a "
+        if not isinstance(ind, (int, slice, list, np.ndarray, tuple)):
+            raise ValueError(("Can only index using an `int`, `list`, `ndarray` or `slice`, you supplied a "
                               f"`{type(ind).__name__}`"))
 
         # work out any extra kwargs we might need to set
@@ -344,9 +344,6 @@ class Frankel2018(Galaxy):
         self.gamma = gamma
         self.zsun = zsun
         self.galaxy_age = galaxy_age
-        print()
-        print("yoohoo FRIENDS")
-        print()
         super().__init__(size=size, components=components, component_masses=component_masses, **kwargs)
 
     def draw_lookback_times(self, size=None, component="low_alpha_disc"):
@@ -525,7 +522,7 @@ def load(file_name, key="galaxy"):
     return galaxy
 
 
-def simplify_params(params, dont_save=["_tau", "_Z", "_positions", "_which_comp", "v_R", "v_T", "v_z"]):
+def simplify_params(params, dont_save=["_tau", "_Z", "_positions", "_which_comp", "_v_R", "_v_T", "_v_z"]):
     # delete any keys that we don't want to save
     delete_keys = [key for key in params.keys() if key in dont_save]
     for key in delete_keys:
