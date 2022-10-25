@@ -113,6 +113,8 @@ class Test(unittest.TestCase):
         p.plot_map(coord="C", show=False)
         p.plot_map(coord="G", show=False)
 
+        p[0]
+
     def test_getters(self):
         """Test the property getters"""
         p = pop.Population(2, store_entire_orbits=False)
@@ -127,6 +129,9 @@ class Test(unittest.TestCase):
 
         p._n_bin_req = None
         p.n_bin_req
+
+        p._initial_galaxy = None
+        p.initial_galaxy
 
         # test getters from stellar evolution
         p.bpp
@@ -162,3 +167,38 @@ class Test(unittest.TestCase):
         p = pop.Population(2)
         p._orbits = [None, None]
         self.assertTrue(p.final_coords[0].x[0].value == np.inf)
+
+    def test_indexing(self):
+        """Ensure that indexing works correctly (reprs too)"""
+        p = pop.Population(10)
+        print(p)
+        p.create_population()
+        print(p)
+
+        # make sure it fails for strings
+        it_worked = True
+        try:
+            p["absolute nonsense mate"]
+        except ValueError:
+            it_worked = False
+        self.assertFalse(it_worked)
+
+        inds = [np.random.randint(p.n_binaries_match),
+                np.random.randint(p.n_binaries_match, size=4),
+                list(np.random.randint(p.n_binaries_match, size=2)),
+                slice(0, 7, 3)]
+
+        for ind in inds:
+            p_ind = p[ind]
+            if isinstance(ind, slice):
+                ind = list(range(ind.stop)[ind])
+            og_m1 = p.final_bpp[p.final_bpp["bin_num"].isin(np.atleast_1d(ind))]["mass_1"].values
+            self.assertTrue(np.all(og_m1 == p_ind.final_bpp["mass_1"].values))
+
+        # make sure it fails for bin_nums that don't exist
+        it_worked = True
+        try:
+            p[np.random.randint(10, 100)]
+        except ValueError:
+            it_worked = False
+        self.assertFalse(it_worked)

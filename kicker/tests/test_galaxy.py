@@ -163,3 +163,27 @@ class Test(unittest.TestCase):
         except ValueError:
             it_broke = True
         self.assertTrue(it_broke)
+
+    def test_indexing(self):
+        """Ensure that indexing works correctly (reprs too)"""
+        g = galaxy.Frankel2018(size=10)
+        print(g)
+
+        # make sure it fails for strings
+        it_worked = True
+        try:
+            g["absolute nonsense mate"]
+        except ValueError:
+            it_worked = False
+        self.assertFalse(it_worked)
+
+        inds = [np.random.randint(g.size),
+                np.random.randint(g.size, size=4),
+                list(np.random.randint(g.size, size=2)),
+                slice(0, 7, 3)]
+
+        for ind in inds:
+            g_ind = g[ind]
+            if isinstance(ind, slice):
+                ind = list(range(ind.stop)[ind])
+            self.assertTrue(np.all(g.tau[ind] == g_ind.tau))
