@@ -161,13 +161,13 @@ class Population():
 
     def __repr__(self):
         if self._orbits is None:
-            return (f"<{self.__class__.__name__} - "
+            return (f"<{self.__class__.__name__} - {self.n_binaries} systems - "
                     f"galactic_potential={self.galactic_potential.__class__.__name__}, "
-                    f"SFH={self.galaxy_model.__name__} - {self.n_binaries} systems>")
+                    f"SFH={self.galaxy_model.__name__}>")
         else:
-            return (f"<{self.__class__.__name__} - "
+            return (f"<{self.__class__.__name__} - {self.n_binaries_match} evolved systems - "
                     f"galactic_potential={self.galactic_potential.__class__.__name__}, "
-                    f"galaxy_model={self.galaxy_model.__name__} - {self.n_binaries_match} evolved systems>")
+                    f"galaxy_model={self.galaxy_model.__name__}>")
 
     def __getitem__(self, ind):
         # ensure indexing with the right type
