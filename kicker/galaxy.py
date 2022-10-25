@@ -76,16 +76,16 @@ class Galaxy():
                 actual_kwargs[key] = kwargs[key]
 
         # pre-mask tau to get the length easily
-        tau = self.tau[ind]
+        tau = np.atleast_1d(self.tau[ind])
 
         new_gal = self.__class__(size=len(tau),
                                  components=self.components, component_masses=self.component_masses,
                                  immediately_sample=False, **actual_kwargs)
 
         new_gal._tau = tau
-        new_gal._Z = self._Z[ind]
-        new_gal._positions = self._positions[ind]
-        new_gal._which_comp = self._which_comp[ind]
+        new_gal._Z = np.atleast_1d(self._Z[ind])
+        new_gal._positions = np.atleast_1d(self._positions[ind])
+        new_gal._which_comp = np.atleast_1d(self._which_comp[ind])
 
         return new_gal
 
