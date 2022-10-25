@@ -59,6 +59,36 @@ class Galaxy():
         if immediately_sample:
             self.sample()
 
+    def __repr__(self):
+        return f"<{self.__class__.__name__}, size={self.size}>"
+
+    def __getitem__(self, ind):
+        # ensure indexing with the right type
+        if not isinstance(ind, (int, slice)):
+            raise ValueError(("Can only index using an `int` or `slice`, you supplied a "
+                              f"`{type(ind).__name__}`"))
+
+        # work out any extra kwargs we might need to set
+        kwargs = self.__dict__
+        actual_kwargs = {}
+        for key in list(kwargs.keys()):
+            if key[0] != "_":
+                actual_kwargs[key] = kwargs[key]
+
+        # pre-mask tau to get the length easily
+        tau = self.tau[ind]
+
+        new_gal = self.__class__(size=len(tau),
+                                 components=self.components, component_masses=self.component_masses,
+                                 immediately_sample=False, **actual_kwargs)
+
+        new_gal._tau = tau
+        new_gal._Z = self._Z[ind]
+        new_gal._positions = self._positions[ind]
+        new_gal._which_comp = self._which_comp[ind]
+
+        return new_gal
+
     @property
     def size(self):
         return self._size
@@ -314,6 +344,9 @@ class Frankel2018(Galaxy):
         self.gamma = gamma
         self.zsun = zsun
         self.galaxy_age = galaxy_age
+        print()
+        print("yoohoo FRIENDS")
+        print()
         super().__init__(size=size, components=components, component_masses=component_masses, **kwargs)
 
     def draw_lookback_times(self, size=None, component="low_alpha_disc"):
