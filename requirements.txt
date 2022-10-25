@@ -10,7 +10,7 @@ ipython
 seaborn
 pandas
 gala >= '1.5'
-cosmic-popsynth >= '3.4.6'
+cosmic-popsynth >= '3.4.7'
 nose
 tables
 isochrones

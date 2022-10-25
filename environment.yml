@@ -20,7 +20,7 @@ dependencies:
   - healpy
   - pip:
       - gala >= 1.5
-      - cosmic-popsynth >= 3.4.6
+      - cosmic-popsynth >= 3.4.7
       - isochrones >= 2.1
       - dustmaps
       - gaiaunlimited

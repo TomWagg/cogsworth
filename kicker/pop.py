@@ -1,5 +1,3 @@
-from multiprocessing.sharedctypes import Value
-from operator import index
 import time
 import os
 from copy import copy
@@ -467,6 +465,7 @@ class Population():
         # catch any warnings about overwrites
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", message=".*initial binary table is being overwritten.*")
+            warnings.filterwarnings("ignore", message=".*to a different value than assumed in the mlwind.*")
 
             # perform the evolution!
             self._bpp, self._bcm, self._initC,\
