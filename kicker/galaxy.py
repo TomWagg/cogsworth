@@ -485,7 +485,7 @@ def load(file_name, key="galaxy"):
     galaxy._Z = df["Z"].values * u.dimensionless_unscaled
     galaxy._which_comp = df["which_comp"].values
 
-    galaxy._positions = SkyCoord(x=df["x"] * u.kpc, y=df["y"] * u.kpc, z=df["z"] * u.kpc,
+    galaxy._positions = SkyCoord(x=df["x"].values * u.kpc, y=df["y"].values * u.kpc, z=df["z"].values * u.kpc,
                                  frame="galactocentric", representation_type="cartesian")
 
     # return the newly created class
