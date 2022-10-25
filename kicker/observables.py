@@ -165,7 +165,8 @@ def get_extinction(coords):     # pragma: no cover
 
     .. warning::
         The dustmap used only covers declinations > -30 degrees, any supplied coordinates below this will be
-        assigned a value of NaN
+        reflected around the galactic plane (any of [(-l, b), (l, -b), (-l, -b)]) and the dust at these
+        locations will be used instead
 
     Parameters
     ----------
@@ -177,10 +178,42 @@ def get_extinction(coords):     # pragma: no cover
     Av : :class:`~numpy.ndarray`
         Visual extinction values for each set of coordinates
     """
+
+    # following section performs reflections for coordinates below -30 deg declination
+    # convert to galactic coordinates
+    galactic = coords.galactic
+
+    # try all possible reflections about the galactic plane
+    for ref_l, ref_b in [(-1, 1), (1, -1), (-1, -1)]:
+        # check which things are too low for the dustmap
+        too_low = galactic.icrs.dec < (-30 * u.deg)
+
+        # if everything is fine now then stop
+        if not too_low.any():
+            break
+
+        # apply the reflection to the subset that are too low
+        reflected = galactic[too_low]
+        reflected.data.lon[()] *= ref_l
+        reflected.data.lat[()] *= ref_b
+        reflected.cache.clear()
+
+        # check which are fixed now, and reverse the reflection if not
+        fixed = reflected.icrs.dec > (-30 * u.deg)
+        reflected.data.lon[~fixed] *= ref_l
+        reflected.data.lat[~fixed] *= ref_b
+
+        # set the data back in the main coord object
+        galactic.data.lon[too_low] = reflected.data.lon
+        galactic.data.lat[too_low] = reflected.data.lat
+
+        # clear the cache to ensure consistency
+        galactic.cache.clear()
+
     bayestar = BayestarQuery(max_samples=2, version='bayestar2019')
 
     # calculate the reddening due to dust
-    ebv = bayestar(coords, mode='random_sample')
+    ebv = bayestar(galactic, mode='random_sample')
 
     # convert this to a visual extinction
     Av = 3.3 * ebv
