@@ -1,3 +1,5 @@
+from multiprocessing.sharedctypes import Value
+from operator import index
 import time
 import os
 from copy import copy
@@ -168,6 +170,67 @@ class Population():
             return (f"<{self.__class__.__name__} - "
                     f"galactic_potential={self.galactic_potential.__class__.__name__}, "
                     f"galaxy_model={self.galaxy_model.__name__} - {self.n_binaries_match} evolved systems>")
+
+    def __getitem__(self, ind):
+        # ensure indexing with the right type
+        if not isinstance(ind, (int, slice)):
+            raise ValueError(("Can only index using an `int` or `slice`, you supplied a "
+                              f"`{type(ind).__name__}`"))
+
+        # create a list of bin nums from `ind`
+        indexed_bin_nums = [ind] if isinstance(ind, int) else list(range(ind.stop)[ind])
+
+        # check that the bin_nums are all valid
+        possible_bin_nums = self.final_bpp["bin_num"]
+        check_nums = np.isin(indexed_bin_nums, possible_bin_nums)
+        if not check_nums.all():
+            raise ValueError(("The index that you supplied includes a `bin_num` that does not exist. "
+                              f"The first bin_num I couldn't find was {indexed_bin_nums[~check_nums][0]}"))
+
+        # start a new population with the same parameters
+        new_pop = Population(n_binaries=len(indexed_bin_nums), processes=self.processes,
+                             m1_cutoff=self.m1_cutoff, final_kstar1=self.final_kstar1,
+                             final_kstar2=self.final_kstar2, galaxy_model=self.galaxy_model,
+                             galactic_potential=self.galactic_potential, v_dispersion=self.v_dispersion,
+                             max_ev_time=self.max_ev_time, timestep_size=self.timestep_size,
+                             BSE_settings=self.BSE_settings, store_entire_orbits=self.store_entire_orbits)
+
+        # new_pop._initial_binaries = self._initial_binaries
+
+        # proxy for checking whether stellar evolution has been done
+        if self._bpp is not None:
+            new_pop._mass_binaries = self._mass_binaries
+            new_pop._mass_singles = self._mass_singles
+            new_pop._n_singles_req = self._n_singles_req
+            new_pop._n_bin_req = self._n_bin_req
+
+            # copy over subsets of the stellar evolution tables when they aren't None
+            new_pop._bpp = self._bpp[self._bpp["bin_num"].isin(indexed_bin_nums)]
+            if self._bcm is not None:
+                new_pop._bcm = self._bcm[self._bcm["bin_num"].isin(indexed_bin_nums)]
+            if self._initC is not None:
+                new_pop._initC = self._initC[self._initC["bin_num"].isin(indexed_bin_nums)]
+            if self._kick_info is not None:
+                new_pop._kick_info = self._kick_info[self._kick_info["bin_num"].isin(indexed_bin_nums)]
+
+            # same sort of thing for later parameters
+            mask = self.final_bpp["bin_num"].isin(indexed_bin_nums)
+            new_pop._final_bpp = self.final_bpp[mask]
+
+            if self._orbits is not None:
+                new_pop._orbits = [self.orbits[i][mask] for i in range(2)]
+            if self._disrupted is not None:
+                new_pop._disrupted = new_pop._disrupted[mask]
+            if self._classes is not None:
+                new_pop._classes = new_pop._classes[mask]
+            if self._final_coords is not None:
+                new_pop._final_coords = [new_pop._final_coords[i][mask] for i in range(2)]
+            if self._disrupted is not None:
+                new_pop._disrupted = new_pop._disrupted[mask]
+            if self._observables is not None:
+                new_pop._observables = new_pop._observables[mask]
+
+        return new_pop
 
     @property
     def mass_singles(self):
