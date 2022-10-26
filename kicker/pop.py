@@ -683,7 +683,7 @@ class Population():
             comp_coords = coords_of_centers[pix]
 
             # ensure any NaNs in the magnitudes are just set to super faint
-            g_mags = np.nan_to_num(g_mags, nan=1000)
+            g_mags = np.nan_to_num(g_mags.value, nan=1000)
 
             # by default, assume Gaia has 0 completeness for each source
             completeness = np.zeros(len(g_mags))
