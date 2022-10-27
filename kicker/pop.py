@@ -374,6 +374,28 @@ class Population():
         if with_timing:
             print(f"Overall: {time.time() - start:1.1f}s")
 
+    def sample_initial_galaxy(self):
+        """Sample the initial galactic times, positions and velocities"""
+        # initialise the initial galaxy class with correct number of binaries
+        self._initial_galaxy = self.galaxy_model(size=self.n_binaries_match)
+
+        # work out the initial velocities of each binary
+        vel_units = u.km / u.s
+
+        # calculate the Galactic circular velocity at the initial positions
+        v_circ = self.galactic_potential.circular_velocity(q=[self._initial_galaxy.positions.x,
+                                                              self._initial_galaxy.positions.y,
+                                                              self._initial_galaxy.positions.z]).to(vel_units)
+
+        # add some velocity dispersion
+        v_R, v_T, v_z = np.random.normal([np.zeros_like(v_circ), v_circ, np.zeros_like(v_circ)],
+                                         self.v_dispersion.to(vel_units) / np.sqrt(3),
+                                         size=(3, self.n_binaries_match))
+        v_R, v_T, v_z = v_R * vel_units, v_T * vel_units, v_z * vel_units
+        self._initial_galaxy._v_R = v_R
+        self._initial_galaxy._v_T = v_T
+        self._initial_galaxy._v_z = v_z
+
     def sample_initial_binaries(self):
         """Sample the initial binary parameters for the population"""
         # overwrite the binary fraction is the user just wants single stars
@@ -415,25 +437,7 @@ class Population():
             raise ValueError(("Your choice of `m1_cutoff` resulted in all samples being thrown out. Consider"
                               " a larger sample size or a less stringent mass cut"))
 
-        # initialise the initial galaxy class with correct number of binaries
-        self._initial_galaxy = self.galaxy_model(size=self.n_binaries_match)
-
-        # work out the initial velocities of each binary
-        vel_units = u.km / u.s
-
-        # calculate the Galactic circular velocity at the initial positions
-        v_circ = self.galactic_potential.circular_velocity(q=[self._initial_galaxy.positions.x,
-                                                              self._initial_galaxy.positions.y,
-                                                              self._initial_galaxy.positions.z]).to(vel_units)
-
-        # add some velocity dispersion
-        v_R, v_T, v_z = np.random.normal([np.zeros_like(v_circ), v_circ, np.zeros_like(v_circ)],
-                                         self.v_dispersion.to(vel_units) / np.sqrt(3),
-                                         size=(3, self.n_binaries_match))
-        v_R, v_T, v_z = v_R * vel_units, v_T * vel_units, v_z * vel_units
-        self._initial_galaxy._v_R = v_R
-        self._initial_galaxy._v_T = v_T
-        self._initial_galaxy._v_z = v_z
+        self.sample_initial_galaxy()
 
         # update the metallicity and birth times of the binaries to match the galaxy
         self._initial_binaries["metallicity"] = self._initial_galaxy.Z
@@ -896,3 +900,56 @@ def load(file_name):
     p._orbits = np.load(file_name.replace(".h5", "-orbits.npy"), allow_pickle=True)
 
     return p
+
+
+class EvolvedPopulation(Population):
+    def __init__(self, n_binaries, mass_singles=None, mass_binaries=None, n_singles_req=None, n_bin_req=None,
+                 bpp=None, bcm=None, initC=None, kick_info=None, **pop_kwargs):
+        super().__init__(n_binaries=n_binaries, **pop_kwargs)
+
+        self._mass_singles = mass_singles
+        self._mass_binaries = mass_binaries
+        self._n_singles_req = n_singles_req
+        self._n_bin_req = n_bin_req
+        self._bpp = bpp
+        self._bcm = bcm
+        self._initC = initC
+        self._kick_info = kick_info
+
+    def sample_initial_binaries(self):
+        raise NotImplementedError("`EvolvedPopulation` cannot sample new binaries, use `Population` instead")
+
+    def perform_stellar_evolution(self):
+        raise NotImplementedError("`EvolvedPopulation` cannot do stellar evolution, use `Population` instead")
+
+    def create_population(self, with_timing=True):
+        """Create an entirely evolved population of binaries with sampling or stellar evolution
+
+        This will sample the initial galaxy and then perform the :py:mod:`gala` evolution.
+
+        Parameters
+        ----------
+        with_timing : `bool`, optional
+            Whether to print messages about the timing, by default True
+        """
+        if with_timing:
+            start = time.time()
+            print(f"Run for {self.n_binaries} binaries")
+
+        self.sample_initial_galaxy()
+        if with_timing:
+            print(f"[{time.time() - start:1.0e}s] Sample initial galaxy")
+            lap = time.time()
+
+        self.pool = Pool(self.processes) if self.processes > 1 else None
+        self.perform_galactic_evolution(progress_bar=with_timing)
+        if with_timing:
+            print(f"[{time.time() - lap:1.1f}s] Get orbits (run gala)")
+
+        if self.pool is not None:
+            self.pool.close()
+            self.pool.join()
+            self.pool = None
+
+        if with_timing:
+            print(f"Overall: {time.time() - start:1.1f}s")

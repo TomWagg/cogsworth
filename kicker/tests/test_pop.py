@@ -198,7 +198,33 @@ class Test(unittest.TestCase):
         # make sure it fails for bin_nums that don't exist
         it_worked = True
         try:
-            p[np.random.randint(10, 100)]
+            p[-42]
         except ValueError:
             it_worked = False
         self.assertFalse(it_worked)
+
+    def test_evolved_pop(self):
+        """Check that the EvolvedPopulation class works as it should"""
+        p = pop.Population(10)
+        p.create_population()
+
+        ep = pop.EvolvedPopulation(n_binaries=p.n_binaries_match, mass_singles=p.mass_singles,
+                                   mass_binaries=p.mass_binaries, n_singles_req=p.n_singles_req,
+                                   n_bin_req=p.n_bin_req, bpp=p.bpp, bcm=p.bcm, initC=p.initC,
+                                   kick_info=p.kick_info)
+
+        cant_do_that = False
+        try:
+            ep.sample_initial_binaries()
+        except NotImplementedError:
+            cant_do_that = True
+        self.assertTrue(cant_do_that)
+
+        cant_do_that = False
+        try:
+            ep.perform_stellar_evolution()
+        except NotImplementedError:
+            cant_do_that = True
+        self.assertTrue(cant_do_that)
+
+        ep.create_population()
