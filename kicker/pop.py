@@ -688,7 +688,7 @@ class Population():
 
             # ensure any NaNs in the magnitudes are just set to super faint
             g_mags = np.nan_to_num(g_mags, nan=1000)
-            g_mags = g_mags.value if isinstance(g_mags, u.quantity.Quantity) else g_mags
+            g_mags = g_mags.value if hasattr(g_mags, 'unit') else g_mags
 
             # by default, assume Gaia has 0 completeness for each source
             completeness = np.zeros(len(g_mags))
