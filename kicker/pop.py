@@ -432,9 +432,11 @@ class Population():
             mass_1, mass_tot = Sample().sample_primary(primary_model="kroupa01",
                                                        size=len(self._initial_binaries))
             self._initial_binaries["mass_1"] = mass_1
+            self._initial_binaries["mass0_1"] = mass_1
             self._initial_binaries["kstar_1"] = np.where(mass_1 > 0.7, 1, 0)
             self._initial_binaries["kstar_2"] = np.zeros(len(self._initial_binaries))
             self._initial_binaries["mass_2"] = np.zeros(len(self._initial_binaries))
+            self._initial_binaries["mass0_2"] = np.zeros(len(self._initial_binaries))
             self._initial_binaries["porb"] = np.zeros(len(self._initial_binaries))
             self._initial_binaries["sep"] = np.zeros(len(self._initial_binaries))
             self._initial_binaries["ecc"] = np.zeros(len(self._initial_binaries))
