@@ -99,6 +99,9 @@ class Population():
         A mask on the binaries of whether they were disrupted
     observables : :class:`~pandas.DataFrame`
         Observables associated with the final binaries. See `get_observables` for more details on the columns
+    bin_nums : :class:`~np.ndarray`
+        An array containing the unique COSMIC `bin_nums` of each binary in the population - these can be
+        used an indices for the population
     """
     def __init__(self, n_binaries, processes=8, m1_cutoff=0, final_kstar1=list(range(16)),
                  final_kstar2=list(range(16)), galaxy_model=galaxy.Frankel2018,
@@ -138,6 +141,7 @@ class Population():
         self._final_bpp = None
         self._disrupted = None
         self._observables = None
+        self._bin_nums = None
 
         self.BSE_settings = {'xi': 1.0, 'bhflag': 1, 'neta': 0.5, 'windflag': 3, 'wdflag': 1, 'alpha1': 1.0,
                              'pts1': 0.001, 'pts3': 0.02, 'pts2': 0.01, 'epsnov': 0.001, 'hewind': 0.5,
@@ -168,6 +172,9 @@ class Population():
             return (f"<{self.__class__.__name__} - {self.n_binaries_match} evolved systems - "
                     f"galactic_potential={self.galactic_potential.__class__.__name__}, "
                     f"galaxy_model={self.galaxy_model.__name__}>")
+
+    def __len__(self):
+        return self.n_binaries_match
 
     def __getitem__(self, ind):
         # ensure indexing with the right type
@@ -239,6 +246,15 @@ class Population():
                 new_pop._observables = self._observables[mask]
 
         return new_pop
+
+    @property
+    def bin_nums(self):
+        if self._bin_nums is None:
+            if self._bpp is not None:
+                self._bin_nums = self.final_bpp["bin_num"].unique()
+            else:
+                raise ValueError("You need to evolve binaries to get a list of `bin_nums`!")
+        return self._bin_nums
 
     @property
     def initial_galaxy(self):
@@ -398,6 +414,8 @@ class Population():
 
     def sample_initial_binaries(self):
         """Sample the initial binary parameters for the population"""
+        self._bin_nums = None
+
         # overwrite the binary fraction is the user just wants single stars
         binfrac = self.BSE_settings["binfrac"] if self.BSE_settings["binfrac"] != 0.0 else 1.0
         self._initial_binaries, self._mass_singles, self._mass_binaries, self._n_singles_req,\
@@ -452,6 +470,7 @@ class Population():
         # delete any cached variables
         self._final_bpp = None
         self._observables = None
+        self._bin_nums = None
 
         # if no initial binaries have been sampled then we need to create some
         if self._initial_binaries is None and self._initC is None:

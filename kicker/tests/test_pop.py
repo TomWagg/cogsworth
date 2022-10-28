@@ -228,3 +228,25 @@ class Test(unittest.TestCase):
         self.assertTrue(cant_do_that)
 
         ep.create_population()
+
+    def test_bin_nums(self):
+        """Check that we are creating the correct bin_nums"""
+        p = pop.Population(10)
+
+        # can't get bin_nums before evolution
+        it_failed = False
+        try:
+            p.bin_nums
+        except ValueError:
+            it_failed = True
+        self.assertTrue(it_failed)
+
+        p.create_population()
+
+        initC_bin_nums = p.initC["bin_num"].unique()
+        bpp_bin_nums = p.bpp["bin_num"].unique()
+
+        self.assertTrue(np.all(p.bin_nums == initC_bin_nums))
+        self.assertTrue(np.all(p.bin_nums == bpp_bin_nums))
+
+        self.assertTrue(len(p) == len(p.bin_nums))
