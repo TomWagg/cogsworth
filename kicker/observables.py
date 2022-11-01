@@ -267,7 +267,10 @@ def get_photometry(final_bpp, final_coords, filters, ignore_extinction=False):
 
     # set up MIST bolometric correction grid
     bc_grid = MISTBolometricCorrectionGrid(bands=filters)
-    bc = [None, None]
+    bc = {
+        "app": [None, None],
+        "abs": [None, None]
+    }
 
     # for each star in the (possibly disrupted/merged) binary
     for ind in [1, 2]:
@@ -278,10 +281,12 @@ def get_photometry(final_bpp, final_coords, filters, ignore_extinction=False):
                                        radius=final_bpp[f"rad_{ind}"].values * u.Rsun))
 
         # get the bolometric corrections from MIST isochrones
-        # TODO: absolute mags should not include dust, give apparent both with and without
-        bc[ind - 1] = bc_grid.interp([final_bpp[f"teff_{ind}"].values, final_bpp[f"log_g_{ind}"].values,
-                                      FeH, photometry[f"Av_{ind}"]],
-                                     filters)
+        bc["app"][ind - 1] = bc_grid.interp([final_bpp[f"teff_{ind}"].values,
+                                             final_bpp[f"log_g_{ind}"].values,
+                                             FeH, photometry[f"Av_{ind}"]], filters)
+        bc["abs"][ind - 1] = bc_grid.interp([final_bpp[f"teff_{ind}"].values,
+                                             final_bpp[f"log_g_{ind}"].values,
+                                             FeH, np.zeros(len(final_bpp))], filters)
 
         # calculate the absolute bolometric magnitude and set any BH or massless remnants to invisible
         photometry[f"M_abs_{ind}"] = get_absolute_bol_mag(lum=final_bpp[f"lum_{ind}"].values * u.Lsun)
@@ -300,7 +305,7 @@ def get_photometry(final_bpp, final_coords, filters, ignore_extinction=False):
     for i, filter in enumerate(filters):
         for prefix, mag_type in [("m", "app"), ("M", "abs")]:
             # apply the bolometric corrections to the apparent magnitude of each star
-            filter_mags = [photometry[f"{prefix}_{mag_type}_{ind}"].values - bc[ind - 1][:, i]
+            filter_mags = [photometry[f"{prefix}_{mag_type}_{ind}"].values - bc[mag_type][ind - 1][:, i]
                            for ind in [1, 2]]
 
             # total the magnitudes (removing any NaNs)
