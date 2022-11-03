@@ -1,6 +1,6 @@
 ---
 name: Todo
-about: [For Developers]
+about: For developer use
 title: ''
 labels: todo
 assignees: ''
