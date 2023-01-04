@@ -140,6 +140,7 @@ class Population():
         self._final_coords = None
         self._final_bpp = None
         self._disrupted = None
+        self._escaped = None
         self._observables = None
         self._bin_nums = None
 
@@ -346,6 +347,26 @@ class Population():
         return self._disrupted
 
     @property
+    def escaped(self):
+        if self._escaped is None:
+            self._escaped = [np.repeat(False, len(self)), np.repeat(False, len(self))]
+
+            # do it for all systems and then also for the secondaries of disrupted systems
+            for ind, mask in enumerate([np.repeat(True, len(self)), self.disrupted]):
+                # get the current velocity
+                v_curr = np.sum(self.final_coords[ind][mask].velocity.d_xyz**2, axis=0)**(0.5)
+
+                # get the escape velocity at the current position based on galactic potential
+                pos = np.asarray([self.final_coords[ind][mask].galactocentric.x.to(u.kpc),
+                                  self.final_coords[ind][mask].galactocentric.y.to(u.kpc),
+                                  self.final_coords[ind][mask].galactocentric.z.to(u.kpc)]) * u.kpc
+
+                # 0.5 * m * v_esc**2 = m * (-Phi)
+                v_esc = np.sqrt(-2 * self.galactic_potential(pos))
+                self._escaped[ind][mask] = v_curr >= v_esc
+        return self._escaped
+
+    @property
     def observables(self):
         if self._observables is None:
             self._observables = self.get_observables()
@@ -473,6 +494,8 @@ class Population():
         self._final_bpp = None
         self._observables = None
         self._bin_nums = None
+        self._disrupted = None
+        self._escaped = None
 
         # if no initial binaries have been sampled then we need to create some
         if self._initial_binaries is None and self._initC is None:

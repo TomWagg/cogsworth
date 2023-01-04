@@ -147,6 +147,8 @@ class Test(unittest.TestCase):
         # test getters for galactic evolution
         p.orbits
 
+        p.escaped
+
     def test_singles_evolution(self):
         """Check everything works well when evolving singles"""
         p = pop.Population(2, BSE_settings={"binfrac": 0.0})
