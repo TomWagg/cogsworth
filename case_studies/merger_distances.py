@@ -9,7 +9,7 @@ import kicker
 
 print("START")
 
-p = kicker.pop.Population(n_binaries=100_000_000, m1_cutoff=7, processes=32)
+p = kicker.pop.Population(n_binaries=100_000_000, m1_cutoff=7, processes=32, store_entire_orbits=False)
 p.create_population()
 
 dcos = p[p.classes[p.classes["dco"]].index.values]
