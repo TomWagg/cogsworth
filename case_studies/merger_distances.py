@@ -9,11 +9,11 @@ import kicker
 
 print("START")
 
-p = kicker.pop.Population(n_binaries=100_000_000, m1_cutoff=7, processes=32, store_entire_orbits=False)
+p = kicker.pop.Population(n_binaries=10_000_000, m1_cutoff=7, processes=32, store_entire_orbits=False)
 p.create_population()
 
 dcos = p[p.classes[p.classes["dco"]].index.values]
-dcos.save("/epyc/ssd/users/tomwagg/pop/data/distances-future", overwrite=True)
+dcos.save("/epyc/ssd/users/tomwagg/pops/distances-future", overwrite=True)
 
 t_merge = legwork.evol.get_t_merge_ecc(ecc_i=dcos.final_bpp["ecc"].values,
                                        a_i=dcos.final_bpp["sep"].values * u.Rsun,
@@ -58,7 +58,7 @@ previous_dco = p.bpp[((p.bpp["kstar_1"] == 14) & (p.bpp["kstar_2"] == 14))
                   | ((p.bpp["kstar_1"] == 14) & (p.bpp["kstar_2"] == 13))
                   | ((p.bpp["kstar_1"] == 13) & (p.bpp["kstar_2"] == 13))].index.unique()
 mergers = p[np.intersect1d(merged, previous_dco)]
-mergers.save("/epyc/ssd/users/tomwagg/pop/data/distances-past", overwrite=True)
+mergers.save("/epyc/ssd/users/tomwagg/pops/distances-past", overwrite=True)
 
 del p
 
