@@ -14,8 +14,8 @@ def past_pool_func(pot, w0, t1, t2, dt, store_all, Integrator):
                                Integrator=Integrator).pos.xyz.ravel().to(u.kpc).value
 
 
-def future_pool_func(pot, w0, bin_num, t_merge, dt, final_bpp, esc, t_merge_max):
-    if not esc and t_merge < t_merge_max:
+def future_pool_func(pot, w0, bin_num, t_merge, dt, final_bpp, esc):
+    if not esc:
         start_time = final_bpp.tphys[bin_num] * u.Myr
         final = pot.integrate_orbit(w0, t1=start_time, t2=start_time + t_merge, dt=dt,
                                     store_all=False, Integrator=gi.DOPRI853Integrator)
@@ -34,7 +34,16 @@ def get_distance_sample(big_data_path="/epyc/ssd/users/tomwagg/pops/",
 
     # grab the objects that end as DCOs
     dcos = p[p.classes[p.classes["dco"]].index.values]
-    dcos.save(path.join(big_data_path, f"distances-future-{label}"), overwrite=True)
+
+    # work out when the future ones will merge
+    t_merge = legwork.evol.get_t_merge_ecc(ecc_i=dcos.final_bpp["ecc"].values,
+                                           a_i=dcos.final_bpp["sep"].values * u.Rsun,
+                                           m_1=dcos.final_bpp["mass_1"].values * u.Msun,
+                                           m_2=dcos.final_bpp["mass_1"].values * u.Msun).to(u.Myr)
+
+    # only keep the ones that merge within cutoff
+    dcos = dcos[dcos.bin_nums[t_merge < t_merge_max]]
+    t_merge = t_merge[t_merge < t_merge_max]
 
     # grab the objects that merged as DCOs
     merged = p.bpp[p.bpp["sep"] == 0].index.unique()
@@ -43,10 +52,12 @@ def get_distance_sample(big_data_path="/epyc/ssd/users/tomwagg/pops/",
                          | ((p.bpp["kstar_1"] == 14) & (p.bpp["kstar_2"] == 13))
                          | ((p.bpp["kstar_1"] == 13) & (p.bpp["kstar_2"] == 13))].index.unique()
     mergers = p[np.intersect1d(merged, previous_dco)]
-    mergers.save(path.join(big_data_path, f"distances-past-{label}"), overwrite=True)
+
+    merger_pop = p[np.concatenate((dcos.bin_nums, mergers.bin_nums))]
+    merger_pop.save(path.join(big_data_path, f"merger-distance-pop-{label}"), overwrite=True)
 
     # free up some memory
-    del p
+    del p, merger_pop
 
     # PAST MERGERS
     # ------------
@@ -76,19 +87,13 @@ def get_distance_sample(big_data_path="/epyc/ssd/users/tomwagg/pops/",
     # FUTURE MERGERS
     # ------------
 
-    # work out when the future ones will merge
-    t_merge = legwork.evol.get_t_merge_ecc(ecc_i=dcos.final_bpp["ecc"].values,
-                                           a_i=dcos.final_bpp["sep"].values * u.Rsun,
-                                           m_1=dcos.final_bpp["mass_1"].values * u.Msun,
-                                           m_2=dcos.final_bpp["mass_1"].values * u.Msun).to(u.Myr)
-
     # track the subpopulation that escape the galaxy
     esc = dcos.escaped[0]
     esc_dcos = dcos[dcos.bin_nums[esc]]
 
     # integrate orbits forwards if they merge soon enough and haven't escaped
     args = [(dcos.galactic_potential, dcos.orbits[i][-1], bin_num, t_merge[i], 1 * u.Myr, dcos.final_bpp,
-            esc[i], t_merge_max) for i, bin_num in enumerate(dcos.bin_nums)]
+            esc[i]) for i, bin_num in enumerate(dcos.bin_nums)]
 
     dcos.pool = Pool(dcos.processes)
     future_mergers = dcos.pool.starmap(future_pool_func, args) * u.kpc
@@ -102,14 +107,13 @@ def get_distance_sample(big_data_path="/epyc/ssd/users/tomwagg/pops/",
                                        esc_dcos.final_coords[0].y.to(u.kpc),
                                        esc_dcos.final_coords[0].z.to(u.kpc)]) * u.kpc + movement).T
 
-    time_limit = t_merge < t_merge_max
-    future_bin_nums = dcos.bin_nums[time_limit]
+    future_bin_nums = dcos.bin_nums
 
     bin_nums = np.concatenate((past_bin_nums, future_bin_nums))
-    t_merge = np.concatenate((merger_times, t_merge[time_limit])).to(u.Myr).value
-    x = np.concatenate((past_mergers[:, 0], future_mergers[time_limit][:, 0])).to(u.kpc).value
-    y = np.concatenate((past_mergers[:, 1], future_mergers[time_limit][:, 1])).to(u.kpc).value
-    z = np.concatenate((past_mergers[:, 2], future_mergers[time_limit][:, 2])).to(u.kpc).value
+    t_merge = np.concatenate((merger_times, t_merge)).to(u.Myr).value
+    x = np.concatenate((past_mergers[:, 0], future_mergers[:, 0])).to(u.kpc).value
+    y = np.concatenate((past_mergers[:, 1], future_mergers[:, 1])).to(u.kpc).value
+    z = np.concatenate((past_mergers[:, 2], future_mergers[:, 2])).to(u.kpc).value
 
     data = {"bin_num": bin_nums, "t_merge": t_merge, "x": x, "y": y, "z": z}
     df = pd.DataFrame(data=data)
