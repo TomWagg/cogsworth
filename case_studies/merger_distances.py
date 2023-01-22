@@ -24,7 +24,7 @@ def future_pool_func(pot, w0, bin_num, t_merge, dt, final_bpp, esc):
         return [0, 0, 0]
 
 
-def get_distance_sample(big_data_path="/epyc/ssd/users/tomwagg/pops/",
+def get_distance_sample(big_data_path="/epyc/ssd/users/tomwagg/pops/dco_mergers/",
                         small_data_path="../data/",
                         label="test",
                         t_merge_max=1 * u.Tyr):
