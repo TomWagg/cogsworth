@@ -30,12 +30,13 @@ def get_kick_differential(delta_v_sys_xyz, m_1, m_2, a):
     kick_differential : :class:`~astropy.coordinates.CylindricalDifferential`
         Kick differential
     """
+    # TODO: Check whether this should be included but it seems not
     # calculate the orbital velocity ASSUMING A CIRCULAR ORBIT
-    if a.value > 0.0:
-        v_orb = np.sqrt(const.G * (m_1 + m_2) / a)
+    # if a.value > 0.0:
+    #     v_orb = np.sqrt(const.G * (m_1 + m_2) / a)
 
-        # adjust change in velocity by orbital motion of supernova star
-        delta_v_sys_xyz -= v_orb
+    #     # adjust change in velocity by orbital motion of supernova star
+    #     delta_v_sys_xyz -= v_orb
 
     # orbital phase angle and inclination to Galactic plane
     theta = np.random.uniform(0, 2 * np.pi)
