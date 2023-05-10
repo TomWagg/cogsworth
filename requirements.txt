@@ -13,7 +13,7 @@ gala >= '1.5'
 cosmic-popsynth >= '3.4.7'
 nose
 tables
-isochrones
+isochrones @ git+https://github.com/TomWagg/isochrones
 dustmaps
 healpy
 gaiaunlimited
