@@ -16,4 +16,4 @@ tables
 isochrones @ git+https://github.com/TomWagg/isochrones.git
 dustmaps
 healpy
-gaiaunlimited
+gaiaunlimited >= 0.2.0

@@ -12,7 +12,7 @@ from tqdm import tqdm
 import healpy as hp
 import matplotlib.pyplot as plt
 
-from gaiaunlimited.selectionfunctions import DR3SelectionFunctionTCG_hpx7
+from gaiaunlimited.selectionfunctions import DR3SelectionFunctionTCG
 from gaiaunlimited.utils import get_healpix_centers
 
 from cosmic.sample.initialbinarytable import InitialBinaryTable
@@ -715,7 +715,7 @@ class Population():
         coords_of_centers = get_healpix_centers(7)
 
         # get the Gaia selection function for this healpix order
-        dr3sf = DR3SelectionFunctionTCG_hpx7()
+        dr3sf = DR3SelectionFunctionTCG()
 
         # work out the index of each pixel for every binary
         pix_inds = self.get_healpix_inds(nside=128)
