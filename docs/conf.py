@@ -120,8 +120,9 @@ html_theme_options = {
             "icon": "fab fa-github-square",
         },
     ],
-    "footer_items": ["copyright", "last-updated"],
-    "page_sidebar_items": [],
+    "footer_start": ["copyright", "last-updated"],
+    "secondary_sidebar_items": [],
+    "header_links_before_dropdown": 7
 }
 
 html_last_updated_fmt = "%Y %b %d at %H:%M:%S UTC"
