@@ -10,4 +10,4 @@ Blah blah
 API
 ===
 
-.. automodapi:: kicker.kicks
+.. automodapi:: cogsworth.kicks

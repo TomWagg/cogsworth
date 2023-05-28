@@ -1,5 +1,5 @@
 import unittest
-import kicker
+import cogsworth
 import pandas as pd
 
 
@@ -40,7 +40,7 @@ class Test(unittest.TestCase):
         kick_info = pd.DataFrame(data=kick_info_dict)
         kick_info.set_index("bin_num", drop=False, inplace=True)
 
-        events = kicker.events.identify_events(bpp, kick_info)
+        events = cogsworth.events.identify_events(bpp, kick_info)
 
         self.assertTrue(events[0] is None)
         self.assertTrue(len(events[1]) == 1)

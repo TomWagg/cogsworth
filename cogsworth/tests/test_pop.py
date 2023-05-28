@@ -1,6 +1,6 @@
 import numpy as np
 import unittest
-import kicker.pop as pop
+import cogsworth.pop as pop
 import os
 
 

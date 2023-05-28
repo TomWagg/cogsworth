@@ -1,6 +1,6 @@
 import numpy as np
 import unittest
-import kicker.observables as obs
+import cogsworth.observables as obs
 import astropy.units as u
 
 

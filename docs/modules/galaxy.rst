@@ -10,5 +10,5 @@ Blah blah
 API
 ===
 
-.. automodapi:: kicker.galaxy
+.. automodapi:: cogsworth.galaxy
     :no-inheritance-diagram:

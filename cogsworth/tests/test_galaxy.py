@@ -1,6 +1,6 @@
 import numpy as np
 import unittest
-import kicker.galaxy as galaxy
+import cogsworth.galaxy as galaxy
 import os
 
 

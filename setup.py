@@ -2,7 +2,7 @@ import setuptools
 
 # taken from https://stackoverflow.com/questions/458550/standard-way-to-embed-version-into-python-package
 import re
-VERSIONFILE = "kicker/_version.py"
+VERSIONFILE = "cogsworth/_version.py"
 verstrline = open(VERSIONFILE, "rt").read()
 VSRE = r"^__version__ = ['\"]([^'\"]*)['\"]"
 mo = re.search(VSRE, verstrline, re.M)

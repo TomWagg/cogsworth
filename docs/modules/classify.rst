@@ -10,4 +10,4 @@ Blah blah
 API
 ===
 
-.. automodapi:: kicker.classify
+.. automodapi:: cogsworth.classify

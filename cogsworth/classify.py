@@ -16,7 +16,7 @@ def determine_final_classes(population=None, bpp=None, bcm=None, kick_info=None,
 
     Parameters
     ----------
-    population : :class:`~kicker.pop.Population`, optional
+    population : :class:`~cogsworth.pop.Population`, optional
         A full population class created from the pop module, by default None
     bpp : :class:`~pandas.DataFrame`
         Evolutionary history of each binary

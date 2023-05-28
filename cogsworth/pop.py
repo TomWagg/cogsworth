@@ -21,11 +21,11 @@ from cosmic.evolve import Evolve
 import gala.potential as gp
 import gala.dynamics as gd
 
-from kicker import galaxy
-from kicker.kicks import integrate_orbit_with_events
-from kicker.events import identify_events
-from kicker.classify import determine_final_classes
-from kicker.observables import get_photometry
+from cogsworth import galaxy
+from cogsworth.kicks import integrate_orbit_with_events
+from cogsworth.events import identify_events
+from cogsworth.classify import determine_final_classes
+from cogsworth.observables import get_photometry
 
 __all__ = ["Population", "load"]
 
@@ -45,9 +45,9 @@ class Population():
         Desired final types for primary star, by default list(range(16))
     final_kstar2 : `list`, optional
         Desired final types for secondary star, by default list(range(16))
-    galaxy_model : :class:`~kicker.galaxy.Galaxy`, optional
+    galaxy_model : :class:`~cogsworth.galaxy.Galaxy`, optional
         A Galaxy class to use for sampling the initial galaxy parameters, by default
-        :class:`~kicker.galaxy.Frankel2018`
+        :class:`~cogsworth.galaxy.Frankel2018`
     galactic_potential : :class:`~gala.potential.potential.PotentialBase`, optional
         Galactic potential to use for evolving the orbits of binaries, by default
         :class:`~gala.potential.potential.MilkyWayPotential`
@@ -86,7 +86,7 @@ class Population():
         The orbits of each binary within the galaxy from its birth until :attr:`max_ev_time` with timesteps of
         :attr:`timestep_size`. Note that disrupted binaries will have two entries (for both stars).
     classes : `list`
-        The classes associated with each produced binary (see :meth:`~kicker.classify.list_classes` for a
+        The classes associated with each produced binary (see :meth:`~cogsworth.classify.list_classes` for a
         list of available classes and their meanings)
     final_coords : `tuple` of :class:`~astropy.coordinates.SkyCoord`
         A SkyCoord object of the final positions of each binary in the galactocentric frame.

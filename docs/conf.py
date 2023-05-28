@@ -195,7 +195,7 @@ def linkcode_resolve(domain, info):
     try:
         file, start, end = find_func()
         # stitch together a github link with specific lines
-        filename = "kicker/{}.py#L{}-L{}".format(file, start, end)
+        filename = "cogsworth/{}.py#L{}-L{}".format(file, start, end)
 
     # if you can't find it in the file then just link to the correct file
     except Exception:

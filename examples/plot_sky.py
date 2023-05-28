@@ -7,7 +7,7 @@ Plot your final population on the sky
 Write stuff here
 """
 
-import kicker
+import cogsworth
 import matplotlib.pyplot as plt
 from astropy.coordinates import SkyCoord
 import numpy as np
@@ -32,7 +32,7 @@ plt.rcParams.update(params)
 # sphinx_gallery_end_ignore
 
 
-p = kicker.pop.Population(100, final_kstar1=[13, 14])
+p = cogsworth.pop.Population(100, final_kstar1=[13, 14])
 p.create_population(with_timing=False)
 
 galactic_plane = SkyCoord(l=np.linspace(1e-10, 2 * np.pi, 10000), b=np.zeros(10000),

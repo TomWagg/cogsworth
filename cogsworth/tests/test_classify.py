@@ -1,5 +1,5 @@
 import unittest
-import kicker
+import cogsworth
 import astropy.units as u
 
 
@@ -8,14 +8,14 @@ class Test(unittest.TestCase):
         """Ensure failure with bad input"""
         it_broke = False
         try:
-            kicker.classify.determine_final_classes()
+            cogsworth.classify.determine_final_classes()
         except ValueError:
             it_broke = True
         self.assertTrue(it_broke)
 
         it_broke = False
         try:
-            kicker.classify.get_eddington_rate(10 * u.Msun)
+            cogsworth.classify.get_eddington_rate(10 * u.Msun)
         except ValueError:
             it_broke = True
         self.assertTrue(it_broke)
@@ -24,7 +24,7 @@ class Test(unittest.TestCase):
         """Test listing classes"""
         it_broke = False
         try:
-            kicker.classify.list_classes()
+            cogsworth.classify.list_classes()
         except Exception as e:
             print(e)
             it_broke = True
@@ -32,11 +32,11 @@ class Test(unittest.TestCase):
 
     def test_x_rays(self):
         """Test x-ray luminosity calculation"""
-        p = kicker.pop.Population(10, final_kstar1=[13, 14])
+        p = cogsworth.pop.Population(10, final_kstar1=[13, 14])
         bcm = p.bcm.drop_duplicates(subset="bin_num", keep='last')
         it_broke = False
         try:
-            kicker.classify.get_x_ray_lum(bcm["mass_1"].values * u.Msun, bcm["rad_1"].values * u.Rsun,
+            cogsworth.classify.get_x_ray_lum(bcm["mass_1"].values * u.Msun, bcm["rad_1"].values * u.Rsun,
                                           bcm["deltam_1"].values * u.Msun / u.yr, bcm["porb"].values * u.day,
                                           bcm["kstar_1"].values,
                                           bcm["mass_2"].values * u.Msun, bcm["RRLO_2"].values)
@@ -47,7 +47,7 @@ class Test(unittest.TestCase):
 
         it_broke = False
         try:
-            kicker.classify.get_eddington_rate(10 * u.Msun, radius=1 * u.Rsun)
+            cogsworth.classify.get_eddington_rate(10 * u.Msun, radius=1 * u.Rsun)
         except Exception as e:
             print(e)
             it_broke = True

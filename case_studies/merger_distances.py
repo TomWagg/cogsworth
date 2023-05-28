@@ -6,7 +6,7 @@ import pandas as pd
 
 import gala.integrate as gi
 import legwork
-import kicker
+import cogsworth
 
 
 def past_pool_func(pot, w0, t1, t2, dt, store_all, Integrator):
@@ -29,7 +29,7 @@ def get_distance_sample(big_data_path="/epyc/ssd/users/tomwagg/pops/dco_mergers/
                         label="test",
                         t_merge_max=1 * u.Tyr):
     # evolve 10 million binaries with a primary mass cutoff
-    p = kicker.pop.Population(n_binaries=10_000_000, m1_cutoff=7, processes=32, store_entire_orbits=False)
+    p = cogsworth.pop.Population(n_binaries=10_000_000, m1_cutoff=7, processes=32, store_entire_orbits=False)
     p.create_population()
 
     # grab the objects that end as DCOs

@@ -1,9 +1,9 @@
-import kicker
+import cogsworth
 import astropy.units as u
 import numpy as np
 
 
-class RecentHistory(kicker.galaxy.Frankel2018):
+class RecentHistory(cogsworth.galaxy.Frankel2018):
     def __init__(self, components=["low_alpha_disc"], component_masses=[1], **kwargs):
         super().__init__(components=components, component_masses=component_masses, **kwargs)
 
@@ -18,7 +18,7 @@ class RecentHistory(kicker.galaxy.Frankel2018):
         return tau
 
 
-p = kicker.pop.Population(10_000, processes=40, m1_cutoff=7, galaxy_model=RecentHistory,
+p = cogsworth.pop.Population(10_000, processes=40, m1_cutoff=7, galaxy_model=RecentHistory,
                           max_ev_time=200 * u.Myr, timestep_size=0.5 * u.Myr, BSE_settings={"binfrac": 1.0,
                                                                                             'sigma': 265.0},
                           store_entire_orbits=False)
@@ -26,7 +26,7 @@ p = kicker.pop.Population(10_000, processes=40, m1_cutoff=7, galaxy_model=Recent
 p.create_population()
 p.save("/epyc/ssd/users/tomwagg/pops/recent-pop-265", overwrite=True)
 
-p = kicker.pop.Population(10_000, processes=40, m1_cutoff=7, galaxy_model=RecentHistory,
+p = cogsworth.pop.Population(10_000, processes=40, m1_cutoff=7, galaxy_model=RecentHistory,
                           max_ev_time=200 * u.Myr, timestep_size=0.5 * u.Myr, BSE_settings={"binfrac": 1.0,
                                                                                             'sigma': 100.0},
                           store_entire_orbits=False)
