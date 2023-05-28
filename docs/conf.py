@@ -127,7 +127,7 @@ html_theme_options = {
 
 html_last_updated_fmt = "%Y %b %d at %H:%M:%S UTC"
 html_show_sourcelink = False
-html_favicon = "_static/favicon.ico"
+html_favicon = "_static/cog.ico"
 
 html_sidebars = {
     "index": [],
