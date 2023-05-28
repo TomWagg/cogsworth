@@ -1,4 +1,4 @@
-name: cosmic-gala
+name: cogsworth
 channels:
   - defaults
   - conda-forge
