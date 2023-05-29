@@ -10,6 +10,8 @@ logging.getLogger("isochrones").setLevel("ERROR")
 from isochrones.mist.bc import MISTBolometricCorrectionGrid
 logging.getLogger("isochrones").setLevel("WARNING")
 
+import sys, os
+
 __all__ = ["get_log_g", "get_absolute_bol_mag", "get_apparent_mag", "get_absolute_mag", "add_mags",
            "get_extinction", "get_photometry"]
 
@@ -210,10 +212,16 @@ def get_extinction(coords):     # pragma: no cover
         # clear the cache to ensure consistency
         galactic.cache.clear()
 
+    # briefly disable print statements to hide the messy output from dustmaps
+    sys.stdout = open(os.devnull, 'w')
+
     bayestar = BayestarQuery(max_samples=2, version='bayestar2019')
 
     # calculate the reddening due to dust
     ebv = bayestar(galactic, mode='random_sample')
+
+    # bring print statements back
+    sys.stdout = sys.__stdout__
 
     # convert this to a visual extinction
     Av = 3.3 * ebv
