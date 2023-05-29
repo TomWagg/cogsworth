@@ -18,7 +18,7 @@ class RecentHistory(kicker.galaxy.Frankel2018):
         return tau
 
 
-p = kicker.pop.Population(10_000, processes=40, m1_cutoff=7, galaxy_model=RecentHistory,
+p = kicker.pop.Population(1_000_000, processes=40, m1_cutoff=7, galaxy_model=RecentHistory,
                           max_ev_time=200 * u.Myr, timestep_size=0.5 * u.Myr, BSE_settings={"binfrac": 1.0,
                                                                                             'sigma': 265.0},
                           store_entire_orbits=False)
@@ -26,10 +26,10 @@ p = kicker.pop.Population(10_000, processes=40, m1_cutoff=7, galaxy_model=Recent
 p.create_population()
 p.save("/epyc/ssd/users/tomwagg/pops/recent-pop-265", overwrite=True)
 
-p = kicker.pop.Population(10_000, processes=40, m1_cutoff=7, galaxy_model=RecentHistory,
+p = kicker.pop.Population(1_000_000, processes=40, m1_cutoff=7, galaxy_model=RecentHistory,
                           max_ev_time=200 * u.Myr, timestep_size=0.5 * u.Myr, BSE_settings={"binfrac": 1.0,
-                                                                                            'sigma': 100.0},
+                                                                                            'sigma': 30.0},
                           store_entire_orbits=False)
 
 p.create_population()
-p.save("/epyc/ssd/users/tomwagg/pops/recent-pop-100", overwrite=True)
+p.save("/epyc/ssd/users/tomwagg/pops/recent-pop-30", overwrite=True)
