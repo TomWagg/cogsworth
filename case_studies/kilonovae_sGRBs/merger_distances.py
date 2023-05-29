@@ -1,3 +1,12 @@
+"""
+Merger Locations
+================
+
+Track the times and locations at which double compact objects (DCOs) merged/will merge
+
+This makes use of ``cogsworth`` in conjunction with ``legwork``.
+"""
+
 from multiprocessing import Pool
 from os import path
 import numpy as np
@@ -10,11 +19,14 @@ import cogsworth
 
 
 def past_pool_func(pot, w0, t1, t2, dt, store_all, Integrator):
+    """A quick function for doing a starmap pool to get the final position of a backwards integrated orbit"""
     return pot.integrate_orbit(w0=w0, t1=t1, t2=t2, dt=dt, store_all=store_all,
                                Integrator=Integrator).pos.xyz.ravel().to(u.kpc).value
 
 
 def future_pool_func(pot, w0, bin_num, t_merge, dt, final_bpp, esc):
+    """A quick function for doing a starmap pool to get the final position of an integrated orbit"""
+    # ignore binaries that will escape
     if not esc:
         start_time = final_bpp.tphys[bin_num] * u.Myr
         final = pot.integrate_orbit(w0, t1=start_time, t2=start_time + t_merge, dt=dt,
@@ -25,9 +37,9 @@ def future_pool_func(pot, w0, bin_num, t_merge, dt, final_bpp, esc):
 
 
 def get_distance_sample(big_data_path="/epyc/ssd/users/tomwagg/pops/dco_mergers/",
-                        small_data_path="../data/",
+                        small_data_path="../../data/",
                         label="test",
-                        t_merge_max=1 * u.Tyr):
+                        t_merge_max=13.7 * u.Gyr):
     # evolve 10 million binaries with a primary mass cutoff
     p = cogsworth.pop.Population(n_binaries=10_000_000, m1_cutoff=7, processes=32, store_entire_orbits=False)
     p.create_population()
@@ -88,6 +100,7 @@ def get_distance_sample(big_data_path="/epyc/ssd/users/tomwagg/pops/dco_mergers/
     # ------------
 
     # track the subpopulation that escape the galaxy
+    # only need escaped[0] since all DCOs are bound, escaped[1] isn't useful
     esc = dcos.escaped[0]
     esc_dcos = dcos[dcos.bin_nums[esc]]
 
@@ -101,7 +114,7 @@ def get_distance_sample(big_data_path="/epyc/ssd/users/tomwagg/pops/dco_mergers/
     dcos.pool.join()
     dcos.pool = None
 
-    # if the DCO has escaped then we don't need integration and can just do it simple
+    # if the DCO has escaped then we don't need integration and can just do it simply
     movement = (esc_dcos.final_coords[0].velocity * t_merge[esc]).d_xyz.to(u.kpc)
     future_mergers[esc] = (np.asarray([esc_dcos.final_coords[0].x.to(u.kpc),
                                        esc_dcos.final_coords[0].y.to(u.kpc),
