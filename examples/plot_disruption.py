@@ -7,13 +7,13 @@ Create animations and plots of an orbit of a disrupted binary
 TODO
 """
 
-import kicker
+import cogsworth
 import matplotlib.pyplot as plt
 import astropy.units as u
 import numpy as np
 import gala.dynamics as gd
 
-p = kicker.pop.Population(100, processes=6, final_kstar1=[13, 14], timestep_size=0.2 * u.Myr)
+p = cogsworth.pop.Population(100, processes=6, final_kstar1=[13, 14], timestep_size=0.2 * u.Myr)
 p.create_population()
 
 good_ones = (p.disrupted) & (p.final_coords[0].icrs.distance < 30 * u.kpc)\

@@ -110,23 +110,24 @@ html_theme = 'pydata_sphinx_theme'
 html_theme_options = {
     "logo": {
         "link": "index",
-        "image_light": "gala_invite_light.png",
-        "image_dark": "gala_invite_dark.png",
+        "image_light": "cog.png",
+        "image_dark": "cog.png",
     },
     "icon_links": [
         {
             "name": "GitHub",
-            "url": "https://github.com/TomWagg/cosmic-gala",
+            "url": "https://github.com/TomWagg/cogsworth",
             "icon": "fab fa-github-square",
         },
     ],
-    "footer_items": ["copyright", "last-updated"],
-    "page_sidebar_items": [],
+    "footer_start": ["copyright", "last-updated"],
+    "secondary_sidebar_items": [],
+    "header_links_before_dropdown": 7
 }
 
 html_last_updated_fmt = "%Y %b %d at %H:%M:%S UTC"
 html_show_sourcelink = False
-html_favicon = "_static/favicon.ico"
+html_favicon = "_static/cog.ico"
 
 html_sidebars = {
     "index": [],
@@ -155,7 +156,7 @@ todo_include_todos = True
 nbsphinx_epilog = """
 {% set docname = env.doc2path(env.docname, base=None) %}
 .. note:: This tutorial was generated from a Jupyter notebook that can be
-          `found here <https://github.com/TomWagg/cosmic-gala/tree/main/docs/{{ docname }}>`_.
+          `found here <https://github.com/TomWagg/cogsworth/tree/main/docs/{{ docname }}>`_.
 """
 nbsphinx_prompt_width = "0"
 
@@ -194,9 +195,9 @@ def linkcode_resolve(domain, info):
     try:
         file, start, end = find_func()
         # stitch together a github link with specific lines
-        filename = "kicker/{}.py#L{}-L{}".format(file, start, end)
+        filename = "cogsworth/{}.py#L{}-L{}".format(file, start, end)
 
     # if you can't find it in the file then just link to the correct file
     except Exception:
         filename = info['module'].replace('.', '/') + '.py'
-    return "https://github.com/TomWagg/cosmic-gala/blob/main/{}".format(filename)
+    return "https://github.com/TomWagg/cogsworth/blob/main/{}".format(filename)

@@ -10,5 +10,5 @@ Blah blah
 API
 ===
 
-.. automodapi:: kicker.pop
+.. automodapi:: cogsworth.pop
     :no-inheritance-diagram:

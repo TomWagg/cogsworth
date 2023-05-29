@@ -64,7 +64,7 @@ dl blockquote {
 }
 
 :root {
-  --pst-color-primary: #805bd2!important;
+  --pst-color-primary: #905cc4!important;
   --pst-font-family-base: 'Signika', sans-serif!important;
   --pst-font-family-base-system: 'Signika', sans-serif!important;
   --pst-font-family-heading: 'Signika', sans-serif!important;
@@ -81,4 +81,37 @@ table.dataframe {
 
 .sphx-glr-thumbcontainer[tooltip]:hover::after {
     text-align: center;
+}
+
+/* Create grid of blocks for navigation */
+.toms-nav-container {
+    margin: 20px auto;
+    width: 600px;
+    height: 150px;
+    /* background-color: #fff; */
+    display: grid;
+    grid-template-columns: 300px 300px;
+    grid-template-rows: 75px 75px;
+    grid-column-gap: 20px;
+    grid-row-gap: 20px;
+}
+
+.toms-nav-container .box, .toms-nav-box {
+    background-color: #333;
+    padding: 20px;
+    border-radius: 10px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 23px;
+    text-align: center;
+    transition: 0.2s;
+    cursor: pointer;
+}
+
+/* shrink on hover */
+.toms-nav-container .box:hover, .toms-nav-box:hover {
+    transform: scale(0.9);
+    background-color: var(--pst-color-primary);
 }

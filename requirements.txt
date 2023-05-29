@@ -1,19 +1,19 @@
-numpy >= '1.23'
-numba >= '0.56'
+numpy == 1.23
+numba == 0.57
 pip
 matplotlib
 astropy
-scipy >= '1.7.3'
+scipy >= 1.7.3
 jupyter
 jupyterlab
 ipython
 seaborn
 pandas
-gala >= '1.5'
-cosmic-popsynth >= '3.4.7'
+gala >= 1.6
+cosmic-popsynth >= 3.4.7
 nose
 tables
-isochrones
+isochrones @ git+https://github.com/TomWagg/isochrones.git
 dustmaps
 healpy
-gaiaunlimited
+gaiaunlimited >= 0.2.0
