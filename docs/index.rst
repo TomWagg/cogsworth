@@ -1,3 +1,6 @@
+Home
+====
+
 .. raw:: html
 
     <div style="text-align:center; padding-top: 1rem">

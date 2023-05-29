@@ -7,16 +7,8 @@ document.addEventListener("DOMContentLoaded", function() {
         })
     });
 
-    // fix no-title issues
-    if (document.querySelector("title").innerText == "<no title> — cogsworth  documentation") {
-        document.querySelector("title").innerText == "Cogsworth"
-        document.title = "Cogsworth";
-
-        breadcrumbs = document.querySelectorAll(".wy-breadcrumbs li");
-        breadcrumbs.forEach(el => {
-            if (el.innerText == "<no title>") {
-                el.innerText = "Home";
-            }
-        });
+    // hide the dummy home title
+    if (document.getElementById("home")) {
+        document.querySelector("#home > h1").style.display = "none"
     }
 })
