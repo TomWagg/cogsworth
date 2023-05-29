@@ -130,11 +130,11 @@ html_show_sourcelink = False
 html_favicon = "_static/cog.ico"
 
 html_sidebars = {
+    "*": ["sidebar-nav-bs.html"],
     "index": [],
     "pages/install": [],
     "pages/getting_started": ["page-toc"],
-    "tutorials/*": ["page-toc"],
-    "**": ["sidebar-nav-bs.html"]
+    "tutorials/*": ["sidebar-nav-bs.html", "page-toc"]
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
