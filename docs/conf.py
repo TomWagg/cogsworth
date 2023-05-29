@@ -110,8 +110,8 @@ html_theme = 'pydata_sphinx_theme'
 html_theme_options = {
     "logo": {
         "link": "index",
-        "image_light": "gala_invite_light.png",
-        "image_dark": "gala_invite_dark.png",
+        "image_light": "cog.png",
+        "image_dark": "cog.png",
     },
     "icon_links": [
         {

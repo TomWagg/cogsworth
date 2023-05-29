@@ -16,7 +16,7 @@ Install
 
                 conda activate cogsworth
 
-        and you should be all set! Now it's time to learn how about `Getting Started <getting_started>`__ with ``cogsworth``.
+        and you should be all set! Now it's time to learn about `Getting Started <getting_started>`_ with ``cogsworth``.
 
         .. note::
             If you also want to work with Jupyter notebooks then you'll also need to install jupyter/ipython to this environment!
@@ -28,7 +28,7 @@ Install
 
             pip install cogsworth
 
-        and you should be all set! Now it's time to learn how about `Getting Started <getting_started>`__ with ``cogsworth``.
+        and you should be all set! Now it's time to learn about `Getting Started <getting_started>`_ with ``cogsworth``.
 
         .. note::
             If you also want to work with Jupyter notebooks then you'll also need to install jupyter/ipython to this environment!
@@ -57,7 +57,7 @@ Install
 
             pip install .
 
-        and you should be all set! Now it's time to learn how about `Getting Started <getting_started>`__ with ``cogsworth``.
+        and you should be all set! Now it's time to learn about `Getting Started <getting_started>`_ with ``cogsworth``.
 
         .. note::
             If you also want to work with Jupyter notebooks then you'll also need to install jupyter/ipython to this environment!
