@@ -57,6 +57,8 @@ def get_distance_sample(big_data_path="/epyc/ssd/users/tomwagg/pops/dco_mergers/
     dcos = dcos[dcos.bin_nums[t_merge < t_merge_max]]
     t_merge = t_merge[t_merge < t_merge_max]
 
+    print("\t", len(dcos), "merge within the limit")
+
     # grab the objects that merged as DCOs
     merged = p.bpp[p.bpp["sep"] == 0].index.unique()
     previous_dco = p.bpp[((p.bpp["kstar_1"] == 14) & (p.bpp["kstar_2"] == 14))
@@ -66,6 +68,7 @@ def get_distance_sample(big_data_path="/epyc/ssd/users/tomwagg/pops/dco_mergers/
     mergers = p[np.intersect1d(merged, previous_dco)]
 
     merger_pop = p[np.concatenate((dcos.bin_nums, mergers.bin_nums))]
+    print("\t", len(merger_pop), "already merged")
     merger_pop.save(path.join(big_data_path, f"merger-distance-pop-{label}"), overwrite=True)
 
     # free up some memory
@@ -102,7 +105,8 @@ def get_distance_sample(big_data_path="/epyc/ssd/users/tomwagg/pops/dco_mergers/
     # track the subpopulation that escape the galaxy
     # only need escaped[0] since all DCOs are bound, escaped[1] isn't useful
     esc = dcos.escaped[0]
-    esc_dcos = dcos[dcos.bin_nums[esc]]
+    if any(esc):
+        esc_dcos = dcos[dcos.bin_nums[esc]]
 
     # integrate orbits forwards if they merge soon enough and haven't escaped
     args = [(dcos.galactic_potential, dcos.orbits[i][-1], bin_num, t_merge[i], 1 * u.Myr, dcos.final_bpp,
@@ -115,10 +119,11 @@ def get_distance_sample(big_data_path="/epyc/ssd/users/tomwagg/pops/dco_mergers/
     dcos.pool = None
 
     # if the DCO has escaped then we don't need integration and can just do it simply
-    movement = (esc_dcos.final_coords[0].velocity * t_merge[esc]).d_xyz.to(u.kpc)
-    future_mergers[esc] = (np.asarray([esc_dcos.final_coords[0].x.to(u.kpc),
-                                       esc_dcos.final_coords[0].y.to(u.kpc),
-                                       esc_dcos.final_coords[0].z.to(u.kpc)]) * u.kpc + movement).T
+    if any(esc):
+        movement = (esc_dcos.final_coords[0].velocity * t_merge[esc]).d_xyz.to(u.kpc)
+        future_mergers[esc] = (np.asarray([esc_dcos.final_coords[0].x.to(u.kpc),
+                                           esc_dcos.final_coords[0].y.to(u.kpc),
+                                           esc_dcos.final_coords[0].z.to(u.kpc)]) * u.kpc + movement).T
 
     future_bin_nums = dcos.bin_nums
 
