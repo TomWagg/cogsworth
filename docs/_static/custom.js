@@ -11,4 +11,11 @@ document.addEventListener("DOMContentLoaded", function() {
     if (document.getElementById("home")) {
         document.querySelector("#home > h1").style.display = "none"
     }
+
+    let active_el = document.querySelector(".bd-navbar-elements.navbar-nav .nav-item.active")
+    if (active_el && active_el.innerText == "Tutorials") {
+        if (document.querySelector(".bd-links__title")) {
+            document.querySelector(".bd-links__title").innerText = "Other tutorials";
+        }
+    }
 })
