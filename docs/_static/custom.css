@@ -133,3 +133,11 @@ table.dataframe {
 html[data-theme="dark"] .sidebar-primary-item {
     border-color: var(--pst-color-border);
 }
+
+.page-toc .nav-link {
+    font-size: var(--pst-sidebar-font-size);
+}
+
+nav.page-toc {
+    margin-bottom: 0;
+}
