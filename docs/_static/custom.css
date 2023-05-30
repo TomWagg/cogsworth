@@ -70,6 +70,10 @@ dl blockquote {
   --pst-font-family-heading: 'Signika', sans-serif!important;
 }
 
+:root[data-theme="dark"] {
+    --pst-color-border: #222!important;
+}
+
 .bd-content {
     flex-grow: 1;
     max-width: 100%;
@@ -114,4 +118,18 @@ table.dataframe {
 .toms-nav-container .box:hover, .toms-nav-box:hover {
     transform: scale(0.9);
     background-color: var(--pst-color-primary);
+}
+
+.sidebar-primary-item:first-of-type {
+    padding-bottom: 1.5rem!important;
+    border-bottom: 1px solid #f2f2f2;
+}
+
+.sidebar-primary-item:last-of-type {
+    padding-top: 1.5rem!important;
+    border-top: 1px solid #f2f2f2;
+}
+
+html[data-theme="dark"] .sidebar-primary-item {
+    border-color: var(--pst-color-border);
 }
