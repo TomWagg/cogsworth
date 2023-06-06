@@ -433,39 +433,71 @@ class Population():
         self._initial_galaxy._v_T = v_T
         self._initial_galaxy._v_z = v_z
 
-    def sample_initial_binaries(self):
-        """Sample the initial binary parameters for the population"""
+    def sample_initial_binaries(self, initC=None, overwrite_initC_settings=True, reset_sampled_kicks=True,
+                                initial_galaxy=None):
+        """Sample the initial binary parameters for the population.
+
+        Alternatively, copy initial conditions from another population
+
+        Parameters
+        ----------
+        initC : `_type_`, optional
+            Initial conditions from a different Population, by default None (new sampling performed)
+        overwrite_initC_settings : `bool`, optional
+            Whether to overwrite initC settings in the case where the new population has a different set of
+            `BSE_settings`, by default True
+        reset_sampled_kicks : `bool`, optional
+            Whether to reset any sampled kicks in the population to ensure new ones are drawn, by default True
+        initial_galaxy : :class:`~cogsworth.galaxy.Galaxy`, optional
+            The initial galaxy to use to avoid sampling a new one, by default None (new sampling performed)
+        """
         self._bin_nums = None
 
-        # overwrite the binary fraction is the user just wants single stars
-        binfrac = self.BSE_settings["binfrac"] if self.BSE_settings["binfrac"] != 0.0 else 1.0
-        self._initial_binaries, self._mass_singles, self._mass_binaries, self._n_singles_req,\
-            self._n_bin_req = InitialBinaryTable.sampler('independent',
-                                                         self.final_kstar1, self.final_kstar2,
-                                                         binfrac_model=binfrac,
-                                                         primary_model='kroupa01', ecc_model='sana12',
-                                                         porb_model='sana12', qmin=-1,
-                                                         SF_start=self.max_ev_time.to(u.Myr).value,
-                                                         SF_duration=0.0, met=0.02, size=self.n_binaries)
+        # if an initC table is provided then use that instead of sampling
+        if initC is not None:
+            self._initial_binaries = copy(initC)
 
-        # check if the user just wants single stars instead of binaries
-        if self.BSE_settings["binfrac"] == 0.0:
-            mass_1, mass_tot = Sample().sample_primary(primary_model="kroupa01",
-                                                       size=len(self._initial_binaries))
-            self._initial_binaries["mass_1"] = mass_1
-            self._initial_binaries["mass0_1"] = mass_1
-            self._initial_binaries["kstar_1"] = np.where(mass_1 > 0.7, 1, 0)
-            self._initial_binaries["kstar_2"] = np.zeros(len(self._initial_binaries))
-            self._initial_binaries["mass_2"] = np.zeros(len(self._initial_binaries))
-            self._initial_binaries["mass0_2"] = np.zeros(len(self._initial_binaries))
-            self._initial_binaries["porb"] = np.zeros(len(self._initial_binaries))
-            self._initial_binaries["sep"] = np.zeros(len(self._initial_binaries))
-            self._initial_binaries["ecc"] = np.zeros(len(self._initial_binaries))
+            # if we are allowed to overwrite setting then replace columns
+            if overwrite_initC_settings:
+                for key in self.BSE_settings:
+                    if key in self._initial_binaries:
+                        self._initial_binaries[key] = self.BSE_settings[key]
 
-            self._mass_singles = mass_tot
-            self._mass_binaries = 0.0
-            self._n_singles_req = self.n_binaries
-            self._n_bin_req = 0
+            # reset sampled kicks if desired
+            if reset_sampled_kicks:
+                cols = ["natal_kick_1", "phi_1", "theta_1", "natal_kick_2", "phi_2", "theta_2"]
+                for col in cols:
+                    self._initial_binaries[col] = -100.0
+        else:
+            # overwrite the binary fraction is the user just wants single stars
+            binfrac = self.BSE_settings["binfrac"] if self.BSE_settings["binfrac"] != 0.0 else 1.0
+            self._initial_binaries, self._mass_singles, self._mass_binaries, self._n_singles_req,\
+                self._n_bin_req = InitialBinaryTable.sampler('independent',
+                                                            self.final_kstar1, self.final_kstar2,
+                                                            binfrac_model=binfrac,
+                                                            primary_model='kroupa01', ecc_model='sana12',
+                                                            porb_model='sana12', qmin=-1,
+                                                            SF_start=self.max_ev_time.to(u.Myr).value,
+                                                            SF_duration=0.0, met=0.02, size=self.n_binaries)
+
+            # check if the user just wants single stars instead of binaries
+            if self.BSE_settings["binfrac"] == 0.0:
+                mass_1, mass_tot = Sample().sample_primary(primary_model="kroupa01",
+                                                        size=len(self._initial_binaries))
+                self._initial_binaries["mass_1"] = mass_1
+                self._initial_binaries["mass0_1"] = mass_1
+                self._initial_binaries["kstar_1"] = np.where(mass_1 > 0.7, 1, 0)
+                self._initial_binaries["kstar_2"] = np.zeros(len(self._initial_binaries))
+                self._initial_binaries["mass_2"] = np.zeros(len(self._initial_binaries))
+                self._initial_binaries["mass0_2"] = np.zeros(len(self._initial_binaries))
+                self._initial_binaries["porb"] = np.zeros(len(self._initial_binaries))
+                self._initial_binaries["sep"] = np.zeros(len(self._initial_binaries))
+                self._initial_binaries["ecc"] = np.zeros(len(self._initial_binaries))
+
+                self._mass_singles = mass_tot
+                self._mass_binaries = 0.0
+                self._n_singles_req = self.n_binaries
+                self._n_bin_req = 0
 
         # apply the mass cutoff
         self._initial_binaries = self._initial_binaries[self._initial_binaries["mass_1"] >= self.m1_cutoff]
@@ -478,7 +510,10 @@ class Population():
             raise ValueError(("Your choice of `m1_cutoff` resulted in all samples being thrown out. Consider"
                               " a larger sample size or a less stringent mass cut"))
 
-        self.sample_initial_galaxy()
+        if initial_galaxy is not None:
+            self._initial_galaxy = copy(initial_galaxy)
+        else:
+            self.sample_initial_galaxy()
 
         # update the metallicity and birth times of the binaries to match the galaxy
         self._initial_binaries["metallicity"] = self._initial_galaxy.Z
