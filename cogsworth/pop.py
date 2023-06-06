@@ -99,7 +99,7 @@ class Population():
         A mask on the binaries of whether they were disrupted
     observables : :class:`~pandas.DataFrame`
         Observables associated with the final binaries. See `get_observables` for more details on the columns
-    bin_nums : :class:`~np.ndarray`
+    bin_nums : :class:`~numpy.ndarray`
         An array containing the unique COSMIC `bin_nums` of each binary in the population - these can be
         used an indices for the population
     """
@@ -441,7 +441,7 @@ class Population():
 
         Parameters
         ----------
-        initC : `_type_`, optional
+        initC : :class:`~pandas.DataFrame`, optional
             Initial conditions from a different Population, by default None (new sampling performed)
         overwrite_initC_settings : `bool`, optional
             Whether to overwrite initC settings in the case where the new population has a different set of
