@@ -11,3 +11,4 @@ User Guide
     ../modules/kicks
     ../modules/observables
     ../modules/pop
+    ../modules/changelog
