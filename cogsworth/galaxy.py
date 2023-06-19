@@ -11,8 +11,6 @@ import pandas as pd
 from astropy.coordinates import SkyCoord
 
 # for action-based potentials
-import gala.coordinates as gc
-import gala.dynamics as gd
 import gala.potential as gp
 from gala.units import galactic
 import agama
@@ -496,8 +494,6 @@ class QuasiIsothermalDisk(Galaxy):
         Maximum lookback time, by default 12*u.Gyr
     tsfr : :class:`~astropy.units.Quantity` [time], optional
         Star formation timescale, by default 6.8*u.Gyr
-    alpha : `float`, optional
-        Disc inside-out growth parameter, by default 0.3
     Fm : `int`, optional
         Metallicity at centre of disc at tm, by default -1
     gradient : :class:`~astropy.units.Quantity` [1/length], optional
@@ -509,10 +505,9 @@ class QuasiIsothermalDisk(Galaxy):
     zsun : `float`, optional
         Solar metallicity, by default 0.0142
     """
-    def __init__(self, size, tsfr=6.8 * u.Gyr, alpha=0.3, Fm=-1, gradient=-0.075 / u.kpc, Rnow=8.7 * u.kpc,
+    def __init__(self, size, tsfr=6.8 * u.Gyr, Fm=-1, gradient=-0.075 / u.kpc, Rnow=8.7 * u.kpc,
                  gamma=0.3, zsun=0.0142, galaxy_age=12 * u.Gyr, **kwargs):
         self.tsfr = tsfr
-        self.alpha = alpha
         self.Fm = Fm
         self.gradient = gradient
         self.Rnow = Rnow
@@ -666,6 +661,168 @@ class QuasiIsothermalDisk(Galaxy):
         self._Z = self.get_metallicity()
 
         return self._tau, self._positions, self.Z
+
+class SpheroidalDwarf(Galaxy):
+    """An action-based model for dwarf spheroidal galaxies and globular clusters 
+    `Pascale+2019 <https://ui.adsabs.harvard.edu/abs/2019MNRAS.488.2423P/abstract>`_.
+
+    Parameters are the same as :class:`Galaxy` but additionally with the following:
+
+    Parameters
+    ----------
+    mass : `float`
+        Total mass of the galactic potential
+    J_0_star : `float`
+        The action scale that naturally defines the length- and velocity-scale
+    alpha : `float`
+        A non-negative, dimensionless parameter that mainly regulates the models density profile
+    eta : `float`
+        A non-negative, dimensionless parameter that mainly controls the radial or tangential bias of the
+        model velocity distribution; models sharing the parameters $(\alpha, \eta)$ are homologous.
+    galaxy_age : :class:`~astropy.units.Quantity` [time], optional
+        Maximum lookback time, by default 12*u.Gyr
+    tsfr : :class:`~astropy.units.Quantity` [time], optional
+        Star formation timescale, by default 6.8*u.Gyr
+    Fm : `int`, optional
+        Metallicity at centre of disc at tm, by default -1
+    gradient : :class:`~astropy.units.Quantity` [1/length], optional
+        Metallicity gradient, by default -0.075/u.kpc
+    Rnow : :class:`~astropy.units.Quantity` [length], optional
+        Radius at which present day metallicity is solar, by default 8.7*u.kpc
+    gamma : `float`, optional
+        Time dependence of chemical enrichment, by default 0.3
+    zsun : `float`, optional
+        Solar metallicity, by default 0.0142
+    """
+    def __init__(self, size, mass, J_0_star, alpha, eta, tsfr=6.8 * u.Gyr, Fm=-1, gradient=-0.075 / u.kpc,
+                 Rnow=8.7 * u.kpc, gamma=0.3, zsun=0.0142, galaxy_age=12 * u.Gyr, **kwargs):
+        self.mass = mass
+        self.J_0_star = J_0_star
+        self.alpha = alpha
+        self.eta = eta
+        self.tsfr = tsfr
+        self.Fm = Fm
+        self.gradient = gradient
+        self.Rnow = Rnow
+        self.gamma = gamma
+        self.zsun = zsun
+        self.galaxy_age = galaxy_age
+
+        self._agama_pot = None
+        self._df = None
+        
+        super().__init__(size=size, components=None, component_masses=None, **kwargs)
+
+    @property
+    def agama_pot(self):
+        if self._agama_pot is None:
+            self.get_DF()
+        return self._agama_pot
+
+    @property
+    def df(self):
+        if self._df is None:
+            self.get_DF()
+        return self._df
+
+    def draw_lookback_times(self, size=None, component="low_alpha_disc"):
+        """Inverse CDF sampling of lookback times. low_alpha and high_alpha discs uses
+        `Frankel+2018 <https://ui.adsabs.harvard.edu/abs/2018ApJ...865...96F/abstract>`_ Eq. 4,
+        separated and normalised at 8 Gyr. The bulge matches the distribution in Fig. 7 of
+        `Bovy+19 <https://ui.adsabs.harvard.edu/abs/2019MNRAS.490.4740B/abstract>`_ but accounts
+        for sample's bias.
+
+        Parameters
+        ----------
+        size : `int`
+            How many times to draw
+        component : `str`
+            Which component of the Milky Way
+
+        Returns
+        -------
+        tau : :class:`~astropy.units.Quantity` [time]
+            Random lookback times
+        """
+        # if no size is given then use the class value
+        size = self._size if size is None else size
+        if component == "low_alpha_disc":
+            U = np.random.rand(size)
+            norm = 1 / quad(lambda x: np.exp(-(self.galaxy_age.value - x) / self.tsfr.value), 0, 8)[0]
+            tau = self.tsfr * np.log((U * np.exp(self.galaxy_age / self.tsfr)) / (norm * self.tsfr.value) + 1)
+        elif component == "high_alpha_disc":
+            U = np.random.rand(size)
+            norm = 1 / quad(lambda x: np.exp(-(self.galaxy_age.value - x) / self.tsfr.value), 8, 12)[0]
+            tau = self.tsfr * np.log((U * np.exp(self.galaxy_age / self.tsfr)) / (norm * self.tsfr.value)
+                                     + np.exp(8 * u.Gyr / self.tsfr))
+        elif component == "bulge":
+            tau = beta.rvs(a=2, b=3, loc=6, scale=6, size=size) * u.Gyr
+        return tau
+
+    def get_metallicity(self):
+        """Convert radius and time to metallicity using
+        `Frankel+2018 <https://ui.adsabs.harvard.edu/abs/2018ApJ...865...96F/abstract>`_ Eq. 7 and
+        `Bertelli+1994 <https://ui.adsabs.harvard.edu/abs/1994A%26AS..106..275B/abstract>`_ Eq. 9 but
+        assuming all stars have the solar abundance pattern (so no factor of 0.977)
+
+        Returns
+        -------
+        Z : :class:`~astropy.units.Quantity` [dimensionless]
+            Metallicities corresponding to radii and times
+        """
+        rho = (self.positions.x**2 + self.positions.y**2)**(0.5)
+        FeH = self.Fm + self.gradient * rho - (self.Fm + self.gradient * self.Rnow)\
+            * (1 - (self._tau / self.galaxy_age))**self.gamma
+        return np.power(10, FeH + np.log10(self.zsun))
+    
+    def get_DF(self):
+        """Get the distribution function for a dwarf galaxy disk based on an NFW profile"""
+        gala_pot = gp.NFWPotential(m=self.mass, r_s=1.0, units=galactic)
+        self._agama_pot = agama.Potential(
+            type="nfw",
+            mass=gala_pot.parameters["m"].decompose(galactic).value,
+            scaleradius=gala_pot.parameters["r_s"].decompose(galactic).value,
+        )
+
+        J0_no_units = (self.J_0_star).decompose(galactic).value
+        def dwarf_df(J):
+            Jr, Jz, Jphi = J.T
+            kJ = Jr + self.eta * (np.abs(Jphi) + Jz)
+            return np.exp(-(kJ / J0_no_units)**self.alpha)
+        self._df = dwarf_df
+        return self._df, self._agama_pot
+    
+    def sample(self):
+        """Sample from the Galaxy distribution and save in class attributes"""
+        # create an array of which component each point belongs to
+        self._which_comp = np.repeat("low_alpha_disc", self.size)
+        self._tau = self.draw_lookback_times(size=self.size, component="low_alpha_disc")
+
+        # get cartesian coordinates from agama
+        xv, _ = agama.GalaxyModel(self.agama_pot, self.df).sample(self.size)
+
+        # convert units for velocity
+        xv[:, 3:] *= (u.kpc / u.Myr).to(u.km / u.s)
+
+        # save the positions
+        self._positions = SkyCoord(xv[:, :3], frame="galactocentric", unit="kpc",
+                                   representation_type="cartesian")
+        
+        # work out the velocities by rotating using SkyCoord
+        full_coord = SkyCoord(x=xv[:, 0] * u.kpc, y=xv[:, 1] * u.kpc, z=xv[:, 2] * u.kpc,
+                              v_x=xv[:, 3] * u.km / u.s, v_y=xv[:, 4] * u.km / u.s, v_z=xv[:, 5] * u.km / u.s,
+                              frame="galactocentric").represent_as("cylindrical")
+        
+        with u.set_enabled_equivalencies(u.dimensionless_angles()):
+            self._v_R = full_coord.differentials['s'].d_rho
+            self._v_T = (full_coord.differentials['s'].d_phi * full_coord.rho).to(u.km / u.s)
+            self._v_z = full_coord.differentials['s'].d_z
+
+        # compute the metallicity given the other values
+        self._Z = self.get_metallicity()
+
+        return self._tau, self._positions, self.Z
+
 
 
 def load(file_name, key="galaxy"):
