@@ -17,3 +17,4 @@ isochrones @ git+https://github.com/TomWagg/isochrones.git
 dustmaps
 healpy
 gaiaunlimited >= 0.2.0
+agama
