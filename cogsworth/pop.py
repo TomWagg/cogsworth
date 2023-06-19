@@ -416,6 +416,12 @@ class Population():
         # initialise the initial galaxy class with correct number of binaries
         self._initial_galaxy = self.galaxy_model(size=self.n_binaries_match)
 
+        # if velocities are already set then just immediately return
+        if (hasattr(self._initial_galaxy, "_v_R")
+            and hasattr(self._initial_galaxy, "_v_T")
+            and hasattr(self._initial_galaxy, "_v_z")):
+            return
+
         # work out the initial velocities of each binary
         vel_units = u.km / u.s
 
