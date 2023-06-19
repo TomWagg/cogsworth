@@ -517,6 +517,13 @@ class QuasiIsothermalDisk(Galaxy):
 
         self._agama_pot = None
         self._df = None
+
+        # ensure we don't pass components twice
+        for var in ["components", "component_masses"]:
+            if var in kwargs:
+                kwargs.pop(var)
+
+        # TODO: Perhaps create a "action-based-potential" subclass, there's a lot repeated here
         
         super().__init__(size=size, components=None, component_masses=None, **kwargs)
 
@@ -710,6 +717,11 @@ class SpheroidalDwarf(Galaxy):
 
         self._agama_pot = None
         self._df = None
+
+        # ensure we don't pass components twice
+        for var in ["components", "component_masses"]:
+            if var in kwargs:
+                kwargs.pop(var)
         
         super().__init__(size=size, components=None, component_masses=None, **kwargs)
 
