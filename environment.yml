@@ -24,3 +24,4 @@ dependencies:
       - isochrones @ git+https://github.com/TomWagg/isochrones.git
       - dustmaps
       - gaiaunlimited >= 0.2.0
+      - agama
