@@ -27,6 +27,8 @@ from cogsworth.events import identify_events
 from cogsworth.classify import determine_final_classes
 from cogsworth.observables import get_photometry
 
+from cogsworth.citations import CITATIONS
+
 __all__ = ["Population", "load"]
 
 
@@ -144,6 +146,8 @@ class Population():
         self._observables = None
         self._bin_nums = None
 
+        self.__citations__ = ["cogsworth", "cosmic", "gala"]
+
         self.BSE_settings = {'xi': 1.0, 'bhflag': 1, 'neta': 0.5, 'windflag': 3, 'wdflag': 1, 'alpha1': 1.0,
                              'pts1': 0.001, 'pts3': 0.02, 'pts2': 0.01, 'epsnov': 0.001, 'hewind': 0.5,
                              'ck': 1000, 'bwind': 0.0, 'lambdaf': 0.0, 'mxns': 3.0, 'beta': -1.0, 'tflag': 1,
@@ -247,6 +251,24 @@ class Population():
                 new_pop._observables = self._observables[mask]
 
         return new_pop
+    
+    def who_do_i_cite(self):
+        BOLD, RESET, GREEN = "\033[1m", "\033[0m", "\033[0;32m"
+
+        cite_tags = []
+        bibtex = []
+
+        for citation in self.__citations__:
+            cite_tags.extend(CITATIONS[citation]["tags"])
+            bibtex.append(CITATIONS[citation]["bibtex"])
+
+        cite_str = ",".join(cite_tags)
+        bibtex_str = "\n\n".join(bibtex)
+
+        print(f"{BOLD}{GREEN}You can paste this acknowledgement into your manuscript{RESET}")
+        print(r"This research made use of \texttt{cogsworth} and its dependences \citep{" + cite_str + "}\n")
+        print(f"{BOLD}{GREEN}And paste this bibtex into your associated .bib file - happy writing!{RESET}")
+        print(bibtex_str)
 
     @property
     def bin_nums(self):
