@@ -59,6 +59,7 @@ class FIRESnapshot():
 
         self.h = header["hubble"]
         self.Omega_M = header["Omega0"]
+        self.snap_time = quick_lookback_time(1 / header["time"] - 1, h=self.h, Omega_M=self.Omega_M) * u.Gyr
         self.max_r = max_r
         self.min_t_form = min_t_form
 
@@ -66,12 +67,16 @@ class FIRESnapshot():
         self.p_all = (snap["p"] - (self.centre if which_centre == "main" else self.stellar_centre)) * u.kpc / self.h
         self.v_all = (snap["v"] - self.v_cm) * u.km / u.s
         self.m_all = snap["m"] * 1e10 * u.Msun / self.h
+        self.Z_all = snap["z"][:, 0]
+        self.ids_all = snap["id"]
         self.t_form_all = quick_lookback_time(1 / snap["age"] - 1, h=self.h, Omega_M=self.Omega_M) * u.Gyr\
             if particle_type == 4 else None
         
         self._p = None
         self._v = None
         self._m = None
+        self._Z = None
+        self._ids = None
         self._t_form = None
 
         self._X_s = None
@@ -100,6 +105,8 @@ class FIRESnapshot():
         self._p = self.p_all[total_mask]
         self._v = self.v_all[total_mask]
         self._m = self.m_all[total_mask]
+        self._Z = self.Z_all[total_mask]
+        self._ids = self.ids_all[total_mask]
         self._X_s = None
         self._V_s = None
 
@@ -109,6 +116,9 @@ class FIRESnapshot():
     def __repr__(self) -> str:
         return (f"<{self.__class__.__name__} | {len(self.p)} {FIRE_ptypes[self.particle_type]} particles | "
                 f"R < {self.max_r} & t_form > {self.min_t_form}>")
+    
+    def __len__(self) -> int:
+        return len(self.p)
 
     @property
     def p(self):
@@ -127,6 +137,18 @@ class FIRESnapshot():
         if self._m is None:
             self.apply_mask(max_r=self.max_r, min_t_form=self.min_t_form)
         return self._m
+
+    @property
+    def Z(self):
+        if self._Z is None:
+            self.apply_mask(max_r=self.max_r, min_t_form=self.min_t_form)
+        return self._Z
+
+    @property
+    def ids(self):
+        if self._ids is None:
+            self.apply_mask(max_r=self.max_r, min_t_form=self.min_t_form)
+        return self._ids
 
     @property
     def t_form(self):
