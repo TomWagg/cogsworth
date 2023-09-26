@@ -72,6 +72,24 @@ dl blockquote {
 
 :root[data-theme="dark"] {
     --pst-color-border: #222!important;
+    --pst-color-secondary: #8e82dd!important;
+}
+
+:root[data-theme="light"] {
+    --pst-color-secondary: #dd82b9!important;
+}
+
+a > code {
+    color: inherit!important;
+}
+
+a {
+    text-decoration: none!important;
+}
+
+a:hover, .nav-link:hover {
+    text-decoration: none!important;
+    box-shadow: none!important;
 }
 
 .bd-content {
