@@ -42,9 +42,9 @@ Install
         <https://github.com/TomWagg/cogsworth>`_. To start, clone the repository onto your machine: ::
         
             git clone https://github.com/TomWagg/cogsworth
-            cd LEGWORK
+            cd cogsworth
 
-        Next, we recommend that you create a Conda environment for working with LEGWORK.
+        Next, we recommend that you create a Conda environment for working with ``cogsworth``.
         You can do this by running::
 
             conda env create -f environment.yml
