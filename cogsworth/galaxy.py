@@ -482,7 +482,7 @@ class Frankel2018(Galaxy):
             * (1 - (self._tau / self.galaxy_age))**self.gamma
         return np.power(10, FeH + np.log10(self.zsun))
 
-class QuasiIsothermalDisk(Galaxy):
+class QuasiIsothermalDisk(Galaxy):      # pragma: no cover
     """A quasi-isothermal distribution function with parameters from 
     `Sanders & Binney 2015 <https://ui.adsabs.harvard.edu/abs/2015MNRAS.449.3479S/abstract>`_.
 
@@ -677,7 +677,7 @@ class QuasiIsothermalDisk(Galaxy):
 
         return self._tau, self._positions, self.Z
 
-class SpheroidalDwarf(Galaxy):
+class SpheroidalDwarf(Galaxy):      # pragma: no cover
     """An action-based model for dwarf spheroidal galaxies and globular clusters 
     `Pascale+2019 <https://ui.adsabs.harvard.edu/abs/2019MNRAS.488.2423P/abstract>`_.
 
