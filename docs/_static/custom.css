@@ -163,3 +163,7 @@ nav.page-toc {
 .tqdm {
     background: none!important;
 }
+
+html[data-theme="dark"] .bd-content img:not(.only-dark):not(.dark-light) {
+    background: none;
+}
