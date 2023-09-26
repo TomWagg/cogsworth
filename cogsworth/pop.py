@@ -9,11 +9,6 @@ import astropy.coordinates as coords
 import h5py as h5
 import pandas as pd
 from tqdm import tqdm
-import healpy as hp
-import matplotlib.pyplot as plt
-
-from gaiaunlimited.selectionfunctions import DR3SelectionFunctionTCG
-from gaiaunlimited.utils import get_healpix_centers
 
 from cosmic.sample.initialbinarytable import InitialBinaryTable
 from cosmic.sample.sampler.independent import Sample
@@ -26,6 +21,7 @@ from cogsworth.kicks import integrate_orbit_with_events
 from cogsworth.events import identify_events
 from cogsworth.classify import determine_final_classes
 from cogsworth.observables import get_photometry
+from cogsworth.tests.optional_deps import check_dependencies
 
 __all__ = ["Population", "load"]
 
@@ -752,6 +748,10 @@ class Population():
             A list of binary numbers (that can be used in tables like :attr:`final_bpp`) for which the
             disrupted secondary would be observed
         """
+        assert check_dependencies("gaiaunlimited")
+        from gaiaunlimited.selectionfunctions import DR3SelectionFunctionTCG
+        from gaiaunlimited.utils import get_healpix_centers
+
         # get coordinates of the centres of the healpix pixels in a nside=2**7
         coords_of_centers = get_healpix_centers(7)
 
@@ -809,6 +809,9 @@ class Population():
             The indices for the secondaries of disrupted binaries
             (corresponds to ``self.final_coords[1][self.disrupted]``)
         """
+        assert check_dependencies("healpy")
+        import healpy as hp
+
         # get the coordinates in right format
         colatitudes = [np.pi/2 - self.final_coords[i].icrs.dec.to(u.rad).value for i in [0, 1]]
         longitudes = [self.final_coords[i].icrs.ra.to(u.rad).value for i in [0, 1]]
@@ -843,6 +846,10 @@ class Population():
             Any additional arguments that you want to pass to healpy's
             `mollview <https://healpy.readthedocs.io/en/latest/generated/healpy.visufunc.mollview.html>`_
         """
+        assert check_dependencies(["healpy", "matplotlib"])
+        import healpy as hp
+        import matplotlib.pyplot as plt
+
         pix, disrupted_pix = self.get_healpix_inds(nside=nside)
 
         # initialise an empty map
