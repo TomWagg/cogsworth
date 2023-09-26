@@ -15,7 +15,7 @@ Home
         <div class="box" data-href="pages/install.html">Install Cogsworth</div>
         <div class="box" data-href="pages/tutorials.html">Learn from tutorials</div>
         <div class="box" data-href="pages/modules.html">Explore the user guide</div>
-        <div class="box" data-href="">TODO</div>
+        <div class="box" data-href="auto_examples/index.html">Browse examples gallery</div>
     </div>
 
 .. toctree::
