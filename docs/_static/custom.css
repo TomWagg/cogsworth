@@ -159,3 +159,7 @@ html[data-theme="dark"] .sidebar-primary-item {
 nav.page-toc {
     margin-bottom: 0;
 }
+
+.tqdm {
+    background: none!important;
+}

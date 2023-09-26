@@ -18,4 +18,11 @@ document.addEventListener("DOMContentLoaded", function() {
             document.querySelector(".bd-links__title").innerText = "Other tutorials";
         }
     }
+
+    // go through any stderr messages and add tqdm classes as necessary
+    document.querySelectorAll(".stderr").forEach(x => {
+        if (x.innerText.includes("%") && x.innerText.includes("it/s")) {
+            x.classList.add("tqdm")
+        }
+    }) 
 })
