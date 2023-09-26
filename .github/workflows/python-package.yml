@@ -54,15 +54,8 @@ jobs:
         pytest cogsworth -n=auto --cov=./ --cov-report=xml
         # test notebooks in addition to the code
         pytest -n=auto --nbmake "docs/tutorials"
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v1
+    - name: Get Coverage
+      uses: orgoro/coverage@v3
       with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        files: ./coverage.xml
-        directory: ./
-        flags: unittests
-        env_vars: OS,PYTHON
-        name: codecov-umbrella
-        fail_ci_if_error: true
-        path_to_write_report: ./coverage/codecov_report.txt
-        verbose: true
+        coverageFile: ./coverage.xml
+        token: ${{ secrets.GITHUB_TOKEN }}
