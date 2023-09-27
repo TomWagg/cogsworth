@@ -107,6 +107,10 @@ a:hover, .nav-link:hover {
     border-top: none!important;
 }
 
+.form-control:focus {
+    outline: none!important;
+}
+
 /* Make tables in notebooks fit */
 .bd-content {
     flex-grow: 1;
