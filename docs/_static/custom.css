@@ -63,6 +63,7 @@ dl blockquote {
     padding-left: 0.4rem;
 }
 
+/* Adjust colour themes */
 :root {
   --pst-color-primary: #905cc4!important;
   --pst-font-family-base: 'Signika', sans-serif!important;
@@ -79,11 +80,21 @@ dl blockquote {
     --pst-color-secondary: #dd82b9!important;
 }
 
+html[data-theme="dark"] .sidebar-primary-item {
+    border-color: var(--pst-color-border);
+}
+
+html[data-theme="dark"] .bd-content img:not(.only-dark):not(.dark-light) {
+    background: none;
+}
+
+/* Make code colours match */
 a > code {
     color: inherit!important;
 }
 
-a {
+/* Get rid of underlines everywhere */
+a, a p {
     text-decoration: none!important;
 }
 
@@ -92,6 +103,11 @@ a:hover, .nav-link:hover {
     box-shadow: none!important;
 }
 
+.bd-content .sd-tab-set > input + label:hover {
+    border-top: none!important;
+}
+
+/* Make tables in notebooks fit */
 .bd-content {
     flex-grow: 1;
     max-width: 100%;
@@ -138,20 +154,6 @@ table.dataframe {
     background-color: var(--pst-color-primary);
 }
 
-.sidebar-primary-item:first-of-type {
-    padding-bottom: 1.5rem!important;
-    border-bottom: 1px solid #f2f2f2;
-}
-
-.sidebar-primary-item:last-of-type {
-    padding-top: 1.5rem!important;
-    border-top: 1px solid #f2f2f2;
-}
-
-html[data-theme="dark"] .sidebar-primary-item {
-    border-color: var(--pst-color-border);
-}
-
 .page-toc .nav-link {
     font-size: var(--pst-sidebar-font-size);
 }
@@ -160,14 +162,7 @@ nav.page-toc {
     margin-bottom: 0;
 }
 
+/* Stop tqdm cells from turning red (needs function in custom.js too) */
 .tqdm {
     background: none!important;
-}
-
-html[data-theme="dark"] .bd-content img:not(.only-dark):not(.dark-light) {
-    background: none;
-}
-
-.bd-content .sd-tab-set > input + label:hover {
-    border-top: none!important;
 }
