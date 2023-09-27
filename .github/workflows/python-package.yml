@@ -3,15 +3,7 @@
 
 name: Install, list, test and assess coverage
 
-on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'cogsworth/**'
-      - 'setup.cfg'
-      - 'setup.py'
-      - 'pyproject.toml'
-    
+on: 
   pull_request:
     branches: [ main ]
     paths:
