@@ -167,3 +167,7 @@ nav.page-toc {
 html[data-theme="dark"] .bd-content img:not(.only-dark):not(.dark-light) {
     background: none;
 }
+
+.bd-content .sd-tab-set > input + label:hover {
+    border-top: none!important;
+}
