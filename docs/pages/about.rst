@@ -31,6 +31,6 @@ Other authors who have provided critical contributions to the package are my col
 On the name
 ===========
 
-So why is it called ``cogsworth``? Honestly, I just really liked the idea of calling a package some random name without a convoluted acronym (inspired by `George <https://george.readthedocs.io/>`_). ``cogsworth`` is fun to say, sounded moderately English and was available on ``pip``. Many thanks to David Wang for listening to me ramble about my ideas on weekend.
+So why is it called ``cogsworth``? Honestly, I just really liked the idea of calling a package some random name without a convoluted acronym (inspired by `George <https://george.readthedocs.io/>`_). ``cogsworth`` is fun to say, sounded moderately English and was available on ``pip``. Many thanks to David Wang for listening to me ramble about my ideas one weekend.
 
 And if you *really* want an acronym I can probably do something about that: **CO**\ smic **G**\ ala **S**\ imulations **W**\ ith **O**\ bse\ **R**\ vables for **TH**\ eoretical predictions - tada we have a back-ronym!
