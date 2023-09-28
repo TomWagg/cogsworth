@@ -166,7 +166,7 @@ class Population():
         self.BSE_settings.update(BSE_settings)
 
         self.sampling_params = {'primary_model': 'kroupa01', 'ecc_model': 'sana12', 'porb_model': 'sana12',
-                                'qmin': -1}
+                                'qmin': -1, 'keep_singles': False}
         self.sampling_params.update(sampling_params)
 
     def __repr__(self):
@@ -480,34 +480,17 @@ class Population():
                 for col in cols:
                     self._initial_binaries[col] = -100.0
         else:
-            # overwrite the binary fraction is the user just wants single stars
-            binfrac = self.BSE_settings["binfrac"] if self.BSE_settings["binfrac"] != 0.0 else 1.0
+            if self.BSE_settings["binfrac"] == 0.0 and not self.sampling_params["keep_singles"]:
+                raise ValueError(("You've chosen a binary fraction of 0.0 but set `keep_singles=False` (in "
+                                  "self.sampling_params), so you'll draw 0 samples...I don't think you "
+                                  "wanted to do that?"))
             self._initial_binaries, self._mass_singles, self._mass_binaries, self._n_singles_req,\
                 self._n_bin_req = InitialBinaryTable.sampler('independent',
                                                              self.final_kstar1, self.final_kstar2,
-                                                             binfrac_model=binfrac,
+                                                             binfrac_model=self.BSE_settings["binfrac"],
                                                              SF_start=self.max_ev_time.to(u.Myr).value,
                                                              SF_duration=0.0, met=0.02, size=self.n_binaries,
                                                              **self.sampling_params)
-
-            # check if the user just wants single stars instead of binaries
-            if self.BSE_settings["binfrac"] == 0.0:
-                mass_1, mass_tot = Sample().sample_primary(primary_model="kroupa01",
-                                                           size=len(self._initial_binaries))
-                self._initial_binaries["mass_1"] = mass_1
-                self._initial_binaries["mass0_1"] = mass_1
-                self._initial_binaries["kstar_1"] = np.where(mass_1 > 0.7, 1, 0)
-                self._initial_binaries["kstar_2"] = np.zeros(len(self._initial_binaries))
-                self._initial_binaries["mass_2"] = np.zeros(len(self._initial_binaries))
-                self._initial_binaries["mass0_2"] = np.zeros(len(self._initial_binaries))
-                self._initial_binaries["porb"] = np.zeros(len(self._initial_binaries))
-                self._initial_binaries["sep"] = np.zeros(len(self._initial_binaries))
-                self._initial_binaries["ecc"] = np.zeros(len(self._initial_binaries))
-
-                self._mass_singles = mass_tot
-                self._mass_binaries = 0.0
-                self._n_singles_req = self.n_binaries
-                self._n_bin_req = 0
 
         # apply the mass cutoff
         self._initial_binaries = self._initial_binaries[self._initial_binaries["mass_1"] >= self.m1_cutoff]
