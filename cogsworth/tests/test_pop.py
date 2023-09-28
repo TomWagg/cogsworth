@@ -151,7 +151,9 @@ class Test(unittest.TestCase):
 
     def test_singles_evolution(self):
         """Check everything works well when evolving singles"""
-        p = pop.Population(2, BSE_settings={"binfrac": 0.0}, sampling_params={'keep_singles': True})
+        p = pop.Population(2, BSE_settings={"binfrac": 0.0},
+                           sampling_params={'keep_singles': True, 'total_mass': 100,
+                                            'sampling_target': 'total_mass'})
         p.create_population(with_timing=False)
 
         self.assertTrue((p.final_bpp["sep"] == 0.0).all())
