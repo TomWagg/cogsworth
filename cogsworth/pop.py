@@ -55,6 +55,9 @@ class Population():
         Size of timesteps to use in galactic evolution, by default 1*u.Myr
     BSE_settings : `dict`, optional
         Any BSE settings to pass to COSMIC
+    sampling_params : `dict`, optional
+        Any addition parameters to pass to the COSMIC sampling (see
+        :meth:`~cosmic.sample.sampler.independent.get_independent_sampler`)
     store_entire_orbits : `bool`, optional
         Whether to store the entire orbit for each binary, by default True. If not then only the final
         PhaseSpacePosition will be stored. This cuts down on both memory usage and disk space used if you
@@ -102,7 +105,8 @@ class Population():
     def __init__(self, n_binaries, processes=8, m1_cutoff=0, final_kstar1=list(range(16)),
                  final_kstar2=list(range(16)), galaxy_model=galaxy.Frankel2018,
                  galactic_potential=gp.MilkyWayPotential(), v_dispersion=5 * u.km / u.s,
-                 max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, store_entire_orbits=True):
+                 max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, sampling_params={},
+                 store_entire_orbits=True):
 
         # require a sensible number of binaries
         if n_binaries <= 0:
@@ -157,8 +161,13 @@ class Population():
                                                                2.0/21.0, 2.0/21.0, 2.0/21.0, 2.0/21.0],
                              'bhspinflag': 0, 'bhspinmag': 0.0, 'rejuv_fac': 1.0, 'rejuvflag': 0, 'htpmb': 1,
                              'ST_cr': 1, 'ST_tide': 1, 'bdecayfac': 1, 'rembar_massloss': 0.5, 'kickflag': 0,
-                             'zsun': 0.014, 'bhms_coll_flag': 0, 'don_lim': -1, 'acc_lim': -1, 'binfrac': 0.5}
+                             'zsun': 0.014, 'bhms_coll_flag': 0, 'don_lim': -1, 'acc_lim': -1, 'binfrac': 0.5,
+                             'rtmsflag': 0}
         self.BSE_settings.update(BSE_settings)
+
+        self.sampling_params = {'primary_model': 'kroupa01', 'ecc_model': 'sana12', 'porb_model': 'sana12',
+                                'qmin': -1}
+        self.sampling_params.update(sampling_params)
 
     def __repr__(self):
         if self._orbits is None:
@@ -475,17 +484,16 @@ class Population():
             binfrac = self.BSE_settings["binfrac"] if self.BSE_settings["binfrac"] != 0.0 else 1.0
             self._initial_binaries, self._mass_singles, self._mass_binaries, self._n_singles_req,\
                 self._n_bin_req = InitialBinaryTable.sampler('independent',
-                                                            self.final_kstar1, self.final_kstar2,
-                                                            binfrac_model=binfrac,
-                                                            primary_model='kroupa01', ecc_model='sana12',
-                                                            porb_model='sana12', qmin=-1,
-                                                            SF_start=self.max_ev_time.to(u.Myr).value,
-                                                            SF_duration=0.0, met=0.02, size=self.n_binaries)
+                                                             self.final_kstar1, self.final_kstar2,
+                                                             binfrac_model=binfrac,
+                                                             SF_start=self.max_ev_time.to(u.Myr).value,
+                                                             SF_duration=0.0, met=0.02, size=self.n_binaries,
+                                                             **self.sampling_params)
 
             # check if the user just wants single stars instead of binaries
             if self.BSE_settings["binfrac"] == 0.0:
                 mass_1, mass_tot = Sample().sample_primary(primary_model="kroupa01",
-                                                        size=len(self._initial_binaries))
+                                                           size=len(self._initial_binaries))
                 self._initial_binaries["mass_1"] = mass_1
                 self._initial_binaries["mass0_1"] = mass_1
                 self._initial_binaries["kstar_1"] = np.where(mass_1 > 0.7, 1, 0)
