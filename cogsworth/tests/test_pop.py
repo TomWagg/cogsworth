@@ -252,3 +252,12 @@ class Test(unittest.TestCase):
         self.assertTrue(np.all(p.bin_nums == bpp_bin_nums))
 
         self.assertTrue(len(p) == len(p.bin_nums))
+
+    def test_sampling(self):
+        """Ensure that changing sampling parameters actually has an effect"""
+        # choose some random q's, ensure samples actually obey changes
+        for qmin in np.random.uniform(0, 1, size=10):
+            p = pop.Population(1000, sampling_params={"qmin": qmin})
+            p.sample_initial_binaries()
+            q = p._initial_binaries["mass_2"] / p._initial_binaries["mass_1"]
+            self.assertTrue(min(q) >= qmin)
