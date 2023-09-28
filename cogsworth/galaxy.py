@@ -482,8 +482,9 @@ class Frankel2018(Galaxy):
             * (1 - (self._tau / self.galaxy_age))**self.gamma
         return np.power(10, FeH + np.log10(self.zsun))
 
+
 class QuasiIsothermalDisk(Galaxy):      # pragma: no cover
-    """A quasi-isothermal distribution function with parameters from 
+    """A quasi-isothermal distribution function with parameters from
     `Sanders & Binney 2015 <https://ui.adsabs.harvard.edu/abs/2015MNRAS.449.3479S/abstract>`_.
 
     Parameters are the same as :class:`Galaxy` but additionally with the following:
@@ -524,7 +525,7 @@ class QuasiIsothermalDisk(Galaxy):      # pragma: no cover
                 kwargs.pop(var)
 
         # TODO: Perhaps create a "action-based-potential" subclass, there's a lot repeated here
-        
+
         super().__init__(size=size, components=None, component_masses=None, **kwargs)
 
     @property
@@ -588,7 +589,7 @@ class QuasiIsothermalDisk(Galaxy):      # pragma: no cover
         FeH = self.Fm + self.gradient * rho - (self.Fm + self.gradient * self.Rnow)\
             * (1 - (self._tau / self.galaxy_age))**self.gamma
         return np.power(10, FeH + np.log10(self.zsun))
-    
+
     def get_DF(self):
         """Get the distribution function for a quasi-isothermal disk based on the Gala MW potential"""
         assert check_dependencies("agama")
@@ -631,7 +632,7 @@ class QuasiIsothermalDisk(Galaxy):      # pragma: no cover
 
         # additionally work out the distribution function
         self._df = agama.DistributionFunction(
-            type='QuasiIsothermal', 
+            type='QuasiIsothermal',
             Rdisk=3.45,
             Rsigmar=7.8,
             Rsigmaz=7.8,
@@ -641,7 +642,7 @@ class QuasiIsothermalDisk(Galaxy):      # pragma: no cover
             Sigma0=1.
         )
         return self._df, self._agama_pot
-    
+
     def sample(self):
         """Sample from the Galaxy distribution and save in class attributes"""
         assert check_dependencies("agama")
@@ -661,12 +662,12 @@ class QuasiIsothermalDisk(Galaxy):      # pragma: no cover
         # save the positions
         self._positions = SkyCoord(xv[:, :3], frame="galactocentric", unit="kpc",
                                    representation_type="cartesian")
-        
+
         # work out the velocities by rotating using SkyCoord
         full_coord = SkyCoord(x=xv[:, 0] * u.kpc, y=xv[:, 1] * u.kpc, z=xv[:, 2] * u.kpc,
                               v_x=xv[:, 3] * u.km / u.s, v_y=xv[:, 4] * u.km / u.s, v_z=xv[:, 5] * u.km / u.s,
                               frame="galactocentric").represent_as("cylindrical")
-        
+
         with u.set_enabled_equivalencies(u.dimensionless_angles()):
             self._v_R = full_coord.differentials['s'].d_rho
             self._v_T = (full_coord.differentials['s'].d_phi * full_coord.rho).to(u.km / u.s)
@@ -677,8 +678,9 @@ class QuasiIsothermalDisk(Galaxy):      # pragma: no cover
 
         return self._tau, self._positions, self.Z
 
+
 class SpheroidalDwarf(Galaxy):      # pragma: no cover
-    """An action-based model for dwarf spheroidal galaxies and globular clusters 
+    """An action-based model for dwarf spheroidal galaxies and globular clusters
     `Pascale+2019 <https://ui.adsabs.harvard.edu/abs/2019MNRAS.488.2423P/abstract>`_.
 
     Parameters are the same as :class:`Galaxy` but additionally with the following:
@@ -693,7 +695,7 @@ class SpheroidalDwarf(Galaxy):      # pragma: no cover
         A non-negative, dimensionless parameter that mainly regulates the models density profile
     eta : `float`
         A non-negative, dimensionless parameter that mainly controls the radial or tangential bias of the
-        model velocity distribution; models sharing the parameters $(\alpha, \eta)$ are homologous.
+        model velocity distribution; models sharing the parameters $(\\alpha, \\eta)$ are homologous.
     galaxy_age : :class:`~astropy.units.Quantity` [time], optional
         Maximum lookback time, by default 12*u.Gyr
     tsfr : :class:`~astropy.units.Quantity` [time], optional
@@ -730,7 +732,7 @@ class SpheroidalDwarf(Galaxy):      # pragma: no cover
         for var in ["components", "component_masses"]:
             if var in kwargs:
                 kwargs.pop(var)
-        
+
         super().__init__(size=size, components=None, component_masses=None, **kwargs)
 
     @property
@@ -794,7 +796,7 @@ class SpheroidalDwarf(Galaxy):      # pragma: no cover
         FeH = self.Fm + self.gradient * rho - (self.Fm + self.gradient * self.Rnow)\
             * (1 - (self._tau / self.galaxy_age))**self.gamma
         return np.power(10, FeH + np.log10(self.zsun))
-    
+
     def get_DF(self):
         """Get the distribution function for a dwarf galaxy disk based on an NFW profile"""
         assert check_dependencies("agama")
@@ -809,13 +811,14 @@ class SpheroidalDwarf(Galaxy):      # pragma: no cover
         )
 
         J0_no_units = (self.J_0_star).decompose(galactic).value
+
         def dwarf_df(J):
             Jr, Jz, Jphi = J.T
             kJ = Jr + self.eta * (np.abs(Jphi) + Jz)
             return np.exp(-(kJ / J0_no_units)**self.alpha)
         self._df = dwarf_df
         return self._df, self._agama_pot
-    
+
     def sample(self):
         """Sample from the Galaxy distribution and save in class attributes"""
         assert check_dependencies("agama")
@@ -835,12 +838,12 @@ class SpheroidalDwarf(Galaxy):      # pragma: no cover
         # save the positions
         self._positions = SkyCoord(xv[:, :3], frame="galactocentric", unit="kpc",
                                    representation_type="cartesian")
-        
+
         # work out the velocities by rotating using SkyCoord
         full_coord = SkyCoord(x=xv[:, 0] * u.kpc, y=xv[:, 1] * u.kpc, z=xv[:, 2] * u.kpc,
                               v_x=xv[:, 3] * u.km / u.s, v_y=xv[:, 4] * u.km / u.s, v_z=xv[:, 5] * u.km / u.s,
                               frame="galactocentric").represent_as("cylindrical")
-        
+
         with u.set_enabled_equivalencies(u.dimensionless_angles()):
             self._v_R = full_coord.differentials['s'].d_rho
             self._v_T = (full_coord.differentials['s'].d_phi * full_coord.rho).to(u.km / u.s)
@@ -850,7 +853,6 @@ class SpheroidalDwarf(Galaxy):      # pragma: no cover
         self._Z = self.get_metallicity()
 
         return self._tau, self._positions, self.Z
-
 
 
 def load(file_name, key="galaxy"):

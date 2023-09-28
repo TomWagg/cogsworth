@@ -11,7 +11,6 @@ import pandas as pd
 from tqdm import tqdm
 
 from cosmic.sample.initialbinarytable import InitialBinaryTable
-from cosmic.sample.sampler.independent import Sample
 from cosmic.evolve import Evolve
 import gala.potential as gp
 import gala.dynamics as gd
@@ -422,9 +421,7 @@ class Population():
         self._initial_galaxy = self.galaxy_model(size=self.n_binaries_match)
 
         # if velocities are already set then just immediately return
-        if (hasattr(self._initial_galaxy, "_v_R")
-            and hasattr(self._initial_galaxy, "_v_T")
-            and hasattr(self._initial_galaxy, "_v_z")):
+        if all(hasattr(self._initial_galaxy, attr) for attr in ["_v_R", "_v_T", "_v_z"]):
             return
 
         # work out the initial velocities of each binary
@@ -484,7 +481,7 @@ class Population():
                 raise ValueError(("You've chosen a binary fraction of 0.0 but set `keep_singles=False` (in "
                                   "self.sampling_params), so you'll draw 0 samples...I don't think you "
                                   "wanted to do that?"))
-            self._initial_binaries, self._mass_singles, self._mass_binaries, self._n_singles_req,\
+            self._initial_binaries, self._mass_singles, self._mass_binaries, self._n_singles_req, \
                 self._n_bin_req = InitialBinaryTable.sampler('independent',
                                                              self.final_kstar1, self.final_kstar2,
                                                              binfrac_model=self.BSE_settings["binfrac"],
@@ -544,7 +541,7 @@ class Population():
             warnings.filterwarnings("ignore", message=".*to a different value than assumed in the mlwind.*")
 
             # perform the evolution!
-            self._bpp, self._bcm, self._initC,\
+            self._bpp, self._bcm, self._initC, \
                 self._kick_info = Evolve.evolve(initialbinarytable=self._initial_binaries,
                                                 BSEDict=self.BSE_settings, pool=self.pool)
 

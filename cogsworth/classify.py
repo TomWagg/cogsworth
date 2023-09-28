@@ -49,7 +49,7 @@ def determine_final_classes(population=None, bpp=None, bcm=None, kick_info=None,
 
     # split up the input so that I can use a single interface
     if population is not None:
-        bpp, bcm, kick_info, orbits, potential = population.bpp, population.bcm, population.kick_info,\
+        bpp, bcm, kick_info, orbits, potential = population.bpp, population.bcm, population.kick_info, \
             population.orbits, population.galactic_potential
 
     # get the binary indices and also reduce the tables to just the final row in each

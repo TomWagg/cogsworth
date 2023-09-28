@@ -5,7 +5,6 @@ import gala.potential as gp
 
 import astropy.coordinates as coords
 import astropy.units as u
-import astropy.constants as const
 
 __all__ = ["get_kick_differential", "integrate_orbit_with_events"]
 
@@ -153,7 +152,8 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential()
             if time_cursor < timesteps[-1]:
                 # evolve the rest of the orbit out
                 matching_timesteps = timesteps[timesteps >= time_cursor]
-                orbit = potential.integrate_orbit(current_w0, t=matching_timesteps, Integrator=gi.DOPRI853Integrator)
+                orbit = potential.integrate_orbit(current_w0, t=matching_timesteps,
+                                                  Integrator=gi.DOPRI853Integrator)
                 orbit_data.append(orbit.data)
 
             data = coords.concatenate_representations(orbit_data) if len(orbit_data) > 1 else orbit_data[0]
