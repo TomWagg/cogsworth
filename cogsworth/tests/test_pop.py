@@ -151,10 +151,21 @@ class Test(unittest.TestCase):
 
     def test_singles_evolution(self):
         """Check everything works well when evolving singles"""
-        p = pop.Population(2, BSE_settings={"binfrac": 0.0})
+        p = pop.Population(2, BSE_settings={"binfrac": 0.0}, sampling_params={'keep_singles': True})
         p.create_population(with_timing=False)
 
         self.assertTrue((p.final_bpp["sep"] == 0.0).all())
+
+    def test_singles_bad_input(self):
+        """Test what happens when you mess up single stars"""
+        it_failed = True
+        p = pop.Population(1, BSE_settings={"binfrac": 0.0}, sampling_params={'total_mass': 1000,
+                                                                              'sampling_target': 'total_mass'})
+        try:
+            p.sample_initial_binaries()
+        except ValueError:
+            it_failed = True
+        self.assertTrue(it_failed)
 
     def test_from_initC(self):
         """Check it can handle only having an initC rather than initial_binaries"""
