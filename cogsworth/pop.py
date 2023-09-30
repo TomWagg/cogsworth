@@ -251,24 +251,35 @@ class Population():
                 new_pop._observables = self._observables[mask]
 
         return new_pop
-    
-    def who_do_i_cite(self):
-        BOLD, RESET, GREEN = "\033[1m", "\033[0m", "\033[0;32m"
 
+    def get_citations(self):
+        """Print the citations for the packages/papers used in the population"""
+        # ask users for a filename to save the bibtex to
+        filename = input("Filename for bibtex file (leave blank to just print to terminal): ")
+        filename = filename + ".bib" if not filename.endswith(".bib") and filename != "" else filename
+
+        # construct citation string
         cite_tags = []
         bibtex = []
-
         for citation in self.__citations__:
             cite_tags.extend(CITATIONS[citation]["tags"])
             bibtex.append(CITATIONS[citation]["bibtex"])
-
         cite_str = ",".join(cite_tags)
         bibtex_str = "\n\n".join(bibtex)
 
-        print(f"{BOLD}{GREEN}You can paste this acknowledgement into your manuscript{RESET}")
-        print(r"This research made use of \texttt{cogsworth} and its dependences \citep{" + cite_str + "}\n")
-        print(f"{BOLD}{GREEN}And paste this bibtex into your associated .bib file - happy writing!{RESET}")
-        print(bibtex_str)
+        # print the acknowledgement
+        BOLD, RESET, GREEN = "\033[1m", "\033[0m", "\033[0;32m"
+        print(f"{BOLD}{GREEN}You can paste this acknowledgement into the relevant section of your manuscript{RESET}")
+        print(r"This research made use of \texttt{cogsworth} and its dependencies \citep{" + cite_str + "}\n")
+
+        # either print bibtex to terminal or save to file
+        if filename != "":
+            print(f"{BOLD}{GREEN}The associated bibtex can be found in {filename} - happy writing!{RESET}")
+            with open(filename, "w") as f:
+                f.write(bibtex_str)
+        else:
+            print(f"{BOLD}{GREEN}And paste this bibtex into your associated .bib file - happy writing!{RESET}")
+            print(bibtex_str)
 
     @property
     def bin_nums(self):
