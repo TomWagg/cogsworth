@@ -121,8 +121,15 @@ table.dataframe {
     width: unset;
 }
 
-.sphx-glr-thumbcontainer[tooltip]:hover::after {
+/* Centre gallery thumbnail labels and titles */
+.sphx-glr-thumbcontainer[tooltip]:hover::after,
+.sphx-glr-thumbnail-title {
     text-align: center;
+}
+
+/* vertically align content in the thumbnails */
+.sphx-glr-thumbcontainer {
+    justify-content: center;
 }
 
 /* Create grid of blocks for navigation */
