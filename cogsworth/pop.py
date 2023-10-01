@@ -248,10 +248,11 @@ class Population():
 
         return new_pop
 
-    def get_citations(self):
+    def get_citations(self, filename=None):
         """Print the citations for the packages/papers used in the population"""
         # ask users for a filename to save the bibtex to
-        filename = input("Filename for generating a bibtex file (leave blank to just print to terminal): ")
+        if filename is None:
+            filename = input("Filename for generating a bibtex file (leave blank to just print to terminal): ")
         filename = filename + ".bib" if not filename.endswith(".bib") and filename != "" else filename
 
         sections = {

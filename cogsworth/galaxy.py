@@ -144,23 +144,26 @@ class Galaxy():
             self.sample()
         return self._which_comp
 
-    def get_citations(self):
+    def get_citations(self, filename=None):
         """Print the citations for the packages/papers used in the galaxy"""
         if not hasattr(self, "__citations__") or len(self.__citations__) == 0:
             print("No citations need for this galaxy model")
             return
 
         # ask users for a filename to save the bibtex to
-        filename = input("Filename for bibtex file (leave blank to just print to terminal): ")
+        if filename is None:
+            filename = input("Filename for generating a bibtex file (leave blank to just print to terminal): ")
         filename = filename + ".bib" if not filename.endswith(".bib") and filename != "" else filename
 
         # construct citation string
         cite_tags = []
         bibtex = []
-        for citation in self.__citations__:
-            if citation != "cogsworth":
-                cite_tags.extend(CITATIONS[citation]["tags"])
-            bibtex.append(CITATIONS[citation]["bibtex"])
+        for section in CITATIONS:
+            for citation in self.__citations__:
+                if citation in CITATIONS[section]:
+                    if citation != "cogsworth":
+                        cite_tags.extend(CITATIONS[section][citation]["tags"])
+                    bibtex.append(CITATIONS[section][citation]["bibtex"])
         cite_str = ",".join(cite_tags)
         bibtex_str = "\n\n".join(bibtex)
 
@@ -169,7 +172,7 @@ class Galaxy():
         print(f"{BOLD}{GREEN}You can paste this acknowledgement into the relevant section of your manuscript"
               + RESET)
         print(r"This research made use of \texttt{cogsworth} \citep{"
-              + ",".join(CITATIONS["cogsworth"]["tags"])
+              + ",".join(CITATIONS["general"]["cogsworth"]["tags"])
               + r"} and a model for galactic star formation based on the following papers \citep{"
               + cite_str + "}.\n")
 
