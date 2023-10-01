@@ -258,20 +258,32 @@ class Population():
         filename = input("Filename for bibtex file (leave blank to just print to terminal): ")
         filename = filename + ".bib" if not filename.endswith(".bib") and filename != "" else filename
 
+        sections = {
+            "general": "",
+            "galaxy": r"The \texttt{cogsworth} population used a galaxy model based on the following papers",
+            "observables": r"Population observables were estimated using dust maps and MIST isochrones",
+            "gaia": r"Observability of systems with Gaia was predicted using an empirical selection function"
+        }
+
+        acknowledgement = r"This research made use of \texttt{cogsworth} and its dependencies "
+
         # construct citation string
-        cite_tags = []
         bibtex = []
-        for citation in self.__citations__:
-            cite_tags.extend(CITATIONS[citation]["tags"])
-            bibtex.append(CITATIONS[citation]["bibtex"])
-        cite_str = ",".join(cite_tags)
+        for section in sections:
+            cite_tags = []
+            for citation in self.__citations__:
+                if citation in CITATIONS[section]:
+                    cite_tags.extend(CITATIONS[section][citation]["tags"])
+                    bibtex.append(CITATIONS[section][citation]["bibtex"])
+            cite_str = ",".join(cite_tags)
+            acknowledgement += sections[section] + r" \citep{" + cite_str + "}. "
         bibtex_str = "\n\n".join(bibtex)
 
         # print the acknowledgement
         BOLD, RESET, GREEN = "\033[1m", "\033[0m", "\033[0;32m"
         print(f"{BOLD}{GREEN}You can paste this acknowledgement into the relevant section of your manuscript"
               + RESET)
-        print(r"This research made use of \texttt{cogsworth} and its dependencies \citep{" + cite_str + "}\n")
+        print(acknowledgement)
 
         # either print bibtex to terminal or save to file
         if filename != "":
@@ -449,6 +461,9 @@ class Population():
         """Sample the initial galactic times, positions and velocities"""
         # initialise the initial galaxy class with correct number of binaries
         self._initial_galaxy = self.galaxy_model(size=self.n_binaries_match)
+
+        # add relevant citations
+        self.__citations__.extend([c for c in self._initial_galaxy.__citations__ if c != "cogsworth"])
 
         # if velocities are already set then just immediately return
         if (hasattr(self._initial_galaxy, "_v_R")
@@ -765,6 +780,7 @@ class Population():
             Whether to ignore extinction
         """
         self.__citations__.extend(["MIST", "MESA", "bayestar2019"])
+        return
         return get_photometry(self.final_bpp, self.final_coords, filters, ignore_extinction=ignore_extinction)
 
     def get_gaia_observed_bin_nums(self):
@@ -788,6 +804,7 @@ class Population():
             disrupted secondary would be observed
         """
         self.__citations__.append("gaia-selection-function")
+        return
 
         # get coordinates of the centres of the healpix pixels in a nside=2**7
         coords_of_centers = get_healpix_centers(7)

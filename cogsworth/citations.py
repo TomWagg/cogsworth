@@ -1,13 +1,14 @@
 
 # storage for citations a dictionary of tuples, first element bibtex id(s), second element bibtex
 CITATIONS = {
-    "cogsworth": {
-        "tags": ["cogsworth:joss"],
-        "bibtex": "TODO"
-    },
-    "cosmic": {
-        "tags": ["cosmic:apj"],
-        "bibtex": r"""@ARTICLE{Breivik+2020,
+    "general": {
+        "cogsworth": {
+            "tags": ["cogsworth:joss"],
+            "bibtex": "TODO"
+        },
+        "cosmic": {
+            "tags": ["cosmic:apj"],
+            "bibtex": r"""@ARTICLE{Breivik+2020,
        author = {{Breivik}, Katelyn and {Coughlin}, Scott and {Zevin}, Michael and {Rodriguez}, Carl L. and {Kremer}, Kyle and et al.},
         title = "{COSMIC Variance in Binary Population Synthesis}",
       journal = {\apj},
@@ -24,24 +25,26 @@ archivePrefix = {arXiv},
  primaryClass = {astro-ph.HE},
        adsurl = {https://ui.adsabs.harvard.edu/abs/2020ApJ...898...71B},
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}}"""
+        },
+        "gala": {
+            "tags": ["gala:joss"],
+            "bibtex": r"""@article{gala,
+            doi = {10.21105/joss.00388},
+            url = {https://doi.org/10.21105%2Fjoss.00388},
+            year = 2017,
+            month = {oct},
+            publisher = {The Open Journal},
+            volume = {2},
+            number = {18},
+            author = {Adrian M. Price-Whelan},
+            title = {Gala: A Python package for galactic dynamics},
+            journal = {The Journal of Open Source Software}}"""
+        },
     },
-    "gala": {
-        "tags": ["gala:joss"],
-        "bibtex": r"""@article{gala,
-        doi = {10.21105/joss.00388},
-        url = {https://doi.org/10.21105%2Fjoss.00388},
-        year = 2017,
-        month = {oct},
-        publisher = {The Open Journal},
-        volume = {2},
-        number = {18},
-        author = {Adrian M. Price-Whelan},
-        title = {Gala: A Python package for galactic dynamics},
-        journal = {The Journal of Open Source Software}}"""
-    },
-    "Wagg+2022": {
-        "tags": ["Wagg+2022"],
-        "bibtex": r"""@ARTICLE{Wagg+2022,
+    "galaxy": {
+        "Wagg+2022": {
+            "tags": ["Wagg+2022"],
+            "bibtex": r"""@ARTICLE{Wagg+2022,
        author = {{Wagg}, T. and {Broekgaarden}, F.~S. and {de Mink}, S.~E. and {Frankel}, N. and {van Son}, L.~A.~C. and et al.},
         title = "{Gravitational Wave Sources in Our Galactic Backyard: Predictions for BHBH, BHNS, and NSNS Binaries Detectable with LISA}",
       journal = {\apj},
@@ -58,10 +61,10 @@ archivePrefix = {arXiv},
  primaryClass = {astro-ph.HE},
        adsurl = {https://ui.adsabs.harvard.edu/abs/2022ApJ...937..118W},
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}}"""
-    },
-    "Frankel+2018": {
-        "tags": ["Frankel+2018"],
-        "bibtex": r"""@ARTICLE{Frankel+2018,
+        },
+        "Frankel+2018": {
+            "tags": ["Frankel+2018"],
+            "bibtex": r"""@ARTICLE{Frankel+2018,
        author = {{Frankel}, Neige and {Rix}, Hans-Walter and {Ting}, Yuan-Sen and {Ness}, Melissa and {Hogg}, David W.},
         title = "{Measuring Radial Orbit Migration in the Galactic Disk}",
       journal = {\apj},
@@ -78,10 +81,10 @@ archivePrefix = {arXiv},
  primaryClass = {astro-ph.GA},
        adsurl = {https://ui.adsabs.harvard.edu/abs/2018ApJ...865...96F},
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}}"""
-    },
-    "Bovy+2016": {
-        "tags": ["Bovy+2016"],
-        "bibtex": r"""@ARTICLE{Bovy+2016,
+        },
+        "Bovy+2016": {
+            "tags": ["Bovy+2016"],
+            "bibtex": r"""@ARTICLE{Bovy+2016,
        author = {{Bovy}, Jo and {Rix}, Hans-Walter and {Schlafly}, Edward F. and {Nidever}, David L. and {Holtzman}, Jon A. and et al.},
         title = "{The Stellar Population Structure of the Galactic Disk}",
       journal = {\apj},
@@ -98,10 +101,10 @@ archivePrefix = {arXiv},
  primaryClass = {astro-ph.GA},
        adsurl = {https://ui.adsabs.harvard.edu/abs/2016ApJ...823...30B},
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}}"""
-    },
-    "Bovy+2019": {
-        "tags": ["Bovy+2019"],
-        "bibtex": r"""@ARTICLE{Bovy+2019,
+        },
+        "Bovy+2019": {
+            "tags": ["Bovy+2019"],
+            "bibtex": r"""@ARTICLE{Bovy+2019,
        author = {{Bovy}, Jo and {Leung}, Henry W. and {Hunt}, Jason A.~S. and {Mackereth}, J. Ted and {Garc{\'\i}a-Hern{\'a}ndez}, Domingo A. and et al.},
         title = "{Life in the fast lane: a direct view of the dynamics, formation, and evolution of the Milky Way's bar}",
       journal = {\mnras},
@@ -117,10 +120,10 @@ archivePrefix = {arXiv},
  primaryClass = {astro-ph.GA},
        adsurl = {https://ui.adsabs.harvard.edu/abs/2019MNRAS.490.4740B},
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}}"""
-    },
-    "McMillan+2011": {
-        "tags": ["McMillan+2011"],
-        "bibtex": r"""@ARTICLE{McMillan+2011,
+        },
+        "McMillan+2011": {
+            "tags": ["McMillan+2011"],
+            "bibtex": r"""@ARTICLE{McMillan+2011,
        author = {{McMillan}, Paul J.},
         title = "{Mass models of the Milky Way}",
       journal = {\mnras},
@@ -136,10 +139,12 @@ archivePrefix = {arXiv},
  primaryClass = {astro-ph.GA},
        adsurl = {https://ui.adsabs.harvard.edu/abs/2011MNRAS.414.2446M},
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}}"""
+        },
     },
-    "isochrones": {
-        "tags": ["isochrones-python"],
-        "bibtex": r"""@MISC{isochrones-python,
+    "observables": {
+        "isochrones": {
+            "tags": ["isochrones-python"],
+            "bibtex": r"""@MISC{isochrones-python,
        author = {{Morton}, Timothy D.},
         title = "{isochrones: Stellar model grid package}",
      keywords = {Software},
@@ -152,10 +157,10 @@ archivePrefix = {ascl},
        eprint = {1503.010},
        adsurl = {https://ui.adsabs.harvard.edu/abs/2015ascl.soft03010M},
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}}"""
-    },
-    "MIST": {
-        "tags": ["MIST0", "MIST1"],
-        "bibtex": r"""@ARTICLE{Dotter+2016,
+        },
+        "MIST": {
+            "tags": ["MIST0", "MIST1"],
+            "bibtex": r"""@ARTICLE{Dotter+2016,
        author = {{Dotter}, Aaron},
         title = "{MESA Isochrones and Stellar Tracks (MIST) 0: Methods for the Construction of Stellar Isochrones}",
       journal = {\apjs},
@@ -172,8 +177,8 @@ archivePrefix = {arXiv},
  primaryClass = {astro-ph.SR},
        adsurl = {https://ui.adsabs.harvard.edu/abs/2016ApJS..222....8D},
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}}
-      
-      @ARTICLE{Choi+2016,
+
+@ARTICLE{Choi+2016,
        author = {{Choi}, Jieun and {Dotter}, Aaron and {Conroy}, Charlie and {Cantiello}, Matteo and {Paxton}, Bill and et al.},
         title = "{Mesa Isochrones and Stellar Tracks (MIST). I. Solar-scaled Models}",
       journal = {\apj},
@@ -190,10 +195,10 @@ archivePrefix = {arXiv},
  primaryClass = {astro-ph.SR},
        adsurl = {https://ui.adsabs.harvard.edu/abs/2016ApJ...823..102C},
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}}"""
-    },
-    "MESA": {
-        "tags": ["Paxton+2011", "Paxton+2013", "Paxton+2015", "Paxton+2018"],
-        "bibtex": r"""@ARTICLE{Paxton+2011,
+        },
+        "MESA": {
+            "tags": ["Paxton+2011", "Paxton+2013", "Paxton+2015", "Paxton+2018"],
+            "bibtex": r"""@ARTICLE{Paxton+2011,
        author = {{Paxton}, Bill and {Bildsten}, Lars and {Dotter}, Aaron and {Herwig}, Falk and {Lesaffre}, Pierre and et al.},
         title = "{Modules for Experiments in Stellar Astrophysics (MESA)}",
       journal = {\apjs},
@@ -211,7 +216,7 @@ archivePrefix = {arXiv},
        adsurl = {https://ui.adsabs.harvard.edu/abs/2011ApJS..192....3P},
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}}
 
-      @ARTICLE{Paxton+2013,
+@ARTICLE{Paxton+2013,
        author = {{Paxton}, Bill and {Cantiello}, Matteo and {Arras}, Phil and {Bildsten}, Lars and {Brown}, Edward F. and et al.},
         title = "{Modules for Experiments in Stellar Astrophysics (MESA): Planets, Oscillations, Rotation, and Massive Stars}",
       journal = {\apjs},
@@ -229,7 +234,7 @@ archivePrefix = {arXiv},
        adsurl = {https://ui.adsabs.harvard.edu/abs/2013ApJS..208....4P},
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}}
 
-      @ARTICLE{Paxton+2015,
+@ARTICLE{Paxton+2015,
        author = {{Paxton}, Bill and {Marchant}, Pablo and {Schwab}, Josiah and {Bauer}, Evan B. and {Bildsten}, Lars and et al.},
         title = "{Modules for Experiments in Stellar Astrophysics (MESA): Binaries, Pulsations, and Explosions}",
       journal = {\apjs},
@@ -247,7 +252,7 @@ archivePrefix = {arXiv},
        adsurl = {https://ui.adsabs.harvard.edu/abs/2015ApJS..220...15P},
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}}
 
-      @ARTICLE{Paxton+2018,
+@ARTICLE{Paxton+2018,
        author = {{Paxton}, Bill and {Schwab}, Josiah and {Bauer}, Evan B. and {Bildsten}, Lars and {Blinnikov}, Sergei and et al.},
         title = "{Modules for Experiments in Stellar Astrophysics (MESA): Convective Boundaries, Element Diffusion, and Massive Star Explosions}",
       journal = {\apjs},
@@ -265,9 +270,9 @@ archivePrefix = {arXiv},
        adsurl = {https://ui.adsabs.harvard.edu/abs/2018ApJS..234...34P},
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}}"""
     },
-    "bayestar2019": {
-        "tags": ["bayestar2019"],
-        "bibtex": r"""@ARTICLE{bayestar2019,
+        "bayestar2019": {
+            "tags": ["bayestar2019"],
+            "bibtex": r"""@ARTICLE{bayestar2019,
        author = {{Green}, Gregory M. and {Schlafly}, Edward and {Zucker}, Catherine and {Speagle}, Joshua S. and {Finkbeiner}, Douglas},
         title = "{A 3D Dust Map Based on Gaia, Pan-STARRS 1, and 2MASS}",
       journal = {\apj},
@@ -284,10 +289,12 @@ archivePrefix = {arXiv},
  primaryClass = {astro-ph.GA},
        adsurl = {https://ui.adsabs.harvard.edu/abs/2019ApJ...887...93G},
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}}"""
+        },
     },
-    "gaia-selection-function": {
-        "tags": ["gaia-selection-function"],
-        "bibtex": r"""@ARTICLE{Cantat-Gaudin+2023,
+    "gaia": {
+        "gaia-selection-function": {
+            "tags": ["gaia-selection-function"],
+            "bibtex": r"""@ARTICLE{Cantat-Gaudin+2023,
        author = {{Cantat-Gaudin}, Tristan and {Fouesneau}, Morgan and {Rix}, Hans-Walter and {Brown}, Anthony G.~A. and {Castro-Ginard}, Alfred and et al.},
         title = "{An empirical model of the Gaia DR3 selection function}",
       journal = {\aap},
@@ -303,5 +310,6 @@ archivePrefix = {arXiv},
  primaryClass = {astro-ph.GA},
        adsurl = {https://ui.adsabs.harvard.edu/abs/2023A&A...669A..55C},
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}}"""
-    }
+        }
+    },
 }
