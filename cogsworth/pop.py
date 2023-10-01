@@ -269,7 +269,8 @@ class Population():
 
         # print the acknowledgement
         BOLD, RESET, GREEN = "\033[1m", "\033[0m", "\033[0;32m"
-        print(f"{BOLD}{GREEN}You can paste this acknowledgement into the relevant section of your manuscript{RESET}")
+        print(f"{BOLD}{GREEN}You can paste this acknowledgement into the relevant section of your manuscript"
+              + RESET)
         print(r"This research made use of \texttt{cogsworth} and its dependencies \citep{" + cite_str + "}\n")
 
         # either print bibtex to terminal or save to file
@@ -278,7 +279,7 @@ class Population():
             with open(filename, "w") as f:
                 f.write(bibtex_str)
         else:
-            print(f"{BOLD}{GREEN}And paste this bibtex into your associated .bib file - happy writing!{RESET}")
+            print(f"{BOLD}{GREEN}And paste this bibtex into your .bib file - happy writing!{RESET}")
             print(bibtex_str)
 
     @property

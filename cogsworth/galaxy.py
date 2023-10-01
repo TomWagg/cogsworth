@@ -158,15 +158,20 @@ class Galaxy():
         cite_tags = []
         bibtex = []
         for citation in self.__citations__:
-            cite_tags.extend(CITATIONS[citation]["tags"])
+            if citation != "cogsworth":
+                cite_tags.extend(CITATIONS[citation]["tags"])
             bibtex.append(CITATIONS[citation]["bibtex"])
         cite_str = ",".join(cite_tags)
         bibtex_str = "\n\n".join(bibtex)
 
         # print the acknowledgement
         BOLD, RESET, GREEN = "\033[1m", "\033[0m", "\033[0;32m"
-        print(f"{BOLD}{GREEN}You can paste this acknowledgement into the relevant section of your manuscript{RESET}")
-        print(r"This research made use of \texttt{cogsworth} and its dependencies \citep{" + cite_str + "}\n")
+        print(f"{BOLD}{GREEN}You can paste this acknowledgement into the relevant section of your manuscript"
+              + RESET)
+        print(r"This research made use of \texttt{cogsworth} \citep{"
+              + ",".join(CITATIONS["cogsworth"]["tags"])
+              + r"} and a model for galactic star formation based on the following papers \citep{"
+              + cite_str + "}.\n")
 
         # either print bibtex to terminal or save to file
         if filename != "":
@@ -174,7 +179,7 @@ class Galaxy():
             with open(filename, "w") as f:
                 f.write(bibtex_str)
         else:
-            print(f"{BOLD}{GREEN}And paste this bibtex into your associated .bib file - happy writing!{RESET}")
+            print(f"{BOLD}{GREEN}And paste this bibtex into your .bib file - happy writing!{RESET}")
             print(bibtex_str)
 
     def sample(self):
@@ -389,6 +394,7 @@ class Frankel2018(Galaxy):
         self.zsun = zsun
         self.galaxy_age = galaxy_age
         super().__init__(size=size, components=components, component_masses=component_masses, **kwargs)
+        self.__citations__.extend(["Wagg+2022", "Frankel+2018", "Bovy+2016", "Bovy+2019", "McMillan+2011"])
 
     def draw_lookback_times(self, size=None, component="low_alpha_disc"):
         """Inverse CDF sampling of lookback times. low_alpha and high_alpha discs uses
