@@ -23,6 +23,8 @@ from cogsworth.classify import determine_final_classes
 from cogsworth.observables import get_photometry
 from cogsworth.tests.optional_deps import check_dependencies
 
+from cogsworth.citations import CITATIONS
+
 __all__ = ["Population", "load"]
 
 
@@ -140,6 +142,8 @@ class Population():
         self._observables = None
         self._bin_nums = None
 
+        self.__citations__ = ["cogsworth", "cosmic", "gala"]
+
         self.BSE_settings = {'xi': 1.0, 'bhflag': 1, 'neta': 0.5, 'windflag': 3, 'wdflag': 1, 'alpha1': 1.0,
                              'pts1': 0.001, 'pts3': 0.02, 'pts2': 0.01, 'epsnov': 0.001, 'hewind': 0.5,
                              'ck': 1000, 'bwind': 0.0, 'lambdaf': 0.0, 'mxns': 3.0, 'beta': -1.0, 'tflag': 1,
@@ -243,6 +247,50 @@ class Population():
                 new_pop._observables = self._observables[mask]
 
         return new_pop
+
+    def get_citations(self, filename=None):
+        """Print the citations for the packages/papers used in the population"""
+        # ask users for a filename to save the bibtex to
+        if filename is None:
+            filename = input("Filename for generating a bibtex file (leave blank to just print to terminal): ")
+        filename = filename + ".bib" if not filename.endswith(".bib") and filename != "" else filename
+
+        sections = {
+            "general": "",
+            "galaxy": r"The \texttt{cogsworth} population used a galaxy model based on the following papers",
+            "observables": r"Population observables were estimated using dust maps and MIST isochrones",
+            "gaia": r"Observability of systems with Gaia was predicted using an empirical selection function"
+        }
+
+        acknowledgement = r"This research made use of \texttt{cogsworth} and its dependencies"
+
+        # construct citation string
+        bibtex = []
+        for section in sections:
+            cite_tags = []
+            for citation in self.__citations__:
+                if citation in CITATIONS[section]:
+                    cite_tags.extend(CITATIONS[section][citation]["tags"])
+                    bibtex.append(CITATIONS[section][citation]["bibtex"])
+            if len(cite_tags) > 0:
+                cite_str = ",".join(cite_tags)
+                acknowledgement += sections[section] + r" \citep{" + cite_str + "}. "
+        bibtex_str = "\n\n".join(bibtex)
+
+        # print the acknowledgement
+        BOLD, RESET, GREEN = "\033[1m", "\033[0m", "\033[0;32m"
+        print("\nYou can paste this acknowledgement into the relevant section of your manuscript:")
+        print(f"{BOLD}{GREEN}{acknowledgement}{RESET}")
+
+        # either print bibtex to terminal or save to file
+        if filename != "":
+            print(f"The associated bibtex can be found in {filename}")
+            with open(filename, "w") as f:
+                f.write(bibtex_str)
+        else:
+            print("\nAnd paste this bibtex into your .bib file:")
+            print(f"{BOLD}{GREEN}{bibtex_str}{RESET}")
+        print("Good luck with the paper writing ◝(ᵔᵕᵔ)◜")
 
     @property
     def bin_nums(self):
@@ -411,6 +459,9 @@ class Population():
         """Sample the initial galactic times, positions and velocities"""
         # initialise the initial galaxy class with correct number of binaries
         self._initial_galaxy = self.galaxy_model(size=self.n_binaries_match)
+
+        # add relevant citations
+        self.__citations__.extend([c for c in self._initial_galaxy.__citations__ if c != "cogsworth"])
 
         # if velocities are already set then just immediately return
         if (hasattr(self._initial_galaxy, "_v_R")
@@ -726,6 +777,7 @@ class Population():
         ignore_extinction : `bool`
             Whether to ignore extinction
         """
+        self.__citations__.extend(["MIST", "MESA", "bayestar2019"])
         return get_photometry(self.final_bpp, self.final_coords, filters, ignore_extinction=ignore_extinction)
 
     def get_gaia_observed_bin_nums(self):
@@ -752,6 +804,7 @@ class Population():
         from gaiaunlimited.selectionfunctions import DR3SelectionFunctionTCG
         from gaiaunlimited.utils import get_healpix_centers
 
+        self.__citations__.append("gaia-selection-function")
         # get coordinates of the centres of the healpix pixels in a nside=2**7
         coords_of_centers = get_healpix_centers(7)
 

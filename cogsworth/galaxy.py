@@ -16,6 +16,8 @@ from gala.units import galactic
 
 from cogsworth.tests.optional_deps import check_dependencies
 
+from cogsworth.citations import CITATIONS
+
 
 __all__ = ["Galaxy", "Frankel2018", "QuasiIsothermalDisk", "load"]
 
@@ -62,6 +64,8 @@ class Galaxy():
         self._Z = None
         self._positions = None
         self._which_comp = None
+
+        self.__citations__ = ["cogsworth"]
 
         if immediately_sample:
             self.sample()
@@ -139,6 +143,47 @@ class Galaxy():
         if self._which_comp is None:
             self.sample()
         return self._which_comp
+
+    def get_citations(self, filename=None):
+        """Print the citations for the packages/papers used in the galaxy"""
+        if not hasattr(self, "__citations__") or len(self.__citations__) == 0:
+            print("No citations need for this galaxy model")
+            return
+
+        # ask users for a filename to save the bibtex to
+        if filename is None:
+            filename = input("Filename for generating a bibtex file (leave blank to just print to terminal): ")
+        filename = filename + ".bib" if not filename.endswith(".bib") and filename != "" else filename
+
+        # construct citation string
+        cite_tags = []
+        bibtex = []
+        for section in CITATIONS:
+            for citation in self.__citations__:
+                if citation in CITATIONS[section]:
+                    if citation != "cogsworth":
+                        cite_tags.extend(CITATIONS[section][citation]["tags"])
+                    bibtex.append(CITATIONS[section][citation]["bibtex"])
+        cite_str = ",".join(cite_tags)
+        bibtex_str = "\n\n".join(bibtex)
+
+        # print the acknowledgement
+        BOLD, RESET, GREEN = "\033[1m", "\033[0m", "\033[0;32m"
+        print(f"{BOLD}{GREEN}You can paste this acknowledgement into the relevant section of your manuscript"
+              + RESET)
+        print(r"This research made use of \texttt{cogsworth} \citep{"
+              + ",".join(CITATIONS["general"]["cogsworth"]["tags"])
+              + r"} and a model for galactic star formation based on the following papers \citep{"
+              + cite_str + "}.\n")
+
+        # either print bibtex to terminal or save to file
+        if filename != "":
+            print(f"{BOLD}{GREEN}The associated bibtex can be found in {filename} - happy writing!{RESET}")
+            with open(filename, "w") as f:
+                f.write(bibtex_str)
+        else:
+            print(f"{BOLD}{GREEN}And paste this bibtex into your .bib file - happy writing!{RESET}")
+            print(bibtex_str)
 
     def sample(self):
         """Sample from the Galaxy distributions for each component, combine and save in class attributes"""
@@ -352,6 +397,7 @@ class Frankel2018(Galaxy):
         self.zsun = zsun
         self.galaxy_age = galaxy_age
         super().__init__(size=size, components=components, component_masses=component_masses, **kwargs)
+        self.__citations__.extend(["Wagg+2022", "Frankel+2018", "Bovy+2016", "Bovy+2019", "McMillan+2011"])
 
     def draw_lookback_times(self, size=None, component="low_alpha_disc"):
         """Inverse CDF sampling of lookback times. low_alpha and high_alpha discs uses
@@ -900,7 +946,7 @@ def load(file_name, key="galaxy"):
 
 
 def simplify_params(params, dont_save=["_tau", "_Z", "_positions", "_which_comp", "_v_R", "_v_T", "_v_z",
-                                       "_df", "_agama_pot"]):
+                                       "_df", "_agama_pot", "__citations__"]):
     # delete any keys that we don't want to save
     delete_keys = [key for key in params.keys() if key in dont_save]
     for key in delete_keys:

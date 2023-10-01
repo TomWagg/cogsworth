@@ -121,6 +121,21 @@ table.dataframe {
     width: unset;
 }
 
+/* Better dark mode tables */
+html[data-theme="dark"] .bd-content .nboutput .output_area.rendered_html {
+    background: #333!important;
+}
+
+html[data-theme="dark"] .jp-RenderedHTMLCommon table,
+html[data-theme="dark"] div.rendered_html table {
+    color: white;
+}
+
+html[data-theme="dark"] .jp-RenderedHTMLCommon tbody tr:nth-child(2n+1),
+html[data-theme="dark"] div.rendered_html tbody tr:nth-child(2n+1) {
+    background: #111!important;
+}
+
 .sphx-glr-thumbcontainer[tooltip]:hover::after {
     text-align: center;
 }
