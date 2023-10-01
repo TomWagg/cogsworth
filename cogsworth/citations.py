@@ -4,7 +4,7 @@ CITATIONS = {
     "general": {
         "cogsworth": {
             "tags": ["cogsworth:joss"],
-            "bibtex": "TODO"
+            "bibtex": "TODO - cogsworth citation will go here"
         },
         "cosmic": {
             "tags": ["cosmic:apj"],

@@ -255,7 +255,7 @@ class Population():
     def get_citations(self):
         """Print the citations for the packages/papers used in the population"""
         # ask users for a filename to save the bibtex to
-        filename = input("Filename for bibtex file (leave blank to just print to terminal): ")
+        filename = input("Filename for generating a bibtex file (leave blank to just print to terminal): ")
         filename = filename + ".bib" if not filename.endswith(".bib") and filename != "" else filename
 
         sections = {
@@ -282,18 +282,18 @@ class Population():
 
         # print the acknowledgement
         BOLD, RESET, GREEN = "\033[1m", "\033[0m", "\033[0;32m"
-        print(f"{BOLD}{GREEN}You can paste this acknowledgement into the relevant section of your manuscript"
-              + RESET)
-        print(acknowledgement)
+        print("\nYou can paste this acknowledgement into the relevant section of your manuscript:")
+        print(f"{BOLD}{GREEN}{acknowledgement}{RESET}")
 
         # either print bibtex to terminal or save to file
         if filename != "":
-            print(f"{BOLD}{GREEN}The associated bibtex can be found in {filename} - happy writing!{RESET}")
+            print(f"The associated bibtex can be found in {filename}")
             with open(filename, "w") as f:
                 f.write(bibtex_str)
         else:
-            print(f"{BOLD}{GREEN}And paste this bibtex into your .bib file - happy writing!{RESET}")
-            print(bibtex_str)
+            print("\nAnd paste this bibtex into your .bib file:")
+            print(f"{BOLD}{GREEN}{bibtex_str}{RESET}")
+        print("Good luck with the paper writing ◝(ᵔᵕᵔ)◜")
 
     @property
     def bin_nums(self):
