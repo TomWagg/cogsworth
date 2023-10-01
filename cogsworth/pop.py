@@ -265,7 +265,7 @@ class Population():
             "gaia": r"Observability of systems with Gaia was predicted using an empirical selection function"
         }
 
-        acknowledgement = r"This research made use of \texttt{cogsworth} and its dependencies "
+        acknowledgement = r"This research made use of \texttt{cogsworth} and its dependencies"
 
         # construct citation string
         bibtex = []
@@ -275,8 +275,9 @@ class Population():
                 if citation in CITATIONS[section]:
                     cite_tags.extend(CITATIONS[section][citation]["tags"])
                     bibtex.append(CITATIONS[section][citation]["bibtex"])
-            cite_str = ",".join(cite_tags)
-            acknowledgement += sections[section] + r" \citep{" + cite_str + "}. "
+            if len(cite_tags) > 0:
+                cite_str = ",".join(cite_tags)
+                acknowledgement += sections[section] + r" \citep{" + cite_str + "}. "
         bibtex_str = "\n\n".join(bibtex)
 
         # print the acknowledgement
