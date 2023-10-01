@@ -778,7 +778,6 @@ class Population():
             Whether to ignore extinction
         """
         self.__citations__.extend(["MIST", "MESA", "bayestar2019"])
-        return
         return get_photometry(self.final_bpp, self.final_coords, filters, ignore_extinction=ignore_extinction)
 
     def get_gaia_observed_bin_nums(self):
