@@ -13,8 +13,8 @@ from astropy.coordinates import SkyCoord
 # for action-based potentials
 import gala.potential as gp
 from gala.units import galactic
-import agama
-agama.setUnits(**{k: galactic[k] for k in ['length', 'mass', 'time']})
+
+from cogsworth.tests.optional_deps import check_dependencies
 
 from cogsworth.citations import CITATIONS
 
@@ -525,7 +525,7 @@ class Frankel2018(Galaxy):
             * (1 - (self._tau / self.galaxy_age))**self.gamma
         return np.power(10, FeH + np.log10(self.zsun))
 
-class QuasiIsothermalDisk(Galaxy):
+class QuasiIsothermalDisk(Galaxy):      # pragma: no cover
     """A quasi-isothermal distribution function with parameters from 
     `Sanders & Binney 2015 <https://ui.adsabs.harvard.edu/abs/2015MNRAS.449.3479S/abstract>`_.
 
@@ -634,6 +634,10 @@ class QuasiIsothermalDisk(Galaxy):
     
     def get_DF(self):
         """Get the distribution function for a quasi-isothermal disk based on the Gala MW potential"""
+        assert check_dependencies("agama")
+        import agama
+        agama.setUnits(**{k: galactic[k] for k in ['length', 'mass', 'time']})
+
         # create Gala potential
         gala_pot = gp.MilkyWayPotential2022()
 
@@ -683,6 +687,10 @@ class QuasiIsothermalDisk(Galaxy):
     
     def sample(self):
         """Sample from the Galaxy distribution and save in class attributes"""
+        assert check_dependencies("agama")
+        import agama
+        agama.setUnits(**{k: galactic[k] for k in ['length', 'mass', 'time']})
+
         # create an array of which component each point belongs to
         self._which_comp = np.repeat("low_alpha_disc", self.size)
         self._tau = self.draw_lookback_times(size=self.size, component="low_alpha_disc")
@@ -712,7 +720,7 @@ class QuasiIsothermalDisk(Galaxy):
 
         return self._tau, self._positions, self.Z
 
-class SpheroidalDwarf(Galaxy):
+class SpheroidalDwarf(Galaxy):      # pragma: no cover
     """An action-based model for dwarf spheroidal galaxies and globular clusters 
     `Pascale+2019 <https://ui.adsabs.harvard.edu/abs/2019MNRAS.488.2423P/abstract>`_.
 
@@ -832,6 +840,10 @@ class SpheroidalDwarf(Galaxy):
     
     def get_DF(self):
         """Get the distribution function for a dwarf galaxy disk based on an NFW profile"""
+        assert check_dependencies("agama")
+        import agama
+        agama.setUnits(**{k: galactic[k] for k in ['length', 'mass', 'time']})
+
         gala_pot = gp.NFWPotential(m=self.mass, r_s=1.0, units=galactic)
         self._agama_pot = agama.Potential(
             type="nfw",
@@ -849,6 +861,10 @@ class SpheroidalDwarf(Galaxy):
     
     def sample(self):
         """Sample from the Galaxy distribution and save in class attributes"""
+        assert check_dependencies("agama")
+        import agama
+        agama.setUnits(**{k: galactic[k] for k in ['length', 'mass', 'time']})
+
         # create an array of which component each point belongs to
         self._which_comp = np.repeat("low_alpha_disc", self.size)
         self._tau = self.draw_lookback_times(size=self.size, component="low_alpha_disc")
