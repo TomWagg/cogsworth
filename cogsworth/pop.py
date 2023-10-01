@@ -764,6 +764,7 @@ class Population():
         ignore_extinction : `bool`
             Whether to ignore extinction
         """
+        self.__citations__.extend(["MIST", "MESA", "bayestar2019"])
         return get_photometry(self.final_bpp, self.final_coords, filters, ignore_extinction=ignore_extinction)
 
     def get_gaia_observed_bin_nums(self):
@@ -786,6 +787,8 @@ class Population():
             A list of binary numbers (that can be used in tables like :attr:`final_bpp`) for which the
             disrupted secondary would be observed
         """
+        self.__citations__.append("gaia-selection-function")
+
         # get coordinates of the centres of the healpix pixels in a nside=2**7
         coords_of_centers = get_healpix_centers(7)
 
