@@ -943,7 +943,7 @@ def load(file_name, key="galaxy"):
 
 
 def simplify_params(params, dont_save=["_tau", "_Z", "_positions", "_which_comp", "_v_R", "_v_T", "_v_z",
-                                       "_df", "_agama_pot"]):
+                                       "_df", "_agama_pot", "__citations__"]):
     # delete any keys that we don't want to save
     delete_keys = [key for key in params.keys() if key in dont_save]
     for key in delete_keys:
