@@ -10,12 +10,12 @@ then you can also use the search box above!
     :maxdepth: 1
     :caption: Modules
 
-    ../modules/classify
-    ../modules/events
-    ../modules/galaxy
-    ../modules/kicks
-    ../modules/observables
     ../modules/pop
+    ../modules/galaxy
+    ../modules/classify
+    ../modules/observables
+    ../modules/events
+    ../modules/kicks
 
 .. toctree::
     :caption: Changelog
