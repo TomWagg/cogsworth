@@ -121,8 +121,30 @@ table.dataframe {
     width: unset;
 }
 
-.sphx-glr-thumbcontainer[tooltip]:hover::after {
+/* Better dark mode tables */
+html[data-theme="dark"] .bd-content .nboutput .output_area.rendered_html {
+    background: #333!important;
+}
+
+html[data-theme="dark"] .jp-RenderedHTMLCommon table,
+html[data-theme="dark"] div.rendered_html table {
+    color: white;
+}
+
+html[data-theme="dark"] .jp-RenderedHTMLCommon tbody tr:nth-child(2n+1),
+html[data-theme="dark"] div.rendered_html tbody tr:nth-child(2n+1) {
+    background: #111!important;
+}
+
+/* Centre gallery thumbnail labels and titles */
+.sphx-glr-thumbcontainer[tooltip]:hover::after,
+.sphx-glr-thumbnail-title {
     text-align: center;
+}
+
+/* vertically align content in the thumbnails */
+.sphx-glr-thumbcontainer {
+    justify-content: center;
 }
 
 /* Create grid of blocks for navigation */
@@ -169,4 +191,43 @@ nav.page-toc {
 /* Stop tqdm cells from turning red (needs function in custom.js too) */
 .tqdm {
     background: none!important;
+}
+
+/* Fix nonsense with the header flowing onto two lines */
+bd-header .navbar-header-items__center,
+.bd-header .navbar-header-items__end,
+.bd-header .navbar-header-items__start {
+    flex-flow: unset!important;
+}
+
+/* Make some styled custom card headers */
+.card-header-tom {
+    font-family: var(--pst-font-family-heading);
+    font-size: var(--pst-font-size-h2);
+    font-weight: var(--pst-font-weight-heading);
+    line-height: 1.15;
+    margin: 2.75rem 0 1.05rem;
+}
+
+.icon-link.sd-card-text {
+    margin-left: 1rem;
+    font-size: var(--pst-font-size-h6);
+}
+
+.icon-link .svg-inline--fa {
+    margin-right: 0.5rem;
+    color: var(--pst-color-link);
+}
+
+.icon-link:hover .svg-inline--fa {
+    color: var(--pst-color-link-hover)
+}
+
+.bd-content .sd-card {
+    border-radius: 1rem;
+    padding: 0.5rem;
+}
+
+html[data-theme="dark"] .bd-content .sd-card {
+    border: 2px solid #333;
 }

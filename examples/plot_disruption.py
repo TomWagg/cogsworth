@@ -1,10 +1,8 @@
 """
-Disruption Orbit
-================
+Disruption Orbit Animation
+==========================
 
-Create animations and plots of an orbit of a disrupted binary
-
-TODO
+Create animations of an orbit of a disrupted binary in various projections.
 """
 
 import cogsworth
@@ -29,8 +27,8 @@ split_time = bpp_rows[(bpp_rows["evol_type"].isin([15, 16])) & (bpp_rows["sep"] 
 primary_orbit = p.orbits[p.final_bpp["bin_num"] == bin_num][0][0]
 secondary_orbit = p.orbits[p.final_bpp["bin_num"] == bin_num][0][1]
 
-primary_orbit = primary_orbit[primary_orbit.t < (primary_orbit.t[0] + split_time * 10)]
-secondary_orbit = secondary_orbit[secondary_orbit.t < (secondary_orbit.t[0] + split_time * 10)]
+primary_orbit = primary_orbit[primary_orbit.t < (primary_orbit.t[0] + split_time * 5)]
+secondary_orbit = secondary_orbit[secondary_orbit.t < (secondary_orbit.t[0] + split_time * 5)]
 
 times = primary_orbit.t
 times -= times[0]
@@ -61,25 +59,6 @@ params = {'figure.figsize': (12, 8),
 plt.rcParams.update(params)
 plt.style.use("dark_background")
 
-x_max = max(abs(combined_orbit.pos.x.min()), combined_orbit.pos.x.max()) * 1.1
-y_max = max(abs(combined_orbit.pos.y.min()), combined_orbit.pos.y.max()) * 1.1
-z_max = max(abs(combined_orbit.pos.z.min()), combined_orbit.pos.z.max()) * 1.1
-
-x = np.linspace(-x_max, x_max, 100)
-y = np.linspace(-y_max, y_max, 100)
-z = np.linspace(-z_max, z_max, 100)
-
-# p.galactic_potential.plot_contours(grid=(x, y, 1), ax=axes[0], cmap="Purples")
-# p.galactic_potential.plot_contours(grid=(x, 1, z), ax=axes[1], cmap="Purples")
-# p.galactic_potential.plot_contours(grid=(1, y, z), ax=axes[2], cmap="Purples")
-
-# axes[0].set_xlim(-x_max, x_max)
-# axes[0].set_ylim(-y_max, y_max)
-# axes[1].set_xlim(-x_max, x_max)
-# axes[2].set_ylim(-z_max, z_max)
-# axes[1].set_xlim(-y_max, y_max)
-# axes[2].set_ylim(-z_max, z_max)
-
 for ax in axes:
     ax.set_facecolor("black")
     for side in ['bottom', 'top', 'left', 'right']:
@@ -93,13 +72,12 @@ fig.set_facecolor("black")
 
 print(split_time)
 
-faster = 2 / split_time.to(u.Myr).value
+# faster = 2 / split_time.to(u.Myr).value
 
 segment_style = [{"color": "C0"}, {"color": "C1"}]
 
-
-fig, anim = combined_orbit.animate(stride=1, segment_nsteps=50, underplot_full_orbit=True, axes=axes,
-                                   FuncAnimation_kwargs={"interval": faster},
+fig, anim = combined_orbit.animate(stride=5, segment_nsteps=50, underplot_full_orbit=True, axes=axes,
+                                   FuncAnimation_kwargs={"interval": 50},
                                    segment_style=segment_style, marker_style={"color": "C1"})
 
 plt.show()

@@ -30,3 +30,4 @@ Home
    auto_examples/index
    pages/modules
    pages/cite
+   pages/feedback

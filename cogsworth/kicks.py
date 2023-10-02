@@ -10,7 +10,8 @@ __all__ = ["get_kick_differential", "integrate_orbit_with_events"]
 
 
 def get_kick_differential(delta_v_sys_xyz, m_1, m_2, a):
-    """Calculate the Differential from a combination of the natal kick, Blauuw kick and orbital motion.
+    """Calculate the :class:`~astropy.coordinates.CylindricalDifferential` from a combination of the natal
+    kick, Blauuw kick and orbital motion.
 
     Parameters
     ----------
@@ -55,7 +56,8 @@ def get_kick_differential(delta_v_sys_xyz, m_1, m_2, a):
 
 def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential(), events=None,
                                 store_all=True, quiet=False):
-    """Integrate PhaseSpacePosition in a potential with events that occur at certain times
+    """Integrate :class:`~gala.dynamics.PhaseSpacePosition` in a 
+    :class:`Potential <gala.potential.potential.PotentialBase>` with events that occur at certain times
 
     Parameters
     ----------
@@ -67,7 +69,7 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential()
         Integration end time
     dt : :class:`~astropy.units.Quantity` [time]
         Integration initial timestep size (integrator may adapt timesteps)
-    potential : :class:`~gala.potential.potential.PotentialBase`, optional
+    potential : :class:`Potential <gala.potential.potential.PotentialBase>`, optional
         Potential in which you which to integrate the orbits, by default the
         :class:`~gala.potential.potential.MilkyWayPotential`
     events : `varies`
