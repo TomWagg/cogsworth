@@ -130,7 +130,7 @@ html_theme_options = {
     ],
     "footer_start": ["copyright", "last-updated"],
     "secondary_sidebar_items": [],
-    "header_links_before_dropdown": 7,
+    "header_links_before_dropdown": 8,
     "pygment_light_style": "tango",
     "pygment_dark_style": "monokai",
 }

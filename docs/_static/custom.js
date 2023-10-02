@@ -7,10 +7,12 @@ document.addEventListener("DOMContentLoaded", function() {
         })
     });
 
-    // hide the dummy home title
-    if (document.getElementById("home")) {
-        document.querySelector("#home > h1").style.display = "none"
-    }
+    // hide the dummy home/feedback titles
+    ["home", "feedback"].forEach(dummy => {
+        if (document.getElementById(dummy)) {
+            document.querySelector(`#${dummy} > h1`).style.display = "none"
+        }
+    });
 
     let active_el = document.querySelector(".bd-navbar-elements.navbar-nav .nav-item.active")
     if (active_el && active_el.innerText == "Tutorials") {
@@ -24,5 +26,15 @@ document.addEventListener("DOMContentLoaded", function() {
         if (x.innerText.includes("%") && x.innerText.includes("it/s")) {
             x.classList.add("tqdm")
         }
-    }) 
+    })
+
+    // stop forcing the start box to be so large
+    let start = document.querySelector(".navbar-header-items__start")
+    start.classList.remove("col-lg-3")
+    start.classList.add("col-lg")
+    let middle = document.querySelector(".navbar-header-items")
+    middle.classList.remove("col-lg-9")
+    middle.classList.add("col-lg-10")
+
+
 })
