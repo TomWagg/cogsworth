@@ -222,3 +222,12 @@ bd-header .navbar-header-items__center,
 .icon-link:hover .svg-inline--fa {
     color: var(--pst-color-link-hover)
 }
+
+.bd-content .sd-card {
+    border-radius: 1rem;
+    padding: 0.5rem;
+}
+
+html[data-theme="dark"] .bd-content .sd-card {
+    border: 2px solid #333;
+}
