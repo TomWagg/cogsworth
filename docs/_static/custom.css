@@ -193,8 +193,32 @@ nav.page-toc {
     background: none!important;
 }
 
+/* Fix nonsense with the header flowing onto two lines */
 bd-header .navbar-header-items__center,
 .bd-header .navbar-header-items__end,
 .bd-header .navbar-header-items__start {
     flex-flow: unset!important;
+}
+
+/* Make some styled custom card headers */
+.card-header-tom {
+    font-family: var(--pst-font-family-heading);
+    font-size: var(--pst-font-size-h2);
+    font-weight: var(--pst-font-weight-heading);
+    line-height: 1.15;
+    margin: 2.75rem 0 1.05rem;
+}
+
+.icon-link.sd-card-text {
+    margin-left: 1rem;
+    font-size: var(--pst-font-size-h6);
+}
+
+.icon-link .svg-inline--fa {
+    margin-right: 0.5rem;
+    color: var(--pst-color-link);
+}
+
+.icon-link:hover .svg-inline--fa {
+    color: var(--pst-color-link-hover)
 }
