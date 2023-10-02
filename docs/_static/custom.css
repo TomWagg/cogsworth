@@ -192,3 +192,9 @@ nav.page-toc {
 .tqdm {
     background: none!important;
 }
+
+bd-header .navbar-header-items__center,
+.bd-header .navbar-header-items__end,
+.bd-header .navbar-header-items__start {
+    flex-flow: unset!important;
+}

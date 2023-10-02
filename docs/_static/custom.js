@@ -24,5 +24,14 @@ document.addEventListener("DOMContentLoaded", function() {
         if (x.innerText.includes("%") && x.innerText.includes("it/s")) {
             x.classList.add("tqdm")
         }
-    }) 
+    })
+
+    // stop forcing the start box to be so large
+    let start = document.querySelector(".navbar-header-items__start")
+    start.classList.remove("col-lg-3")
+    start.classList.add("col-lg")
+
+    let middle = document.querySelector(".navbar-header-items")
+    middle.classList.remove("col-lg-9")
+    middle.classList.add("col-lg-10")
 })
