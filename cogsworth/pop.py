@@ -46,7 +46,7 @@ class Population():
     galaxy_model : :class:`~cogsworth.galaxy.Galaxy`, optional
         A Galaxy class to use for sampling the initial galaxy parameters, by default
         :class:`~cogsworth.galaxy.Frankel2018`
-    galactic_potential : :class:`~gala.potential.potential.PotentialBase`, optional
+    galactic_potential : :class:`Potential <gala.potential.potential.PotentialBase>`, optional
         Galactic potential to use for evolving the orbits of binaries, by default
         :class:`~gala.potential.potential.MilkyWayPotential`
     v_dispersion : :class:`~astropy.units.Quantity` [velocity], optional
@@ -161,7 +161,8 @@ class Population():
                                                                2.0/21.0, 2.0/21.0, 2.0/21.0, 2.0/21.0],
                              'bhspinflag': 0, 'bhspinmag': 0.0, 'rejuv_fac': 1.0, 'rejuvflag': 0, 'htpmb': 1,
                              'ST_cr': 1, 'ST_tide': 1, 'bdecayfac': 1, 'rembar_massloss': 0.5, 'kickflag': 0,
-                             'zsun': 0.014, 'bhms_coll_flag': 0, 'don_lim': -1, 'acc_lim': -1, 'binfrac': 0.5}
+                             'zsun': 0.014, 'bhms_coll_flag': 0, 'don_lim': -1, 'acc_lim': -1, 'binfrac': 0.5,
+                             'rtmsflag': 0}
         self.BSE_settings.update(BSE_settings)
 
     def __repr__(self):
