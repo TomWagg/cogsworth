@@ -12,7 +12,7 @@ def determine_final_classes(population=None, bpp=None, bcm=None, kick_info=None,
     """Determine the classes of each member of a population at the last point in the evolution (usually
     present day).
 
-    Either supply a Population class or each individual table separately
+    Either supply a :class:`~cogsworth.pop.Population` class or each individual table separately
 
     Parameters
     ----------
