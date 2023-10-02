@@ -109,9 +109,10 @@ class Population():
                  max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, sampling_params={},
                  store_entire_orbits=True):
 
-        # require a sensible number of binaries
-        if n_binaries <= 0:
-            raise ValueError("You need to input a *nonnegative* number of binaries")
+        # require a sensible number of binaries if you are not targetting total mass
+        if not ("sampling_target" in sampling_params and sampling_params["sampling_target"] == "total_mass"):
+            if n_binaries <= 0:
+                raise ValueError("You need to input a *nonnegative* number of binaries")
 
         self.n_binaries = n_binaries
         self.n_binaries_match = n_binaries
