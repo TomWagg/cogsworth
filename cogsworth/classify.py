@@ -29,7 +29,7 @@ def determine_final_classes(population=None, bpp=None, bcm=None, kick_info=None,
     orbits : `list` of :class:`~gala.dynamics.Orbit`
         The orbits of each binary within the galaxy. Disrupted binaries should have two entries
         (for both stars).
-    galactic_potential : :class:`~gala.potential.potential.PotentialBase`, optional
+    galactic_potential : :class:`Potential <gala.potential.potential.PotentialBase>`, optional
         Galactic potential to use for evolving the orbits of binaries
 
     Returns
