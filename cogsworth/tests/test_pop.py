@@ -151,10 +151,23 @@ class Test(unittest.TestCase):
 
     def test_singles_evolution(self):
         """Check everything works well when evolving singles"""
-        p = pop.Population(2, BSE_settings={"binfrac": 0.0})
+        p = pop.Population(2, BSE_settings={"binfrac": 0.0},
+                           sampling_params={'keep_singles': True, 'total_mass': 100,
+                                            'sampling_target': 'total_mass'})
         p.create_population(with_timing=False)
 
         self.assertTrue((p.final_bpp["sep"] == 0.0).all())
+
+    def test_singles_bad_input(self):
+        """Test what happens when you mess up single stars"""
+        it_failed = True
+        p = pop.Population(1, BSE_settings={"binfrac": 0.0},
+                           sampling_params={'total_mass': 1000, 'sampling_target': 'total_mass'})
+        try:
+            p.sample_initial_binaries()
+        except ValueError:
+            it_failed = True
+        self.assertTrue(it_failed)
 
     def test_from_initC(self):
         """Check it can handle only having an initC rather than initial_binaries"""
@@ -252,3 +265,12 @@ class Test(unittest.TestCase):
         self.assertTrue(np.all(p.bin_nums == bpp_bin_nums))
 
         self.assertTrue(len(p) == len(p.bin_nums))
+
+    def test_sampling(self):
+        """Ensure that changing sampling parameters actually has an effect"""
+        # choose some random q's, ensure samples actually obey changes
+        for qmin in np.random.uniform(0, 1, size=10):
+            p = pop.Population(1000, sampling_params={"qmin": qmin})
+            p.sample_initial_binaries()
+            q = p._initial_binaries["mass_2"] / p._initial_binaries["mass_1"]
+            self.assertTrue(min(q) >= qmin)

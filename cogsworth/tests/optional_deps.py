@@ -1,8 +1,8 @@
 """Checks for optional dependencies using lazy import from
 `PEP 562 <https://www.python.org/dev/peps/pep-0562/>`_.
 
-I brazenly stole this from Gala (see
-`here <https://github.com/adrn/gala/blob/3d761a9fd1447fbcf0f319c6fe87a0d4f6a5ceed/gala/tests/optional_deps.py>`_)
+I brazenly stole this from Gala (see `here
+<https://github.com/adrn/gala/blob/3d761a9fd1447fbcf0f319c6fe87a0d4f6a5ceed/gala/tests/optional_deps.py>`_)
 and made some changes to the error message
 """
 import importlib
@@ -45,10 +45,11 @@ def check_dependencies(names):
                     importlib.import_module(module)
                     if module_name == "isochrones":
                         logging.getLogger("isochrones").setLevel("WARNING")
-                    
+
                 except (ImportError, ModuleNotFoundError):
                     raise ImportError((f"`{module_name}` required for {purpose} with cogsworth\n"
-                                       "Either install this package directly, or install all optional `cogsworth` dependencies with `pip install cogsworth[all]`\n"))
+                                       "Either install this package directly, or install all optional "
+                                       "`cogsworth` dependencies with `pip install cogsworth[all]`\n"))
         else:
             raise AttributeError(f"Module {__name__!r} has no attribute {name!r}.")
     return True

@@ -11,7 +11,6 @@ import pandas as pd
 from tqdm import tqdm
 
 from cosmic.sample.initialbinarytable import InitialBinaryTable
-from cosmic.sample.sampler.independent import Sample
 from cosmic.evolve import Evolve
 import gala.potential as gp
 import gala.dynamics as gd
@@ -57,6 +56,9 @@ class Population():
         Size of timesteps to use in galactic evolution, by default 1*u.Myr
     BSE_settings : `dict`, optional
         Any BSE settings to pass to COSMIC
+    sampling_params : `dict`, optional
+        Any addition parameters to pass to the COSMIC sampling (see
+        :meth:`~cosmic.sample.sampler.independent.get_independent_sampler`)
     store_entire_orbits : `bool`, optional
         Whether to store the entire orbit for each binary, by default True. If not then only the final
         PhaseSpacePosition will be stored. This cuts down on both memory usage and disk space used if you
@@ -104,11 +106,13 @@ class Population():
     def __init__(self, n_binaries, processes=8, m1_cutoff=0, final_kstar1=list(range(16)),
                  final_kstar2=list(range(16)), galaxy_model=galaxy.Frankel2018,
                  galactic_potential=gp.MilkyWayPotential(), v_dispersion=5 * u.km / u.s,
-                 max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, store_entire_orbits=True):
+                 max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, sampling_params={},
+                 store_entire_orbits=True):
 
-        # require a sensible number of binaries
-        if n_binaries <= 0:
-            raise ValueError("You need to input a *nonnegative* number of binaries")
+        # require a sensible number of binaries if you are not targetting total mass
+        if not ("sampling_target" in sampling_params and sampling_params["sampling_target"] == "total_mass"):
+            if n_binaries <= 0:
+                raise ValueError("You need to input a *nonnegative* number of binaries")
 
         self.n_binaries = n_binaries
         self.n_binaries_match = n_binaries
@@ -164,6 +168,10 @@ class Population():
                              'zsun': 0.014, 'bhms_coll_flag': 0, 'don_lim': -1, 'acc_lim': -1, 'binfrac': 0.5,
                              'rtmsflag': 0}
         self.BSE_settings.update(BSE_settings)
+
+        self.sampling_params = {'primary_model': 'kroupa01', 'ecc_model': 'sana12', 'porb_model': 'sana12',
+                                'qmin': -1, 'keep_singles': False}
+        self.sampling_params.update(sampling_params)
 
     def __repr__(self):
         if self._orbits is None:
@@ -465,9 +473,7 @@ class Population():
         self.__citations__.extend([c for c in self._initial_galaxy.__citations__ if c != "cogsworth"])
 
         # if velocities are already set then just immediately return
-        if (hasattr(self._initial_galaxy, "_v_R")
-            and hasattr(self._initial_galaxy, "_v_T")
-            and hasattr(self._initial_galaxy, "_v_z")):
+        if all(hasattr(self._initial_galaxy, attr) for attr in ["_v_R", "_v_T", "_v_z"]):
             return
 
         # work out the initial velocities of each binary
@@ -523,35 +529,17 @@ class Population():
                 for col in cols:
                     self._initial_binaries[col] = -100.0
         else:
-            # overwrite the binary fraction is the user just wants single stars
-            binfrac = self.BSE_settings["binfrac"] if self.BSE_settings["binfrac"] != 0.0 else 1.0
-            self._initial_binaries, self._mass_singles, self._mass_binaries, self._n_singles_req,\
+            if self.BSE_settings["binfrac"] == 0.0 and not self.sampling_params["keep_singles"]:
+                raise ValueError(("You've chosen a binary fraction of 0.0 but set `keep_singles=False` (in "
+                                  "self.sampling_params), so you'll draw 0 samples...I don't think you "
+                                  "wanted to do that?"))
+            self._initial_binaries, self._mass_singles, self._mass_binaries, self._n_singles_req, \
                 self._n_bin_req = InitialBinaryTable.sampler('independent',
-                                                            self.final_kstar1, self.final_kstar2,
-                                                            binfrac_model=binfrac,
-                                                            primary_model='kroupa01', ecc_model='sana12',
-                                                            porb_model='sana12', qmin=-1,
-                                                            SF_start=self.max_ev_time.to(u.Myr).value,
-                                                            SF_duration=0.0, met=0.02, size=self.n_binaries)
-
-            # check if the user just wants single stars instead of binaries
-            if self.BSE_settings["binfrac"] == 0.0:
-                mass_1, mass_tot = Sample().sample_primary(primary_model="kroupa01",
-                                                        size=len(self._initial_binaries))
-                self._initial_binaries["mass_1"] = mass_1
-                self._initial_binaries["mass0_1"] = mass_1
-                self._initial_binaries["kstar_1"] = np.where(mass_1 > 0.7, 1, 0)
-                self._initial_binaries["kstar_2"] = np.zeros(len(self._initial_binaries))
-                self._initial_binaries["mass_2"] = np.zeros(len(self._initial_binaries))
-                self._initial_binaries["mass0_2"] = np.zeros(len(self._initial_binaries))
-                self._initial_binaries["porb"] = np.zeros(len(self._initial_binaries))
-                self._initial_binaries["sep"] = np.zeros(len(self._initial_binaries))
-                self._initial_binaries["ecc"] = np.zeros(len(self._initial_binaries))
-
-                self._mass_singles = mass_tot
-                self._mass_binaries = 0.0
-                self._n_singles_req = self.n_binaries
-                self._n_bin_req = 0
+                                                             self.final_kstar1, self.final_kstar2,
+                                                             binfrac_model=self.BSE_settings["binfrac"],
+                                                             SF_start=self.max_ev_time.to(u.Myr).value,
+                                                             SF_duration=0.0, met=0.02, size=self.n_binaries,
+                                                             **self.sampling_params)
 
         # apply the mass cutoff
         self._initial_binaries = self._initial_binaries[self._initial_binaries["mass_1"] >= self.m1_cutoff]
@@ -605,7 +593,7 @@ class Population():
             warnings.filterwarnings("ignore", message=".*to a different value than assumed in the mlwind.*")
 
             # perform the evolution!
-            self._bpp, self._bcm, self._initC,\
+            self._bpp, self._bcm, self._initC, \
                 self._kick_info = Evolve.evolve(initialbinarytable=self._initial_binaries,
                                                 BSEDict=self.BSE_settings, pool=self.pool)
 

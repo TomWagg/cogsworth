@@ -6,7 +6,8 @@ import astropy.constants as const
 import logging
 from cogsworth.tests.optional_deps import check_dependencies
 
-import sys, os
+import sys
+import os
 
 __all__ = ["get_log_g", "get_absolute_bol_mag", "get_apparent_mag", "get_absolute_mag", "add_mags",
            "get_extinction", "get_photometry"]
