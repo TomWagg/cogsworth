@@ -187,22 +187,41 @@ class Population():
         return self.n_binaries_match
 
     def __getitem__(self, ind):
-        # ensure indexing with the right type
-        if not isinstance(ind, (int, slice, list, np.ndarray, tuple)):
-            raise ValueError(("Can only index using an `int`, `list`, `ndarray` or `slice`, you supplied a "
-                              f"`{type(ind).__name__}`"))
+        # convert any Pandas Series to numpy arrays
+        ind = ind.values if isinstance(ind, pd.Series) else ind
 
-        # create a list of bin nums from ind
+        # ensure indexing with the right type
+        ALLOWED_TYPES = (int, slice, list, np.ndarray, tuple)
+        if not isinstance(ind, ALLOWED_TYPES):
+            raise ValueError((f"Can only index using one of {[at.__name__ for at in ALLOWED_TYPES]}, "
+                              f"you supplied a '{type(ind).__name__}'"))
+
+        # check validity of indices for array-like types
+        if isinstance(ind, (list, tuple, np.ndarray)):
+            # check every element is a boolean (if so, convert to bin_nums after asserting length sensible)
+            if all(isinstance(x, (bool, np.bool_)) for x in ind):
+                assert len(ind) == len(self.bin_nums), "Boolean mask must be same length as the population"
+                ind = self.bin_nums[ind]
+            # otherwise ensure all elements are integers
+            else:
+                assert all(isinstance(x, (int, np.integer)) for x in ind), \
+                    "Can only index using integers or a boolean mask"
+                if len(np.unique(ind)) < len(ind):
+                    warnings.warn(("You have supplied duplicate indices, this will invalidate the "
+                                   "normalisation of the Population (e.g. mass_binaries will be wrong)"))
+
+        # set up the bin_nums we are selecting
         bin_nums = ind
+
+        # turn ints into arrays and convert slices to exact bin_nums
         if isinstance(ind, int):
             bin_nums = [ind]
-        if isinstance(ind, slice):
-            bin_nums = list(range(ind.stop)[ind])
+        elif isinstance(ind, slice):
+            bin_nums = self.bin_nums[ind]
         bin_nums = np.asarray(bin_nums)
 
         # check that the bin_nums are all valid
-        possible_bin_nums = self.final_bpp["bin_num"]
-        check_nums = np.isin(bin_nums, possible_bin_nums)
+        check_nums = np.isin(bin_nums, self.bin_nums)
         if not check_nums.all():
             raise ValueError(("The index that you supplied includes a `bin_num` that does not exist. "
                               f"The first bin_num I couldn't find was {bin_nums[~check_nums][0]}"))
@@ -222,25 +241,28 @@ class Population():
             new_pop._n_singles_req = self._n_singles_req
             new_pop._n_bin_req = self._n_bin_req
 
+        bin_num_to_ind = {num: i for i, num in enumerate(self.bin_nums)}
+        sort_idx = np.argsort(list(bin_num_to_ind.keys()))
+        idx = np.searchsorted(list(bin_num_to_ind.keys()), bin_nums, sorter=sort_idx)
+        seq_inds = np.asarray(list(bin_num_to_ind.values()))[sort_idx][idx]
+
         if self._initial_galaxy is not None:
-            # since we are indexing on bin nums, need to convert that to actual indices
-            ind_range = np.arange(len(possible_bin_nums))
-            new_pop._initial_galaxy = self._initial_galaxy[ind_range[possible_bin_nums.isin(bin_nums)]]
+            new_pop._initial_galaxy = self._initial_galaxy[seq_inds]
 
         # checking whether stellar evolution has been done
         if self._bpp is not None:
             # copy over subsets of the stellar evolution tables when they aren't None
-            new_pop._bpp = self._bpp[self._bpp["bin_num"].isin(bin_nums)]
+            new_pop._bpp = self._bpp.loc[bin_nums]
             if self._bcm is not None:
-                new_pop._bcm = self._bcm[self._bcm["bin_num"].isin(bin_nums)]
+                new_pop._bcm = self._bcm.loc[bin_nums]
             if self._initC is not None:
-                new_pop._initC = self._initC[self._initC["bin_num"].isin(bin_nums)]
+                new_pop._initC = self._initC.loc[bin_nums]
             if self._kick_info is not None:
-                new_pop._kick_info = self._kick_info[self._kick_info["bin_num"].isin(bin_nums)]
+                new_pop._kick_info = self._kick_info.loc[bin_nums]
 
             # same sort of thing for later parameters
             mask = self.final_bpp["bin_num"].isin(bin_nums).values
-            new_pop._final_bpp = self.final_bpp[mask]
+            new_pop._final_bpp = self.final_bpp.loc[bin_nums]
 
             if self._orbits is not None:
                 new_pop._orbits = self.orbits[mask]
@@ -304,10 +326,14 @@ class Population():
     @property
     def bin_nums(self):
         if self._bin_nums is None:
-            if self._bpp is not None:
-                self._bin_nums = self.final_bpp["bin_num"].unique()
+            if self._final_bpp is not None:
+                self._bin_nums = self._final_bpp["bin_num"].unique()
+            elif self._initC is not None:
+                self._bin_nums = self._initC["bin_num"].unique()
+            elif self._initial_binaries is not None:
+                self._bin_nums = np.unique(self._initial_binaries.index.values)
             else:
-                raise ValueError("You need to evolve binaries to get a list of `bin_nums`!")
+                raise ValueError("You need to first sample binaries to get a list of `bin_nums`!")
         return self._bin_nums
 
     @property
