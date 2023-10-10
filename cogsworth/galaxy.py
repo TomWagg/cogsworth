@@ -98,6 +98,14 @@ class Galaxy():
         new_gal._positions = np.atleast_1d(self._positions[ind])
         new_gal._which_comp = np.atleast_1d(self._which_comp[ind])
 
+        # if we have any of the velocity components then we need to slice them too
+        if hasattr(self, "_v_R"):
+            new_gal._v_R = np.atleast_1d(self._v_R[ind])
+        if hasattr(self, "_v_T"):
+            new_gal._v_T = np.atleast_1d(self._v_T[ind])
+        if hasattr(self, "_v_z"):
+            new_gal._v_z = np.atleast_1d(self._v_z[ind])
+
         return new_gal
 
     @property
