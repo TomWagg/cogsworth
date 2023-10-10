@@ -188,8 +188,7 @@ class Population():
 
     def __getitem__(self, ind):
         # convert any Pandas Series to numpy arrays
-        if isinstance(ind, pd.Series):
-            ind = ind.values
+        ind = ind.values if isinstance(ind, pd.Series) else ind
 
         # ensure indexing with the right type
         ALLOWED_TYPES = (int, slice, list, np.ndarray, tuple)
