@@ -261,21 +261,18 @@ class Population():
                 new_pop._kick_info = self._kick_info.loc[bin_nums]
 
             # same sort of thing for later parameters
-            mask = self.final_bpp["bin_num"].isin(bin_nums).values
-            new_pop._final_bpp = self.final_bpp.loc[bin_nums]
-
+            if self._final_bpp is not None:
+                new_pop._final_bpp = self._final_bpp.loc[bin_nums]
             if self._orbits is not None:
-                new_pop._orbits = self.orbits[mask]
+                new_pop._orbits = self.orbits[seq_inds]
             if self._disrupted is not None:
-                new_pop._disrupted = self._disrupted[mask]
+                new_pop._disrupted = self._disrupted[seq_inds]
             if self._classes is not None:
-                new_pop._classes = self._classes[mask]
+                new_pop._classes = self._classes.iloc[seq_inds]
             if self._final_coords is not None:
-                new_pop._final_coords = [self._final_coords[i][mask] for i in range(2)]
-            if self._disrupted is not None:
-                new_pop._disrupted = self._disrupted[mask]
+                new_pop._final_coords = [self._final_coords[i][seq_inds] for i in range(2)]
             if self._observables is not None:
-                new_pop._observables = self._observables[mask]
+                new_pop._observables = self._observables.iloc[seq_inds]
 
         return new_pop
 
