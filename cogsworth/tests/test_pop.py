@@ -2,6 +2,7 @@ import numpy as np
 import unittest
 import cogsworth.pop as pop
 import os
+import pytest
 
 
 class Test(unittest.TestCase):
@@ -183,8 +184,28 @@ class Test(unittest.TestCase):
         p._orbits = [None, None]
         self.assertTrue(p.final_coords[0].x[0].value == np.inf)
 
+    @pytest.mark.filterwarnings("ignore:.*duplicate")
     def test_indexing(self):
-        """Ensure that indexing works correctly (reprs too)"""
+        """Ensure that indexing works as expected for proper types"""
+        p = pop.Population(10)
+        p.create_population()
+        inds = [int(np.random.choice(p.bin_nums, replace=False)),
+                np.random.choice(p.bin_nums, size=4, replace=False),
+                list(np.random.choice(p.bin_nums, size=2, replace=False)),
+                slice(0, 7, 3),
+                [0, 1, 1, 1, 0]]
+
+        for ind in inds:
+            p_ind = p[ind]
+            if isinstance(ind, slice):
+                ind = list(range(ind.stop)[ind])
+            elif isinstance(ind, int):
+                ind = [ind]
+            og_m1 = p.final_bpp.loc[ind]["mass_1"].values
+            self.assertTrue(np.all(og_m1 == p_ind.final_bpp["mass_1"].values))
+
+    def test_indexing_bad_type(self):
+        """Ensure that indexing breaks on bad types (reprs too)"""
         p = pop.Population(10)
         print(p)
         p.create_population()
@@ -198,23 +219,49 @@ class Test(unittest.TestCase):
             it_worked = False
         self.assertFalse(it_worked)
 
-        inds = [np.random.randint(p.n_binaries_match),
-                np.random.randint(p.n_binaries_match, size=4),
-                list(np.random.randint(p.n_binaries_match, size=2)),
-                slice(0, 7, 3)]
-
-        for ind in inds:
-            p_ind = p[ind]
-            if isinstance(ind, slice):
-                ind = list(range(ind.stop)[ind])
-            og_m1 = p.final_bpp[p.final_bpp["bin_num"].isin(np.atleast_1d(ind))]["mass_1"].values
-            self.assertTrue(np.all(og_m1 == p_ind.final_bpp["mass_1"].values))
+    def test_indexing_bad_bin_num(self):
+        """Ensure that indexing breaks on non-existent bin nums"""
+        p = pop.Population(10)
+        p.create_population()
 
         # make sure it fails for bin_nums that don't exist
         it_worked = True
         try:
             p[-42]
         except ValueError:
+            it_worked = False
+        self.assertFalse(it_worked)
+
+    def test_indexing_booleans(self):
+        """Ensure that indexing allows a boolean mask, but breaks on a dodgy version"""
+        p = pop.Population(10)
+        p.create_population()
+
+        # make sure it fails for a list of bools of the wrong length
+        it_worked = True
+        try:
+            p[[True, False, True]]
+        except AssertionError:
+            it_worked = False
+        self.assertFalse(it_worked)
+
+        # make sure it works for a proper mask
+        it_worked = True
+        try:
+            p[[True for _ in range(p.n_binaries_match)]]
+        except AssertionError:
+            it_worked = False
+        self.assertTrue(it_worked)
+
+    def test_indexing_mixed_types(self):
+        """Don't allow indexing with mixed types"""
+        p = pop.Population(10)
+        p.create_population()
+
+        it_worked = True
+        try:
+            p[[0, "absolute nonsense mate"]]
+        except AssertionError:
             it_worked = False
         self.assertFalse(it_worked)
 
