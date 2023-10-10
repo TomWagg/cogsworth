@@ -326,10 +326,12 @@ class Population():
     @property
     def bin_nums(self):
         if self._bin_nums is None:
-            if self._initial_binaries is not None:
-                self._bin_nums = np.unique(self._initial_binaries.index.values)
+            if self._final_bpp is not None:
+                self._final_bpp = self._final_bpp["bin_num"].unique()
             elif self._initC is not None:
                 self._bin_nums = self._initC["bin_num"].unique()
+            elif self._initial_binaries is not None:
+                self._bin_nums = np.unique(self._initial_binaries.index.values)
             else:
                 raise ValueError("You need to first sample binaries to get a list of `bin_nums`!")
         return self._bin_nums
