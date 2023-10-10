@@ -199,7 +199,7 @@ class Population():
         # check validity of indices for array-like types
         if isinstance(ind, (list, tuple, np.ndarray)):
             # check every element is a boolean (if so, convert to bin_nums after asserting length sensible)
-            if all(isinstance(x, bool) for x in ind):
+            if all(isinstance(x, (bool, np.bool_)) for x in ind):
                 assert len(ind) == len(self.bin_nums), "Boolean mask must be same length as the population"
                 ind = self.bin_nums[ind]
             # otherwise ensure all elements are integers
