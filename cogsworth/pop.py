@@ -327,7 +327,7 @@ class Population():
     def bin_nums(self):
         if self._bin_nums is None:
             if self._final_bpp is not None:
-                self._final_bpp = self._final_bpp["bin_num"].unique()
+                self._bin_nums = self._final_bpp["bin_num"].unique()
             elif self._initC is not None:
                 self._bin_nums = self._initC["bin_num"].unique()
             elif self._initial_binaries is not None:
