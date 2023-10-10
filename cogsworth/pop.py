@@ -218,7 +218,7 @@ class Population():
         if isinstance(ind, int):
             bin_nums = [ind]
         elif isinstance(ind, slice):
-            bin_nums = self.bin_nums[list(range(ind.stop)[ind])]
+            bin_nums = self.bin_nums[ind]
         bin_nums = np.asarray(bin_nums)
 
         # check that the bin_nums are all valid
