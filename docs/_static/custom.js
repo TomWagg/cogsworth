@@ -36,5 +36,13 @@ document.addEventListener("DOMContentLoaded", function() {
     middle.classList.remove("col-lg-9")
     middle.classList.add("col-lg-10")
 
-
+    // properly hide any 'only-light/dark' figures
+    document.querySelectorAll("figure").forEach(el => {
+        if (el.querySelector(".only-light")) {
+            el.classList.add("only-light");
+        }
+        if (el.querySelector(".only-dark")) {
+            el.classList.add("only-dark");
+        }
+    })
 })
