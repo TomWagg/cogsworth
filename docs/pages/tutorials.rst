@@ -2,6 +2,8 @@
 Tutorials
 *********
 
+If you're looking to learn more about ``cogsworth`` then you've come to the right place, check out our array of tutorials below!
+
 .. grid:: 1 1 2 2
     :gutter: 3
 
