@@ -231,3 +231,13 @@ bd-header .navbar-header-items__center,
 html[data-theme="dark"] .bd-content .sd-card {
     border: 2px solid #333;
 }
+
+/* Centre tutorial page text */
+#tutorials {
+    text-align: center;
+}
+
+/* Further emphasise onthispage header */
+.onthispage {
+    font-size: var(--pst-font-size-h5);
+}
