@@ -236,6 +236,13 @@ html[data-theme="dark"] .bd-content .sd-card {
 #tutorials {
     text-align: center;
 }
+#tutorials h1 a.headerlink {
+    display: none;
+}
+/* Get rid of giant blank space */
+.bd-article {
+    padding-top: 0!important;
+}
 
 /* Further emphasise onthispage header */
 .onthispage {
