@@ -2,31 +2,42 @@
 Tutorials
 *********
 
-.. toctree::
-   :titlesonly:
-   :caption: The Population Class
+.. grid:: 1 1 2 2
+    :gutter: 3
 
-   ../tutorials/pops.ipynb
-   ../tutorials/pop_io.ipynb
-   ../tutorials/pop_synth.ipynb
+    .. grid-item-card::
 
-.. toctree::
-   :titlesonly:
-   :caption: General
+        .. toctree::
+            :titlesonly:
+            :caption: The Population Class
 
-   ../tutorials/subpops.ipynb
-   ../tutorials/potentials.ipynb
-   ../tutorials/observables.ipynb
+            ../tutorials/pops.ipynb
+            ../tutorials/pop_io.ipynb
+            ../tutorials/pop_synth.ipynb
 
-.. toctree::
-   :titlesonly:
-   :caption: Interfacing with related codes
+    .. grid-item-card::
 
-   ../tutorials/cosmic.ipynb
-   ../tutorials/gala.ipynb
+        .. toctree::
+            :titlesonly:
+            :caption: General
 
-.. toctree::
-   :titlesonly:
-   :caption: Extending cogsworth
+            ../tutorials/subpops.ipynb
+            ../tutorials/potentials.ipynb
+            ../tutorials/observables.ipynb
 
-   ../tutorials/initial_galaxy.ipynb
+    .. grid-item-card::
+
+        .. toctree::
+            :titlesonly:
+            :caption: Interfacing with related codes
+
+            ../tutorials/cosmic.ipynb
+            ../tutorials/gala.ipynb
+
+    .. grid-item-card::
+
+        .. toctree::
+            :titlesonly:
+            :caption: Extending cogsworth
+
+            ../tutorials/initial_galaxy.ipynb
