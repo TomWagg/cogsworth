@@ -51,8 +51,12 @@ class Galaxy():
         Lookback time
     Z : :class:`~astropy.units.Quantity` [dimensionless]
         Metallicity
-    positions : :class:`~astropy.coordinates.SkyCoord`
-        Initial positions in Galactocentric frame
+    x : :class:`~astropy.units.Quantity` [length]
+        Galactocentric x position
+    y : :class:`~astropy.units.Quantity` [length]
+        Galactocentric y position
+    z : :class:`~astropy.units.Quantity` [length]
+        Galactocentric z position
 
     """
     def __init__(self, size, components=None, component_masses=None,
@@ -141,10 +145,26 @@ class Galaxy():
         return self._Z
 
     @property
-    def positions(self):
-        if self._positions is None:
+    def x(self):
+        if self._x is None:
             self.sample()
-        return self._positions
+        return self._x
+
+    @property
+    def y(self):
+        if self._y is None:
+            self.sample()
+        return self._y
+
+    @property
+    def z(self):
+        if self._z is None:
+            self.sample()
+        return self._z
+
+    @property
+    def positions(self):
+        return [self.x.to(u.kpc).value, self.y.to(u.kpc).value, self.z.to(u.kpc).value] * u.kpc
 
     @property
     def which_comp(self):
@@ -235,13 +255,14 @@ class Galaxy():
         # draw a random azimuthal angle
         phi = self.draw_phi()
 
-        self._positions = SkyCoord(x=rho * np.sin(phi), y=rho * np.cos(phi), z=z,
-                                   frame="galactocentric", representation_type="cartesian")
+        self._x = rho * np.sin(phi)
+        self._y = rho * np.cos(phi)
+        self._z = z
 
         # compute the metallicity given the other values
         self._Z = self.get_metallicity()
 
-        return self._tau, self._positions, self.Z
+        return self._tau, self.positions, self.Z
 
     def draw_lookback_times(self, size=None, component=None):
         raise NotImplementedError("This Galaxy model has not implemented this method")
@@ -714,11 +735,12 @@ class QuasiIsothermalDisk(Galaxy):      # pragma: no cover
         xv[:, 3:] *= (u.kpc / u.Myr).to(u.km / u.s)
 
         # save the positions
-        self._positions = SkyCoord(xv[:, :3], frame="galactocentric", unit="kpc",
-                                   representation_type="cartesian")
+        self._x = xv[:, 0] * u.kpc
+        self._y = xv[:, 1] * u.kpc
+        self._z = xv[:, 2] * u.kpc
 
         # work out the velocities by rotating using SkyCoord
-        full_coord = SkyCoord(x=xv[:, 0] * u.kpc, y=xv[:, 1] * u.kpc, z=xv[:, 2] * u.kpc,
+        full_coord = SkyCoord(x=self._x, y=self._y, z=self._z,
                               v_x=xv[:, 3] * u.km / u.s, v_y=xv[:, 4] * u.km / u.s, v_z=xv[:, 5] * u.km / u.s,
                               frame="galactocentric").represent_as("cylindrical")
 
@@ -730,7 +752,7 @@ class QuasiIsothermalDisk(Galaxy):      # pragma: no cover
         # compute the metallicity given the other values
         self._Z = self.get_metallicity()
 
-        return self._tau, self._positions, self.Z
+        return self._tau, self.positions, self.Z
 
 
 class SpheroidalDwarf(Galaxy):      # pragma: no cover
@@ -890,11 +912,12 @@ class SpheroidalDwarf(Galaxy):      # pragma: no cover
         xv[:, 3:] *= (u.kpc / u.Myr).to(u.km / u.s)
 
         # save the positions
-        self._positions = SkyCoord(xv[:, :3], frame="galactocentric", unit="kpc",
-                                   representation_type="cartesian")
+        self._x = xv[:, 0] * u.kpc
+        self._y = xv[:, 1] * u.kpc
+        self._z = xv[:, 2] * u.kpc
 
         # work out the velocities by rotating using SkyCoord
-        full_coord = SkyCoord(x=xv[:, 0] * u.kpc, y=xv[:, 1] * u.kpc, z=xv[:, 2] * u.kpc,
+        full_coord = SkyCoord(x=self._x, y=self._y, z=self._z,
                               v_x=xv[:, 3] * u.km / u.s, v_y=xv[:, 4] * u.km / u.s, v_z=xv[:, 5] * u.km / u.s,
                               frame="galactocentric").represent_as("cylindrical")
 
@@ -906,7 +929,7 @@ class SpheroidalDwarf(Galaxy):      # pragma: no cover
         # compute the metallicity given the other values
         self._Z = self.get_metallicity()
 
-        return self._tau, self._positions, self.Z
+        return self._tau, self.positions, self.Z
 
 
 def load(file_name, key="galaxy"):
