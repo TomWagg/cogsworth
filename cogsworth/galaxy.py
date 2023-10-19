@@ -291,9 +291,9 @@ class Galaxy():
             y1 = self.positions.represent_as("cylindrical").z
             y2 = self.positions.represent_as("cylindrical").phi
         elif coordinates == "cartesian":
-            x = self.positions.x
-            y1 = self.positions.z
-            y2 = self.positions.y
+            x = self.x
+            y1 = self.z
+            y2 = self.y
             axes[1].set_aspect("equal")
         else:
             raise ValueError("Invalid coordinates specified")
@@ -355,9 +355,9 @@ class Galaxy():
         data = {
             "tau": self.tau.to(u.Gyr),
             "Z": self.Z,
-            "x": self.positions.x.to(u.kpc),
-            "y": self.positions.y.to(u.kpc),
-            "z": self.positions.z.to(u.kpc),
+            "x": self.x.to(u.kpc),
+            "y": self.y.to(u.kpc),
+            "z": self.z.to(u.kpc),
             "which_comp": self.which_comp
         }
         df = pd.DataFrame(data=data)
@@ -552,7 +552,7 @@ class Frankel2018(Galaxy):
         Z : :class:`~astropy.units.Quantity` [dimensionless]
             Metallicities corresponding to radii and times
         """
-        rho = (self.positions.x**2 + self.positions.y**2)**(0.5)
+        rho = (self.x**2 + self.y**2)**(0.5)
         FeH = self.Fm + self.gradient * rho - (self.Fm + self.gradient * self.Rnow)\
             * (1 - (self._tau / self.galaxy_age))**self.gamma
         return np.power(10, FeH + np.log10(self.zsun))
@@ -660,7 +660,7 @@ class QuasiIsothermalDisk(Galaxy):      # pragma: no cover
         Z : :class:`~astropy.units.Quantity` [dimensionless]
             Metallicities corresponding to radii and times
         """
-        rho = (self.positions.x**2 + self.positions.y**2)**(0.5)
+        rho = (self.x**2 + self.y**2)**(0.5)
         FeH = self.Fm + self.gradient * rho - (self.Fm + self.gradient * self.Rnow)\
             * (1 - (self._tau / self.galaxy_age))**self.gamma
         return np.power(10, FeH + np.log10(self.zsun))
@@ -868,7 +868,7 @@ class SpheroidalDwarf(Galaxy):      # pragma: no cover
         Z : :class:`~astropy.units.Quantity` [dimensionless]
             Metallicities corresponding to radii and times
         """
-        rho = (self.positions.x**2 + self.positions.y**2)**(0.5)
+        rho = (self.x**2 + self.y**2)**(0.5)
         FeH = self.Fm + self.gradient * rho - (self.Fm + self.gradient * self.Rnow)\
             * (1 - (self._tau / self.galaxy_age))**self.gamma
         return np.power(10, FeH + np.log10(self.zsun))
