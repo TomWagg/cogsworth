@@ -101,7 +101,9 @@ class Galaxy():
 
         new_gal._tau = tau
         new_gal._Z = np.atleast_1d(self._Z[ind])
-        new_gal._positions = np.atleast_1d(self._positions[ind])
+        new_gal._x = np.atleast_1d(self._x[ind])
+        new_gal._y = np.atleast_1d(self._y[ind])
+        new_gal._z = np.atleast_1d(self._z[ind])
         new_gal._which_comp = np.atleast_1d(self._which_comp[ind])
 
         # if we have any of the velocity components then we need to slice them too

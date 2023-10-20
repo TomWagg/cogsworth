@@ -654,7 +654,9 @@ class Population():
             not_nan = ~self.final_bpp["bin_num"].isin(nan_bin_nums)
             self._initial_galaxy._tau = self._initial_galaxy._tau[not_nan]
             self._initial_galaxy._Z = self._initial_galaxy._Z[not_nan]
-            self._initial_galaxy._positions = self._initial_galaxy._positions[not_nan]
+            self._initial_galaxy._x = self._initial_galaxy._x[not_nan]
+            self._initial_galaxy._y = self._initial_galaxy._y[not_nan]
+            self._initial_galaxy._z = self._initial_galaxy._z[not_nan]
             self._initial_galaxy._v_R = self._initial_galaxy._v_R[not_nan]
             self._initial_galaxy._v_T = self._initial_galaxy._v_T[not_nan]
             self._initial_galaxy._v_z = self._initial_galaxy._v_z[not_nan]
