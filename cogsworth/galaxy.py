@@ -51,8 +51,12 @@ class Galaxy():
         Lookback time
     Z : :class:`~astropy.units.Quantity` [dimensionless]
         Metallicity
-    positions : :class:`~astropy.coordinates.SkyCoord`
-        Initial positions in Galactocentric frame
+    x : :class:`~astropy.units.Quantity` [length]
+        Galactocentric x position
+    y : :class:`~astropy.units.Quantity` [length]
+        Galactocentric y position
+    z : :class:`~astropy.units.Quantity` [length]
+        Galactocentric z position
 
     """
     def __init__(self, size, components=None, component_masses=None,
@@ -62,7 +66,9 @@ class Galaxy():
         self._size = size
         self._tau = None
         self._Z = None
-        self._positions = None
+        self._x = None
+        self._y = None
+        self._z = None
         self._which_comp = None
 
         self.__citations__ = ["cogsworth"]
@@ -95,7 +101,9 @@ class Galaxy():
 
         new_gal._tau = tau
         new_gal._Z = np.atleast_1d(self._Z[ind])
-        new_gal._positions = np.atleast_1d(self._positions[ind])
+        new_gal._x = np.atleast_1d(self._x[ind])
+        new_gal._y = np.atleast_1d(self._y[ind])
+        new_gal._z = np.atleast_1d(self._z[ind])
         new_gal._which_comp = np.atleast_1d(self._which_comp[ind])
 
         # if we have any of the velocity components then we need to slice them too
@@ -141,10 +149,34 @@ class Galaxy():
         return self._Z
 
     @property
-    def positions(self):
-        if self._positions is None:
+    def x(self):
+        if self._x is None:
             self.sample()
-        return self._positions
+        return self._x
+
+    @property
+    def y(self):
+        if self._y is None:
+            self.sample()
+        return self._y
+
+    @property
+    def z(self):
+        if self._z is None:
+            self.sample()
+        return self._z
+
+    @property
+    def rho(self):
+        return (self.x**2 + self.y**2)**(0.5)
+
+    @property
+    def phi(self):
+        return np.arctan(self.y / self.x)
+
+    @property
+    def positions(self):
+        return [self.x.to(u.kpc).value, self.y.to(u.kpc).value, self.z.to(u.kpc).value] * u.kpc
 
     @property
     def which_comp(self):
@@ -235,13 +267,14 @@ class Galaxy():
         # draw a random azimuthal angle
         phi = self.draw_phi()
 
-        self._positions = SkyCoord(x=rho * np.sin(phi), y=rho * np.cos(phi), z=z,
-                                   frame="galactocentric", representation_type="cartesian")
+        self._x = rho * np.sin(phi)
+        self._y = rho * np.cos(phi)
+        self._z = z
 
         # compute the metallicity given the other values
         self._Z = self.get_metallicity()
 
-        return self._tau, self._positions, self.Z
+        return self._tau, self.positions, self.Z
 
     def draw_lookback_times(self, size=None, component=None):
         raise NotImplementedError("This Galaxy model has not implemented this method")
@@ -266,13 +299,13 @@ class Galaxy():
             colour_by = self.Z.value
 
         if coordinates == "cylindrical":
-            x = self.positions.represent_as("cylindrical").rho
-            y1 = self.positions.represent_as("cylindrical").z
-            y2 = self.positions.represent_as("cylindrical").phi
+            x = self.rho
+            y1 = self.z
+            y2 = self.phi
         elif coordinates == "cartesian":
-            x = self.positions.x
-            y1 = self.positions.z
-            y2 = self.positions.y
+            x = self.x
+            y1 = self.z
+            y2 = self.y
             axes[1].set_aspect("equal")
         else:
             raise ValueError("Invalid coordinates specified")
@@ -334,9 +367,9 @@ class Galaxy():
         data = {
             "tau": self.tau.to(u.Gyr),
             "Z": self.Z,
-            "x": self.positions.x.to(u.kpc),
-            "y": self.positions.y.to(u.kpc),
-            "z": self.positions.z.to(u.kpc),
+            "x": self.x.to(u.kpc),
+            "y": self.y.to(u.kpc),
+            "z": self.z.to(u.kpc),
             "which_comp": self.which_comp
         }
         df = pd.DataFrame(data=data)
@@ -531,7 +564,7 @@ class Frankel2018(Galaxy):
         Z : :class:`~astropy.units.Quantity` [dimensionless]
             Metallicities corresponding to radii and times
         """
-        rho = (self.positions.x**2 + self.positions.y**2)**(0.5)
+        rho = (self.x**2 + self.y**2)**(0.5)
         FeH = self.Fm + self.gradient * rho - (self.Fm + self.gradient * self.Rnow)\
             * (1 - (self._tau / self.galaxy_age))**self.gamma
         return np.power(10, FeH + np.log10(self.zsun))
@@ -639,7 +672,7 @@ class QuasiIsothermalDisk(Galaxy):      # pragma: no cover
         Z : :class:`~astropy.units.Quantity` [dimensionless]
             Metallicities corresponding to radii and times
         """
-        rho = (self.positions.x**2 + self.positions.y**2)**(0.5)
+        rho = (self.x**2 + self.y**2)**(0.5)
         FeH = self.Fm + self.gradient * rho - (self.Fm + self.gradient * self.Rnow)\
             * (1 - (self._tau / self.galaxy_age))**self.gamma
         return np.power(10, FeH + np.log10(self.zsun))
@@ -714,11 +747,12 @@ class QuasiIsothermalDisk(Galaxy):      # pragma: no cover
         xv[:, 3:] *= (u.kpc / u.Myr).to(u.km / u.s)
 
         # save the positions
-        self._positions = SkyCoord(xv[:, :3], frame="galactocentric", unit="kpc",
-                                   representation_type="cartesian")
+        self._x = xv[:, 0] * u.kpc
+        self._y = xv[:, 1] * u.kpc
+        self._z = xv[:, 2] * u.kpc
 
         # work out the velocities by rotating using SkyCoord
-        full_coord = SkyCoord(x=xv[:, 0] * u.kpc, y=xv[:, 1] * u.kpc, z=xv[:, 2] * u.kpc,
+        full_coord = SkyCoord(x=self._x, y=self._y, z=self._z,
                               v_x=xv[:, 3] * u.km / u.s, v_y=xv[:, 4] * u.km / u.s, v_z=xv[:, 5] * u.km / u.s,
                               frame="galactocentric").represent_as("cylindrical")
 
@@ -730,7 +764,7 @@ class QuasiIsothermalDisk(Galaxy):      # pragma: no cover
         # compute the metallicity given the other values
         self._Z = self.get_metallicity()
 
-        return self._tau, self._positions, self.Z
+        return self._tau, self.positions, self.Z
 
 
 class SpheroidalDwarf(Galaxy):      # pragma: no cover
@@ -846,7 +880,7 @@ class SpheroidalDwarf(Galaxy):      # pragma: no cover
         Z : :class:`~astropy.units.Quantity` [dimensionless]
             Metallicities corresponding to radii and times
         """
-        rho = (self.positions.x**2 + self.positions.y**2)**(0.5)
+        rho = (self.x**2 + self.y**2)**(0.5)
         FeH = self.Fm + self.gradient * rho - (self.Fm + self.gradient * self.Rnow)\
             * (1 - (self._tau / self.galaxy_age))**self.gamma
         return np.power(10, FeH + np.log10(self.zsun))
@@ -890,11 +924,12 @@ class SpheroidalDwarf(Galaxy):      # pragma: no cover
         xv[:, 3:] *= (u.kpc / u.Myr).to(u.km / u.s)
 
         # save the positions
-        self._positions = SkyCoord(xv[:, :3], frame="galactocentric", unit="kpc",
-                                   representation_type="cartesian")
+        self._x = xv[:, 0] * u.kpc
+        self._y = xv[:, 1] * u.kpc
+        self._z = xv[:, 2] * u.kpc
 
         # work out the velocities by rotating using SkyCoord
-        full_coord = SkyCoord(x=xv[:, 0] * u.kpc, y=xv[:, 1] * u.kpc, z=xv[:, 2] * u.kpc,
+        full_coord = SkyCoord(x=self._x, y=self._y, z=self._z,
                               v_x=xv[:, 3] * u.km / u.s, v_y=xv[:, 4] * u.km / u.s, v_z=xv[:, 5] * u.km / u.s,
                               frame="galactocentric").represent_as("cylindrical")
 
@@ -906,7 +941,7 @@ class SpheroidalDwarf(Galaxy):      # pragma: no cover
         # compute the metallicity given the other values
         self._Z = self.get_metallicity()
 
-        return self._tau, self._positions, self.Z
+        return self._tau, self.positions, self.Z
 
 
 def load(file_name, key="galaxy"):
@@ -947,15 +982,15 @@ def load(file_name, key="galaxy"):
     galaxy._tau = df["tau"].values * u.Gyr
     galaxy._Z = df["Z"].values * u.dimensionless_unscaled
     galaxy._which_comp = df["which_comp"].values
-
-    galaxy._positions = SkyCoord(x=df["x"].values * u.kpc, y=df["y"].values * u.kpc, z=df["z"].values * u.kpc,
-                                 frame="galactocentric", representation_type="cartesian")
+    galaxy._x = df["x"].values * u.kpc
+    galaxy._y = df["y"].values * u.kpc
+    galaxy._z = df["z"].values * u.kpc
 
     # return the newly created class
     return galaxy
 
 
-def simplify_params(params, dont_save=["_tau", "_Z", "_positions", "_which_comp", "_v_R", "_v_T", "_v_z",
+def simplify_params(params, dont_save=["_tau", "_Z", "_x", "_y", "_z", "_which_comp", "_v_R", "_v_T", "_v_z",
                                        "_df", "_agama_pot", "__citations__"]):
     # delete any keys that we don't want to save
     delete_keys = [key for key in params.keys() if key in dont_save]
