@@ -80,7 +80,8 @@ class Test(unittest.TestCase):
         g_loaded = galaxy.load("testing-galaxy-io")
 
         self.assertTrue(np.all(g.tau == g_loaded.tau))
-        self.assertTrue(np.all(g.positions.icrs.distance == g_loaded.positions.icrs.distance))
+        self.assertTrue(np.all(g.rho == g_loaded.rho))
+        self.assertTrue(np.all(g.z == g_loaded.z))
 
         os.remove("testing-galaxy-io.h5")
         os.remove("testing-galaxy-io-galaxy-params.txt")
@@ -139,7 +140,8 @@ class Test(unittest.TestCase):
         g_loaded = galaxy.load("testing-galaxy-custom")
 
         self.assertTrue(np.all(g.tau == g_loaded.tau))
-        self.assertTrue(np.all(g.positions.icrs.distance == g_loaded.positions.icrs.distance))
+        self.assertTrue(np.all(g.rho == g_loaded.rho))
+        self.assertTrue(np.all(g.z == g_loaded.z))
 
         os.remove("testing-galaxy-custom.h5")
         os.remove("testing-galaxy-custom-galaxy-params.txt")
