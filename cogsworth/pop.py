@@ -503,9 +503,9 @@ class Population():
         vel_units = u.km / u.s
 
         # calculate the Galactic circular velocity at the initial positions
-        v_circ = self.galactic_potential.circular_velocity(q=[self._initial_galaxy.positions.x,
-                                                              self._initial_galaxy.positions.y,
-                                                              self._initial_galaxy.positions.z]).to(vel_units)
+        v_circ = self.galactic_potential.circular_velocity(q=[self._initial_galaxy.x,
+                                                              self._initial_galaxy.y,
+                                                              self._initial_galaxy.z]).to(vel_units)
 
         # add some velocity dispersion
         v_R, v_T, v_z = np.random.normal([np.zeros_like(v_circ), v_circ, np.zeros_like(v_circ)],
@@ -679,18 +679,18 @@ class Population():
         self._final_coords = None
         self._observables = None
 
-        # turn the drawn coordinates into an astropy representation
-        rep = self.initial_galaxy.positions.represent_as("cylindrical")
-
-        # create differentials based on the velocities (dimensionless angles allows radians conversion)
-        with u.set_enabled_equivalencies(u.dimensionless_angles()):
-            dif = coords.CylindricalDifferential(self.initial_galaxy._v_R,
-                                                 (self.initial_galaxy._v_T
-                                                  / rep.rho).to(u.rad / u.Gyr),
-                                                 self.initial_galaxy._v_z)
+        v_phi = (self.initial_galaxy._v_T / self.initial_galaxy.rho)
+        v_X = (self.initial_galaxy._v_R * np.cos(self.initial_galaxy.phi)
+               - self.initial_galaxy.rho * np.sin(self.initial_galaxy.phi) * v_phi)
+        v_Y = (self.initial_galaxy._v_R * np.sin(self.initial_galaxy.phi)
+               + self.initial_galaxy.rho * np.cos(self.initial_galaxy.phi) * v_phi)
 
         # combine the representation and differentials into a Gala PhaseSpacePosition
-        w0s = gd.PhaseSpacePosition(rep.with_differentials(dif))
+        w0s = gd.PhaseSpacePosition(pos=[a.to(u.kpc).value for a in [self.initial_galaxy.x,
+                                                                     self.initial_galaxy.y,
+                                                                     self.initial_galaxy.z]] * u.kpc,
+                                    vel=[a.to(u.km/u.s).value for a in [v_X, v_Y,
+                                                                        self.initial_galaxy._v_z]] * u.km/u.s)
 
         # identify the pertinent events in the evolution
         events = identify_events(full_bpp=self.bpp, full_kick_info=self.kick_info)
