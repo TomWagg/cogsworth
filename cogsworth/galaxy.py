@@ -299,9 +299,9 @@ class Galaxy():
             colour_by = self.Z.value
 
         if coordinates == "cylindrical":
-            x = self.positions.represent_as("cylindrical").rho
-            y1 = self.positions.represent_as("cylindrical").z
-            y2 = self.positions.represent_as("cylindrical").phi
+            x = self.rho
+            y1 = self.z
+            y2 = self.phi
         elif coordinates == "cartesian":
             x = self.x
             y1 = self.z
