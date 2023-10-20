@@ -66,7 +66,9 @@ class Galaxy():
         self._size = size
         self._tau = None
         self._Z = None
-        self._positions = None
+        self._x = None
+        self._y = None
+        self._z = None
         self._which_comp = None
 
         self.__citations__ = ["cogsworth"]
@@ -161,6 +163,14 @@ class Galaxy():
         if self._z is None:
             self.sample()
         return self._z
+
+    @property
+    def rho(self):
+        return (self.x**2 + self.y**2)**(0.5)
+
+    @property
+    def phi(self):
+        return np.arctan(self.y / self.x)
 
     @property
     def positions(self):
@@ -970,15 +980,15 @@ def load(file_name, key="galaxy"):
     galaxy._tau = df["tau"].values * u.Gyr
     galaxy._Z = df["Z"].values * u.dimensionless_unscaled
     galaxy._which_comp = df["which_comp"].values
-
-    galaxy._positions = SkyCoord(x=df["x"].values * u.kpc, y=df["y"].values * u.kpc, z=df["z"].values * u.kpc,
-                                 frame="galactocentric", representation_type="cartesian")
+    galaxy._x = df["x"].values * u.kpc
+    galaxy._y = df["y"].values * u.kpc
+    galaxy._z = df["z"].values * u.kpc
 
     # return the newly created class
     return galaxy
 
 
-def simplify_params(params, dont_save=["_tau", "_Z", "_positions", "_which_comp", "_v_R", "_v_T", "_v_z",
+def simplify_params(params, dont_save=["_tau", "_Z", "_x", "_y", "_z", "_which_comp", "_v_R", "_v_T", "_v_z",
                                        "_df", "_agama_pot", "__citations__"]):
     # delete any keys that we don't want to save
     delete_keys = [key for key in params.keys() if key in dont_save]
