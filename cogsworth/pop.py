@@ -21,6 +21,7 @@ from cogsworth.events import identify_events
 from cogsworth.classify import determine_final_classes
 from cogsworth.observables import get_photometry
 from cogsworth.tests.optional_deps import check_dependencies
+from cogsworth.utils import translate_COSMIC_tables, plot_cartoon_evolution
 
 from cogsworth.citations import CITATIONS
 
@@ -949,6 +950,19 @@ class Population():
         # show it if the user wants
         if show:
             plt.show()
+
+    def translate_tables(self, **kwargs):
+        """Translate the COSMIC BSE tables to human readable format
+
+        Parameters
+        ----------
+
+        **kwargs : `various`
+            Any arguments to pass to :func:`~cogsworth.utils.translate_COSMIC_tables`
+        """
+        self._bcm = translate_COSMIC_tables(self._bcm, **kwargs)
+        self._bpp = translate_COSMIC_tables(self._bpp, **kwargs)
+        self._final_bpp = translate_COSMIC_tables(self._final_bpp, **kwargs)
 
     def save(self, file_name, overwrite=False):
         """Save a Population to disk
