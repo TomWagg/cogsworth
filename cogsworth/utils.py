@@ -2,58 +2,47 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
 
-plt.rc('font', family='serif')
-plt.rcParams['text.usetex'] = False
-fs = 24
 
-# update various fontsizes to match
-params = {'figure.figsize': (12, 8),
-          'legend.fontsize': fs,
-          'axes.labelsize': fs,
-          'xtick.labelsize': 0.9 * fs,
-          'ytick.labelsize': 0.9 * fs,
-          'axes.linewidth': 1.1,
-          'xtick.major.size': 7,
-          'xtick.minor.size': 4,
-          'ytick.major.size': 7,
-          'ytick.minor.size': 4}
-plt.rcParams.update(params)
+__all__ = ["kstar_translator", "evol_type_translator", "plot_cartoon_evolution"]
+
+fs = 24
 
 kstar_translator = [
     None,
-    {"long": "Main Sequence", "short": "MS", "colour": None},
-    {"long": "Hertzsprung Gap", "short": "HG", "colour": None},
-    {"long": "First Giant Branch", "short": "FGB", "colour": None},
-    {"long": "Core Helium Burning", "short": "CHeB", "colour": None},
-    {"long": "Early Asymptotic Giant Branch", "short": "EAGB", "colour": None},
-    {"long": "Thermally Pulsing Asymptotic Giant Branch", "short": "TPAGB", "colour": None},
-    {"long": "Helium Main Sequence", "short": "HeMS", "colour": None},
-    {"long": "Helium Hertsprung Gap", "short": "HeHG", "colour": None},
-    {"long": "Helium Giant Branch", "short": "HeGB", "colour": None},
-    {"long": "Helium White Dwarf", "short": "HeWD", "colour": None},
-    {"long": "Carbon/Oxygen White Dwarf", "short": "COWD", "colour": None},
-    {"long": "Oxygen/Neon White Dwarf", "short": "ONeWD", "colour": None},
-    {"long": "Neutron Star", "short": "NS", "colour": mpl.colors.to_rgba("grey")},
-    {"long": "Black Hole", "short": "BH", "colour": mpl.colors.to_rgba("black")},
-    {"long": "Massless Remnant", "short": "MR", "colour": mpl.colors.to_rgba("yellow")},
-    {"long": "Chemically Homogeneous", "short": "CHE", "colour": mpl.colors.to_rgba("brown")}
+    {'long': 'Main Sequence', 'short': 'MS', 'colour': (0.996078, 0.843476, 0.469158, 1.0)},
+    {'long': 'Hertzsprung Gap', 'short': 'HG', 'colour': (0.939608, 0.471373, 0.094902, 1.0)},
+    {'long': 'First Giant Branch', 'short': 'FGB', 'colour': (0.716186, 0.833203, 0.916155, 1.0)},
+    {'long': 'Core Helium Burning', 'short': 'CHeB', 'colour': (0.29098, 0.59451, 0.78902, 1.0)},
+    {'long': 'Early Asymptotic Giant Branch', 'short': 'EAGB', 'colour': (0.294902, 0.690196, 0.384314, 1.0)},
+    {'long': 'Thermally Pulsing Asymptotic Giant Branch', 'short': 'TPAGB',
+     'colour': (0.723122, 0.889612, 0.697178, 1.0)},
+    {'long': 'Helium Main Sequence', 'short': 'HeMS', 'colour': (0.254627, 0.013882, 0.615419, 1.0)},
+    {'long': 'Helium Hertsprung Gap', 'short': 'HeHG', 'colour': (0.562738, 0.051545, 0.641509, 1.0)},
+    {'long': 'Helium Giant Branch', 'short': 'HeGB', 'colour': (0.798216, 0.280197, 0.469538, 1.0)},
+    {'long': 'Helium White Dwarf', 'short': 'HeWD', 'colour': (0.368166, 0.232828, 0.148275, 1.0)},
+    {'long': 'Carbon/Oxygen White Dwarf', 'short': 'COWD', 'colour': (0.620069, 0.392132, 0.249725, 1.0)},
+    {'long': 'Oxygen/Neon White Dwarf', 'short': 'ONeWD', 'colour': (0.867128, 0.548372, 0.349225, 1.0)},
+    {'long': 'Neutron Star', 'short': 'NS', 'colour': (0.501961, 0.501961, 0.501961, 1.0)},
+    {'long': 'Black Hole', 'short': 'BH', 'colour': (0.0, 0.0, 0.0, 1.0)},
+    {'long': 'Massless Remnant', 'short': 'MR', 'colour': (1.0, 1.0, 0.0, 1.0)},
+    {'long': 'Chemically Homogeneous', 'short': 'CHE', 'colour': (0.647059, 0.164706, 0.164706, 1.0)}
 ]
 
-for i in [1, 2]:
-    kstar_translator[i]["colour"] = plt.get_cmap("YlOrBr")(0.3 * i)
+# where the colours come from
+# for i in [1, 2]:
+#     kstar_translator[i]["colour"] = plt.get_cmap("YlOrBr")(0.3 * i)
 
-for i in [3, 4]:
-    kstar_translator[i]["colour"] = plt.get_cmap("Blues")(0.3 * (i - 2))
+# for i in [3, 4]:
+#     kstar_translator[i]["colour"] = plt.get_cmap("Blues")(0.3 * (i - 2))
 
-for i in [5, 6]:
-    kstar_translator[i]["colour"] = plt.get_cmap("Greens")(0.3 * (3 - (i - 4)))
+# for i in [5, 6]:
+#     kstar_translator[i]["colour"] = plt.get_cmap("Greens")(0.3 * (3 - (i - 4)))
 
-for i in [7, 8, 9]:
-    kstar_translator[i]["colour"] = plt.get_cmap("plasma")(0.1 + 0.2 * (i - 7))
+# for i in [7, 8, 9]:
+#     kstar_translator[i]["colour"] = plt.get_cmap("plasma")(0.1 + 0.2 * (i - 7))
 
-for i in [10, 11, 12]:
-    kstar_translator[i]["colour"] = plt.get_cmap("copper")(0.1 + 0.2 * (i - 9))
-
+# for i in [10, 11, 12]:
+#     kstar_translator[i]["colour"] = plt.get_cmap("copper")(0.1 + 0.2 * (i - 9))
 
 evol_type_translator = [
     None,
@@ -75,23 +64,71 @@ evol_type_translator = [
     {"sentence": "the secondary went supernova", "short": "SN2", "long": "Supernova of secondary"},
 ]
 
+
 def _use_white_text(rgba):
+    """Determines whether to use white text on a given background color based on the RGBA value.
+
+    Parameters
+    ----------
+    rgba : `tuple`
+        RGBA value
+
+    Returns
+    -------
+    flag : `bool`
+        True if white text should be used
+    """
     r, g, b, _ = rgba
     return (r * 0.299 + g * 0.587 + b * 0.114) < 186 / 255
 
+
 def _supernova_marker(ax, x, y, s):
+    """Add a supernova marker to an ax
+
+    Parameters
+    ----------
+    ax : :class:`~matplotlib.pyplot.axis`
+        Axis on which to add marker
+    x : `float`
+        x coordinate
+    y : `float`
+        y coordinate
+    s : `float`
+        Size scale
+    """
     ax.scatter(x, y, marker=(15, 1, 0), s=s * 6, zorder=-1,
                facecolor="#ebd510", edgecolor="#ebb810", linewidth=2)
     ax.scatter(x, y, marker=(10, 1, 0), s=s * 4, zorder=-1,
                facecolor="orange", edgecolor="#eb7e10", linewidth=2)
 
-def _rlof_path(centre, width, height, m=1.5, flip=False):
 
+def _rlof_path(centre, width, height, m=1.5, flip=False):
+    """Draw a path in the shape of RLOF (teardrop)
+
+    Parameters
+    ----------
+    centre : `tuple`
+        Centre of the teardrop (x, y)
+    width : `float`
+        How wide to make
+    height : `float`
+        How tall to make it
+    m : `float`, optional
+        The 'pointy-ness' of the teardrop, by default 1.5
+    flip : `bool`, optional
+        Whether to flip the direction, by default False
+
+    Returns
+    -------
+    x, y : :class:`~numpy.ndarray`
+        Path of the teardrop
+    """
     t = np.linspace(0, 2 * np.pi, 1000)
     x = 0.5 * width * np.cos(t) * (-1 if flip else 1) + centre[0]
     y = height * np.sin(t) * np.sin(0.5 * t)**(m) + centre[1]
 
     return x, y
+
 
 def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon Binary Evolution",
                            y_sep_mult=1.5, offset=0.2, s_base=1000):
@@ -116,7 +153,7 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
     """
     # extract the pertinent information from the bpp table
     df = bpp.loc[bin_num][["tphys", "mass_1", "mass_2", "kstar_1", "kstar_2", "porb", "evol_type", "RRLO_1"]]
-    
+
     # add some offset kstar columns to tell what type a star *previously* was
     df[["prev_kstar_1", "prev_kstar_2"]] = df.shift(1, fill_value=0)[["kstar_1", "kstar_2"]]
 
@@ -169,7 +206,7 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
         ax.annotate(f'{row["tphys"]:1.2e} Myr' if row["tphys"] > 1e4 else f'{row["tphys"]:1.2f} Myr',
                     xy=(-offset - 0.3, total - i), ha="right", va="center",
                     fontsize=0.4*fs, fontweight="bold")
-        
+
         # if we've got a common envelope then draw an ellipse behind the binary
         if common_envelope:
             envelope = mpl.patches.Ellipse(xy=(0, total - i), width=4 * offset, height=1.5,
@@ -194,7 +231,7 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
             # annotate the correct mass
             ax.annotate(f'{row["mass_1"] if mr_2 else row["mass_2"]:1.2f} ' + r'$\rm M_{\odot}$',
                         xy=(0, total - i - 0.45), ha="center", va="top", fontsize=0.3*fs)
-            
+
             # if a supernova just happened then add an explosion marker behind the star
             if et_ind in [15, 16]:
                 _supernova_marker(ax, 0, total - i, s_base)
@@ -218,7 +255,7 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
                             ha="center", va="center",
                             color="white" if _use_white_text(k1["colour"]) else "black",
                             zorder=10, fontsize=ks_fontsize, fontweight="bold")
-                
+
             # if the secondary type changed or we're at the start/end then label it
             if k2 != pk2 or et_ind in [1, 10]:
                 ax.annotate(k2["short"], xy=(0 + offset, total - i),
@@ -230,7 +267,7 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
             if not disrupted:
                 ax.plot([0 - offset, 0 + offset], [total - i, total - i],
                         linestyle="--", zorder=-1, color="black")
-                
+
                 # annotate the line with period, offset to one side if there's RLOF
                 x = 0 if not (rlof and not common_envelope) else (-offset / 4 if row["RRLO_1"] >= 1.0 else offset / 4)
                 ax.annotate(f'{row["porb"]:1.2e} days' if row["porb"] > 10000 else f'{row["porb"]:1.0f} days',
