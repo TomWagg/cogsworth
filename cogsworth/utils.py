@@ -3,7 +3,7 @@ import matplotlib as mpl
 import numpy as np
 
 
-__all__ = ["kstar_translator", "evol_type_translator", "plot_cartoon_evolution"]
+__all__ = ["kstar_translator", "evol_type_translator", "translate_COSMIC_tables", "plot_cartoon_evolution"]
 
 fs = 24
 
@@ -131,7 +131,7 @@ def _rlof_path(centre, width, height, m=1.5, flip=False):
 
 
 def translate_COSMIC_tables(tab, kstars=True, evol_type=True, label_type="short", replace_columns=True):
-    """Translate COSMIC type columns of a bpp table to human-readable labels
+    """Translate COSMIC BSE tables to human-readable labels
 
     Parameters
     ----------
