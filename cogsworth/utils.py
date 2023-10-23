@@ -160,8 +160,8 @@ def translate_COSMIC_tables(tab, kstars=True, evol_type=True, label_type="short"
             kstar_2_str[tab["kstar_2"] == kstar] = kstar_translator[kstar][label_type]
 
         if replace_columns:
-            tab["kstar_1"] = kstar_1_str
-            tab["kstar_2"] = kstar_2_str
+            tab.loc[:, "kstar_1"] = kstar_1_str
+            tab.loc[:, "kstar_2"] = kstar_2_str
         else:
             tab["kstar_1_str"] = kstar_1_str
             tab["kstar_2_str"] = kstar_2_str
@@ -173,7 +173,7 @@ def translate_COSMIC_tables(tab, kstars=True, evol_type=True, label_type="short"
             evol_type_str[tab["evol_type"] == evol_type] = evol_type_translator[evol_type][label_type]
 
         if replace_columns:
-            tab["evol_type"] = evol_type_str
+            tab.loc[:, "evol_type"] = evol_type_str
         else:
             tab["evol_type_str"] = evol_type_str
 
@@ -181,7 +181,7 @@ def translate_COSMIC_tables(tab, kstars=True, evol_type=True, label_type="short"
 
 
 def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon Binary Evolution",
-                           y_sep_mult=1.5, offset=0.2, s_base=1000):
+                           y_sep_mult=1.5, offset=0.2, s_base=1000, show=True):
     """Plot COSMIC bpp output as a cartoon evolution
 
     Parameters
@@ -200,6 +200,11 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
         Offset from the centre for each of the stars (larger=wider binaries)
     s_base : `float`, optional
         Base scatter point size for the stars
+
+    Returns
+    -------
+    fig, ax : :class:`~matplotlib.pyplot.figure`, :class:`~matplotlib.pyplot.axis`
+        Figure and axis of the plot
     """
     # extract the pertinent information from the bpp table
     df = bpp.loc[bin_num][["tphys", "mass_1", "mass_2", "kstar_1", "kstar_2", "porb", "evol_type", "RRLO_1"]]
@@ -350,4 +355,7 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
     # annotate a title as the top
     ax.annotate(plot_title, xy=(0, total + 0.75), ha="center", va="center", fontsize=fs * 1.2)
 
-    plt.show()
+    if show:
+        plt.show()
+
+    return fig, ax
