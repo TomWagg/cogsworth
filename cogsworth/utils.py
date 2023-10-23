@@ -130,6 +130,21 @@ def _rlof_path(centre, width, height, m=1.5, flip=False):
     return x, y
 
 
+def translate_bpp(bpp, kstars=True, evol_type=True, label_type="long"):
+    if kstars:
+        unique_kstars = np.unique(bpp[["kstar_1", "kstar_2"]].values).astype(int)
+        for kstar in unique_kstars:
+            bpp["kstar_1"][bpp["kstar_1"] == kstar] = kstar_translator[kstar][label_type]
+            bpp["kstar_2"][bpp["kstar_2"] == kstar] = kstar_translator[kstar][label_type]
+
+    if evol_type:
+        unique_evol_types = np.unique(bpp["evol_type"].values).astype(int)
+        for evol_type in unique_evol_types:
+            bpp["evol_type"][bpp["evol_type"] == evol_type] = evol_type_translator[evol_type][label_type]
+
+    return bpp
+
+
 def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon Binary Evolution",
                            y_sep_mult=1.5, offset=0.2, s_base=1000):
     """Plot COSMIC bpp output as a cartoon evolution
