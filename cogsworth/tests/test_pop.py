@@ -321,3 +321,23 @@ class Test(unittest.TestCase):
             p.sample_initial_binaries()
             q = p._initial_binaries["mass_2"] / p._initial_binaries["mass_1"]
             self.assertTrue(min(q) >= qmin)
+
+    def test_translation(self):
+        """Ensure that COSMIC tables are being translated properly"""
+        p = pop.Population(10)
+        p.perform_stellar_evolution()
+        p.translate_tables(replace_columns=False, label_type="short")
+
+        self.assertTrue(p.bpp["kstar_1"].dtype == np.float64)
+        self.assertTrue((p.bpp["kstar_1_str"][p.bpp["kstar_1"] == 1] == "MS").all())
+
+        p.translate_tables(replace_columns=True)
+        self.assertFalse(p.bpp["kstar_1"].dtype == np.float64)
+
+    def test_cartoon(self):
+        """Ensure that the cartoon plot works"""
+        p = pop.Population(10, final_kstar1=[14])
+        p.perform_stellar_evolution()
+
+        for bin_num in p.bin_nums:
+            p.plot_cartoon_binary(bin_num, show=False)
