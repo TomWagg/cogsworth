@@ -163,8 +163,8 @@ def translate_COSMIC_tables(tab, kstars=True, evol_type=True, label_type="short"
             tab.loc[:, "kstar_1"] = kstar_1_str
             tab.loc[:, "kstar_2"] = kstar_2_str
         else:
-            tab["kstar_1_str"] = kstar_1_str
-            tab["kstar_2_str"] = kstar_2_str
+            tab.loc[:, "kstar_1_str"] = kstar_1_str
+            tab.loc[:, "kstar_2_str"] = kstar_2_str
 
     if evol_type:
         unique_evol_types = np.unique(tab["evol_type"].values).astype(int)
@@ -175,13 +175,13 @@ def translate_COSMIC_tables(tab, kstars=True, evol_type=True, label_type="short"
         if replace_columns:
             tab.loc[:, "evol_type"] = evol_type_str
         else:
-            tab["evol_type_str"] = evol_type_str
+            tab.loc[:, "evol_type_str"] = evol_type_str
 
     return tab
 
 
 def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon Binary Evolution",
-                           y_sep_mult=1.5, offset=0.2, s_base=1000, show=True):
+                           y_sep_mult=1.5, offset=0.2, s_base=1000, show=True):    # pragma: no cover
     """Plot COSMIC bpp output as a cartoon evolution
 
     Parameters
