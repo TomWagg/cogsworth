@@ -130,7 +130,27 @@ def _rlof_path(centre, width, height, m=1.5, flip=False):
     return x, y
 
 
-def translate_bpp(bpp, kstars=True, evol_type=True, label_type="long", replace_columns=True):
+def translate_bpp(bpp, kstars=True, evol_type=True, label_type="short", replace_columns=True):
+    """Translate COSMIC type columns of a bpp table to human-readable labels
+
+    Parameters
+    ----------
+    bpp : :class:`~pandas.DataFrame`
+        bpp evolution table from COSMIC
+    kstars : `bool`, optional
+        Whether to translate kstar_1 and kstar_2, by default True
+    evol_type : `bool`, optional
+        Whether to translate evol_type, by default True
+    label_type : `str`, optional
+        Type of label (either "short" or "long"), by default "short"
+    replace_columns : `bool`, optional
+        Whether to replace original columns (if not new ones are appended), by default True
+
+    Returns
+    -------
+    translated_bpp : :class:`~pandas.DataFrame`
+        The translated bpp table
+    """
     if kstars:
         unique_kstars = np.unique(bpp[["kstar_1", "kstar_2"]].values).astype(int)
         kstar_1_str = np.array([None for _ in range(len(bpp))])
