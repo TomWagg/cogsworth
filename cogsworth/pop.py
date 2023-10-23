@@ -960,9 +960,28 @@ class Population():
         **kwargs : `various`
             Any arguments to pass to :func:`~cogsworth.utils.translate_COSMIC_tables`
         """
-        self._bcm = translate_COSMIC_tables(self._bcm, **kwargs)
         self._bpp = translate_COSMIC_tables(self._bpp, **kwargs)
         self._final_bpp = translate_COSMIC_tables(self._final_bpp, **kwargs)
+
+        kwargs.update({"evol_type": False})
+        self._bcm = translate_COSMIC_tables(self._bcm, **kwargs)
+
+    def plot_cartoon_binary(self, bin_num, **kwargs):
+        """Plot a cartoon of the evolution of a single binary
+
+        Parameters
+        ----------
+        bin_num : `int`
+            Which binary to plot
+        **kwargs : `various`
+            Keyword arguments to pass, see :func:`~cogsworth.utils.plot_cartoon_evolution` for options
+
+        Returns
+        -------
+        fig, ax : :class:`~matplotlib.pyplot.figure`, :class:`~matplotlib.pyplot.axis`
+            Figure and axis of the plot
+        """
+        return plot_cartoon_evolution(self.bpp, bin_num, **kwargs)
 
     def save(self, file_name, overwrite=False):
         """Save a Population to disk
