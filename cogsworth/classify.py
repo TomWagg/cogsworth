@@ -12,7 +12,7 @@ def determine_final_classes(population=None, bpp=None, bcm=None, kick_info=None,
     """Determine the classes of each member of a population at the last point in the evolution (usually
     present day).
 
-    Either supply a Population class or each individual table separately
+    Either supply a :class:`~cogsworth.pop.Population` class or each individual table separately
 
     Parameters
     ----------
@@ -29,7 +29,7 @@ def determine_final_classes(population=None, bpp=None, bcm=None, kick_info=None,
     orbits : `list` of :class:`~gala.dynamics.Orbit`
         The orbits of each binary within the galaxy. Disrupted binaries should have two entries
         (for both stars).
-    galactic_potential : :class:`~gala.potential.potential.PotentialBase`, optional
+    galactic_potential : :class:`Potential <gala.potential.potential.PotentialBase>`, optional
         Galactic potential to use for evolving the orbits of binaries
 
     Returns
@@ -49,7 +49,7 @@ def determine_final_classes(population=None, bpp=None, bcm=None, kick_info=None,
 
     # split up the input so that I can use a single interface
     if population is not None:
-        bpp, bcm, kick_info, orbits, potential = population.bpp, population.bcm, population.kick_info,\
+        bpp, bcm, kick_info, orbits, potential = population.bpp, population.bcm, population.kick_info, \
             population.orbits, population.galactic_potential
 
     # get the binary indices and also reduce the tables to just the final row in each

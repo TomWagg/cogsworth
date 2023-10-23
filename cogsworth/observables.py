@@ -2,15 +2,12 @@ import numpy as np
 import pandas as pd
 import astropy.units as u
 import astropy.constants as const
-from dustmaps.bayestar import BayestarQuery
 
-# HACK around the isochrone import to ignore warnings about Holoview and Multinest
 import logging
-logging.getLogger("isochrones").setLevel("ERROR")
-from isochrones.mist.bc import MISTBolometricCorrectionGrid
-logging.getLogger("isochrones").setLevel("WARNING")
+from cogsworth.tests.optional_deps import check_dependencies
 
-import sys, os
+import sys
+import os
 
 __all__ = ["get_log_g", "get_absolute_bol_mag", "get_apparent_mag", "get_absolute_mag", "add_mags",
            "get_extinction", "get_photometry"]
@@ -180,6 +177,8 @@ def get_extinction(coords):     # pragma: no cover
     Av : :class:`~numpy.ndarray`
         Visual extinction values for each set of coordinates
     """
+    assert check_dependencies("dustmaps")
+    from dustmaps.bayestar import BayestarQuery
 
     # following section performs reflections for coordinates below -30 deg declination
     # convert to galactic coordinates
@@ -249,6 +248,12 @@ def get_photometry(final_bpp, final_coords, filters, ignore_extinction=False):
     photometry : :class:`~pandas.DataFrame`
         Photometry and extinction information for supplied COSMIC binaries in desired `filters`
     """
+    assert check_dependencies(["isochrones", "nose", "tables"])
+    # HACK around the isochrone import to ignore warnings about Holoview and Multinest
+    logging.getLogger("isochrones").setLevel("ERROR")
+    from isochrones.mist.bc import MISTBolometricCorrectionGrid
+    logging.getLogger("isochrones").setLevel("WARNING")
+
     # set up empty photometry table
     photometry = pd.DataFrame()
     disrupted = final_bpp["sep"].values < 0.0

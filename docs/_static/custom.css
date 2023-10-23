@@ -63,6 +63,7 @@ dl blockquote {
     padding-left: 0.4rem;
 }
 
+/* Adjust colour themes */
 :root {
   --pst-color-primary: #905cc4!important;
   --pst-font-family-base: 'Signika', sans-serif!important;
@@ -72,8 +73,45 @@ dl blockquote {
 
 :root[data-theme="dark"] {
     --pst-color-border: #222!important;
+    --pst-color-secondary: #8e82dd!important;
 }
 
+:root[data-theme="light"] {
+    --pst-color-secondary: #dd82b9!important;
+}
+
+html[data-theme="dark"] .sidebar-primary-item {
+    border-color: var(--pst-color-border);
+}
+
+html[data-theme="dark"] .bd-content img:not(.only-dark):not(.dark-light) {
+    background: none;
+}
+
+/* Make code colours match */
+a > code {
+    color: inherit!important;
+}
+
+/* Get rid of underlines everywhere */
+a, a p {
+    text-decoration: none!important;
+}
+
+a:hover, .nav-link:hover {
+    text-decoration: none!important;
+    box-shadow: none!important;
+}
+
+.bd-content .sd-tab-set > input + label:hover {
+    border-top: none!important;
+}
+
+.form-control:focus {
+    outline: none!important;
+}
+
+/* Make tables in notebooks fit */
 .bd-content {
     flex-grow: 1;
     max-width: 100%;
@@ -83,8 +121,30 @@ table.dataframe {
     width: unset;
 }
 
-.sphx-glr-thumbcontainer[tooltip]:hover::after {
+/* Better dark mode tables */
+html[data-theme="dark"] .bd-content .nboutput .output_area.rendered_html {
+    background: #333!important;
+}
+
+html[data-theme="dark"] .jp-RenderedHTMLCommon table,
+html[data-theme="dark"] div.rendered_html table {
+    color: white;
+}
+
+html[data-theme="dark"] .jp-RenderedHTMLCommon tbody tr:nth-child(2n+1),
+html[data-theme="dark"] div.rendered_html tbody tr:nth-child(2n+1) {
+    background: #111!important;
+}
+
+/* Centre gallery thumbnail labels and titles */
+.sphx-glr-thumbcontainer[tooltip]:hover::after,
+.sphx-glr-thumbnail-title {
     text-align: center;
+}
+
+/* vertically align content in the thumbnails */
+.sphx-glr-thumbcontainer {
+    justify-content: center;
 }
 
 /* Create grid of blocks for navigation */
@@ -120,24 +180,71 @@ table.dataframe {
     background-color: var(--pst-color-primary);
 }
 
-.sidebar-primary-item:first-of-type {
-    padding-bottom: 1.5rem!important;
-    border-bottom: 1px solid #f2f2f2;
-}
-
-.sidebar-primary-item:last-of-type {
-    padding-top: 1.5rem!important;
-    border-top: 1px solid #f2f2f2;
-}
-
-html[data-theme="dark"] .sidebar-primary-item {
-    border-color: var(--pst-color-border);
-}
-
 .page-toc .nav-link {
     font-size: var(--pst-sidebar-font-size);
 }
 
 nav.page-toc {
     margin-bottom: 0;
+}
+
+/* Stop tqdm cells from turning red (needs function in custom.js too) */
+.tqdm {
+    background: none!important;
+}
+
+/* Fix nonsense with the header flowing onto two lines */
+bd-header .navbar-header-items__center,
+.bd-header .navbar-header-items__end,
+.bd-header .navbar-header-items__start {
+    flex-flow: unset!important;
+}
+
+/* Make some styled custom card headers */
+.card-header-tom {
+    font-family: var(--pst-font-family-heading);
+    font-size: var(--pst-font-size-h2);
+    font-weight: var(--pst-font-weight-heading);
+    line-height: 1.15;
+    margin: 2.75rem 0 1.05rem;
+}
+
+.icon-link.sd-card-text {
+    margin-left: 1rem;
+    font-size: var(--pst-font-size-h6);
+}
+
+.icon-link .svg-inline--fa {
+    margin-right: 0.5rem;
+    color: var(--pst-color-link);
+}
+
+.icon-link:hover .svg-inline--fa {
+    color: var(--pst-color-link-hover)
+}
+
+.bd-content .sd-card {
+    border-radius: 1rem;
+    padding: 0.5rem;
+}
+
+html[data-theme="dark"] .bd-content .sd-card {
+    border: 2px solid #333;
+}
+
+/* Centre tutorial page text */
+#tutorials {
+    text-align: center;
+}
+#tutorials h1 a.headerlink {
+    display: none;
+}
+/* Get rid of giant blank space */
+.bd-article {
+    padding-top: 0!important;
+}
+
+/* Further emphasise onthispage header */
+.onthispage {
+    font-size: var(--pst-font-size-h5);
 }

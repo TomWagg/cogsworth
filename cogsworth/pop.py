@@ -9,14 +9,8 @@ import astropy.coordinates as coords
 import h5py as h5
 import pandas as pd
 from tqdm import tqdm
-import healpy as hp
-import matplotlib.pyplot as plt
-
-from gaiaunlimited.selectionfunctions import DR3SelectionFunctionTCG
-from gaiaunlimited.utils import get_healpix_centers
 
 from cosmic.sample.initialbinarytable import InitialBinaryTable
-from cosmic.sample.sampler.independent import Sample
 from cosmic.evolve import Evolve
 import gala.potential as gp
 import gala.dynamics as gd
@@ -26,6 +20,9 @@ from cogsworth.kicks import integrate_orbit_with_events
 from cogsworth.events import identify_events
 from cogsworth.classify import determine_final_classes
 from cogsworth.observables import get_photometry
+from cogsworth.tests.optional_deps import check_dependencies
+
+from cogsworth.citations import CITATIONS
 
 __all__ = ["Population", "load"]
 
@@ -48,7 +45,7 @@ class Population():
     galaxy_model : :class:`~cogsworth.galaxy.Galaxy`, optional
         A Galaxy class to use for sampling the initial galaxy parameters, by default
         :class:`~cogsworth.galaxy.Frankel2018`
-    galactic_potential : :class:`~gala.potential.potential.PotentialBase`, optional
+    galactic_potential : :class:`Potential <gala.potential.potential.PotentialBase>`, optional
         Galactic potential to use for evolving the orbits of binaries, by default
         :class:`~gala.potential.potential.MilkyWayPotential`
     v_dispersion : :class:`~astropy.units.Quantity` [velocity], optional
@@ -59,6 +56,9 @@ class Population():
         Size of timesteps to use in galactic evolution, by default 1*u.Myr
     BSE_settings : `dict`, optional
         Any BSE settings to pass to COSMIC
+    sampling_params : `dict`, optional
+        Any addition parameters to pass to the COSMIC sampling (see
+        :meth:`~cosmic.sample.sampler.independent.get_independent_sampler`)
     store_entire_orbits : `bool`, optional
         Whether to store the entire orbit for each binary, by default True. If not then only the final
         PhaseSpacePosition will be stored. This cuts down on both memory usage and disk space used if you
@@ -106,11 +106,13 @@ class Population():
     def __init__(self, n_binaries, processes=8, m1_cutoff=0, final_kstar1=list(range(16)),
                  final_kstar2=list(range(16)), galaxy_model=galaxy.Frankel2018,
                  galactic_potential=gp.MilkyWayPotential(), v_dispersion=5 * u.km / u.s,
-                 max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, store_entire_orbits=True):
+                 max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, sampling_params={},
+                 store_entire_orbits=True):
 
-        # require a sensible number of binaries
-        if n_binaries <= 0:
-            raise ValueError("You need to input a *nonnegative* number of binaries")
+        # require a sensible number of binaries if you are not targetting total mass
+        if not ("sampling_target" in sampling_params and sampling_params["sampling_target"] == "total_mass"):
+            if n_binaries <= 0:
+                raise ValueError("You need to input a *nonnegative* number of binaries")
 
         self.n_binaries = n_binaries
         self.n_binaries_match = n_binaries
@@ -144,6 +146,8 @@ class Population():
         self._observables = None
         self._bin_nums = None
 
+        self.__citations__ = ["cogsworth", "cosmic", "gala"]
+
         self.BSE_settings = {'xi': 1.0, 'bhflag': 1, 'neta': 0.5, 'windflag': 3, 'wdflag': 1, 'alpha1': 1.0,
                              'pts1': 0.001, 'pts3': 0.02, 'pts2': 0.01, 'epsnov': 0.001, 'hewind': 0.5,
                              'ck': 1000, 'bwind': 0.0, 'lambdaf': 0.0, 'mxns': 3.0, 'beta': -1.0, 'tflag': 1,
@@ -161,8 +165,13 @@ class Population():
                                                                2.0/21.0, 2.0/21.0, 2.0/21.0, 2.0/21.0],
                              'bhspinflag': 0, 'bhspinmag': 0.0, 'rejuv_fac': 1.0, 'rejuvflag': 0, 'htpmb': 1,
                              'ST_cr': 1, 'ST_tide': 1, 'bdecayfac': 1, 'rembar_massloss': 0.5, 'kickflag': 0,
-                             'zsun': 0.014, 'bhms_coll_flag': 0, 'don_lim': -1, 'acc_lim': -1, 'binfrac': 0.5}
+                             'zsun': 0.014, 'bhms_coll_flag': 0, 'don_lim': -1, 'acc_lim': -1, 'binfrac': 0.5,
+                             'rtmsflag': 0}
         self.BSE_settings.update(BSE_settings)
+
+        self.sampling_params = {'primary_model': 'kroupa01', 'ecc_model': 'sana12', 'porb_model': 'sana12',
+                                'qmin': -1, 'keep_singles': False}
+        self.sampling_params.update(sampling_params)
 
     def __repr__(self):
         if self._orbits is None:
@@ -178,22 +187,41 @@ class Population():
         return self.n_binaries_match
 
     def __getitem__(self, ind):
-        # ensure indexing with the right type
-        if not isinstance(ind, (int, slice, list, np.ndarray, tuple)):
-            raise ValueError(("Can only index using an `int`, `list`, `ndarray` or `slice`, you supplied a "
-                              f"`{type(ind).__name__}`"))
+        # convert any Pandas Series to numpy arrays
+        ind = ind.values if isinstance(ind, pd.Series) else ind
 
-        # create a list of bin nums from ind
+        # ensure indexing with the right type
+        ALLOWED_TYPES = (int, slice, list, np.ndarray, tuple)
+        if not isinstance(ind, ALLOWED_TYPES):
+            raise ValueError((f"Can only index using one of {[at.__name__ for at in ALLOWED_TYPES]}, "
+                              f"you supplied a '{type(ind).__name__}'"))
+
+        # check validity of indices for array-like types
+        if isinstance(ind, (list, tuple, np.ndarray)):
+            # check every element is a boolean (if so, convert to bin_nums after asserting length sensible)
+            if all(isinstance(x, (bool, np.bool_)) for x in ind):
+                assert len(ind) == len(self.bin_nums), "Boolean mask must be same length as the population"
+                ind = self.bin_nums[ind]
+            # otherwise ensure all elements are integers
+            else:
+                assert all(isinstance(x, (int, np.integer)) for x in ind), \
+                    "Can only index using integers or a boolean mask"
+                if len(np.unique(ind)) < len(ind):
+                    warnings.warn(("You have supplied duplicate indices, this will invalidate the "
+                                   "normalisation of the Population (e.g. mass_binaries will be wrong)"))
+
+        # set up the bin_nums we are selecting
         bin_nums = ind
+
+        # turn ints into arrays and convert slices to exact bin_nums
         if isinstance(ind, int):
             bin_nums = [ind]
-        if isinstance(ind, slice):
-            bin_nums = list(range(ind.stop)[ind])
+        elif isinstance(ind, slice):
+            bin_nums = self.bin_nums[ind]
         bin_nums = np.asarray(bin_nums)
 
         # check that the bin_nums are all valid
-        possible_bin_nums = self.final_bpp["bin_num"]
-        check_nums = np.isin(bin_nums, possible_bin_nums)
+        check_nums = np.isin(bin_nums, self.bin_nums)
         if not check_nums.all():
             raise ValueError(("The index that you supplied includes a `bin_num` that does not exist. "
                               f"The first bin_num I couldn't find was {bin_nums[~check_nums][0]}"))
@@ -213,48 +241,96 @@ class Population():
             new_pop._n_singles_req = self._n_singles_req
             new_pop._n_bin_req = self._n_bin_req
 
+        bin_num_to_ind = {num: i for i, num in enumerate(self.bin_nums)}
+        sort_idx = np.argsort(list(bin_num_to_ind.keys()))
+        idx = np.searchsorted(list(bin_num_to_ind.keys()), bin_nums, sorter=sort_idx)
+        seq_inds = np.asarray(list(bin_num_to_ind.values()))[sort_idx][idx]
+
         if self._initial_galaxy is not None:
-            # since we are indexing on bin nums, need to convert that to actual indices
-            ind_range = np.arange(len(possible_bin_nums))
-            new_pop._initial_galaxy = self._initial_galaxy[ind_range[possible_bin_nums.isin(bin_nums)]]
+            new_pop._initial_galaxy = self._initial_galaxy[seq_inds]
 
         # checking whether stellar evolution has been done
         if self._bpp is not None:
             # copy over subsets of the stellar evolution tables when they aren't None
-            new_pop._bpp = self._bpp[self._bpp["bin_num"].isin(bin_nums)]
+            new_pop._bpp = self._bpp.loc[bin_nums]
             if self._bcm is not None:
-                new_pop._bcm = self._bcm[self._bcm["bin_num"].isin(bin_nums)]
+                new_pop._bcm = self._bcm.loc[bin_nums]
             if self._initC is not None:
-                new_pop._initC = self._initC[self._initC["bin_num"].isin(bin_nums)]
+                new_pop._initC = self._initC.loc[bin_nums]
             if self._kick_info is not None:
-                new_pop._kick_info = self._kick_info[self._kick_info["bin_num"].isin(bin_nums)]
+                new_pop._kick_info = self._kick_info.loc[bin_nums]
 
             # same sort of thing for later parameters
-            mask = self.final_bpp["bin_num"].isin(bin_nums).values
-            new_pop._final_bpp = self.final_bpp[mask]
-
+            if self._final_bpp is not None:
+                new_pop._final_bpp = self._final_bpp.loc[bin_nums]
             if self._orbits is not None:
-                new_pop._orbits = self.orbits[mask]
+                new_pop._orbits = self.orbits[seq_inds]
             if self._disrupted is not None:
-                new_pop._disrupted = self._disrupted[mask]
+                new_pop._disrupted = self._disrupted[seq_inds]
             if self._classes is not None:
-                new_pop._classes = self._classes[mask]
+                new_pop._classes = self._classes.iloc[seq_inds]
             if self._final_coords is not None:
-                new_pop._final_coords = [self._final_coords[i][mask] for i in range(2)]
-            if self._disrupted is not None:
-                new_pop._disrupted = self._disrupted[mask]
+                new_pop._final_coords = [self._final_coords[i][seq_inds] for i in range(2)]
             if self._observables is not None:
-                new_pop._observables = self._observables[mask]
+                new_pop._observables = self._observables.iloc[seq_inds]
 
         return new_pop
+
+    def get_citations(self, filename=None):
+        """Print the citations for the packages/papers used in the population"""
+        # ask users for a filename to save the bibtex to
+        if filename is None:
+            filename = input("Filename for generating a bibtex file (leave blank to just print to terminal): ")
+        filename = filename + ".bib" if not filename.endswith(".bib") and filename != "" else filename
+
+        sections = {
+            "general": "",
+            "galaxy": r"The \texttt{cogsworth} population used a galaxy model based on the following papers",
+            "observables": r"Population observables were estimated using dust maps and MIST isochrones",
+            "gaia": r"Observability of systems with Gaia was predicted using an empirical selection function"
+        }
+
+        acknowledgement = r"This research made use of \texttt{cogsworth} and its dependencies"
+
+        # construct citation string
+        bibtex = []
+        for section in sections:
+            cite_tags = []
+            for citation in self.__citations__:
+                if citation in CITATIONS[section]:
+                    cite_tags.extend(CITATIONS[section][citation]["tags"])
+                    bibtex.append(CITATIONS[section][citation]["bibtex"])
+            if len(cite_tags) > 0:
+                cite_str = ",".join(cite_tags)
+                acknowledgement += sections[section] + r" \citep{" + cite_str + "}. "
+        bibtex_str = "\n\n".join(bibtex)
+
+        # print the acknowledgement
+        BOLD, RESET, GREEN = "\033[1m", "\033[0m", "\033[0;32m"
+        print("\nYou can paste this acknowledgement into the relevant section of your manuscript:")
+        print(f"{BOLD}{GREEN}{acknowledgement}{RESET}")
+
+        # either print bibtex to terminal or save to file
+        if filename != "":
+            print(f"The associated bibtex can be found in {filename}")
+            with open(filename, "w") as f:
+                f.write(bibtex_str)
+        else:
+            print("\nAnd paste this bibtex into your .bib file:")
+            print(f"{BOLD}{GREEN}{bibtex_str}{RESET}")
+        print("Good luck with the paper writing ◝(ᵔᵕᵔ)◜")
 
     @property
     def bin_nums(self):
         if self._bin_nums is None:
-            if self._bpp is not None:
-                self._bin_nums = self.final_bpp["bin_num"].unique()
+            if self._final_bpp is not None:
+                self._bin_nums = self._final_bpp["bin_num"].unique()
+            elif self._initC is not None:
+                self._bin_nums = self._initC["bin_num"].unique()
+            elif self._initial_binaries is not None:
+                self._bin_nums = np.unique(self._initial_binaries.index.values)
             else:
-                raise ValueError("You need to evolve binaries to get a list of `bin_nums`!")
+                raise ValueError("You need to first sample binaries to get a list of `bin_nums`!")
         return self._bin_nums
 
     @property
@@ -416,19 +492,20 @@ class Population():
         # initialise the initial galaxy class with correct number of binaries
         self._initial_galaxy = self.galaxy_model(size=self.n_binaries_match)
 
+        # add relevant citations
+        self.__citations__.extend([c for c in self._initial_galaxy.__citations__ if c != "cogsworth"])
+
         # if velocities are already set then just immediately return
-        if (hasattr(self._initial_galaxy, "_v_R")
-            and hasattr(self._initial_galaxy, "_v_T")
-            and hasattr(self._initial_galaxy, "_v_z")):
+        if all(hasattr(self._initial_galaxy, attr) for attr in ["_v_R", "_v_T", "_v_z"]):
             return
 
         # work out the initial velocities of each binary
         vel_units = u.km / u.s
 
         # calculate the Galactic circular velocity at the initial positions
-        v_circ = self.galactic_potential.circular_velocity(q=[self._initial_galaxy.positions.x,
-                                                              self._initial_galaxy.positions.y,
-                                                              self._initial_galaxy.positions.z]).to(vel_units)
+        v_circ = self.galactic_potential.circular_velocity(q=[self._initial_galaxy.x,
+                                                              self._initial_galaxy.y,
+                                                              self._initial_galaxy.z]).to(vel_units)
 
         # add some velocity dispersion
         v_R, v_T, v_z = np.random.normal([np.zeros_like(v_circ), v_circ, np.zeros_like(v_circ)],
@@ -475,35 +552,17 @@ class Population():
                 for col in cols:
                     self._initial_binaries[col] = -100.0
         else:
-            # overwrite the binary fraction is the user just wants single stars
-            binfrac = self.BSE_settings["binfrac"] if self.BSE_settings["binfrac"] != 0.0 else 1.0
-            self._initial_binaries, self._mass_singles, self._mass_binaries, self._n_singles_req,\
+            if self.BSE_settings["binfrac"] == 0.0 and not self.sampling_params["keep_singles"]:
+                raise ValueError(("You've chosen a binary fraction of 0.0 but set `keep_singles=False` (in "
+                                  "self.sampling_params), so you'll draw 0 samples...I don't think you "
+                                  "wanted to do that?"))
+            self._initial_binaries, self._mass_singles, self._mass_binaries, self._n_singles_req, \
                 self._n_bin_req = InitialBinaryTable.sampler('independent',
-                                                            self.final_kstar1, self.final_kstar2,
-                                                            binfrac_model=binfrac,
-                                                            primary_model='kroupa01', ecc_model='sana12',
-                                                            porb_model='sana12', qmin=-1,
-                                                            SF_start=self.max_ev_time.to(u.Myr).value,
-                                                            SF_duration=0.0, met=0.02, size=self.n_binaries)
-
-            # check if the user just wants single stars instead of binaries
-            if self.BSE_settings["binfrac"] == 0.0:
-                mass_1, mass_tot = Sample().sample_primary(primary_model="kroupa01",
-                                                        size=len(self._initial_binaries))
-                self._initial_binaries["mass_1"] = mass_1
-                self._initial_binaries["mass0_1"] = mass_1
-                self._initial_binaries["kstar_1"] = np.where(mass_1 > 0.7, 1, 0)
-                self._initial_binaries["kstar_2"] = np.zeros(len(self._initial_binaries))
-                self._initial_binaries["mass_2"] = np.zeros(len(self._initial_binaries))
-                self._initial_binaries["mass0_2"] = np.zeros(len(self._initial_binaries))
-                self._initial_binaries["porb"] = np.zeros(len(self._initial_binaries))
-                self._initial_binaries["sep"] = np.zeros(len(self._initial_binaries))
-                self._initial_binaries["ecc"] = np.zeros(len(self._initial_binaries))
-
-                self._mass_singles = mass_tot
-                self._mass_binaries = 0.0
-                self._n_singles_req = self.n_binaries
-                self._n_bin_req = 0
+                                                             self.final_kstar1, self.final_kstar2,
+                                                             binfrac_model=self.BSE_settings["binfrac"],
+                                                             SF_start=self.max_ev_time.to(u.Myr).value,
+                                                             SF_duration=0.0, met=0.02, size=self.n_binaries,
+                                                             **self.sampling_params)
 
         # apply the mass cutoff
         self._initial_binaries = self._initial_binaries[self._initial_binaries["mass_1"] >= self.m1_cutoff]
@@ -557,7 +616,7 @@ class Population():
             warnings.filterwarnings("ignore", message=".*to a different value than assumed in the mlwind.*")
 
             # perform the evolution!
-            self._bpp, self._bcm, self._initC,\
+            self._bpp, self._bcm, self._initC, \
                 self._kick_info = Evolve.evolve(initialbinarytable=self._initial_binaries,
                                                 BSEDict=self.BSE_settings, pool=self.pool)
 
@@ -595,7 +654,9 @@ class Population():
             not_nan = ~self.final_bpp["bin_num"].isin(nan_bin_nums)
             self._initial_galaxy._tau = self._initial_galaxy._tau[not_nan]
             self._initial_galaxy._Z = self._initial_galaxy._Z[not_nan]
-            self._initial_galaxy._positions = self._initial_galaxy._positions[not_nan]
+            self._initial_galaxy._x = self._initial_galaxy._x[not_nan]
+            self._initial_galaxy._y = self._initial_galaxy._y[not_nan]
+            self._initial_galaxy._z = self._initial_galaxy._z[not_nan]
             self._initial_galaxy._v_R = self._initial_galaxy._v_R[not_nan]
             self._initial_galaxy._v_T = self._initial_galaxy._v_T[not_nan]
             self._initial_galaxy._v_z = self._initial_galaxy._v_z[not_nan]
@@ -620,18 +681,18 @@ class Population():
         self._final_coords = None
         self._observables = None
 
-        # turn the drawn coordinates into an astropy representation
-        rep = self.initial_galaxy.positions.represent_as("cylindrical")
-
-        # create differentials based on the velocities (dimensionless angles allows radians conversion)
-        with u.set_enabled_equivalencies(u.dimensionless_angles()):
-            dif = coords.CylindricalDifferential(self.initial_galaxy._v_R,
-                                                 (self.initial_galaxy._v_T
-                                                  / rep.rho).to(u.rad / u.Gyr),
-                                                 self.initial_galaxy._v_z)
+        v_phi = (self.initial_galaxy._v_T / self.initial_galaxy.rho)
+        v_X = (self.initial_galaxy._v_R * np.cos(self.initial_galaxy.phi)
+               - self.initial_galaxy.rho * np.sin(self.initial_galaxy.phi) * v_phi)
+        v_Y = (self.initial_galaxy._v_R * np.sin(self.initial_galaxy.phi)
+               + self.initial_galaxy.rho * np.cos(self.initial_galaxy.phi) * v_phi)
 
         # combine the representation and differentials into a Gala PhaseSpacePosition
-        w0s = gd.PhaseSpacePosition(rep.with_differentials(dif))
+        w0s = gd.PhaseSpacePosition(pos=[a.to(u.kpc).value for a in [self.initial_galaxy.x,
+                                                                     self.initial_galaxy.y,
+                                                                     self.initial_galaxy.z]] * u.kpc,
+                                    vel=[a.to(u.km/u.s).value for a in [v_X, v_Y,
+                                                                        self.initial_galaxy._v_z]] * u.km/u.s)
 
         # identify the pertinent events in the evolution
         events = identify_events(full_bpp=self.bpp, full_kick_info=self.kick_info)
@@ -730,6 +791,7 @@ class Population():
         ignore_extinction : `bool`
             Whether to ignore extinction
         """
+        self.__citations__.extend(["MIST", "MESA", "bayestar2019"])
         return get_photometry(self.final_bpp, self.final_coords, filters, ignore_extinction=ignore_extinction)
 
     def get_gaia_observed_bin_nums(self):
@@ -752,6 +814,11 @@ class Population():
             A list of binary numbers (that can be used in tables like :attr:`final_bpp`) for which the
             disrupted secondary would be observed
         """
+        assert check_dependencies("gaiaunlimited")
+        from gaiaunlimited.selectionfunctions import DR3SelectionFunctionTCG
+        from gaiaunlimited.utils import get_healpix_centers
+
+        self.__citations__.append("gaia-selection-function")
         # get coordinates of the centres of the healpix pixels in a nside=2**7
         coords_of_centers = get_healpix_centers(7)
 
@@ -809,6 +876,9 @@ class Population():
             The indices for the secondaries of disrupted binaries
             (corresponds to ``self.final_coords[1][self.disrupted]``)
         """
+        assert check_dependencies("healpy")
+        import healpy as hp
+
         # get the coordinates in right format
         colatitudes = [np.pi/2 - self.final_coords[i].icrs.dec.to(u.rad).value for i in [0, 1]]
         longitudes = [self.final_coords[i].icrs.ra.to(u.rad).value for i in [0, 1]]
@@ -843,6 +913,10 @@ class Population():
             Any additional arguments that you want to pass to healpy's
             `mollview <https://healpy.readthedocs.io/en/latest/generated/healpy.visufunc.mollview.html>`_
         """
+        assert check_dependencies(["healpy", "matplotlib"])
+        import healpy as hp
+        import matplotlib.pyplot as plt
+
         pix, disrupted_pix = self.get_healpix_inds(nside=nside)
 
         # initialise an empty map

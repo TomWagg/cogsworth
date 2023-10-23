@@ -13,8 +13,10 @@ from astropy.coordinates import SkyCoord
 # for action-based potentials
 import gala.potential as gp
 from gala.units import galactic
-import agama
-agama.setUnits(**{k: galactic[k] for k in ['length', 'mass', 'time']})
+
+from cogsworth.tests.optional_deps import check_dependencies
+
+from cogsworth.citations import CITATIONS
 
 
 __all__ = ["Galaxy", "Frankel2018", "QuasiIsothermalDisk", "load"]
@@ -49,8 +51,12 @@ class Galaxy():
         Lookback time
     Z : :class:`~astropy.units.Quantity` [dimensionless]
         Metallicity
-    positions : :class:`~astropy.coordinates.SkyCoord`
-        Initial positions in Galactocentric frame
+    x : :class:`~astropy.units.Quantity` [length]
+        Galactocentric x position
+    y : :class:`~astropy.units.Quantity` [length]
+        Galactocentric y position
+    z : :class:`~astropy.units.Quantity` [length]
+        Galactocentric z position
 
     """
     def __init__(self, size, components=None, component_masses=None,
@@ -60,8 +66,12 @@ class Galaxy():
         self._size = size
         self._tau = None
         self._Z = None
-        self._positions = None
+        self._x = None
+        self._y = None
+        self._z = None
         self._which_comp = None
+
+        self.__citations__ = ["cogsworth"]
 
         if immediately_sample:
             self.sample()
@@ -91,8 +101,18 @@ class Galaxy():
 
         new_gal._tau = tau
         new_gal._Z = np.atleast_1d(self._Z[ind])
-        new_gal._positions = np.atleast_1d(self._positions[ind])
+        new_gal._x = np.atleast_1d(self._x[ind])
+        new_gal._y = np.atleast_1d(self._y[ind])
+        new_gal._z = np.atleast_1d(self._z[ind])
         new_gal._which_comp = np.atleast_1d(self._which_comp[ind])
+
+        # if we have any of the velocity components then we need to slice them too
+        if hasattr(self, "_v_R"):
+            new_gal._v_R = np.atleast_1d(self._v_R[ind])
+        if hasattr(self, "_v_T"):
+            new_gal._v_T = np.atleast_1d(self._v_T[ind])
+        if hasattr(self, "_v_z"):
+            new_gal._v_z = np.atleast_1d(self._v_z[ind])
 
         return new_gal
 
@@ -129,16 +149,81 @@ class Galaxy():
         return self._Z
 
     @property
-    def positions(self):
-        if self._positions is None:
+    def x(self):
+        if self._x is None:
             self.sample()
-        return self._positions
+        return self._x
+
+    @property
+    def y(self):
+        if self._y is None:
+            self.sample()
+        return self._y
+
+    @property
+    def z(self):
+        if self._z is None:
+            self.sample()
+        return self._z
+
+    @property
+    def rho(self):
+        return (self.x**2 + self.y**2)**(0.5)
+
+    @property
+    def phi(self):
+        return np.arctan(self.y / self.x)
+
+    @property
+    def positions(self):
+        return [self.x.to(u.kpc).value, self.y.to(u.kpc).value, self.z.to(u.kpc).value] * u.kpc
 
     @property
     def which_comp(self):
         if self._which_comp is None:
             self.sample()
         return self._which_comp
+
+    def get_citations(self, filename=None):
+        """Print the citations for the packages/papers used in the galaxy"""
+        if not hasattr(self, "__citations__") or len(self.__citations__) == 0:
+            print("No citations need for this galaxy model")
+            return
+
+        # ask users for a filename to save the bibtex to
+        if filename is None:
+            filename = input("Filename for generating a bibtex file (leave blank to just print to terminal): ")
+        filename = filename + ".bib" if not filename.endswith(".bib") and filename != "" else filename
+
+        # construct citation string
+        cite_tags = []
+        bibtex = []
+        for section in CITATIONS:
+            for citation in self.__citations__:
+                if citation in CITATIONS[section]:
+                    if citation != "cogsworth":
+                        cite_tags.extend(CITATIONS[section][citation]["tags"])
+                    bibtex.append(CITATIONS[section][citation]["bibtex"])
+        cite_str = ",".join(cite_tags)
+        bibtex_str = "\n\n".join(bibtex)
+
+        # print the acknowledgement
+        BOLD, RESET, GREEN = "\033[1m", "\033[0m", "\033[0;32m"
+        print(f"{BOLD}{GREEN}You can paste this acknowledgement into the relevant section of your manuscript"
+              + RESET)
+        print(r"This research made use of \texttt{cogsworth} \citep{"
+              + ",".join(CITATIONS["general"]["cogsworth"]["tags"])
+              + r"} and a model for galactic star formation based on the following papers \citep{"
+              + cite_str + "}.\n")
+
+        # either print bibtex to terminal or save to file
+        if filename != "":
+            print(f"{BOLD}{GREEN}The associated bibtex can be found in {filename} - happy writing!{RESET}")
+            with open(filename, "w") as f:
+                f.write(bibtex_str)
+        else:
+            print(f"{BOLD}{GREEN}And paste this bibtex into your .bib file - happy writing!{RESET}")
+            print(bibtex_str)
 
     def sample(self):
         """Sample from the Galaxy distributions for each component, combine and save in class attributes"""
@@ -182,13 +267,14 @@ class Galaxy():
         # draw a random azimuthal angle
         phi = self.draw_phi()
 
-        self._positions = SkyCoord(x=rho * np.sin(phi), y=rho * np.cos(phi), z=z,
-                                   frame="galactocentric", representation_type="cartesian")
+        self._x = rho * np.sin(phi)
+        self._y = rho * np.cos(phi)
+        self._z = z
 
         # compute the metallicity given the other values
         self._Z = self.get_metallicity()
 
-        return self._tau, self._positions, self.Z
+        return self._tau, self.positions, self.Z
 
     def draw_lookback_times(self, size=None, component=None):
         raise NotImplementedError("This Galaxy model has not implemented this method")
@@ -213,13 +299,13 @@ class Galaxy():
             colour_by = self.Z.value
 
         if coordinates == "cylindrical":
-            x = self.positions.represent_as("cylindrical").rho
-            y1 = self.positions.represent_as("cylindrical").z
-            y2 = self.positions.represent_as("cylindrical").phi
+            x = self.rho
+            y1 = self.z
+            y2 = self.phi
         elif coordinates == "cartesian":
-            x = self.positions.x
-            y1 = self.positions.z
-            y2 = self.positions.y
+            x = self.x
+            y1 = self.z
+            y2 = self.y
             axes[1].set_aspect("equal")
         else:
             raise ValueError("Invalid coordinates specified")
@@ -281,9 +367,9 @@ class Galaxy():
         data = {
             "tau": self.tau.to(u.Gyr),
             "Z": self.Z,
-            "x": self.positions.x.to(u.kpc),
-            "y": self.positions.y.to(u.kpc),
-            "z": self.positions.z.to(u.kpc),
+            "x": self.x.to(u.kpc),
+            "y": self.y.to(u.kpc),
+            "z": self.z.to(u.kpc),
             "which_comp": self.which_comp
         }
         df = pd.DataFrame(data=data)
@@ -352,6 +438,7 @@ class Frankel2018(Galaxy):
         self.zsun = zsun
         self.galaxy_age = galaxy_age
         super().__init__(size=size, components=components, component_masses=component_masses, **kwargs)
+        self.__citations__.extend(["Wagg+2022", "Frankel+2018", "Bovy+2016", "Bovy+2019", "McMillan+2011"])
 
     def draw_lookback_times(self, size=None, component="low_alpha_disc"):
         """Inverse CDF sampling of lookback times. low_alpha and high_alpha discs uses
@@ -477,13 +564,14 @@ class Frankel2018(Galaxy):
         Z : :class:`~astropy.units.Quantity` [dimensionless]
             Metallicities corresponding to radii and times
         """
-        rho = (self.positions.x**2 + self.positions.y**2)**(0.5)
+        rho = (self.x**2 + self.y**2)**(0.5)
         FeH = self.Fm + self.gradient * rho - (self.Fm + self.gradient * self.Rnow)\
             * (1 - (self._tau / self.galaxy_age))**self.gamma
         return np.power(10, FeH + np.log10(self.zsun))
 
-class QuasiIsothermalDisk(Galaxy):
-    """A quasi-isothermal distribution function with parameters from 
+
+class QuasiIsothermalDisk(Galaxy):      # pragma: no cover
+    """A quasi-isothermal distribution function with parameters from
     `Sanders & Binney 2015 <https://ui.adsabs.harvard.edu/abs/2015MNRAS.449.3479S/abstract>`_.
 
     Parameters are the same as :class:`Galaxy` but additionally with the following:
@@ -524,7 +612,7 @@ class QuasiIsothermalDisk(Galaxy):
                 kwargs.pop(var)
 
         # TODO: Perhaps create a "action-based-potential" subclass, there's a lot repeated here
-        
+
         super().__init__(size=size, components=None, component_masses=None, **kwargs)
 
     @property
@@ -584,13 +672,17 @@ class QuasiIsothermalDisk(Galaxy):
         Z : :class:`~astropy.units.Quantity` [dimensionless]
             Metallicities corresponding to radii and times
         """
-        rho = (self.positions.x**2 + self.positions.y**2)**(0.5)
+        rho = (self.x**2 + self.y**2)**(0.5)
         FeH = self.Fm + self.gradient * rho - (self.Fm + self.gradient * self.Rnow)\
             * (1 - (self._tau / self.galaxy_age))**self.gamma
         return np.power(10, FeH + np.log10(self.zsun))
-    
+
     def get_DF(self):
         """Get the distribution function for a quasi-isothermal disk based on the Gala MW potential"""
+        assert check_dependencies("agama")
+        import agama
+        agama.setUnits(**{k: galactic[k] for k in ['length', 'mass', 'time']})
+
         # create Gala potential
         gala_pot = gp.MilkyWayPotential2022()
 
@@ -627,7 +719,7 @@ class QuasiIsothermalDisk(Galaxy):
 
         # additionally work out the distribution function
         self._df = agama.DistributionFunction(
-            type='QuasiIsothermal', 
+            type='QuasiIsothermal',
             Rdisk=3.45,
             Rsigmar=7.8,
             Rsigmaz=7.8,
@@ -637,9 +729,13 @@ class QuasiIsothermalDisk(Galaxy):
             Sigma0=1.
         )
         return self._df, self._agama_pot
-    
+
     def sample(self):
         """Sample from the Galaxy distribution and save in class attributes"""
+        assert check_dependencies("agama")
+        import agama
+        agama.setUnits(**{k: galactic[k] for k in ['length', 'mass', 'time']})
+
         # create an array of which component each point belongs to
         self._which_comp = np.repeat("low_alpha_disc", self.size)
         self._tau = self.draw_lookback_times(size=self.size, component="low_alpha_disc")
@@ -651,14 +747,15 @@ class QuasiIsothermalDisk(Galaxy):
         xv[:, 3:] *= (u.kpc / u.Myr).to(u.km / u.s)
 
         # save the positions
-        self._positions = SkyCoord(xv[:, :3], frame="galactocentric", unit="kpc",
-                                   representation_type="cartesian")
-        
+        self._x = xv[:, 0] * u.kpc
+        self._y = xv[:, 1] * u.kpc
+        self._z = xv[:, 2] * u.kpc
+
         # work out the velocities by rotating using SkyCoord
-        full_coord = SkyCoord(x=xv[:, 0] * u.kpc, y=xv[:, 1] * u.kpc, z=xv[:, 2] * u.kpc,
+        full_coord = SkyCoord(x=self._x, y=self._y, z=self._z,
                               v_x=xv[:, 3] * u.km / u.s, v_y=xv[:, 4] * u.km / u.s, v_z=xv[:, 5] * u.km / u.s,
                               frame="galactocentric").represent_as("cylindrical")
-        
+
         with u.set_enabled_equivalencies(u.dimensionless_angles()):
             self._v_R = full_coord.differentials['s'].d_rho
             self._v_T = (full_coord.differentials['s'].d_phi * full_coord.rho).to(u.km / u.s)
@@ -667,10 +764,11 @@ class QuasiIsothermalDisk(Galaxy):
         # compute the metallicity given the other values
         self._Z = self.get_metallicity()
 
-        return self._tau, self._positions, self.Z
+        return self._tau, self.positions, self.Z
 
-class SpheroidalDwarf(Galaxy):
-    """An action-based model for dwarf spheroidal galaxies and globular clusters 
+
+class SpheroidalDwarf(Galaxy):      # pragma: no cover
+    """An action-based model for dwarf spheroidal galaxies and globular clusters
     `Pascale+2019 <https://ui.adsabs.harvard.edu/abs/2019MNRAS.488.2423P/abstract>`_.
 
     Parameters are the same as :class:`Galaxy` but additionally with the following:
@@ -685,7 +783,7 @@ class SpheroidalDwarf(Galaxy):
         A non-negative, dimensionless parameter that mainly regulates the models density profile
     eta : `float`
         A non-negative, dimensionless parameter that mainly controls the radial or tangential bias of the
-        model velocity distribution; models sharing the parameters $(\alpha, \eta)$ are homologous.
+        model velocity distribution; models sharing the parameters $(\\alpha, \\eta)$ are homologous.
     galaxy_age : :class:`~astropy.units.Quantity` [time], optional
         Maximum lookback time, by default 12*u.Gyr
     tsfr : :class:`~astropy.units.Quantity` [time], optional
@@ -722,7 +820,7 @@ class SpheroidalDwarf(Galaxy):
         for var in ["components", "component_masses"]:
             if var in kwargs:
                 kwargs.pop(var)
-        
+
         super().__init__(size=size, components=None, component_masses=None, **kwargs)
 
     @property
@@ -782,13 +880,17 @@ class SpheroidalDwarf(Galaxy):
         Z : :class:`~astropy.units.Quantity` [dimensionless]
             Metallicities corresponding to radii and times
         """
-        rho = (self.positions.x**2 + self.positions.y**2)**(0.5)
+        rho = (self.x**2 + self.y**2)**(0.5)
         FeH = self.Fm + self.gradient * rho - (self.Fm + self.gradient * self.Rnow)\
             * (1 - (self._tau / self.galaxy_age))**self.gamma
         return np.power(10, FeH + np.log10(self.zsun))
-    
+
     def get_DF(self):
         """Get the distribution function for a dwarf galaxy disk based on an NFW profile"""
+        assert check_dependencies("agama")
+        import agama
+        agama.setUnits(**{k: galactic[k] for k in ['length', 'mass', 'time']})
+
         gala_pot = gp.NFWPotential(m=self.mass, r_s=1.0, units=galactic)
         self._agama_pot = agama.Potential(
             type="nfw",
@@ -797,15 +899,20 @@ class SpheroidalDwarf(Galaxy):
         )
 
         J0_no_units = (self.J_0_star).decompose(galactic).value
+
         def dwarf_df(J):
             Jr, Jz, Jphi = J.T
             kJ = Jr + self.eta * (np.abs(Jphi) + Jz)
             return np.exp(-(kJ / J0_no_units)**self.alpha)
         self._df = dwarf_df
         return self._df, self._agama_pot
-    
+
     def sample(self):
         """Sample from the Galaxy distribution and save in class attributes"""
+        assert check_dependencies("agama")
+        import agama
+        agama.setUnits(**{k: galactic[k] for k in ['length', 'mass', 'time']})
+
         # create an array of which component each point belongs to
         self._which_comp = np.repeat("low_alpha_disc", self.size)
         self._tau = self.draw_lookback_times(size=self.size, component="low_alpha_disc")
@@ -817,14 +924,15 @@ class SpheroidalDwarf(Galaxy):
         xv[:, 3:] *= (u.kpc / u.Myr).to(u.km / u.s)
 
         # save the positions
-        self._positions = SkyCoord(xv[:, :3], frame="galactocentric", unit="kpc",
-                                   representation_type="cartesian")
-        
+        self._x = xv[:, 0] * u.kpc
+        self._y = xv[:, 1] * u.kpc
+        self._z = xv[:, 2] * u.kpc
+
         # work out the velocities by rotating using SkyCoord
-        full_coord = SkyCoord(x=xv[:, 0] * u.kpc, y=xv[:, 1] * u.kpc, z=xv[:, 2] * u.kpc,
+        full_coord = SkyCoord(x=self._x, y=self._y, z=self._z,
                               v_x=xv[:, 3] * u.km / u.s, v_y=xv[:, 4] * u.km / u.s, v_z=xv[:, 5] * u.km / u.s,
                               frame="galactocentric").represent_as("cylindrical")
-        
+
         with u.set_enabled_equivalencies(u.dimensionless_angles()):
             self._v_R = full_coord.differentials['s'].d_rho
             self._v_T = (full_coord.differentials['s'].d_phi * full_coord.rho).to(u.km / u.s)
@@ -833,8 +941,7 @@ class SpheroidalDwarf(Galaxy):
         # compute the metallicity given the other values
         self._Z = self.get_metallicity()
 
-        return self._tau, self._positions, self.Z
-
+        return self._tau, self.positions, self.Z
 
 
 def load(file_name, key="galaxy"):
@@ -875,16 +982,16 @@ def load(file_name, key="galaxy"):
     galaxy._tau = df["tau"].values * u.Gyr
     galaxy._Z = df["Z"].values * u.dimensionless_unscaled
     galaxy._which_comp = df["which_comp"].values
-
-    galaxy._positions = SkyCoord(x=df["x"].values * u.kpc, y=df["y"].values * u.kpc, z=df["z"].values * u.kpc,
-                                 frame="galactocentric", representation_type="cartesian")
+    galaxy._x = df["x"].values * u.kpc
+    galaxy._y = df["y"].values * u.kpc
+    galaxy._z = df["z"].values * u.kpc
 
     # return the newly created class
     return galaxy
 
 
-def simplify_params(params, dont_save=["_tau", "_Z", "_positions", "_which_comp", "_v_R", "_v_T", "_v_z",
-                                       "_df", "_agama_pot"]):
+def simplify_params(params, dont_save=["_tau", "_Z", "_x", "_y", "_z", "_which_comp", "_v_R", "_v_T", "_v_z",
+                                       "_df", "_agama_pot", "__citations__"]):
     # delete any keys that we don't want to save
     delete_keys = [key for key in params.keys() if key in dont_save]
     for key in delete_keys:

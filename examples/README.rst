@@ -1,6 +1,6 @@
 Examples
 ========
 
-This page contains a gallery of simple examples to demonstrate some of capabilities of ``cogsworth``. For a collection of more detailed use cases, check out the case studies page!
+This page contains a gallery of simple examples to demonstrate some of capabilities of ``cogsworth``.
 
-Hover each example to see a brief description of what it does!
+Hover each example to see a brief description of what it does, click to see it in action!

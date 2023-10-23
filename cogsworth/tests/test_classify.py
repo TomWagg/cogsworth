@@ -37,9 +37,10 @@ class Test(unittest.TestCase):
         it_broke = False
         try:
             cogsworth.classify.get_x_ray_lum(bcm["mass_1"].values * u.Msun, bcm["rad_1"].values * u.Rsun,
-                                          bcm["deltam_1"].values * u.Msun / u.yr, bcm["porb"].values * u.day,
-                                          bcm["kstar_1"].values,
-                                          bcm["mass_2"].values * u.Msun, bcm["RRLO_2"].values)
+                                             bcm["deltam_1"].values * u.Msun / u.yr,
+                                             bcm["porb"].values * u.day,
+                                             bcm["kstar_1"].values,
+                                             bcm["mass_2"].values * u.Msun, bcm["RRLO_2"].values)
         except Exception as e:
             print(e)
             it_broke = True
