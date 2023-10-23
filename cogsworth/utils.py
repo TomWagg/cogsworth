@@ -8,7 +8,7 @@ __all__ = ["kstar_translator", "evol_type_translator", "plot_cartoon_evolution"]
 fs = 24
 
 kstar_translator = [
-    None,
+    {'long': 'Main Sequence (Low mass)', 'short': 'MS < 0.7', 'colour': (0.996078, 0.843476, 0.469158, 1.0)},
     {'long': 'Main Sequence', 'short': 'MS', 'colour': (0.996078, 0.843476, 0.469158, 1.0)},
     {'long': 'Hertzsprung Gap', 'short': 'HG', 'colour': (0.939608, 0.471373, 0.094902, 1.0)},
     {'long': 'First Giant Branch', 'short': 'FGB', 'colour': (0.716186, 0.833203, 0.916155, 1.0)},
@@ -55,7 +55,7 @@ evol_type_translator = [
     {"sentence": "a common envelope phase started", "short": "CE start", "long": "Common-envelope started"},
     {"sentence": "the common envelope phase ended", "short": "CE end", "long": "Common-envelope ended"},
     {"sentence": "no remnant leftover", "short": "No remnant", "long": "No remnant"},
-    {"sentence": "the maximum evolution time was reached", "short": "Max evolution time", "long": "Maximum evolution time reached"},
+    {"sentence": "the maximum evolution time was reached", "short": "Max evol time", "long": "Maximum evolution time reached"},
     {"sentence": "the binary was disrupted", "short": "Disruption", "long": "Binary disrupted"},
     {"sentence": "a symbiotic phase started", "short": "Begin symbiotic phase", "long": "Begin symbiotic phase"},
     {"sentence": "a symbiotic phase ended", "short": "End symbiotic phase", "long": "End symbiotic phase"},
@@ -130,17 +130,32 @@ def _rlof_path(centre, width, height, m=1.5, flip=False):
     return x, y
 
 
-def translate_bpp(bpp, kstars=True, evol_type=True, label_type="long"):
+def translate_bpp(bpp, kstars=True, evol_type=True, label_type="long", replace_columns=True):
     if kstars:
         unique_kstars = np.unique(bpp[["kstar_1", "kstar_2"]].values).astype(int)
+        kstar_1_str = np.array([None for _ in range(len(bpp))])
+        kstar_2_str = np.array([None for _ in range(len(bpp))])
         for kstar in unique_kstars:
-            bpp["kstar_1"][bpp["kstar_1"] == kstar] = kstar_translator[kstar][label_type]
-            bpp["kstar_2"][bpp["kstar_2"] == kstar] = kstar_translator[kstar][label_type]
+            kstar_1_str[bpp["kstar_1"] == kstar] = kstar_translator[kstar][label_type]
+            kstar_2_str[bpp["kstar_2"] == kstar] = kstar_translator[kstar][label_type]
+
+        if replace_columns:
+            bpp["kstar_1"] = kstar_1_str
+            bpp["kstar_2"] = kstar_2_str
+        else:
+            bpp["kstar_1_str"] = kstar_1_str
+            bpp["kstar_2_str"] = kstar_2_str
 
     if evol_type:
         unique_evol_types = np.unique(bpp["evol_type"].values).astype(int)
+        evol_type_str = np.array([None for _ in range(len(bpp))])
         for evol_type in unique_evol_types:
-            bpp["evol_type"][bpp["evol_type"] == evol_type] = evol_type_translator[evol_type][label_type]
+            evol_type_str[bpp["evol_type"] == evol_type] = evol_type_translator[evol_type][label_type]
+
+        if replace_columns:
+            bpp["evol_type"] = evol_type_str
+        else:
+            bpp["evol_type_str"] = evol_type_str
 
     return bpp
 
