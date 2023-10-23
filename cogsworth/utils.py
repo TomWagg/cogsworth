@@ -130,13 +130,13 @@ def _rlof_path(centre, width, height, m=1.5, flip=False):
     return x, y
 
 
-def translate_bpp(bpp, kstars=True, evol_type=True, label_type="short", replace_columns=True):
+def translate_COSMIC_tables(tab, kstars=True, evol_type=True, label_type="short", replace_columns=True):
     """Translate COSMIC type columns of a bpp table to human-readable labels
 
     Parameters
     ----------
-    bpp : :class:`~pandas.DataFrame`
-        bpp evolution table from COSMIC
+    tab : :class:`~pandas.DataFrame`
+        Evolution table from COSMIC
     kstars : `bool`, optional
         Whether to translate kstar_1 and kstar_2, by default True
     evol_type : `bool`, optional
@@ -148,36 +148,36 @@ def translate_bpp(bpp, kstars=True, evol_type=True, label_type="short", replace_
 
     Returns
     -------
-    translated_bpp : :class:`~pandas.DataFrame`
-        The translated bpp table
+    translated_tab : :class:`~pandas.DataFrame`
+        The translated table
     """
     if kstars:
-        unique_kstars = np.unique(bpp[["kstar_1", "kstar_2"]].values).astype(int)
-        kstar_1_str = np.array([None for _ in range(len(bpp))])
-        kstar_2_str = np.array([None for _ in range(len(bpp))])
+        unique_kstars = np.unique(tab[["kstar_1", "kstar_2"]].values).astype(int)
+        kstar_1_str = np.array([None for _ in range(len(tab))])
+        kstar_2_str = np.array([None for _ in range(len(tab))])
         for kstar in unique_kstars:
-            kstar_1_str[bpp["kstar_1"] == kstar] = kstar_translator[kstar][label_type]
-            kstar_2_str[bpp["kstar_2"] == kstar] = kstar_translator[kstar][label_type]
+            kstar_1_str[tab["kstar_1"] == kstar] = kstar_translator[kstar][label_type]
+            kstar_2_str[tab["kstar_2"] == kstar] = kstar_translator[kstar][label_type]
 
         if replace_columns:
-            bpp["kstar_1"] = kstar_1_str
-            bpp["kstar_2"] = kstar_2_str
+            tab["kstar_1"] = kstar_1_str
+            tab["kstar_2"] = kstar_2_str
         else:
-            bpp["kstar_1_str"] = kstar_1_str
-            bpp["kstar_2_str"] = kstar_2_str
+            tab["kstar_1_str"] = kstar_1_str
+            tab["kstar_2_str"] = kstar_2_str
 
     if evol_type:
-        unique_evol_types = np.unique(bpp["evol_type"].values).astype(int)
-        evol_type_str = np.array([None for _ in range(len(bpp))])
+        unique_evol_types = np.unique(tab["evol_type"].values).astype(int)
+        evol_type_str = np.array([None for _ in range(len(tab))])
         for evol_type in unique_evol_types:
-            evol_type_str[bpp["evol_type"] == evol_type] = evol_type_translator[evol_type][label_type]
+            evol_type_str[tab["evol_type"] == evol_type] = evol_type_translator[evol_type][label_type]
 
         if replace_columns:
-            bpp["evol_type"] = evol_type_str
+            tab["evol_type"] = evol_type_str
         else:
-            bpp["evol_type_str"] = evol_type_str
+            tab["evol_type_str"] = evol_type_str
 
-    return bpp
+    return tab
 
 
 def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon Binary Evolution",
