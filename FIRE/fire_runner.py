@@ -122,7 +122,7 @@ def dispersion_from_virial_parameter(alpha_vir, R, M):
     return np.sqrt(alpha_vir * const.G * M / (5 * R)).to(u.km / u.s)
 
 
-def run_boundedness_sim(alpha_vir, subset=None):
+def run_boundedness_sim(alpha_vir, subset=None, processes=32):
     """
     Runs a cogsworth simulation using the FIRE (Feedback In Realistic Environments) simulations, varying star
     particle boundedness.
@@ -151,7 +151,7 @@ def run_boundedness_sim(alpha_vir, subset=None):
                      m1_cutoff=4,
                      particle_boundedness=alpha_vir,
                      particle_size=1 * u.pc,
-                     processes=32)
+                     processes=processes)
 
     # sample initial binaries and perform stellar evolution
     p_fire.sample_initial_binaries()
@@ -172,9 +172,11 @@ def main():
                         help='Star particle virial parameter')
     parser.add_argument('-s', '--subset', default=None, type=int,
                         help='Size of subset of star particles to use')
+    parser.add_argument('-p', '--processes', default=32, type=int,
+                        help='Number of processes to use')
     args = parser.parse_args()
 
-    run_boundedness_sim(args.alpha_vir, args.subset)
+    run_boundedness_sim(args.alpha_vir, args.subset, args.processes)
 
 if __name__ == "__main__":
     main()
