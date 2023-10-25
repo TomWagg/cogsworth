@@ -983,7 +983,7 @@ class Population():
         """
         return plot_cartoon_evolution(self.bpp, bin_num, **kwargs)
 
-    def save(self, file_name, overwrite=False):
+    def save(self, file_name, overwrite=False, orbits_testing="default"):
         """Save a Population to disk
 
         This will produce 4 files:
@@ -1019,7 +1019,31 @@ class Population():
 
         self.galactic_potential.save(file_name.replace('.h5', '-potential.txt'))
         self.initial_galaxy.save(file_name, key="initial_galaxy")
-        np.save(file_name.replace(".h5", "-orbits.npy"), np.array(self.orbits, dtype="object"))
+
+        if orbits_testing == "default":
+            np.save(file_name.replace(".h5", "-orbits.npy"), np.array(self.orbits, dtype="object"))
+        elif orbits_testing == "offsets":
+            total_length = 0
+            lengths = [len(orbit.pos) for orbit in self.orbits]
+            total_length = sum(lengths)
+            offsets = np.cumsum(lengths)
+            offsets = np.insert(offsets, 0, 0)
+
+            orbits_data = {"pos": np.zeros((3, total_length)), "vel": np.zeros((3, total_length)), "t": np.zeros(total_length)}
+
+            for i, orbit in enumerate(self.orbits):
+                orbits_data["pos"][:, offsets[i]:offsets[i + 1]] = orbit.pos.xyz.to(u.kpc).value
+                orbits_data["vel"][:, offsets[i]:offsets[i + 1]] = orbit.vel.d_xyz.to(u.km / u.s).value
+                orbits_data["t"][offsets[i]:offsets[i + 1]] = orbit.t.to(u.Myr).value
+
+            with h5.File(file_name, "a") as file:
+                orbits = file.create_group("orbits")
+                for key in orbits_data:
+                    orbits[key] = orbits_data[key]
+                orbits["offsets"] = offsets
+
+        elif orbits_testing == "many_hdfs":
+            raise NotImplementedError
 
         with h5.File(file_name, "a") as file:
             numeric_params = np.array([self.n_binaries, self.n_binaries_match, self.processes, self.m1_cutoff,
