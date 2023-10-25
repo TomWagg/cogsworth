@@ -1054,8 +1054,8 @@ class Population():
             num_par = file.create_dataset("numeric_params", data=numeric_params)
             num_par.attrs["store_entire_orbits"] = self.store_entire_orbits
 
-            k_stars = np.array([self.final_kstar1, self.final_kstar2])
-            file.create_dataset("k_stars", data=k_stars)
+            num_par.attrs["final_kstar1"] = self.final_kstar1
+            num_par.attrs["final_kstar2"] = self.final_kstar2
 
             # save BSE settings
             d = file.create_dataset("BSE_settings", data=[])
@@ -1063,7 +1063,7 @@ class Population():
                 d.attrs[key] = self.BSE_settings[key]
 
 
-def load(file_name):
+def load(file_name, orbits_testing="default"):
     """Load a Population from a series of files
 
     Parameters
@@ -1082,9 +1082,10 @@ def load(file_name):
     BSE_settings = {}
     with h5.File(file_name, "r") as file:
         numeric_params = file["numeric_params"][...]
-        k_stars = file["k_stars"][...]
 
         store_entire_orbits = file["numeric_params"].attrs["store_entire_orbits"]
+        final_kstars = [file["numeric_params"].attrs["final_kstar1"],
+                        file["numeric_params"].attrs["final_kstar2"]]
 
         # load in BSE settings
         for key in file["BSE_settings"].attrs:
@@ -1094,7 +1095,7 @@ def load(file_name):
     galactic_potential = gp.potential.load(file_name.replace('.h5', '-potential.txt'))
 
     p = Population(n_binaries=int(numeric_params[0]), processes=int(numeric_params[2]),
-                   m1_cutoff=numeric_params[3], final_kstar1=k_stars[0], final_kstar2=k_stars[1],
+                   m1_cutoff=numeric_params[3], final_kstar1=final_kstars[0], final_kstar2=final_kstars[1],
                    galaxy_model=initial_galaxy.__class__, galactic_potential=galactic_potential,
                    v_dispersion=numeric_params[4] * u.km / u.s, max_ev_time=numeric_params[5] * u.Gyr,
                    timestep_size=numeric_params[6] * u.Myr, BSE_settings=BSE_settings,
@@ -1113,7 +1114,15 @@ def load(file_name):
     p._initC = pd.read_hdf(file_name, key="initC")
     p._kick_info = pd.read_hdf(file_name, key="kick_info")
 
-    p._orbits = np.load(file_name.replace(".h5", "-orbits.npy"), allow_pickle=True)
+    if orbits_testing == "default":
+        p._orbits = np.load(file_name.replace(".h5", "-orbits.npy"), allow_pickle=True)
+    elif orbits_testing == "offsets":
+        with h5.File(file_name, "r") as f:
+            offsets = f["orbits"]["offsets"][...]
+            p._orbits = [gd.Orbit(pos=f["orbits"]["pos"][:, offsets[i]:offsets[i + 1]] * u.kpc,
+                                  vel=f["orbits"]["vel"][:, offsets[i]:offsets[i + 1]] * u.km / u.s,
+                                  t=f["orbits"]["t"][offsets[i]:offsets[i + 1]] * u.Myr)
+                         for i in range(len(offsets) - 1)]
 
     return p
 
