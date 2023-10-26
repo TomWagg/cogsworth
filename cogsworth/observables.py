@@ -269,10 +269,6 @@ def get_photometry(filters, population=None, final_bpp=None, final_pos=None, dis
     if not ignore_extinction and not assume_mw_galactocentric:
         raise ValueError("Cannot calculate extinction due to dust without `assume_mw_galactocentric=True`")
 
-    if assume_mw_galactocentric:
-        final_coords = SkyCoord(x=final_pos[0], y=final_pos[1], z=final_pos[2], frame="galactocentric",
-                                unit=u.kpc, representation_type="cartesian")
-
     if population is not None:
         final_bpp = population.final_bpp
         final_pos = population.final_pos
@@ -280,6 +276,10 @@ def get_photometry(filters, population=None, final_bpp=None, final_pos=None, dis
     else:
         disrupted = final_bpp["sep"].values < 0.0
     n_disrupted = disrupted.sum()
+
+    if assume_mw_galactocentric:
+        final_coords = SkyCoord(x=final_pos[0], y=final_pos[1], z=final_pos[2], frame="galactocentric",
+                                unit=u.kpc, representation_type="cartesian")
 
     # set up empty photometry table
     photometry = pd.DataFrame()
