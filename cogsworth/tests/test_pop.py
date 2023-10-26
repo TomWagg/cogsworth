@@ -109,7 +109,7 @@ class Test(unittest.TestCase):
 
         # cheat and make sure at least one binary is bright enough
         p.observables["G_app_1"].iloc[0] = 18.0
-        p.get_gaia_observed_bin_nums()
+        p.get_gaia_observed_bin_nums(ra="auto", dec="auto")
 
         p.plot_map(ra="auto", dec="auto", coord="C", show=False)
         p.plot_map(ra="auto", dec="auto", coord="G", show=False)

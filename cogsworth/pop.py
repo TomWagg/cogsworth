@@ -805,7 +805,7 @@ class Population():
         self._observables = get_photometry(population=self, **kwargs)
         return self._observables
 
-    def get_gaia_observed_bin_nums(self):
+    def get_gaia_observed_bin_nums(self, ra=None, dec=None):
         """Get a list of ``bin_nums`` of systems that are bright enough to be observed by Gaia.
 
         This is calculated based on the Gaia selection function provided by :mod:`gaiaunlimited`. This
@@ -837,7 +837,7 @@ class Population():
         dr3sf = DR3SelectionFunctionTCG()
 
         # work out the index of each pixel for every binary
-        pix_inds = self.get_healpix_inds(nside=128)
+        pix_inds = self.get_healpix_inds(ra=ra, dec=dec, nside=128)
 
         # loop over first (all bound binaries & primaries from disrupted binaries)
         # and then (secondaries from disrupted binaries)
@@ -894,7 +894,7 @@ class Population():
 
         if ra is None or dec is None:
             raise ValueError("You must provide both `ra` and `dec`, or set them to 'auto'")
-        if ra == "auto":
+        if ra == "auto" or dec == "auto":
             final_coords = coords.SkyCoord(x=self.final_pos[0], y=self.final_pos[1], z=self.final_pos[2],
                                            representation_type="cartesian", unit=u.kpc,
                                            frame="galactocentric")
