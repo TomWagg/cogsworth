@@ -275,11 +275,10 @@ def get_photometry(filters, population=None, final_bpp=None, final_pos=None, dis
         disrupted = population.disrupted
     else:
         disrupted = final_bpp["sep"].values < 0.0
-    n_disrupted = disrupted.sum()
 
     if assume_mw_galactocentric:
-        final_coords = SkyCoord(x=final_pos[0], y=final_pos[1], z=final_pos[2], frame="galactocentric",
-                                unit=u.kpc, representation_type="cartesian")
+        final_coords = SkyCoord(x=final_pos[:, 0], y=final_pos[:, 1], z=final_pos[:, 2],
+                                frame="galactocentric", unit=u.kpc, representation_type="cartesian")
 
     # set up empty photometry table
     photometry = pd.DataFrame()
@@ -289,7 +288,7 @@ def get_photometry(filters, population=None, final_bpp=None, final_pos=None, dis
         photometry['Av_1'] = get_extinction(final_coords[:len(final_bpp)])
 
         # get extinction for secondaries of disrupted binaries (leave as np.inf otherwise)
-        photometry['Av_2'] = np.repeat(np.inf, n_disrupted)
+        photometry['Av_2'] = np.repeat(np.inf, len(final_bpp))
         photometry.loc[disrupted, "Av_2"] = get_extinction(final_coords[len(final_bpp):])
 
         # ensure extinction remains in MIST grid range (<= 6) and is not NaN
