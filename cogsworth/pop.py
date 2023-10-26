@@ -248,14 +248,21 @@ class Population():
         bin_num_to_ind = {num: i for i, num in enumerate(self.bin_nums)}
         sort_idx = np.argsort(list(bin_num_to_ind.keys()))
         idx = np.searchsorted(list(bin_num_to_ind.keys()), bin_nums, sorter=sort_idx)
-        seq_inds = np.asarray(list(bin_num_to_ind.values()))[sort_idx][idx]
+        inds = np.asarray(list(bin_num_to_ind.values()))[sort_idx][idx]
+
+        disrupted_bin_num_to_ind = {num: i for i, num in enumerate(self.bin_nums[self.disrupted])}
+        sort_idx = np.argsort(list(disrupted_bin_num_to_ind.keys()))
+        idx = np.searchsorted(list(disrupted_bin_num_to_ind.keys()), self.bin_nums[self.disrupted],
+                              sorter=sort_idx)
+        inds_with_disruptions = np.asarray(list(disrupted_bin_num_to_ind.values()))[sort_idx][idx] + len(self)
+        all_inds = np.concatenate((inds, inds_with_disruptions)).astype(int)
 
         if self._initial_galaxy is not None:
-            new_pop._initial_galaxy = self._initial_galaxy[seq_inds]
+            new_pop._initial_galaxy = self._initial_galaxy[inds]
 
         # checking whether stellar evolution has been done
         if self._bpp is not None:
-            # copy over subsets of the stellar evolution tables when they aren't None
+            # copy over subsets of data when they aren't None
             new_pop._bpp = self._bpp.loc[bin_nums]
             if self._bcm is not None:
                 new_pop._bcm = self._bcm.loc[bin_nums]
@@ -263,21 +270,22 @@ class Population():
                 new_pop._initC = self._initC.loc[bin_nums]
             if self._kick_info is not None:
                 new_pop._kick_info = self._kick_info.loc[bin_nums]
-
-            # same sort of thing for later parameters
             if self._final_bpp is not None:
                 new_pop._final_bpp = self._final_bpp.loc[bin_nums]
-            if self._orbits is not None:
-                new_pop._orbits = self.orbits[seq_inds]
             if self._disrupted is not None:
-                new_pop._disrupted = self._disrupted[seq_inds]
+                new_pop._disrupted = self._disrupted[inds]
             if self._classes is not None:
-                new_pop._classes = self._classes.iloc[seq_inds]
-            if self._final_coords is not None:
-                new_pop._final_coords = [self._final_coords[i][seq_inds] for i in range(2)]
+                new_pop._classes = self._classes.iloc[inds]
             if self._observables is not None:
-                new_pop._observables = self._observables.iloc[seq_inds]
+                new_pop._observables = self._observables.iloc[inds]
 
+            # same thing but for arrays with appended disrupted secondaries
+            if self._orbits is not None:
+                new_pop._orbits = self.orbits[all_inds]
+            if self._final_pos is not None:
+                new_pop._final_pos = self._final_pos[all_inds]
+            if self._final_vel is not None:
+                new_pop._final_vel = self._final_vel[all_inds]
         return new_pop
 
     def get_citations(self, filename=None):
