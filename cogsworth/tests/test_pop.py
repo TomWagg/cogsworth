@@ -102,7 +102,10 @@ class Test(unittest.TestCase):
 
         # test that observable table is done right (with or without extinction)
         p.observables
-        p.get_observables(ignore_extinction=True)
+        p.get_observables(filters=["G", "BP", "RP", "J", "H", "K"], assume_mw_galactocentric=True)
+        p.get_observables(filters=["G", "BP", "RP", "J", "H", "K"], assume_mw_galactocentric=True,
+                          ignore_extinction=True)
+        p.observables
 
         # cheat and make sure at least one binary is bright enough
         p.observables["G_app_1"].iloc[0] = 18.0
