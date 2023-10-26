@@ -111,10 +111,8 @@ class Test(unittest.TestCase):
         p.observables["G_app_1"].iloc[0] = 18.0
         p.get_gaia_observed_bin_nums()
 
-        p.plot_map(coord="C", show=False)
-        p.plot_map(coord="G", show=False)
-
-        p[0]
+        p.plot_map(ra="auto", dec="auto", coord="C", show=False)
+        p.plot_map(ra="auto", dec="auto", coord="G", show=False)
 
     def test_getters(self):
         """Test the property getters"""
