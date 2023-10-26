@@ -762,33 +762,24 @@ class Population():
             secondary component) will be set to `np.inf` for ease of masking.
         """
         # pool all of the orbits into a single numpy array
-        final_kinematics = np.ones((len(self.orbits), 2, 6)) * np.inf
+        final_kinematics = np.ones((len(self.orbits), 6)) * np.inf
         for i, orbit in enumerate(self.orbits):
             # check if the orbit is missing
             if orbit is None:
                 print("Warning: Detected `None` orbit, entering coordinates as `np.inf`")
-
-            # check if it has been disrupted
-            elif isinstance(orbit, list):
-                final_kinematics[i, 0, :3] = orbit[0][-1].pos.xyz.to(u.kpc).value
-                final_kinematics[i, 1, :3] = orbit[1][-1].pos.xyz.to(u.kpc).value
-                final_kinematics[i, 0, 3:] = orbit[0][-1].vel.d_xyz.to(u.km / u.s)
-                final_kinematics[i, 1, 3:] = orbit[1][-1].vel.d_xyz.to(u.km / u.s)
-
-            # otherwise just save the system in the primary
             else:
-                final_kinematics[i, 0, :3] = orbit[-1].pos.xyz.to(u.kpc).value
-                final_kinematics[i, 0, 3:] = orbit[-1].vel.d_xyz.to(u.km / u.s)
+                final_kinematics[i, :3] = orbit[-1].pos.xyz.to(u.kpc).value
+                final_kinematics[i, 3:] = orbit[-1].vel.d_xyz.to(u.km / u.s)
 
         # turn the array into two SkyCoords
-        final_coords = [coords.SkyCoord(x=final_kinematics[:, i, 0] * u.kpc,
-                                        y=final_kinematics[:, i, 1] * u.kpc,
-                                        z=final_kinematics[:, i, 2] * u.kpc,
-                                        v_x=final_kinematics[:, i, 3] * u.km / u.s,
-                                        v_y=final_kinematics[:, i, 4] * u.km / u.s,
-                                        v_z=final_kinematics[:, i, 5] * u.km / u.s,
-                                        frame="galactocentric") for i in [0, 1]]
-        return final_coords[0], final_coords[1]
+        final_coords = coords.SkyCoord(x=final_kinematics[:, 0] * u.kpc,
+                                       y=final_kinematics[:, 1] * u.kpc,
+                                       z=final_kinematics[:, 2] * u.kpc,
+                                       v_x=final_kinematics[:, 3] * u.km / u.s,
+                                       v_y=final_kinematics[:, 4] * u.km / u.s,
+                                       v_z=final_kinematics[:, 5] * u.km / u.s,
+                                       frame="galactocentric")
+        return final_coords
 
     def get_observables(self, filters=['J', 'H', 'K', 'G', 'BP', 'RP'], ignore_extinction=False):
         """Get observables associated with the binaries at present day.
