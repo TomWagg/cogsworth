@@ -877,24 +877,18 @@ class Population():
         Returns
         -------
         pix : :class:`~numpy.ndarray`
-            The indices for the bound binaries/primaries of disrupted binaries
-            (corresponds to ``self.final_coords[0]``)
-        disrupted_pix : :class:`~numpy.ndarray`
-            The indices for the secondaries of disrupted binaries
-            (corresponds to ``self.final_coords[1][self.disrupted]``)
+            The indices for each system
         """
         assert check_dependencies("healpy")
         import healpy as hp
 
         # get the coordinates in right format
-        colatitudes = [np.pi/2 - self.final_coords[i].icrs.dec.to(u.rad).value for i in [0, 1]]
-        longitudes = [self.final_coords[i].icrs.ra.to(u.rad).value for i in [0, 1]]
+        colatitudes = np.pi/2 - self.final_coords.icrs.dec.to(u.rad).value
+        longitudes = self.final_coords.icrs.ra.to(u.rad).value
 
         # find the pixels for each bound binary/primary and for each disrupted secondary
         pix = hp.ang2pix(nside, nest=True, theta=colatitudes[0], phi=longitudes[0])
-        disrupted_pix = hp.ang2pix(nside, nest=True,
-                                   theta=colatitudes[1][self.disrupted], phi=longitudes[1][self.disrupted])
-        return pix, disrupted_pix
+        return pix
 
     def plot_map(self, nside=128, coord="C",
                  cmap="magma", norm="log", unit=None, show=True, **mollview_kwargs):
@@ -924,13 +918,13 @@ class Population():
         import healpy as hp
         import matplotlib.pyplot as plt
 
-        pix, disrupted_pix = self.get_healpix_inds(nside=nside)
+        pix = self.get_healpix_inds(nside=nside)
 
         # initialise an empty map
         m = np.zeros(hp.nside2npix(nside))
 
         # count the unique pixel values and how many sources are in each
-        inds, counts = np.unique(np.concatenate([pix, disrupted_pix]), return_counts=True)
+        inds, counts = np.unique(pix, return_counts=True)
 
         # apply a log if desired
         if norm == "log":
