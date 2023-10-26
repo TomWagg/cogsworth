@@ -755,11 +755,11 @@ class Population():
 
         Returns
         -------
-        final_coords : `tuple` of :class:`~astropy.coordinates.SkyCoord`
-            A SkyCoord object of the final positions of each binary in the galactocentric frame.
-            For bound binaries only the first SkyCoord is populated, for disrupted binaries each SkyCoord
-            corresponds to the individual components. Any missing orbits (where orbit=None or there is no
-            secondary component) will be set to `np.inf` for ease of masking.
+        final_coords : :class:`~astropy.coordinates.SkyCoord`
+            A SkyCoord object of the final positions of each system in the galactocentric frame.
+            The first `len(self)` entries are for bound binaries or primaries, then the final
+            `self.disrupted.sum()` entries are for disrupted secondaries. Any missing orbits (where orbit=None
+            will be set to `np.inf` for ease of masking.
         """
         # pool all of the orbits into a single numpy array
         final_kinematics = np.ones((len(self.orbits), 6)) * np.inf
