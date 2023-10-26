@@ -92,7 +92,7 @@ class Population():
         The classes associated with each produced binary (see :meth:`~cogsworth.classify.list_classes` for a
         list of available classes and their meanings)
     final_pos, final_vel : :class:`~astropy.quantity.Quantity`
-        Final positions and velocities of each systemof each system in the galactocentric frame.
+        Final positions and velocities of each system in the galactocentric frame.
         The first `len(self)` entries of each are for bound binaries or primaries, then the final
         `self.disrupted.sum()` entries are for disrupted secondaries. Any missing orbits (where orbit=None
         will be set to `np.inf` for ease of masking.
@@ -759,7 +759,7 @@ class Population():
         Returns
         -------
         final_pos, final_vel : :class:`~astropy.quantity.Quantity`
-            Final positions and velocities of each systemof each system in the galactocentric frame.
+            Final positions and velocities of each system in the galactocentric frame.
             The first `len(self)` entries of each are for bound binaries or primaries, then the final
             `self.disrupted.sum()` entries are for disrupted secondaries. Any missing orbits (where orbit=None
             will be set to `np.inf` for ease of masking.
