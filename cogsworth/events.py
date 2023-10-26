@@ -58,6 +58,7 @@ def identify_events(full_bpp, full_kick_info):
 
         # iterate over the kick file and store the relevant information (for both if disruption will occur)
         if it_will_disrupt:
+            secondary_events_list[i] = []
             for j in range(len(kick_info)):
                 # for rows including the disruption or after it then the secondary component is what we want
                 col_suffix = "_1" if kick_info.iloc[j]["disrupted"] == 0.0 else "_2"
