@@ -456,8 +456,9 @@ class Population():
     @property
     def observables(self):
         if self._observables is None:
-            self._observables = self.get_observables()
-        return self._observables
+            print("Need to run `self.get_observables` before calling `self.observables`!")
+        else:
+            return self._observables
 
     def create_population(self, with_timing=True):
         """Create an entirely evolved population of binaries.
@@ -801,7 +802,8 @@ class Population():
         **kwargs to pass to :func:`~cogsworth.observables.get_photometry`
         """
         self.__citations__.extend(["MIST", "MESA", "bayestar2019"])
-        return get_photometry(population=self, **kwargs)
+        self._observables = get_photometry(population=self, **kwargs)
+        return self._observables
 
     def get_gaia_observed_bin_nums(self):
         """Get a list of ``bin_nums`` of systems that are bright enough to be observed by Gaia.
