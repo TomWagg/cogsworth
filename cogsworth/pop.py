@@ -776,7 +776,7 @@ class Population():
                 self._final_vel[i] = orbit[-1].vel.d_xyz.to(u.km / u.s)
         return self._final_pos, self._final_vel
 
-    def get_observables(self, filters=['J', 'H', 'K', 'G', 'BP', 'RP'], ignore_extinction=False):
+    def get_observables(self, **kwargs):
         """Get observables associated with the binaries at present day.
 
         These include: extinction due to dust, absolute and apparent bolometric magnitudes for each star,
@@ -788,13 +788,10 @@ class Population():
 
         Parameters
         ----------
-        filters : `list`, optional
-            Which filters to compute observables for, by default ['J', 'H', 'K', 'G', 'BP', 'RP']
-        ignore_extinction : `bool`
-            Whether to ignore extinction
+        **kwargs to pass to :func:`~cogsworth.observables.get_photometry`
         """
         self.__citations__.extend(["MIST", "MESA", "bayestar2019"])
-        return get_photometry(self.final_bpp, self.final_pos, filters, ignore_extinction=ignore_extinction)
+        return get_photometry(population=self, **kwargs)
 
     def get_gaia_observed_bin_nums(self):
         """Get a list of ``bin_nums`` of systems that are bright enough to be observed by Gaia.
