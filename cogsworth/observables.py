@@ -227,19 +227,23 @@ def get_extinction(coords):     # pragma: no cover
     return Av
 
 
-def get_photometry(final_bpp, final_coords, filters, ignore_extinction=False):
+def get_photometry(filters, population=None, final_bpp=None, final_coords=None, ignore_extinction=False):
     """Computes photometry subject to dust extinction using the MIST boloemtric correction grid
 
     Parameters
     ----------
+    filters : `list` of `str`
+        Which filters to compute photometry for (e.g. ['J', 'H', 'K', 'G', 'BP', 'RP'])
+    population : :class:`~cogsworth.pop.Population`
+        The population for which to compute photometry (either supply this or a final_bpp and final_coords)
     final_bpp : :class:`~pandas.DataFrame`
         A dataset of COSMIC binaries at present day - must include these columns: ["sep", "metallicity"] and
         for each star it must have the columns ["teff", "lum", "mass", "rad", "kstar"]
-    final_coords : `tuple` of :class:`~astropy.coordinates.SkyCoord`
-        Final positions and velocities of the binaries at present day. First entry is for binaries or the
-        primary in a disrupted system, second entry is for secondaries in a disrupted system.
-    filters : `list` of `str`
-        Which filters to compute photometry for (e.g. ['J', 'H', 'K', 'G', 'BP', 'RP'])
+    final_coords : :class:`~astropy.coordinates.SkyCoord`
+        A SkyCoord object of the final positions of each system in the galactocentric frame.
+        The first `len(self)` entries are for bound binaries or primaries, then the final
+        `self.disrupted.sum()` entries are for disrupted secondaries. Any missing orbits (where orbit=None
+        will be set to `np.inf` for ease of masking.
     ignore_extinction : `bool`
         Whether to ignore extinction
 
@@ -254,25 +258,35 @@ def get_photometry(final_bpp, final_coords, filters, ignore_extinction=False):
     from isochrones.mist.bc import MISTBolometricCorrectionGrid
     logging.getLogger("isochrones").setLevel("WARNING")
 
+    # check that the input is valid
+    if population is None and (final_bpp is None or final_coords is None):
+        raise ValueError("Either a population or final_bpp and final_coords must be supplied")
+    if population is not None:
+        final_bpp = population.final_bpp
+        final_coords = population.final_coords
+        disrupted = population.disrupted
+    else:
+        disrupted = final_bpp["sep"].values < 0.0
+    n_disrupted = disrupted.sum()
+
     # set up empty photometry table
     photometry = pd.DataFrame()
-    disrupted = final_bpp["sep"].values < 0.0
 
     if not ignore_extinction:       # pragma: no cover
         # get extinction for bound binaries and primary of disrupted binaries
-        photometry['Av_1'] = get_extinction(final_coords[0])
+        photometry['Av_1'] = get_extinction(final_coords[:len(final_bpp)])
 
         # get extinction for secondaries of disrupted binaries (leave as np.inf otherwise)
-        photometry['Av_2'] = np.repeat(np.inf, len(final_coords[1]))
-        photometry.loc[disrupted, "Av_2"] = get_extinction(final_coords[1][disrupted])
+        photometry['Av_2'] = np.repeat(np.inf, n_disrupted)
+        photometry.loc[disrupted, "Av_2"] = get_extinction(final_coords[len(final_bpp):])
 
         # ensure extinction remains in MIST grid range (<= 6) and is not NaN
         photometry.loc[photometry.Av_1 > 6, ['Av_1']] = 6
         photometry.loc[photometry.Av_2 > 6, ['Av_2']] = 6
         photometry = photometry.fillna(6)
     else:
-        photometry['Av_1'] = np.zeros(len(final_coords[0]))
-        photometry['Av_2'] = np.zeros(len(final_coords[0]))
+        photometry['Av_1'] = np.zeros(len(final_bpp))
+        photometry['Av_2'] = np.zeros(len(final_bpp))
 
     # get Fe/H using e.g. Bertelli+1994 Eq. 10 (assuming all stars have the solar abundance pattern)
     Z_sun = 0.0142
