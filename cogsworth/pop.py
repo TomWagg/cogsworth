@@ -696,7 +696,7 @@ class Population():
                                                                         self.initial_galaxy._v_z]] * u.km/u.s)
 
         # identify the pertinent events in the evolution
-        events = identify_events(full_bpp=self.bpp, full_kick_info=self.kick_info)
+        primary_events, secondary_events = identify_events(full_bpp=self.bpp, full_kick_info=self.kick_info)
 
         # if we want to use multiprocessing
         if self.pool is not None or self.processes > 1:
@@ -707,11 +707,18 @@ class Population():
             if not pool_existed:
                 self.pool = Pool(self.processes)
 
-            # setup arguments and evolve the orbits from birth until present day
-            args = [(w0s[i], self.max_ev_time - self.initial_galaxy.tau[i], self.max_ev_time,
-                     copy(self.timestep_size), self.galactic_potential,
-                     events[i], self.store_entire_orbits, quiet) for i in range(self.n_binaries_match)]
+            # setup arguments to combine primary and secondaries into a single list
+            primary_args = [(w0s[i], self.max_ev_time - self.initial_galaxy.tau[i], self.max_ev_time,
+                             copy(self.timestep_size), self.galactic_potential,
+                             primary_events[i], self.store_entire_orbits, quiet)
+                            for i in range(self.n_binaries_match)]
+            secondary_args = [(w0s[i], self.max_ev_time - self.initial_galaxy.tau[i], self.max_ev_time,
+                               copy(self.timestep_size), self.galactic_potential,
+                               secondary_events[i], self.store_entire_orbits, quiet)
+                              for i in range(self.n_binaries_match) if secondary_events[i] is not None]
+            args = primary_args + secondary_args
 
+            # evolve the orbits from birth until present day
             if progress_bar:
                 orbits = self.pool.starmap(integrate_orbit_with_events,
                                            tqdm(args, total=self.n_binaries_match))
@@ -730,7 +737,15 @@ class Population():
                 orbits.append(integrate_orbit_with_events(w0=w0s[i], potential=self.galactic_potential,
                                                           t1=self.max_ev_time - self.initial_galaxy.tau[i],
                                                           t2=self.max_ev_time, dt=copy(self.timestep_size),
-                                                          events=events[i], quiet=quiet,
+                                                          events=primary_events[i], quiet=quiet,
+                                                          store_all=self.store_entire_orbits))
+            for i in range(self.n_binaries_match):
+                if secondary_events[i] is None:
+                    continue
+                orbits.append(integrate_orbit_with_events(w0=w0s[i], potential=self.galactic_potential,
+                                                          t1=self.max_ev_time - self.initial_galaxy.tau[i],
+                                                          t2=self.max_ev_time, dt=copy(self.timestep_size),
+                                                          events=secondary_events[i], quiet=quiet,
                                                           store_all=self.store_entire_orbits))
 
         self._orbits = np.array(orbits, dtype="object")
