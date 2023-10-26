@@ -446,10 +446,10 @@ class Population():
             self._escaped = np.repeat(False, len(self))
 
             # get the current velocity
-            v_curr = np.sum(self.final_vel**2, axis=0)**(0.5)
+            v_curr = np.sum(self.final_vel**2, axis=1)**(0.5)
 
             # 0.5 * m * v_esc**2 = m * (-Phi)
-            v_esc = np.sqrt(-2 * self.galactic_potential(self.final_pos))
+            v_esc = np.sqrt(-2 * self.galactic_potential(self.final_pos.T))
             self._escaped = v_curr >= v_esc
         return self._escaped
 
@@ -773,15 +773,17 @@ class Population():
             will be set to `np.inf` for ease of masking.
         """
         # pool all of the orbits into a single numpy array
-        self._final_pos = np.ones((len(self.orbits), 3)) * np.inf * u.kpc
-        self._final_vel = np.ones((len(self.orbits), 3)) * np.inf * u.km / u.s
+        self._final_pos = np.ones((len(self.orbits), 3)) * np.inf
+        self._final_vel = np.ones((len(self.orbits), 3)) * np.inf
         for i, orbit in enumerate(self.orbits):
             # check if the orbit is missing
             if orbit is None:
                 print("Warning: Detected `None` orbit, entering coordinates as `np.inf`")
             else:
                 self._final_pos[i] = orbit[-1].pos.xyz.to(u.kpc).value
-                self._final_vel[i] = orbit[-1].vel.d_xyz.to(u.km / u.s)
+                self._final_vel[i] = orbit[-1].vel.d_xyz.to(u.km / u.s).value
+        self._final_pos *= u.kpc
+        self._final_vel *= u.km / u.s
         return self._final_pos, self._final_vel
 
     def get_observables(self, **kwargs):
