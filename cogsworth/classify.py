@@ -111,7 +111,7 @@ def determine_final_classes(population=None, bpp=None, bcm=None, kick_info=None,
     # calculate relative speeds for observed walk/runaways
     if disrupted.any():
         rel_speed_1 = _get_rel_speed(orbits=orbits[:len(final_bpp)][disrupted], potential=potential)
-        rel_speed_2 = _get_rel_speed(orbits=orbits[len(final_bpp):], potential=potential, which_star=1)
+        rel_speed_2 = _get_rel_speed(orbits=orbits[len(final_bpp):], potential=potential)
 
         # set the classes based on the relative speeds (non-disrupted as all left as False by default)
         classes.loc[disrupted, "walkaway-o-1"] = (rel_speed_1 < 30.0) & primary_is_star[disrupted]
@@ -122,7 +122,7 @@ def determine_final_classes(population=None, bpp=None, bcm=None, kick_info=None,
     return classes
 
 
-def _get_rel_speed(orbits, potential, which_star):
+def _get_rel_speed(orbits, potential):
     """Calculate the relative speed of a set of stars at the end of their orbits compared to the circular
     velocity at their final positions (given a galactic potential)
 
