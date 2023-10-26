@@ -97,9 +97,6 @@ class Test(unittest.TestCase):
         if i == MAX_REPS:
             raise ValueError("Couldn't make anything disrupt :/")
 
-        # test we can get the final distances properly
-        self.assertTrue(np.all(p.final_coords[0].icrs.distance.value >= 0.0))
-
         # test that classes can be identified
         self.assertTrue(p.classes.shape[0] == p.n_binaries_match)
 
@@ -179,10 +176,11 @@ class Test(unittest.TestCase):
         p.perform_stellar_evolution()
 
     def test_none_orbits(self):
-        """Ensure final_coords still works when there is an Orbit with None"""
+        """Ensure final_pos/vel still works when there is an Orbit with None"""
         p = pop.Population(2)
         p._orbits = [None, None]
-        self.assertTrue(p.final_coords[0].x[0].value == np.inf)
+        self.assertTrue(p.final_pos[0][0].value == np.inf)
+        self.assertTrue(p.final_vel[0][0].value == np.inf)
 
     @pytest.mark.filterwarnings("ignore:.*duplicate")
     def test_indexing(self):
