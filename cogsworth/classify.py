@@ -28,7 +28,7 @@ def determine_final_classes(population=None, bpp=None, bcm=None, kick_info=None,
         Information about the kicks that occur for each binary
     orbits : `list` of :class:`~gala.dynamics.Orbit`
         The orbits of each binary within the galaxy. Disrupted binaries should have two entries
-        (for both stars).
+        (for both stars), where the secondary is appended in sequence to the full list.
     galactic_potential : :class:`Potential <gala.potential.potential.PotentialBase>`, optional
         Galactic potential to use for evolving the orbits of binaries
 
@@ -110,8 +110,8 @@ def determine_final_classes(population=None, bpp=None, bcm=None, kick_info=None,
 
     # calculate relative speeds for observed walk/runaways
     if disrupted.any():
-        rel_speed_1 = _get_rel_speed(orbits=orbits[disrupted], potential=potential, which_star=0)
-        rel_speed_2 = _get_rel_speed(orbits=orbits[disrupted], potential=potential, which_star=1)
+        rel_speed_1 = _get_rel_speed(orbits=orbits[:len(final_bpp)][disrupted], potential=potential)
+        rel_speed_2 = _get_rel_speed(orbits=orbits[len(final_bpp):], potential=potential, which_star=1)
 
         # set the classes based on the relative speeds (non-disrupted as all left as False by default)
         classes.loc[disrupted, "walkaway-o-1"] = (rel_speed_1 < 30.0) & primary_is_star[disrupted]
@@ -132,8 +132,6 @@ def _get_rel_speed(orbits, potential, which_star):
         List of gala Orbits
     potential : :class:`gala.potential.potential.PotentialBase`
         The galactic potential used for finding the circular velocity
-    which_star : `int`
-        Index of which star to consider, either 0 or 1
 
     Returns
     -------
@@ -144,8 +142,8 @@ def _get_rel_speed(orbits, potential, which_star):
     posf = [None for _ in range(len(orbits))]
     velf = [None for _ in range(len(orbits))]
     for i, orbit in enumerate(orbits):
-        posf[i] = orbit[which_star][-1].pos.xyz.to(u.kpc).value
-        velf[i] = orbit[which_star][-1].vel.d_xyz.to(u.km / u.s)
+        posf[i] = orbit[-1].pos.xyz.to(u.kpc).value
+        velf[i] = orbit[-1].vel.d_xyz.to(u.km / u.s)
     posf *= u.kpc
     velf *= u.km / u.s
 
