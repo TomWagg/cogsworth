@@ -842,10 +842,10 @@ class Population():
         # loop over first (all bound binaries & primaries from disrupted binaries)
         # and then (secondaries from disrupted binaries)
         observed = []
-        all_bin_nums = self.final_bpp["bin_num"].values
-        for pix, g_mags, bin_nums in zip(pix_inds, [self.observables["G_app_1"].values,
-                                                    self.observables["G_app_2"][self.disrupted].values],
-                                         [all_bin_nums, all_bin_nums[self.disrupted]]):
+        for pix, g_mags, bin_nums in zip([pix_inds[:len(self)], pix_inds[len(self):]],
+                                         [self.observables["G_app_1"].values,
+                                          self.observables["G_app_2"][self.disrupted].values],
+                                         [self.bin_nums[:len(self)], self.bin_nums[len(self):]]):
             # get the coordinates of the corresponding pixels
             comp_coords = coords_of_centers[pix]
 
@@ -895,18 +895,18 @@ class Population():
         if ra is None or dec is None:
             raise ValueError("You must provide both `ra` and `dec`, or set them to 'auto'")
         if ra == "auto" or dec == "auto":
-            final_coords = coords.SkyCoord(x=self.final_pos[0], y=self.final_pos[1], z=self.final_pos[2],
-                                           representation_type="cartesian", unit=u.kpc,
-                                           frame="galactocentric")
+            final_coords = coords.SkyCoord(x=self.final_pos[:, 0], y=self.final_pos[:, 1],
+                                           z=self.final_pos[:, 2], representation_type="cartesian",
+                                           unit=u.kpc, frame="galactocentric")
             ra = final_coords.icrs.ra.to(u.rad).value
             dec = final_coords.icrs.dec.to(u.rad).value
 
         # get the coordinates in right format
-        colatitudes = np.pi / 2 - ra
-        longitudes = dec
+        colatitudes = np.pi / 2 - dec
+        longitudes = ra
 
         # find the pixels for each bound binary/primary and for each disrupted secondary
-        pix = hp.ang2pix(nside, nest=True, theta=colatitudes[0], phi=longitudes[0])
+        pix = hp.ang2pix(nside, nest=True, theta=colatitudes, phi=longitudes)
         return pix
 
     def plot_map(self, ra=None, dec=None, nside=128, coord="C",
