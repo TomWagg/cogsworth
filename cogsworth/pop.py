@@ -84,22 +84,24 @@ class Population():
     kick_info : :class:`~pandas.DataFrame`
         Information about the kicks that occur for each binary
     orbits : `list` of :class:`~gala.dynamics.Orbit`
-        The orbits of each binary within the galaxy from its birth until :attr:`max_ev_time` with timesteps of
-        :attr:`timestep_size`. Note that disrupted binaries will have two entries (for both stars).
+        The orbits of each system within the galaxy from its birth until :attr:`max_ev_time` with timesteps of
+        :attr:`timestep_size`. This list will have length = `len(self) + self.disrupted.sum()`, where the
+        first section are for bound binaries and disrupted primaries and the last section are for disrupted
+        secondaries
     classes : `list`
         The classes associated with each produced binary (see :meth:`~cogsworth.classify.list_classes` for a
         list of available classes and their meanings)
-    final_coords : `tuple` of :class:`~astropy.coordinates.SkyCoord`
-        A SkyCoord object of the final positions of each binary in the galactocentric frame.
-        For bound binaries only the first SkyCoord is populated, for disrupted binaries each SkyCoord
-        corresponds to the individual components. Any missing orbits (where orbit=None or there is no
-        secondary component) will be set to `np.inf` for ease of masking.
+    final_pos, final_vel : :class:`~astropy.quantity.Quantity`
+        Final positions and velocities of each system in the galactocentric frame.
+        The first `len(self)` entries of each are for bound binaries or primaries, then the final
+        `self.disrupted.sum()` entries are for disrupted secondaries. Any missing orbits (where orbit=None
+        will be set to `np.inf` for ease of masking.
     final_bpp : :class:`~pandas.DataFrame`
         The final state of each binary (taken from the final entry in :attr:`bpp`)
     disrupted : :class:`~numpy.ndarray` of `bool`
         A mask on the binaries of whether they were disrupted
     observables : :class:`~pandas.DataFrame`
-        Observables associated with the final binaries. See `get_observables` for more details on the columns
+        Observables associated with the final binaries. See `get_photometry` for more details on the columns
     bin_nums : :class:`~numpy.ndarray`
         An array containing the unique COSMIC `bin_nums` of each binary in the population - these can be
         used an indices for the population
@@ -140,7 +142,8 @@ class Population():
         self._kick_info = None
         self._orbits = None
         self._classes = None
-        self._final_coords = None
+        self._final_pos = None
+        self._final_vel = None
         self._final_bpp = None
         self._disrupted = None
         self._escaped = None
@@ -245,14 +248,21 @@ class Population():
         bin_num_to_ind = {num: i for i, num in enumerate(self.bin_nums)}
         sort_idx = np.argsort(list(bin_num_to_ind.keys()))
         idx = np.searchsorted(list(bin_num_to_ind.keys()), bin_nums, sorter=sort_idx)
-        seq_inds = np.asarray(list(bin_num_to_ind.values()))[sort_idx][idx]
+        inds = np.asarray(list(bin_num_to_ind.values()))[sort_idx][idx]
+
+        disrupted_bin_num_to_ind = {num: i for i, num in enumerate(self.bin_nums[self.disrupted])}
+        sort_idx = np.argsort(list(disrupted_bin_num_to_ind.keys()))
+        idx = np.searchsorted(list(disrupted_bin_num_to_ind.keys()), self.bin_nums[self.disrupted],
+                              sorter=sort_idx)
+        inds_with_disruptions = np.asarray(list(disrupted_bin_num_to_ind.values()))[sort_idx][idx] + len(self)
+        all_inds = np.concatenate((inds, inds_with_disruptions)).astype(int)
 
         if self._initial_galaxy is not None:
-            new_pop._initial_galaxy = self._initial_galaxy[seq_inds]
+            new_pop._initial_galaxy = self._initial_galaxy[inds]
 
         # checking whether stellar evolution has been done
         if self._bpp is not None:
-            # copy over subsets of the stellar evolution tables when they aren't None
+            # copy over subsets of data when they aren't None
             new_pop._bpp = self._bpp.loc[bin_nums]
             if self._bcm is not None:
                 new_pop._bcm = self._bcm.loc[bin_nums]
@@ -260,21 +270,22 @@ class Population():
                 new_pop._initC = self._initC.loc[bin_nums]
             if self._kick_info is not None:
                 new_pop._kick_info = self._kick_info.loc[bin_nums]
-
-            # same sort of thing for later parameters
             if self._final_bpp is not None:
                 new_pop._final_bpp = self._final_bpp.loc[bin_nums]
-            if self._orbits is not None:
-                new_pop._orbits = self.orbits[seq_inds]
             if self._disrupted is not None:
-                new_pop._disrupted = self._disrupted[seq_inds]
+                new_pop._disrupted = self._disrupted[inds]
             if self._classes is not None:
-                new_pop._classes = self._classes.iloc[seq_inds]
-            if self._final_coords is not None:
-                new_pop._final_coords = [self._final_coords[i][seq_inds] for i in range(2)]
+                new_pop._classes = self._classes.iloc[inds]
             if self._observables is not None:
-                new_pop._observables = self._observables.iloc[seq_inds]
+                new_pop._observables = self._observables.iloc[inds]
 
+            # same thing but for arrays with appended disrupted secondaries
+            if self._orbits is not None:
+                new_pop._orbits = self.orbits[all_inds]
+            if self._final_pos is not None:
+                new_pop._final_pos = self._final_pos[all_inds]
+            if self._final_vel is not None:
+                new_pop._final_vel = self._final_vel[all_inds]
         return new_pop
 
     def get_citations(self, filename=None):
@@ -401,10 +412,16 @@ class Population():
         return self._classes
 
     @property
-    def final_coords(self):
-        if self._final_coords is None:
-            self._final_coords = self.get_final_coords()
-        return self._final_coords
+    def final_pos(self):
+        if self._final_pos is None:
+            self._final_pos, self._final_vel = self.get_final_coords()
+        return self._final_pos
+
+    @property
+    def final_vel(self):
+        if self._final_vel is None:
+            self._final_pos, self._final_vel = self.get_final_coords()
+        return self._final_vel
 
     @property
     def final_bpp(self):
@@ -426,28 +443,22 @@ class Population():
     @property
     def escaped(self):
         if self._escaped is None:
-            self._escaped = [np.repeat(False, len(self)), np.repeat(False, len(self))]
+            self._escaped = np.repeat(False, len(self))
 
-            # do it for all systems and then also for the secondaries of disrupted systems
-            for ind, mask in enumerate([np.repeat(True, len(self)), self.disrupted]):
-                # get the current velocity
-                v_curr = np.sum(self.final_coords[ind][mask].velocity.d_xyz**2, axis=0)**(0.5)
+            # get the current velocity
+            v_curr = np.sum(self.final_vel**2, axis=1)**(0.5)
 
-                # get the escape velocity at the current position based on galactic potential
-                pos = np.asarray([self.final_coords[ind][mask].galactocentric.x.to(u.kpc),
-                                  self.final_coords[ind][mask].galactocentric.y.to(u.kpc),
-                                  self.final_coords[ind][mask].galactocentric.z.to(u.kpc)]) * u.kpc
-
-                # 0.5 * m * v_esc**2 = m * (-Phi)
-                v_esc = np.sqrt(-2 * self.galactic_potential(pos))
-                self._escaped[ind][mask] = v_curr >= v_esc
+            # 0.5 * m * v_esc**2 = m * (-Phi)
+            v_esc = np.sqrt(-2 * self.galactic_potential(self.final_pos.T))
+            self._escaped = v_curr >= v_esc
         return self._escaped
 
     @property
     def observables(self):
         if self._observables is None:
-            self._observables = self.get_observables()
-        return self._observables
+            print("Need to run `self.get_observables` before calling `self.observables`!")
+        else:
+            return self._observables
 
     def create_population(self, with_timing=True):
         """Create an entirely evolved population of binaries.
@@ -678,8 +689,9 @@ class Population():
         quiet : `bool`, optional
             Whether to silence any warnings about failing orbits, by default False
         """
-        # delete any cached variables
-        self._final_coords = None
+        # delete any cached variables that are based on orbits
+        self._final_pos = None
+        self._final_vel = None
         self._observables = None
 
         v_phi = (self.initial_galaxy._v_T / self.initial_galaxy.rho)
@@ -696,7 +708,7 @@ class Population():
                                                                         self.initial_galaxy._v_z]] * u.km/u.s)
 
         # identify the pertinent events in the evolution
-        events = identify_events(full_bpp=self.bpp, full_kick_info=self.kick_info)
+        primary_events, secondary_events = identify_events(full_bpp=self.bpp, full_kick_info=self.kick_info)
 
         # if we want to use multiprocessing
         if self.pool is not None or self.processes > 1:
@@ -707,11 +719,18 @@ class Population():
             if not pool_existed:
                 self.pool = Pool(self.processes)
 
-            # setup arguments and evolve the orbits from birth until present day
-            args = [(w0s[i], self.max_ev_time - self.initial_galaxy.tau[i], self.max_ev_time,
-                     copy(self.timestep_size), self.galactic_potential,
-                     events[i], self.store_entire_orbits, quiet) for i in range(self.n_binaries_match)]
+            # setup arguments to combine primary and secondaries into a single list
+            primary_args = [(w0s[i], self.max_ev_time - self.initial_galaxy.tau[i], self.max_ev_time,
+                             copy(self.timestep_size), self.galactic_potential,
+                             primary_events[i], self.store_entire_orbits, quiet)
+                            for i in range(self.n_binaries_match)]
+            secondary_args = [(w0s[i], self.max_ev_time - self.initial_galaxy.tau[i], self.max_ev_time,
+                               copy(self.timestep_size), self.galactic_potential,
+                               secondary_events[i], self.store_entire_orbits, quiet)
+                              for i in range(self.n_binaries_match) if secondary_events[i] is not None]
+            args = primary_args + secondary_args
 
+            # evolve the orbits from birth until present day
             if progress_bar:
                 orbits = self.pool.starmap(integrate_orbit_with_events,
                                            tqdm(args, total=self.n_binaries_match))
@@ -730,7 +749,15 @@ class Population():
                 orbits.append(integrate_orbit_with_events(w0=w0s[i], potential=self.galactic_potential,
                                                           t1=self.max_ev_time - self.initial_galaxy.tau[i],
                                                           t2=self.max_ev_time, dt=copy(self.timestep_size),
-                                                          events=events[i], quiet=quiet,
+                                                          events=primary_events[i], quiet=quiet,
+                                                          store_all=self.store_entire_orbits))
+            for i in range(self.n_binaries_match):
+                if secondary_events[i] is None:
+                    continue
+                orbits.append(integrate_orbit_with_events(w0=w0s[i], potential=self.galactic_potential,
+                                                          t1=self.max_ev_time - self.initial_galaxy.tau[i],
+                                                          t2=self.max_ev_time, dt=copy(self.timestep_size),
+                                                          events=secondary_events[i], quiet=quiet,
                                                           store_all=self.store_entire_orbits))
 
         self._orbits = np.array(orbits, dtype="object")
@@ -740,42 +767,27 @@ class Population():
 
         Returns
         -------
-        final_coords : `tuple` of :class:`~astropy.coordinates.SkyCoord`
-            A SkyCoord object of the final positions of each binary in the galactocentric frame.
-            For bound binaries only the first SkyCoord is populated, for disrupted binaries each SkyCoord
-            corresponds to the individual components. Any missing orbits (where orbit=None or there is no
-            secondary component) will be set to `np.inf` for ease of masking.
+        final_pos, final_vel : :class:`~astropy.quantity.Quantity`
+            Final positions and velocities of each system in the galactocentric frame.
+            The first `len(self)` entries of each are for bound binaries or primaries, then the final
+            `self.disrupted.sum()` entries are for disrupted secondaries. Any missing orbits (where orbit=None
+            will be set to `np.inf` for ease of masking.
         """
         # pool all of the orbits into a single numpy array
-        final_kinematics = np.ones((len(self.orbits), 2, 6)) * np.inf
+        self._final_pos = np.ones((len(self.orbits), 3)) * np.inf
+        self._final_vel = np.ones((len(self.orbits), 3)) * np.inf
         for i, orbit in enumerate(self.orbits):
             # check if the orbit is missing
             if orbit is None:
                 print("Warning: Detected `None` orbit, entering coordinates as `np.inf`")
-
-            # check if it has been disrupted
-            elif isinstance(orbit, list):
-                final_kinematics[i, 0, :3] = orbit[0][-1].pos.xyz.to(u.kpc).value
-                final_kinematics[i, 1, :3] = orbit[1][-1].pos.xyz.to(u.kpc).value
-                final_kinematics[i, 0, 3:] = orbit[0][-1].vel.d_xyz.to(u.km / u.s)
-                final_kinematics[i, 1, 3:] = orbit[1][-1].vel.d_xyz.to(u.km / u.s)
-
-            # otherwise just save the system in the primary
             else:
-                final_kinematics[i, 0, :3] = orbit[-1].pos.xyz.to(u.kpc).value
-                final_kinematics[i, 0, 3:] = orbit[-1].vel.d_xyz.to(u.km / u.s)
+                self._final_pos[i] = orbit[-1].pos.xyz.to(u.kpc).value
+                self._final_vel[i] = orbit[-1].vel.d_xyz.to(u.km / u.s).value
+        self._final_pos *= u.kpc
+        self._final_vel *= u.km / u.s
+        return self._final_pos, self._final_vel
 
-        # turn the array into two SkyCoords
-        final_coords = [coords.SkyCoord(x=final_kinematics[:, i, 0] * u.kpc,
-                                        y=final_kinematics[:, i, 1] * u.kpc,
-                                        z=final_kinematics[:, i, 2] * u.kpc,
-                                        v_x=final_kinematics[:, i, 3] * u.km / u.s,
-                                        v_y=final_kinematics[:, i, 4] * u.km / u.s,
-                                        v_z=final_kinematics[:, i, 5] * u.km / u.s,
-                                        frame="galactocentric") for i in [0, 1]]
-        return final_coords[0], final_coords[1]
-
-    def get_observables(self, filters=['J', 'H', 'K', 'G', 'BP', 'RP'], ignore_extinction=False):
+    def get_observables(self, **kwargs):
         """Get observables associated with the binaries at present day.
 
         These include: extinction due to dust, absolute and apparent bolometric magnitudes for each star,
@@ -787,15 +799,13 @@ class Population():
 
         Parameters
         ----------
-        filters : `list`, optional
-            Which filters to compute observables for, by default ['J', 'H', 'K', 'G', 'BP', 'RP']
-        ignore_extinction : `bool`
-            Whether to ignore extinction
+        **kwargs to pass to :func:`~cogsworth.observables.get_photometry`
         """
         self.__citations__.extend(["MIST", "MESA", "bayestar2019"])
-        return get_photometry(self.final_bpp, self.final_coords, filters, ignore_extinction=ignore_extinction)
+        self._observables = get_photometry(population=self, **kwargs)
+        return self._observables
 
-    def get_gaia_observed_bin_nums(self):
+    def get_gaia_observed_bin_nums(self, ra=None, dec=None):
         """Get a list of ``bin_nums`` of systems that are bright enough to be observed by Gaia.
 
         This is calculated based on the Gaia selection function provided by :mod:`gaiaunlimited`. This
@@ -827,15 +837,15 @@ class Population():
         dr3sf = DR3SelectionFunctionTCG()
 
         # work out the index of each pixel for every binary
-        pix_inds = self.get_healpix_inds(nside=128)
+        pix_inds = self.get_healpix_inds(ra=ra, dec=dec, nside=128)
 
         # loop over first (all bound binaries & primaries from disrupted binaries)
         # and then (secondaries from disrupted binaries)
         observed = []
-        all_bin_nums = self.final_bpp["bin_num"].values
-        for pix, g_mags, bin_nums in zip(pix_inds, [self.observables["G_app_1"].values,
-                                                    self.observables["G_app_2"][self.disrupted].values],
-                                         [all_bin_nums, all_bin_nums[self.disrupted]]):
+        for pix, g_mags, bin_nums in zip([pix_inds[:len(self)], pix_inds[len(self):]],
+                                         [self.observables["G_app_1"].values,
+                                          self.observables["G_app_2"][self.disrupted].values],
+                                         [self.bin_nums[:len(self)], self.bin_nums[len(self):]]):
             # get the coordinates of the corresponding pixels
             comp_coords = coords_of_centers[pix]
 
@@ -860,37 +870,46 @@ class Population():
         primary_observed, secondary_observed = observed
         return primary_observed, secondary_observed
 
-    def get_healpix_inds(self, nside=128):
+    def get_healpix_inds(self, ra=None, dec=None, nside=128):
         """Get the indices of the healpix pixels that each binary is in
 
         Parameters
         ----------
+        ra : `float` or `str`
+            Either the right ascension of the system in radians or "auto" to automatically calculate assuming
+            Milky Way galactocentric coordinates
+        dec : `float` or `str`
+            Either the declination of the system in radians or "auto" to automatically calculate assuming
+            Milky Way galactocentric coordinates
         nside : `int`, optional
             Healpix nside parameter, by default 128
 
         Returns
         -------
         pix : :class:`~numpy.ndarray`
-            The indices for the bound binaries/primaries of disrupted binaries
-            (corresponds to ``self.final_coords[0]``)
-        disrupted_pix : :class:`~numpy.ndarray`
-            The indices for the secondaries of disrupted binaries
-            (corresponds to ``self.final_coords[1][self.disrupted]``)
+            The indices for each system
         """
         assert check_dependencies("healpy")
         import healpy as hp
 
+        if ra is None or dec is None:
+            raise ValueError("You must provide both `ra` and `dec`, or set them to 'auto'")
+        if ra == "auto" or dec == "auto":
+            final_coords = coords.SkyCoord(x=self.final_pos[:, 0], y=self.final_pos[:, 1],
+                                           z=self.final_pos[:, 2], representation_type="cartesian",
+                                           unit=u.kpc, frame="galactocentric")
+            ra = final_coords.icrs.ra.to(u.rad).value
+            dec = final_coords.icrs.dec.to(u.rad).value
+
         # get the coordinates in right format
-        colatitudes = [np.pi/2 - self.final_coords[i].icrs.dec.to(u.rad).value for i in [0, 1]]
-        longitudes = [self.final_coords[i].icrs.ra.to(u.rad).value for i in [0, 1]]
+        colatitudes = np.pi / 2 - dec
+        longitudes = ra
 
         # find the pixels for each bound binary/primary and for each disrupted secondary
-        pix = hp.ang2pix(nside, nest=True, theta=colatitudes[0], phi=longitudes[0])
-        disrupted_pix = hp.ang2pix(nside, nest=True,
-                                   theta=colatitudes[1][self.disrupted], phi=longitudes[1][self.disrupted])
-        return pix, disrupted_pix
+        pix = hp.ang2pix(nside, nest=True, theta=colatitudes, phi=longitudes)
+        return pix
 
-    def plot_map(self, nside=128, coord="C",
+    def plot_map(self, ra=None, dec=None, nside=128, coord="C",
                  cmap="magma", norm="log", unit=None, show=True, **mollview_kwargs):
         r"""Plot a healpix map of the final positions of all binaries in population
 
@@ -918,13 +937,13 @@ class Population():
         import healpy as hp
         import matplotlib.pyplot as plt
 
-        pix, disrupted_pix = self.get_healpix_inds(nside=nside)
+        pix = self.get_healpix_inds(ra=ra, dec=dec, nside=nside)
 
         # initialise an empty map
         m = np.zeros(hp.nside2npix(nside))
 
         # count the unique pixel values and how many sources are in each
-        inds, counts = np.unique(np.concatenate([pix, disrupted_pix]), return_counts=True)
+        inds, counts = np.unique(pix, return_counts=True)
 
         # apply a log if desired
         if norm == "log":

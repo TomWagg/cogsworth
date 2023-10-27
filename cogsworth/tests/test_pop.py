@@ -97,24 +97,22 @@ class Test(unittest.TestCase):
         if i == MAX_REPS:
             raise ValueError("Couldn't make anything disrupt :/")
 
-        # test we can get the final distances properly
-        self.assertTrue(np.all(p.final_coords[0].icrs.distance.value >= 0.0))
-
         # test that classes can be identified
         self.assertTrue(p.classes.shape[0] == p.n_binaries_match)
 
         # test that observable table is done right (with or without extinction)
         p.observables
-        p.get_observables(ignore_extinction=True)
+        p.get_observables(filters=["G", "BP", "RP", "J", "H", "K"], assume_mw_galactocentric=True)
+        p.get_observables(filters=["G", "BP", "RP", "J", "H", "K"], assume_mw_galactocentric=True,
+                          ignore_extinction=True)
+        p.observables
 
         # cheat and make sure at least one binary is bright enough
         p.observables["G_app_1"].iloc[0] = 18.0
-        p.get_gaia_observed_bin_nums()
+        p.get_gaia_observed_bin_nums(ra="auto", dec="auto")
 
-        p.plot_map(coord="C", show=False)
-        p.plot_map(coord="G", show=False)
-
-        p[0]
+        p.plot_map(ra="auto", dec="auto", coord="C", show=False)
+        p.plot_map(ra="auto", dec="auto", coord="G", show=False)
 
     def test_getters(self):
         """Test the property getters"""
@@ -179,10 +177,11 @@ class Test(unittest.TestCase):
         p.perform_stellar_evolution()
 
     def test_none_orbits(self):
-        """Ensure final_coords still works when there is an Orbit with None"""
+        """Ensure final_pos/vel still works when there is an Orbit with None"""
         p = pop.Population(2)
         p._orbits = [None, None]
-        self.assertTrue(p.final_coords[0].x[0].value == np.inf)
+        self.assertTrue(p.final_pos[0][0].value == np.inf)
+        self.assertTrue(p.final_vel[0][0].value == np.inf)
 
     @pytest.mark.filterwarnings("ignore:.*duplicate")
     def test_indexing(self):
