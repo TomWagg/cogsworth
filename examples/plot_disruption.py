@@ -14,18 +14,19 @@ import gala.dynamics as gd
 p = cogsworth.pop.Population(100, processes=6, final_kstar1=[13, 14], timestep_size=0.2 * u.Myr)
 p.create_population()
 
-good_ones = (p.disrupted) & (p.final_coords[0].icrs.distance < 30 * u.kpc)\
-    & (p.final_coords[1].icrs.distance < 30 * u.kpc)
+g_cen_dist = np.sum(p.final_pos**2, axis=1)**(0.5)
+good_ones = (g_cen_dist[:len(p)][p.disrupted] < 30 * u.kpc) & (g_cen_dist[len(p):] < 30 * u.kpc)
 
-bin_nums = p.final_bpp[good_ones]["bin_num"].values
-print(len(p.bpp[(p.bpp["evol_type"] == 16) & p.bpp["bin_num"].isin(bin_nums)]))
-bin_num = p.bpp[(p.bpp["evol_type"] == 16) & p.bpp["bin_num"].isin(bin_nums)].iloc[0]["bin_num"]
+bin_nums = p.bin_nums[p.disrupted][good_ones]
+potential_bpp = p.bpp.loc[bin_nums]
+print(len(potential_bpp[potential_bpp["evol_type"] == 16]))
+bin_num = potential_bpp[potential_bpp["evol_type"] == 16].iloc[0]["bin_num"]
 
 bpp_rows = p.bpp.loc[bin_num]
 split_time = bpp_rows[(bpp_rows["evol_type"].isin([15, 16])) & (bpp_rows["sep"] > 0.0)].iloc[-1]["tphys"] * u.Myr
 
-primary_orbit = p.orbits[p.final_bpp["bin_num"] == bin_num][0][0]
-secondary_orbit = p.orbits[p.final_bpp["bin_num"] == bin_num][0][1]
+primary_orbit = p.orbits[:len(p)][p.final_bpp["bin_num"] == bin_num][0]
+secondary_orbit = p.orbits[len(p):][p.bin_nums[p.disrupted] == bin_num][0]
 
 primary_orbit = primary_orbit[primary_orbit.t < (primary_orbit.t[0] + split_time * 5)]
 secondary_orbit = secondary_orbit[secondary_orbit.t < (secondary_orbit.t[0] + split_time * 5)]
@@ -69,8 +70,6 @@ for ax in axes:
     ax.xaxis.label.set_color('white')
 
 fig.set_facecolor("black")
-
-print(split_time)
 
 # faster = 2 / split_time.to(u.Myr).value
 
