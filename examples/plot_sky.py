@@ -38,16 +38,19 @@ p.create_population(with_timing=False)
 galactic_plane = SkyCoord(l=np.linspace(1e-10, 2 * np.pi, 10000), b=np.zeros(10000),
                           unit="rad", frame="galactic").transform_to("icrs")
 
+final_coords = SkyCoord(x=p.final_pos[:, 0], y=p.final_pos[:, 1], z=p.final_pos[:, 2],
+                        frame="galactocentric", representation_type="cartesian").icrs
+
 fig, ax = plt.subplots()
 
 in_order = np.argsort(galactic_plane.ra.value)
 ax.plot(galactic_plane.ra.value[in_order], galactic_plane.dec.value[in_order], label="Galactic Plane")
 
-ax.scatter(p.final_coords[0][~p.disrupted].icrs.ra.value, p.final_coords[0][~p.disrupted].icrs.dec.value,
+ax.scatter(final_coords[:len(p)][~p.disrupted].ra.value, final_coords[:len(p)][~p.disrupted].dec.value,
            label="Bound Binaries", color="C1")
-ax.scatter(p.final_coords[0][p.disrupted].icrs.ra.value, p.final_coords[0][p.disrupted].icrs.dec.value,
+ax.scatter(final_coords[:len(p)][p.disrupted].ra.value, final_coords[:len(p)][p.disrupted].dec.value,
            label="Disrupted - Primary", marker="^", color="C2")
-ax.scatter(p.final_coords[1][p.disrupted].icrs.ra.value, p.final_coords[1][p.disrupted].icrs.dec.value,
+ax.scatter(final_coords[len(p):].ra.value, final_coords[len(p):].dec.value,
            label="Disrupted - Secondary", marker="v", color="C2")
 
 ax.set_xlabel("Right Ascension [deg]")
