@@ -141,6 +141,9 @@ class Population():
         self._initC = None
         self._kick_info = None
         self._orbits = None
+        self._orbits_file = None
+        self._orbits_data = None
+        self._orbits_offsets = None
         self._classes = None
         self._final_pos = None
         self._final_vel = None
@@ -404,6 +407,20 @@ class Population():
         if self._orbits is None:
             self.perform_galactic_evolution()
         return self._orbits
+
+    @property
+    def orbits_data(self):
+        if self._orbits_data is None:
+            if self._orbits_file is None:
+                return None
+
+            with h5.File(self._orbits_file, "r") as f:
+                offsets = f["orbits"]["offsets"][...]
+                self._orbits_data = {}
+                self._orbits = [gd.Orbit(pos=f["orbits"]["pos"][:, offsets[i]:offsets[i + 1]] * u.kpc,
+                                    vel=f["orbits"]["vel"][:, offsets[i]:offsets[i + 1]] * u.km / u.s,
+                                    t=f["orbits"]["t"][offsets[i]:offsets[i + 1]] * u.Myr)
+                            for i in range(len(offsets) - 1)]
 
     @property
     def classes(self):
@@ -1136,12 +1153,7 @@ def load(file_name, orbits_testing="default"):
     if orbits_testing == "default":
         p._orbits = np.load(file_name.replace(".h5", "-orbits.npy"), allow_pickle=True)
     elif orbits_testing == "offsets":
-        with h5.File(file_name, "r") as f:
-            offsets = f["orbits"]["offsets"][...]
-            p._orbits = [gd.Orbit(pos=f["orbits"]["pos"][:, offsets[i]:offsets[i + 1]] * u.kpc,
-                                  vel=f["orbits"]["vel"][:, offsets[i]:offsets[i + 1]] * u.km / u.s,
-                                  t=f["orbits"]["t"][offsets[i]:offsets[i + 1]] * u.Myr)
-                         for i in range(len(offsets) - 1)]
+        p._orbits_file = file_name
 
     return p
 
