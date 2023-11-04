@@ -63,7 +63,7 @@ class Population():
     store_entire_orbits : `bool`, optional
         Whether to store the entire orbit for each binary, by default True. If not then only the final
         PhaseSpacePosition will be stored. This cuts down on both memory usage and disk space used if you
-        save the Population.
+        save the Population (as well as how long it takes to reload the data).
 
     Attributes
     ----------
@@ -142,8 +142,6 @@ class Population():
         self._kick_info = None
         self._orbits = None
         self._orbits_file = None
-        self._orbits_data = None
-        self._orbits_offsets = None
         self._classes = None
         self._final_pos = None
         self._final_vel = None
@@ -404,23 +402,17 @@ class Population():
 
     @property
     def orbits(self):
-        if self._orbits is None:
+        if self._orbits is None and self._orbits_file is None:
             self.perform_galactic_evolution()
-        return self._orbits
-
-    @property
-    def orbits_data(self):
-        if self._orbits_data is None:
-            if self._orbits_file is None:
-                return None
-
+        elif self._orbits is None:
             with h5.File(self._orbits_file, "r") as f:
                 offsets = f["orbits"]["offsets"][...]
                 self._orbits_data = {}
                 self._orbits = [gd.Orbit(pos=f["orbits"]["pos"][:, offsets[i]:offsets[i + 1]] * u.kpc,
-                                    vel=f["orbits"]["vel"][:, offsets[i]:offsets[i + 1]] * u.km / u.s,
-                                    t=f["orbits"]["t"][offsets[i]:offsets[i + 1]] * u.Myr)
-                            for i in range(len(offsets) - 1)]
+                                         vel=f["orbits"]["vel"][:, offsets[i]:offsets[i + 1]] * u.km / u.s,
+                                         t=f["orbits"]["t"][offsets[i]:offsets[i + 1]] * u.Myr)
+                                for i in range(len(offsets) - 1)]
+        return self._orbits
 
     @property
     def classes(self):
