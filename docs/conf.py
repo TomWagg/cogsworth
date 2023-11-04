@@ -142,7 +142,7 @@ html_favicon = "_static/cog.ico"
 html_sidebars = {
     "*": ["sidebar-nav-bs.html"],
     "index": [],
-    "pages/install": [],
+    "pages/install": ["page-toc"],
     "pages/getting_started": ["page-toc"],
     "pages/tutorials": [],
     "auto_examples/*": [],

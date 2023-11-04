@@ -11,9 +11,7 @@ data. Also feel free to turn ``with_timing`` back on.
 """
 
 import cogsworth
-import matplotlib.pyplot as plt
-p = cogsworth.pop.Population(100)
+p = cogsworth.pop.Population(1000)
 p.create_population(with_timing=False)
 
-p.plot_map(nside=32, norm="linear", show=False)
-plt.show()
+p.plot_map(ra="auto", dec="auto", nside=16, norm="log")
