@@ -1,6 +1,7 @@
 import numpy as np
 import unittest
 import cogsworth.pop as pop
+import cogsworth.observables as obs
 import os
 import pytest
 
@@ -102,8 +103,8 @@ class Test(unittest.TestCase):
         # test that observable table is done right (with or without extinction)
         p.observables
         p.get_observables(filters=["G", "BP", "RP", "J", "H", "K"], assume_mw_galactocentric=True)
-        p.get_observables(filters=["G", "BP", "RP", "J", "H", "K"], assume_mw_galactocentric=True,
-                          ignore_extinction=True)
+        obs.get_photometry(filters=["G", "BP", "RP", "J", "H", "K"], final_bpp=p.final_bpp,
+                           final_pos=p.final_pos, assume_mw_galactocentric=True, ignore_extinction=True)
         p.observables
 
         # cheat and make sure at least one binary is bright enough
@@ -192,6 +193,12 @@ class Test(unittest.TestCase):
                 list(np.random.choice(p.bin_nums, size=2, replace=False)),
                 slice(0, 7, 3),
                 [0, 1, 1, 1, 0]]
+
+        # mock up some data so it tests the indexing
+        p._observables = p.final_bpp
+        p._classes = p.final_bpp
+        p._final_pos = np.zeros(len(p._orbits))
+        p._final_vel = np.zeros(len(p._orbits))
 
         for ind in inds:
             p_ind = p[ind]
@@ -301,7 +308,17 @@ class Test(unittest.TestCase):
             it_failed = True
         self.assertTrue(it_failed)
 
-        p.create_population()
+        p.sample_initial_binaries()
+        p.bin_nums
+        p._bin_nums = None
+
+        p.perform_stellar_evolution()
+        p.bin_nums
+        p._bin_nums = None
+
+        p.final_bpp
+        p.bin_nums
+        p._bin_nums = None
 
         initC_bin_nums = p.initC["bin_num"].unique()
         bpp_bin_nums = p.bpp["bin_num"].unique()
