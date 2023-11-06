@@ -29,3 +29,12 @@ class Test(unittest.TestCase):
 
         self.assertTrue(os.path.exists("test.bib"))
         os.remove("test.bib")
+
+
+def test_cite_stdin(monkeypatch):
+    """Test citations when using stdin/stdout (monkeypatch time!)"""
+    monkeypatch.setattr('builtins.input', lambda _: "")
+
+    p = cogsworth.pop.Population(5, processes=6)
+    p.create_population(with_timing=False)
+    p.get_citations(filename=None)
