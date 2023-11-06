@@ -402,17 +402,35 @@ class Population():
 
     @property
     def orbits(self):
+        # if orbits are uncalculated and no file is provided then perform galactic orbit evolution
         if self._orbits is None and self._orbits_file is None:
             self.perform_galactic_evolution()
+        # otherwise if orbits are uncalculated but a file is provided then load the orbits from the file
         elif self._orbits is None:
+            # load the entire file into memory
             with h5.File(self._orbits_file, "r") as f:
                 offsets = f["orbits"]["offsets"][...]
-                self._orbits_data = {}
-                self._orbits = [gd.Orbit(pos=f["orbits"]["pos"][:, offsets[i]:offsets[i + 1]] * u.kpc,
-                                         vel=f["orbits"]["vel"][:, offsets[i]:offsets[i + 1]] * u.km / u.s,
-                                         t=f["orbits"]["t"][offsets[i]:offsets[i + 1]] * u.Myr)
-                                for i in range(len(offsets) - 1)]
+                pos, vel = f["orbits"]["pos"][...] * u.kpc, f["orbits"]["vel"][...] * u.km / u.s
+                t = f["orbits"]["t"][...] * u.Myr
+
+            # convert positions, velocities and times into a list of orbits
+            self._orbits = np.array([gd.Orbit(pos[:, offsets[i]:offsets[i + 1]],
+                                              vel[:, offsets[i]:offsets[i + 1]],
+                                              t[offsets[i]:offsets[i + 1]]) for i in range(len(offsets) - 1)])
+
+            # also calculate the final positions and velocities while you're at it
+            final_inds = offsets[1:] - 1
+            self._final_pos = pos[:, final_inds].T
+            self._final_vel = vel[:, final_inds].T
         return self._orbits
+
+    @property
+    def primary_orbits(self):
+        return self.orbits[:len(self)]
+
+    @property
+    def secondary_orbits(self):
+        return self.orbits[len(self):]
 
     @property
     def classes(self):
@@ -423,13 +441,13 @@ class Population():
     @property
     def final_pos(self):
         if self._final_pos is None:
-            self._final_pos, self._final_vel = self.get_final_coords()
+            self._final_pos, self._final_vel = self._get_final_coords()
         return self._final_pos
 
     @property
     def final_vel(self):
         if self._final_vel is None:
-            self._final_pos, self._final_vel = self.get_final_coords()
+            self._final_pos, self._final_vel = self._get_final_coords()
         return self._final_vel
 
     @property
@@ -771,7 +789,7 @@ class Population():
 
         self._orbits = np.array(orbits, dtype="object")
 
-    def get_final_coords(self):
+    def _get_final_coords(self):
         """Get the final coordinates of each binary (or each component in disrupted binaries)
 
         Returns
@@ -782,18 +800,29 @@ class Population():
             `self.disrupted.sum()` entries are for disrupted secondaries. Any missing orbits (where orbit=None
             will be set to `np.inf` for ease of masking.
         """
-        # pool all of the orbits into a single numpy array
-        self._final_pos = np.ones((len(self.orbits), 3)) * np.inf
-        self._final_vel = np.ones((len(self.orbits), 3)) * np.inf
-        for i, orbit in enumerate(self.orbits):
-            # check if the orbit is missing
-            if orbit is None:
-                print("Warning: Detected `None` orbit, entering coordinates as `np.inf`")
-            else:
-                self._final_pos[i] = orbit[-1].pos.xyz.to(u.kpc).value
-                self._final_vel[i] = orbit[-1].vel.d_xyz.to(u.km / u.s).value
-        self._final_pos *= u.kpc
-        self._final_vel *= u.km / u.s
+        if self._orbits_file is not None:
+            with h5.File(self._orbits_file, "r") as f:
+                offsets = f["orbits"]["offsets"][...]
+                pos, vel = f["orbits"]["pos"][...] * u.kpc, f["orbits"]["vel"][...] * u.km / u.s
+
+            final_inds = offsets[1:] - 1
+
+            self._final_pos = pos[:, final_inds].T
+            self._final_vel = vel[:, final_inds].T
+            del pos, vel
+        else:
+            # pool all of the orbits into a single numpy array
+            self._final_pos = np.ones((len(self.orbits), 3)) * np.inf
+            self._final_vel = np.ones((len(self.orbits), 3)) * np.inf
+            for i, orbit in enumerate(self.orbits):
+                # check if the orbit is missing
+                if orbit is None:
+                    print("Warning: Detected `None` orbit, entering coordinates as `np.inf`")
+                else:
+                    self._final_pos[i] = orbit[-1].pos.xyz.to(u.kpc).value
+                    self._final_vel[i] = orbit[-1].vel.d_xyz.to(u.km / u.s).value
+            self._final_pos *= u.kpc
+            self._final_vel *= u.km / u.s
         return self._final_pos, self._final_vel
 
     def get_observables(self, **kwargs):
@@ -1070,9 +1099,6 @@ class Population():
                     orbits[key] = orbits_data[key]
                 orbits["offsets"] = offsets
 
-        elif orbits_testing == "many_hdfs":
-            raise NotImplementedError
-
         with h5.File(file_name, "a") as file:
             numeric_params = np.array([self.n_binaries, self.n_binaries_match, self.processes, self.m1_cutoff,
                                        self.v_dispersion.to(u.km / u.s).value,
@@ -1143,7 +1169,7 @@ def load(file_name, orbits_testing="default"):
     p._kick_info = pd.read_hdf(file_name, key="kick_info")
 
     if orbits_testing == "default":
-        p._orbits = np.load(file_name.replace(".h5", "-orbits.npy"), allow_pickle=True)
+        p._orbits_file = file_name.replace(".h5", "-orbits.npy")
     elif orbits_testing == "offsets":
         p._orbits_file = file_name
 
