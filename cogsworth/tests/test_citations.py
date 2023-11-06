@@ -31,10 +31,18 @@ class Test(unittest.TestCase):
         os.remove("test.bib")
 
 
-def test_cite_stdin(monkeypatch):
+def test_cite_stdin_pop(monkeypatch):
     """Test citations when using stdin/stdout (monkeypatch time!)"""
     monkeypatch.setattr('builtins.input', lambda _: "")
 
     p = cogsworth.pop.Population(5, processes=6)
     p.create_population(with_timing=False)
     p.get_citations(filename=None)
+
+
+def test_cite_stdin_galaxy(monkeypatch):
+    """Test citations when using stdin/stdout (monkeypatch time!)"""
+    monkeypatch.setattr('builtins.input', lambda _: "")
+
+    g = cogsworth.galaxy.Frankel2018(size=100, immediately_sample=False)
+    g.get_citations(filename=None)
