@@ -9,11 +9,13 @@ import astropy.coordinates as coords
 import h5py as h5
 import pandas as pd
 from tqdm import tqdm
+import yaml
 
 from cosmic.sample.initialbinarytable import InitialBinaryTable
 from cosmic.evolve import Evolve
 import gala.potential as gp
 import gala.dynamics as gd
+from gala.potential.potential.io import to_dict as potential_to_dict, from_dict as potential_from_dict
 
 from cogsworth import galaxy
 from cogsworth.kicks import integrate_orbit_with_events
@@ -1035,12 +1037,7 @@ class Population():
         return plot_cartoon_evolution(self.bpp, bin_num, **kwargs)
 
     def save(self, file_name, overwrite=False):
-        """Save a Population to disk
-
-        This will produce 4 files:
-            - An HDF5 file containing most of the data
-            - A .txt file detailing the Galactic potential used
-            - A .txt file detailing the initial galaxy model used
+        """Save a Population to disk as an HDF5 file.
 
         Parameters
         ----------
@@ -1067,7 +1064,9 @@ class Population():
         self.initC.to_hdf(file_name, key="initC")
         self.kick_info.to_hdf(file_name, key="kick_info")
 
-        self.galactic_potential.save(file_name.replace('.h5', '-potential.txt'))
+        with h5.File(file_name, "a") as f:
+            f.attrs["potential_dict"] = yaml.dump(potential_to_dict(self.galactic_potential),
+                                                  default_flow_style=None)
         self.initial_galaxy.save(file_name, key="initial_galaxy")
 
         # go through the orbits calculate their lengths (and therefore offsets in the file)
@@ -1140,7 +1139,8 @@ def load(file_name):
             BSE_settings[key] = file["BSE_settings"].attrs[key]
 
     initial_galaxy = galaxy.load(file_name, key="initial_galaxy")
-    galactic_potential = gp.potential.load(file_name.replace('.h5', '-potential.txt'))
+    with h5.File(file_name, 'r') as f:
+        galactic_potential = potential_from_dict(yaml.load(f.attrs["potential_dict"], Loader=yaml.Loader))
 
     p = Population(n_binaries=int(numeric_params[0]), processes=int(numeric_params[2]),
                    m1_cutoff=numeric_params[3], final_kstar1=final_kstars[0], final_kstar2=final_kstars[1],
