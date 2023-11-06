@@ -54,8 +54,6 @@ class Test(unittest.TestCase):
         self.assertFalse(it_broke)
 
         os.remove("testing-pop-io.h5")
-        os.remove("testing-pop-io-galaxy-params.txt")
-        os.remove("testing-pop-io-potential.txt")
 
     def test_orbit_storage(self):
         """Test that we can control how orbits are stored"""

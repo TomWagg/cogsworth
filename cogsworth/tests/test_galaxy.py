@@ -84,7 +84,6 @@ class Test(unittest.TestCase):
         self.assertTrue(np.all(g.z == g_loaded.z))
 
         os.remove("testing-galaxy-io.h5")
-        os.remove("testing-galaxy-io-galaxy-params.txt")
 
     def test_getters(self):
         """Test getting attributes"""
@@ -150,7 +149,6 @@ class Test(unittest.TestCase):
         self.assertTrue(np.all(g.z == g_loaded.z))
 
         os.remove("testing-galaxy-custom.h5")
-        os.remove("testing-galaxy-custom-galaxy-params.txt")
 
     def test_plot(self):
         """Test plotting capabilities"""
