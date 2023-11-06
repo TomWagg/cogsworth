@@ -33,6 +33,7 @@ class Test(unittest.TestCase):
         p_loaded = pop.load("testing-pop-io")
 
         self.assertTrue(np.all(p.bpp == p_loaded.bpp))
+        self.assertTrue(np.all(p.orbits[0].pos == p_loaded.orbits[0].pos))
 
         # attempt overwrite without setting flag
         it_broke = False
@@ -145,6 +146,8 @@ class Test(unittest.TestCase):
 
         # test getters for galactic evolution
         p.orbits
+        p.primary_orbits
+        p.secondary_orbits
 
         p.escaped
 
@@ -356,3 +359,12 @@ class Test(unittest.TestCase):
 
         for bin_num in p.bin_nums:
             p.plot_cartoon_binary(bin_num, show=False)
+
+    def test_sampling_with_initC(self):
+        """Check we can sample from an initC table"""
+        p = pop.Population(10)
+        p.perform_stellar_evolution()
+
+        p.sample_initial_binaries(initC=p.initC,
+                                  overwrite_initC_settings=True,
+                                  reset_sampled_kicks=True)
