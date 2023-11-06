@@ -33,6 +33,7 @@ class Test(unittest.TestCase):
         p_loaded = pop.load("testing-pop-io")
 
         self.assertTrue(np.all(p.bpp == p_loaded.bpp))
+        self.assertTrue(np.all(p.final_pos == p_loaded.final_pos))
         self.assertTrue(np.all(p.orbits[0].pos == p_loaded.orbits[0].pos))
 
         # attempt overwrite without setting flag
@@ -58,13 +59,13 @@ class Test(unittest.TestCase):
 
     def test_orbit_storage(self):
         """Test that we can control how orbits are stored"""
-        p = pop.Population(2, processes=1, store_entire_orbits=True)
+        p = pop.Population(20, final_kstar1=[13, 14], processes=1, store_entire_orbits=True)
         p.create_population()
 
         first_orbit = p.orbits[0][0] if isinstance(p.orbits[0], list) else p.orbits[0]
         self.assertTrue(first_orbit.shape[0] >= 1)
 
-        p = pop.Population(2, processes=1, store_entire_orbits=False)
+        p = pop.Population(20, final_kstar1=[13, 14], processes=1, store_entire_orbits=False)
         p.create_population()
 
         first_orbit = p.orbits[0][0] if isinstance(p.orbits[0], list) else p.orbits[0]
@@ -111,6 +112,13 @@ class Test(unittest.TestCase):
         # cheat and make sure at least one binary is bright enough
         p.observables["G_app_1"].iloc[0] = 18.0
         p.get_gaia_observed_bin_nums(ra="auto", dec="auto")
+
+        it_worked = True
+        try:
+            p.get_healpix_inds()
+        except ValueError:
+            it_worked = False
+        self.assertFalse(it_worked)
 
         p.plot_map(ra="auto", dec="auto", coord="C", show=False)
         p.plot_map(ra="auto", dec="auto", coord="G", show=False)
@@ -316,6 +324,7 @@ class Test(unittest.TestCase):
         p._bin_nums = None
 
         p.perform_stellar_evolution()
+        p._final_bpp = None
         p.bin_nums
         p._bin_nums = None
 
