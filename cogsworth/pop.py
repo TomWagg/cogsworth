@@ -1040,12 +1040,11 @@ class Population():
         """
         return plot_cartoon_evolution(self.bpp, bin_num, **kwargs)
 
-    def save(self, file_name, overwrite=False, orbits_testing="default"):
+    def save(self, file_name, overwrite=False):
         """Save a Population to disk
 
         This will produce 4 files:
             - An HDF5 file containing most of the data
-            - A .npy file containing the orbits
             - A .txt file detailing the Galactic potential used
             - A .txt file detailing the initial galaxy model used
 
@@ -1077,27 +1076,28 @@ class Population():
         self.galactic_potential.save(file_name.replace('.h5', '-potential.txt'))
         self.initial_galaxy.save(file_name, key="initial_galaxy")
 
-        if orbits_testing == "default":
-            np.save(file_name.replace(".h5", "-orbits.npy"), np.array(self.orbits, dtype="object"))
-        elif orbits_testing == "offsets":
-            total_length = 0
-            lengths = [len(orbit.pos) for orbit in self.orbits]
-            total_length = sum(lengths)
-            offsets = np.cumsum(lengths)
-            offsets = np.insert(offsets, 0, 0)
+        # go through the orbits calculate their lengths (and therefore offsets in the file)
+        orbit_lengths = [len(orbit.pos) for orbit in self.orbits]
+        orbit_lengths_total = sum(orbit_lengths)
+        offsets = np.insert(np.cumsum(orbit_lengths), 0, 0)
 
-            orbits_data = {"pos": np.zeros((3, total_length)), "vel": np.zeros((3, total_length)), "t": np.zeros(total_length)}
+        # start some empty arrays to store the data
+        orbits_data = {"offsets": offsets,
+                       "pos": np.zeros((3, orbit_lengths_total)),
+                       "vel": np.zeros((3, orbit_lengths_total)),
+                       "t": np.zeros(orbit_lengths_total)}
 
-            for i, orbit in enumerate(self.orbits):
-                orbits_data["pos"][:, offsets[i]:offsets[i + 1]] = orbit.pos.xyz.to(u.kpc).value
-                orbits_data["vel"][:, offsets[i]:offsets[i + 1]] = orbit.vel.d_xyz.to(u.km / u.s).value
-                orbits_data["t"][offsets[i]:offsets[i + 1]] = orbit.t.to(u.Myr).value
+        # save each orbit to the arrays with the same units
+        for i, orbit in enumerate(self.orbits):
+            orbits_data["pos"][:, offsets[i]:offsets[i + 1]] = orbit.pos.xyz.to(u.kpc).value
+            orbits_data["vel"][:, offsets[i]:offsets[i + 1]] = orbit.vel.d_xyz.to(u.km / u.s).value
+            orbits_data["t"][offsets[i]:offsets[i + 1]] = orbit.t.to(u.Myr).value
 
-            with h5.File(file_name, "a") as file:
-                orbits = file.create_group("orbits")
-                for key in orbits_data:
-                    orbits[key] = orbits_data[key]
-                orbits["offsets"] = offsets
+        # save the orbits arrays to the file
+        with h5.File(file_name, "a") as file:
+            orbits = file.create_group("orbits")
+            for key in orbits_data:
+                orbits[key] = orbits_data[key]
 
         with h5.File(file_name, "a") as file:
             numeric_params = np.array([self.n_binaries, self.n_binaries_match, self.processes, self.m1_cutoff,
@@ -1117,7 +1117,7 @@ class Population():
                 d.attrs[key] = self.BSE_settings[key]
 
 
-def load(file_name, orbits_testing="default"):
+def load(file_name):
     """Load a Population from a series of files
 
     Parameters
@@ -1168,10 +1168,8 @@ def load(file_name, orbits_testing="default"):
     p._initC = pd.read_hdf(file_name, key="initC")
     p._kick_info = pd.read_hdf(file_name, key="kick_info")
 
-    if orbits_testing == "default":
-        p._orbits_file = file_name.replace(".h5", "-orbits.npy")
-    elif orbits_testing == "offsets":
-        p._orbits_file = file_name
+    # don't directly load the orbits, just store the file name for later
+    p._orbits_file = file_name
 
     return p
 
