@@ -98,12 +98,6 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential()
             full_orbit = full_orbit[-1:]
         return full_orbit
 
-    # if there are two lists (due to a disruption) then recursively call the function
-    elif isinstance(events[0], list):
-        assert len(events) == 2
-        return [integrate_orbit_with_events(w0=w0, potential=potential, events=events[i],
-                                            t1=t1, t2=t2, dt=dt, quiet=quiet, store_all=store_all)
-                for i in range(len(events))]
     MAX_DT_RESIZE = 2
     for n in range(MAX_DT_RESIZE):
         try:

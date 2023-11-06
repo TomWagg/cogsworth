@@ -97,6 +97,12 @@ class Test(unittest.TestCase):
             g = galaxy.Frankel2018(size=10, immediately_sample=False)
             g.Z
             g = galaxy.Frankel2018(size=10, immediately_sample=False)
+            g.x
+            g = galaxy.Frankel2018(size=10, immediately_sample=False)
+            g.y
+            g = galaxy.Frankel2018(size=10, immediately_sample=False)
+            g.z
+            g = galaxy.Frankel2018(size=10, immediately_sample=False)
             g.positions
             g = galaxy.Frankel2018(size=10, immediately_sample=False)
             g.which_comp
