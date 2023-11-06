@@ -535,7 +535,7 @@ class Population():
         self.__citations__.extend([c for c in self._initial_galaxy.__citations__ if c != "cogsworth"])
 
         # if velocities are already set then just immediately return
-        if all(hasattr(self._initial_galaxy, attr) for attr in ["_v_R", "_v_T", "_v_z"]):
+        if all(hasattr(self._initial_galaxy, attr) for attr in ["_v_R", "_v_T", "_v_z"]):   # pragma: no cover
             return
 
         # work out the initial velocities of each binary
@@ -555,8 +555,7 @@ class Population():
         self._initial_galaxy._v_T = v_T
         self._initial_galaxy._v_z = v_z
 
-    def sample_initial_binaries(self, initC=None, overwrite_initC_settings=True, reset_sampled_kicks=True,
-                                initial_galaxy=None):
+    def sample_initial_binaries(self, initC=None, overwrite_initC_settings=True, reset_sampled_kicks=True):
         """Sample the initial binary parameters for the population.
 
         Alternatively, copy initial conditions from another population
@@ -570,8 +569,6 @@ class Population():
             `BSE_settings`, by default True
         reset_sampled_kicks : `bool`, optional
             Whether to reset any sampled kicks in the population to ensure new ones are drawn, by default True
-        initial_galaxy : :class:`~cogsworth.galaxy.Galaxy`, optional
-            The initial galaxy to use to avoid sampling a new one, by default None (new sampling performed)
         """
         self._bin_nums = None
 
@@ -614,10 +611,7 @@ class Population():
             raise ValueError(("Your choice of `m1_cutoff` resulted in all samples being thrown out. Consider"
                               " a larger sample size or a less stringent mass cut"))
 
-        if initial_galaxy is not None:
-            self._initial_galaxy = copy(initial_galaxy)
-        else:
-            self.sample_initial_galaxy()
+        self.sample_initial_galaxy()
 
         # update the metallicity and birth times of the binaries to match the galaxy
         self._initial_binaries["metallicity"] = self._initial_galaxy.Z
