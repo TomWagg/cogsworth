@@ -52,7 +52,6 @@ class Test(unittest.TestCase):
 
         os.remove("testing-pop-io.h5")
         os.remove("testing-pop-io-galaxy-params.txt")
-        os.remove("testing-pop-io-orbits.npy")
         os.remove("testing-pop-io-potential.txt")
 
     def test_orbit_storage(self):
