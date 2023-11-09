@@ -26,8 +26,7 @@ Home
    pages/about
    pages/install
    pages/getting_started
-   pages/tutorials
-   auto_examples/index
+   pages/learning
    pages/modules
    pages/cite
    pages/feedback

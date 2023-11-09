@@ -253,3 +253,8 @@ html[data-theme="dark"] .bd-content .sd-card {
 .sphx-glr-horizontal {
     text-align: center;
 }
+
+/* Make card links bigger on landing page */
+#tutorials-examples-case-studies .sd-card-body a {
+    font-size: var(--pst-font-size-h3);
+}
