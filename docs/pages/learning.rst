@@ -14,7 +14,7 @@ You've found the landing page for all tutorials, examples and case studies, foll
 
             Tutorials <tutorials.rst>
 
-        Step-by-step guides to using ``cogsworth`` - these are meant to be a gentle introduction to the code
+        Step-by-step guides to using ``cogsworth`` - these are meant to be a gentle introduction to using the code
 
     .. grid-item-card::
 
