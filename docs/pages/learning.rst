@@ -30,6 +30,6 @@ You've found the landing page for all tutorials, examples and case studies, foll
         .. toctree::
             :maxdepth: 1
 
-            Case studies <tutorials.rst>
+            Case studies <case_studies.rst>
 
         More in-depth use cases that demonstrate how to use ``cogsworth`` to solve a specific problem
