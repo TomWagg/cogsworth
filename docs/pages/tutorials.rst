@@ -15,7 +15,7 @@ If you're new to ``cogsworth`` I recommend going through the whole basics sectio
             :caption: The Basics
 
             ../tutorials/pops.ipynb
-            ../tutorials/cosmic.ipynb
+            ../tutorials/outputs.ipynb
             ../tutorials/pop_io.ipynb
 
     .. grid-item-card::
@@ -24,9 +24,10 @@ If you're new to ``cogsworth`` I recommend going through the whole basics sectio
             :titlesonly:
             :caption: Population settings
 
+            ../tutorials/sampling.ipynb
             ../tutorials/pop_synth.ipynb
-            ../tutorials/initial_galaxy.ipynb
             ../tutorials/potentials.ipynb
+            ../tutorials/initial_galaxy.ipynb
 
     .. grid-item-card::
 
