@@ -14,9 +14,9 @@ If you're new to ``cogsworth`` I recommend going through the whole basics sectio
             :titlesonly:
             :caption: The Basics
 
-            ../tutorials/pops.ipynb
-            ../tutorials/outputs.ipynb
-            ../tutorials/pop_io.ipynb
+            ../tutorials/basics/pops.ipynb
+            ../tutorials/basics/outputs.ipynb
+            ../tutorials/basics/pop_io.ipynb
 
     .. grid-item-card::
 
@@ -24,10 +24,10 @@ If you're new to ``cogsworth`` I recommend going through the whole basics sectio
             :titlesonly:
             :caption: Population settings
 
-            ../tutorials/sampling.ipynb
-            ../tutorials/pop_synth.ipynb
-            ../tutorials/potentials.ipynb
-            ../tutorials/initial_galaxy.ipynb
+            ../tutorials/pop_settings/sampling.ipynb
+            ../tutorials/pop_settings/pop_synth.ipynb
+            ../tutorials/pop_settings/potentials.ipynb
+            ../tutorials/pop_settings/initial_galaxy.ipynb
 
     .. grid-item-card::
 
@@ -35,8 +35,8 @@ If you're new to ``cogsworth`` I recommend going through the whole basics sectio
             :titlesonly:
             :caption: Output analysis
 
-            ../tutorials/subpops.ipynb
-            ../tutorials/rerun.ipynb
+            ../tutorials/output_analysis/subpops.ipynb
+            ../tutorials/output_analysis/rerun.ipynb
 
     .. grid-item-card::
 
@@ -44,12 +44,15 @@ If you're new to ``cogsworth`` I recommend going through the whole basics sectio
             :titlesonly:
             :caption: Observables
 
-            ../tutorials/observables.ipynb
+            ../tutorials/observables/photometry.ipynb
+            ../tutorials/observables/gaia.ipynb
 
     .. grid-item-card::
 
         .. toctree::
             :titlesonly:
             :caption: Visualisation
+
+            ../tutorials/visualisation/gala.ipynb
 
         
