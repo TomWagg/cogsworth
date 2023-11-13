@@ -53,6 +53,7 @@ If you're new to ``cogsworth`` I recommend going through the whole basics sectio
             :titlesonly:
             :caption: Visualisation
 
+            ../tutorials/visualisation/binary_evolution.ipynb
             ../tutorials/visualisation/gala.ipynb
 
         
