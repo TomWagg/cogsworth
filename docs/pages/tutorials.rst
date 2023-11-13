@@ -36,6 +36,7 @@ If you're new to ``cogsworth`` I recommend going through the whole basics sectio
             :caption: Output analysis
 
             ../tutorials/subpops.ipynb
+            ../tutorials/rerun.ipynb
 
     .. grid-item-card::
 
