@@ -1,5 +1,6 @@
 import sys
 import yaml
+import h5py as h5
 import numpy as np
 import astropy.units as u
 from scipy.integrate import quad
@@ -348,8 +349,7 @@ class Galaxy():
     def save(self, file_name, key="galaxy"):
         """Save the entire class to storage.
 
-        Data will be stored in an hdf5 file using `file_name` and a small txt file will be created using the
-        same file name.
+        Data will be stored in an hdf5 file using `file_name`.
 
         Parameters
         ----------
@@ -393,9 +393,9 @@ class Galaxy():
                    f"functions in `{class_name}` rather than the custom class you used."))
         params["class_name"] = class_name
 
-        # dump it all into a file using yaml
-        with open(file_name.replace(".h5", "-galaxy-params.txt"), "w") as file:
-            yaml.dump(params, file, default_flow_style=False)
+        # dump it all into the file attrs using yaml
+        with h5.File(file_name, "a") as file:
+            file[key].attrs["params"] = yaml.dump(params, default_flow_style=None)
 
 
 class Frankel2018(Galaxy):
@@ -947,8 +947,7 @@ class SpheroidalDwarf(Galaxy):      # pragma: no cover
 def load(file_name, key="galaxy"):
     """Load an entire class from storage.
 
-    Data should be stored in an hdf5 file using `file_name` and a small txt file with the
-    same file name.
+    Data should be stored in an hdf5 file using `file_name`.
 
     Parameters
     ----------
@@ -962,8 +961,8 @@ def load(file_name, key="galaxy"):
         file_name += ".h5"
 
     # load the parameters back in using yaml
-    with open(file_name.replace(".h5", "-galaxy-params.txt"), "r") as file:
-        params = yaml.load(file.read(), Loader=yaml.Loader)
+    with h5.File(file_name, "r") as file:
+        params = yaml.load(file[key].attrs["params"], Loader=yaml.Loader)
 
     # get the current module, get a class using the name, delete it from parameters that will be passed
     module = sys.modules[__name__]

@@ -7,7 +7,7 @@ class Test(unittest.TestCase):
     def test_various_events(self):
         """Ensure functions work for different kinds of events
 
-        I'm going to use fake bpp and kick_info tables for this. There will have four binaries
+        I'm going to use fake bpp and kick_info tables for this. There will be four binaries
             - One with no events
             - One with a bound binary and a kick
             - One with a disruption from the first SN
@@ -40,9 +40,11 @@ class Test(unittest.TestCase):
         kick_info = pd.DataFrame(data=kick_info_dict)
         kick_info.set_index("bin_num", drop=False, inplace=True)
 
-        events = cogsworth.events.identify_events(bpp, kick_info)
+        primary_events, secondary_events = cogsworth.events.identify_events(bpp, kick_info)
 
-        self.assertTrue(events[0] is None)
-        self.assertTrue(len(events[1]) == 1)
-        self.assertTrue(len(events[2]) == 2)
-        self.assertTrue(len(events[3]) == 2)
+        self.assertTrue(len(primary_events) == 4)
+        self.assertTrue(len(secondary_events) == 4)
+        self.assertTrue(primary_events[0] is None)
+        self.assertTrue(secondary_events[1] is None)
+        self.assertTrue(secondary_events[2] is not None)
+        self.assertTrue(len(secondary_events[3]) > len(secondary_events[2]))

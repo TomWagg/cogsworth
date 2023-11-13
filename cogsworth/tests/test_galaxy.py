@@ -84,7 +84,6 @@ class Test(unittest.TestCase):
         self.assertTrue(np.all(g.z == g_loaded.z))
 
         os.remove("testing-galaxy-io.h5")
-        os.remove("testing-galaxy-io-galaxy-params.txt")
 
     def test_getters(self):
         """Test getting attributes"""
@@ -96,6 +95,12 @@ class Test(unittest.TestCase):
             g.tau
             g = galaxy.Frankel2018(size=10, immediately_sample=False)
             g.Z
+            g = galaxy.Frankel2018(size=10, immediately_sample=False)
+            g.x
+            g = galaxy.Frankel2018(size=10, immediately_sample=False)
+            g.y
+            g = galaxy.Frankel2018(size=10, immediately_sample=False)
+            g.z
             g = galaxy.Frankel2018(size=10, immediately_sample=False)
             g.positions
             g = galaxy.Frankel2018(size=10, immediately_sample=False)
@@ -144,7 +149,6 @@ class Test(unittest.TestCase):
         self.assertTrue(np.all(g.z == g_loaded.z))
 
         os.remove("testing-galaxy-custom.h5")
-        os.remove("testing-galaxy-custom-galaxy-params.txt")
 
     def test_plot(self):
         """Test plotting capabilities"""

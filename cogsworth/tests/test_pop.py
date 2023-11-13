@@ -1,6 +1,7 @@
 import numpy as np
 import unittest
 import cogsworth.pop as pop
+import cogsworth.observables as obs
 import os
 import pytest
 
@@ -32,6 +33,8 @@ class Test(unittest.TestCase):
         p_loaded = pop.load("testing-pop-io")
 
         self.assertTrue(np.all(p.bpp == p_loaded.bpp))
+        self.assertTrue(np.all(p.final_pos == p_loaded.final_pos))
+        self.assertTrue(np.all(p.orbits[0].pos == p_loaded.orbits[0].pos))
 
         # attempt overwrite without setting flag
         it_broke = False
@@ -51,19 +54,16 @@ class Test(unittest.TestCase):
         self.assertFalse(it_broke)
 
         os.remove("testing-pop-io.h5")
-        os.remove("testing-pop-io-galaxy-params.txt")
-        os.remove("testing-pop-io-orbits.npy")
-        os.remove("testing-pop-io-potential.txt")
 
     def test_orbit_storage(self):
         """Test that we can control how orbits are stored"""
-        p = pop.Population(2, processes=1, store_entire_orbits=True)
+        p = pop.Population(20, final_kstar1=[13, 14], processes=1, store_entire_orbits=True)
         p.create_population()
 
         first_orbit = p.orbits[0][0] if isinstance(p.orbits[0], list) else p.orbits[0]
         self.assertTrue(first_orbit.shape[0] >= 1)
 
-        p = pop.Population(2, processes=1, store_entire_orbits=False)
+        p = pop.Population(20, final_kstar1=[13, 14], processes=1, store_entire_orbits=False)
         p.create_population()
 
         first_orbit = p.orbits[0][0] if isinstance(p.orbits[0], list) else p.orbits[0]
@@ -97,24 +97,29 @@ class Test(unittest.TestCase):
         if i == MAX_REPS:
             raise ValueError("Couldn't make anything disrupt :/")
 
-        # test we can get the final distances properly
-        self.assertTrue(np.all(p.final_coords[0].icrs.distance.value >= 0.0))
-
         # test that classes can be identified
         self.assertTrue(p.classes.shape[0] == p.n_binaries_match)
 
         # test that observable table is done right (with or without extinction)
         p.observables
-        p.get_observables(ignore_extinction=True)
+        p.get_observables(filters=["G", "BP", "RP", "J", "H", "K"], assume_mw_galactocentric=True)
+        obs.get_photometry(filters=["G", "BP", "RP", "J", "H", "K"], final_bpp=p.final_bpp,
+                           final_pos=p.final_pos, assume_mw_galactocentric=True, ignore_extinction=True)
+        p.observables
 
         # cheat and make sure at least one binary is bright enough
         p.observables["G_app_1"].iloc[0] = 18.0
-        p.get_gaia_observed_bin_nums()
+        p.get_gaia_observed_bin_nums(ra="auto", dec="auto")
 
-        p.plot_map(coord="C", show=False)
-        p.plot_map(coord="G", show=False)
+        it_worked = True
+        try:
+            p.get_healpix_inds()
+        except ValueError:
+            it_worked = False
+        self.assertFalse(it_worked)
 
-        p[0]
+        p.plot_map(ra="auto", dec="auto", coord="C", show=False)
+        p.plot_map(ra="auto", dec="auto", coord="G", show=False)
 
     def test_getters(self):
         """Test the property getters"""
@@ -147,6 +152,8 @@ class Test(unittest.TestCase):
 
         # test getters for galactic evolution
         p.orbits
+        p.primary_orbits
+        p.secondary_orbits
 
         p.escaped
 
@@ -179,10 +186,11 @@ class Test(unittest.TestCase):
         p.perform_stellar_evolution()
 
     def test_none_orbits(self):
-        """Ensure final_coords still works when there is an Orbit with None"""
+        """Ensure final_pos/vel still works when there is an Orbit with None"""
         p = pop.Population(2)
         p._orbits = [None, None]
-        self.assertTrue(p.final_coords[0].x[0].value == np.inf)
+        self.assertTrue(p.final_pos[0][0].value == np.inf)
+        self.assertTrue(p.final_vel[0][0].value == np.inf)
 
     @pytest.mark.filterwarnings("ignore:.*duplicate")
     def test_indexing(self):
@@ -194,6 +202,12 @@ class Test(unittest.TestCase):
                 list(np.random.choice(p.bin_nums, size=2, replace=False)),
                 slice(0, 7, 3),
                 [0, 1, 1, 1, 0]]
+
+        # mock up some data so it tests the indexing
+        p._observables = p.final_bpp
+        p._classes = p.final_bpp
+        p._final_pos = np.zeros(len(p._orbits))
+        p._final_vel = np.zeros(len(p._orbits))
 
         for ind in inds:
             p_ind = p[ind]
@@ -303,7 +317,18 @@ class Test(unittest.TestCase):
             it_failed = True
         self.assertTrue(it_failed)
 
-        p.create_population()
+        p.sample_initial_binaries()
+        p.bin_nums
+        p._bin_nums = None
+
+        p.perform_stellar_evolution()
+        p._final_bpp = None
+        p.bin_nums
+        p._bin_nums = None
+
+        p.final_bpp
+        p.bin_nums
+        p._bin_nums = None
 
         initC_bin_nums = p.initC["bin_num"].unique()
         bpp_bin_nums = p.bpp["bin_num"].unique()
@@ -341,3 +366,12 @@ class Test(unittest.TestCase):
 
         for bin_num in p.bin_nums:
             p.plot_cartoon_binary(bin_num, show=False)
+
+    def test_sampling_with_initC(self):
+        """Check we can sample from an initC table"""
+        p = pop.Population(10)
+        p.perform_stellar_evolution()
+
+        p.sample_initial_binaries(initC=p.initC,
+                                  overwrite_initC_settings=True,
+                                  reset_sampled_kicks=True)
