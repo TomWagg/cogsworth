@@ -172,7 +172,7 @@ class Galaxy():
 
     @property
     def phi(self):
-        return np.arctan(self.y / self.x)
+        return np.arctan2(self.y, self.x)
 
     @property
     def positions(self):
