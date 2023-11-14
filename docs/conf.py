@@ -146,7 +146,7 @@ html_sidebars = {
     "pages/getting_started": ["page-toc"],
     "pages/tutorials": [],
     "auto_examples/*": [],
-    "tutorials/*": ["page-toc", "sidebar-nav-bs.html"]
+    "tutorials/**": ["page-toc", "sidebar-nav-bs.html"]
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
