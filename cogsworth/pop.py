@@ -9,11 +9,13 @@ import astropy.coordinates as coords
 import h5py as h5
 import pandas as pd
 from tqdm import tqdm
+import yaml
 
 from cosmic.sample.initialbinarytable import InitialBinaryTable
 from cosmic.evolve import Evolve
 import gala.potential as gp
 import gala.dynamics as gd
+from gala.potential.potential.io import to_dict as potential_to_dict, from_dict as potential_from_dict
 
 from cogsworth import galaxy
 from cogsworth.kicks import integrate_orbit_with_events
@@ -63,7 +65,7 @@ class Population():
     store_entire_orbits : `bool`, optional
         Whether to store the entire orbit for each binary, by default True. If not then only the final
         PhaseSpacePosition will be stored. This cuts down on both memory usage and disk space used if you
-        save the Population.
+        save the Population (as well as how long it takes to reload the data).
 
     Attributes
     ----------
@@ -141,6 +143,7 @@ class Population():
         self._initC = None
         self._kick_info = None
         self._orbits = None
+        self._orbits_file = None
         self._classes = None
         self._final_pos = None
         self._final_vel = None
@@ -401,9 +404,35 @@ class Population():
 
     @property
     def orbits(self):
-        if self._orbits is None:
+        # if orbits are uncalculated and no file is provided then perform galactic orbit evolution
+        if self._orbits is None and self._orbits_file is None:
             self.perform_galactic_evolution()
+        # otherwise if orbits are uncalculated but a file is provided then load the orbits from the file
+        elif self._orbits is None:
+            # load the entire file into memory
+            with h5.File(self._orbits_file, "r") as f:
+                offsets = f["orbits"]["offsets"][...]
+                pos, vel = f["orbits"]["pos"][...] * u.kpc, f["orbits"]["vel"][...] * u.km / u.s
+                t = f["orbits"]["t"][...] * u.Myr
+
+            # convert positions, velocities and times into a list of orbits
+            self._orbits = np.array([gd.Orbit(pos[:, offsets[i]:offsets[i + 1]],
+                                              vel[:, offsets[i]:offsets[i + 1]],
+                                              t[offsets[i]:offsets[i + 1]]) for i in range(len(offsets) - 1)])
+
+            # also calculate the final positions and velocities while you're at it
+            final_inds = offsets[1:] - 1
+            self._final_pos = pos[:, final_inds].T
+            self._final_vel = vel[:, final_inds].T
         return self._orbits
+
+    @property
+    def primary_orbits(self):
+        return self.orbits[:len(self)]
+
+    @property
+    def secondary_orbits(self):
+        return self.orbits[len(self):]
 
     @property
     def classes(self):
@@ -414,13 +443,13 @@ class Population():
     @property
     def final_pos(self):
         if self._final_pos is None:
-            self._final_pos, self._final_vel = self.get_final_coords()
+            self._final_pos, self._final_vel = self._get_final_coords()
         return self._final_pos
 
     @property
     def final_vel(self):
         if self._final_vel is None:
-            self._final_pos, self._final_vel = self.get_final_coords()
+            self._final_pos, self._final_vel = self._get_final_coords()
         return self._final_vel
 
     @property
@@ -508,7 +537,7 @@ class Population():
         self.__citations__.extend([c for c in self._initial_galaxy.__citations__ if c != "cogsworth"])
 
         # if velocities are already set then just immediately return
-        if all(hasattr(self._initial_galaxy, attr) for attr in ["_v_R", "_v_T", "_v_z"]):
+        if all(hasattr(self._initial_galaxy, attr) for attr in ["_v_R", "_v_T", "_v_z"]):   # pragma: no cover
             return
 
         # work out the initial velocities of each binary
@@ -528,8 +557,7 @@ class Population():
         self._initial_galaxy._v_T = v_T
         self._initial_galaxy._v_z = v_z
 
-    def sample_initial_binaries(self, initC=None, overwrite_initC_settings=True, reset_sampled_kicks=True,
-                                initial_galaxy=None):
+    def sample_initial_binaries(self, initC=None, overwrite_initC_settings=True, reset_sampled_kicks=True):
         """Sample the initial binary parameters for the population.
 
         Alternatively, copy initial conditions from another population
@@ -543,8 +571,6 @@ class Population():
             `BSE_settings`, by default True
         reset_sampled_kicks : `bool`, optional
             Whether to reset any sampled kicks in the population to ensure new ones are drawn, by default True
-        initial_galaxy : :class:`~cogsworth.galaxy.Galaxy`, optional
-            The initial galaxy to use to avoid sampling a new one, by default None (new sampling performed)
         """
         self._bin_nums = None
 
@@ -587,10 +613,7 @@ class Population():
             raise ValueError(("Your choice of `m1_cutoff` resulted in all samples being thrown out. Consider"
                               " a larger sample size or a less stringent mass cut"))
 
-        if initial_galaxy is not None:
-            self._initial_galaxy = copy(initial_galaxy)
-        else:
-            self.sample_initial_galaxy()
+        self.sample_initial_galaxy()
 
         # update the metallicity and birth times of the binaries to match the galaxy
         self._initial_binaries["metallicity"] = self._initial_galaxy.Z
@@ -762,7 +785,7 @@ class Population():
 
         self._orbits = np.array(orbits, dtype="object")
 
-    def get_final_coords(self):
+    def _get_final_coords(self):
         """Get the final coordinates of each binary (or each component in disrupted binaries)
 
         Returns
@@ -773,18 +796,29 @@ class Population():
             `self.disrupted.sum()` entries are for disrupted secondaries. Any missing orbits (where orbit=None
             will be set to `np.inf` for ease of masking.
         """
-        # pool all of the orbits into a single numpy array
-        self._final_pos = np.ones((len(self.orbits), 3)) * np.inf
-        self._final_vel = np.ones((len(self.orbits), 3)) * np.inf
-        for i, orbit in enumerate(self.orbits):
-            # check if the orbit is missing
-            if orbit is None:
-                print("Warning: Detected `None` orbit, entering coordinates as `np.inf`")
-            else:
-                self._final_pos[i] = orbit[-1].pos.xyz.to(u.kpc).value
-                self._final_vel[i] = orbit[-1].vel.d_xyz.to(u.km / u.s).value
-        self._final_pos *= u.kpc
-        self._final_vel *= u.km / u.s
+        if self._orbits_file is not None:
+            with h5.File(self._orbits_file, "r") as f:
+                offsets = f["orbits"]["offsets"][...]
+                pos, vel = f["orbits"]["pos"][...] * u.kpc, f["orbits"]["vel"][...] * u.km / u.s
+
+            final_inds = offsets[1:] - 1
+
+            self._final_pos = pos[:, final_inds].T
+            self._final_vel = vel[:, final_inds].T
+            del pos, vel
+        else:
+            # pool all of the orbits into a single numpy array
+            self._final_pos = np.ones((len(self.orbits), 3)) * np.inf
+            self._final_vel = np.ones((len(self.orbits), 3)) * np.inf
+            for i, orbit in enumerate(self.orbits):
+                # check if the orbit is missing
+                if orbit is None:
+                    print("Warning: Detected `None` orbit, entering coordinates as `np.inf`")
+                else:
+                    self._final_pos[i] = orbit[-1].pos.xyz.to(u.kpc).value
+                    self._final_vel[i] = orbit[-1].vel.d_xyz.to(u.km / u.s).value
+            self._final_pos *= u.kpc
+            self._final_vel *= u.km / u.s
         return self._final_pos, self._final_vel
 
     def get_observables(self, **kwargs):
@@ -1003,13 +1037,7 @@ class Population():
         return plot_cartoon_evolution(self.bpp, bin_num, **kwargs)
 
     def save(self, file_name, overwrite=False):
-        """Save a Population to disk
-
-        This will produce 4 files:
-            - An HDF5 file containing most of the data
-            - A .npy file containing the orbits
-            - A .txt file detailing the Galactic potential used
-            - A .txt file detailing the initial galaxy model used
+        """Save a Population to disk as an HDF5 file.
 
         Parameters
         ----------
@@ -1036,9 +1064,33 @@ class Population():
         self.initC.to_hdf(file_name, key="initC")
         self.kick_info.to_hdf(file_name, key="kick_info")
 
-        self.galactic_potential.save(file_name.replace('.h5', '-potential.txt'))
+        with h5.File(file_name, "a") as f:
+            f.attrs["potential_dict"] = yaml.dump(potential_to_dict(self.galactic_potential),
+                                                  default_flow_style=None)
         self.initial_galaxy.save(file_name, key="initial_galaxy")
-        np.save(file_name.replace(".h5", "-orbits.npy"), np.array(self.orbits, dtype="object"))
+
+        # go through the orbits calculate their lengths (and therefore offsets in the file)
+        orbit_lengths = [len(orbit.pos) for orbit in self.orbits]
+        orbit_lengths_total = sum(orbit_lengths)
+        offsets = np.insert(np.cumsum(orbit_lengths), 0, 0)
+
+        # start some empty arrays to store the data
+        orbits_data = {"offsets": offsets,
+                       "pos": np.zeros((3, orbit_lengths_total)),
+                       "vel": np.zeros((3, orbit_lengths_total)),
+                       "t": np.zeros(orbit_lengths_total)}
+
+        # save each orbit to the arrays with the same units
+        for i, orbit in enumerate(self.orbits):
+            orbits_data["pos"][:, offsets[i]:offsets[i + 1]] = orbit.pos.xyz.to(u.kpc).value
+            orbits_data["vel"][:, offsets[i]:offsets[i + 1]] = orbit.vel.d_xyz.to(u.km / u.s).value
+            orbits_data["t"][offsets[i]:offsets[i + 1]] = orbit.t.to(u.Myr).value
+
+        # save the orbits arrays to the file
+        with h5.File(file_name, "a") as file:
+            orbits = file.create_group("orbits")
+            for key in orbits_data:
+                orbits[key] = orbits_data[key]
 
         with h5.File(file_name, "a") as file:
             numeric_params = np.array([self.n_binaries, self.n_binaries_match, self.processes, self.m1_cutoff,
@@ -1049,8 +1101,8 @@ class Population():
             num_par = file.create_dataset("numeric_params", data=numeric_params)
             num_par.attrs["store_entire_orbits"] = self.store_entire_orbits
 
-            k_stars = np.array([self.final_kstar1, self.final_kstar2])
-            file.create_dataset("k_stars", data=k_stars)
+            num_par.attrs["final_kstar1"] = self.final_kstar1
+            num_par.attrs["final_kstar2"] = self.final_kstar2
 
             # save BSE settings
             d = file.create_dataset("BSE_settings", data=[])
@@ -1077,19 +1129,21 @@ def load(file_name):
     BSE_settings = {}
     with h5.File(file_name, "r") as file:
         numeric_params = file["numeric_params"][...]
-        k_stars = file["k_stars"][...]
 
         store_entire_orbits = file["numeric_params"].attrs["store_entire_orbits"]
+        final_kstars = [file["numeric_params"].attrs["final_kstar1"],
+                        file["numeric_params"].attrs["final_kstar2"]]
 
         # load in BSE settings
         for key in file["BSE_settings"].attrs:
             BSE_settings[key] = file["BSE_settings"].attrs[key]
 
     initial_galaxy = galaxy.load(file_name, key="initial_galaxy")
-    galactic_potential = gp.potential.load(file_name.replace('.h5', '-potential.txt'))
+    with h5.File(file_name, 'r') as f:
+        galactic_potential = potential_from_dict(yaml.load(f.attrs["potential_dict"], Loader=yaml.Loader))
 
     p = Population(n_binaries=int(numeric_params[0]), processes=int(numeric_params[2]),
-                   m1_cutoff=numeric_params[3], final_kstar1=k_stars[0], final_kstar2=k_stars[1],
+                   m1_cutoff=numeric_params[3], final_kstar1=final_kstars[0], final_kstar2=final_kstars[1],
                    galaxy_model=initial_galaxy.__class__, galactic_potential=galactic_potential,
                    v_dispersion=numeric_params[4] * u.km / u.s, max_ev_time=numeric_params[5] * u.Gyr,
                    timestep_size=numeric_params[6] * u.Myr, BSE_settings=BSE_settings,
@@ -1108,7 +1162,8 @@ def load(file_name):
     p._initC = pd.read_hdf(file_name, key="initC")
     p._kick_info = pd.read_hdf(file_name, key="kick_info")
 
-    p._orbits = np.load(file_name.replace(".h5", "-orbits.npy"), allow_pickle=True)
+    # don't directly load the orbits, just store the file name for later
+    p._orbits_file = file_name
 
     return p
 

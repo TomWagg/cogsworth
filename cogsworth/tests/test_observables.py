@@ -33,3 +33,26 @@ class Test(unittest.TestCase):
         print(m_app)
         print(m_app_converted)
         self.assertTrue(np.all(m_app == m_app_converted))
+
+    def test_bad_input(self):
+        """Test that it breaks when it should"""
+        it_worked = True
+        try:
+            obs.get_photometry(filters=["G"])
+        except ValueError:
+            it_worked = False
+        self.assertFalse(it_worked)
+
+        it_worked = True
+        try:
+            obs.get_photometry(filters=["G"], population="dummy")
+        except ValueError:
+            it_worked = False
+        self.assertFalse(it_worked)
+
+        it_worked = True
+        try:
+            obs.get_photometry(filters=["G"], population="dummy", distances="dummy")
+        except ValueError:
+            it_worked = False
+        self.assertFalse(it_worked)

@@ -37,6 +37,7 @@ class FIREPop(cogsworth.pop.Population):
         new_pop.particle_size = self.particle_size
         new_pop.particle_boundedness = self.particle_boundedness
         return new_pop
+        
     
     def sample_initial_binaries(self):
         assert self.star_particles is not None,\
@@ -92,17 +93,16 @@ class FIREPop(cogsworth.pop.Population):
                                     size=(3, self.n_binaries_match)) * u.kpc
 
         self._initial_galaxy = cogsworth.galaxy.Galaxy(self.n_binaries_match, immediately_sample=False)
-        self._initial_galaxy._positions = SkyCoord(x=x, y=y, z=z,
-                                                   frame="galactocentric", representation_type="cartesian")
+        self._initial_galaxy._x = x
+        self._initial_galaxy._y = y
+        self._initial_galaxy._z = z
         self._initial_galaxy._tau = self._initial_binaries["tphysf"].values * u.Myr
         self._initial_galaxy._Z = self._initial_binaries["metallicity"].values
         self._initial_galaxy._which_comp = np.repeat("FIRE", len(self.initial_galaxy._tau))
 
-        v_R = (particles["x"] * particles["v_x"]
-               + particles["y"] * particles["v_y"])\
+        v_R = (particles["x"] * particles["v_x"] + particles["y"] * particles["v_y"])\
             / (particles["x"]**2 + particles["y"]**2)**0.5
-        v_T = (particles["x"] * particles["v_y"]
-               - particles["y"]*particles["v_x"])\
+        v_T = (particles["x"] * particles["v_y"] - particles["y"] * particles["v_x"])\
             / (particles["x"]**2 + particles["y"]**2)**0.5
         v_z = particles["v_z"]
 
@@ -122,7 +122,7 @@ def dispersion_from_virial_parameter(alpha_vir, R, M):
     return np.sqrt(alpha_vir * const.G * M / (5 * R)).to(u.km / u.s)
 
 
-def run_boundedness_sim(alpha_vir, subset=None, processes=32):
+def run_boundedness_sim(alpha_vir, subset=None, processes=32, extra_time=200 * u.Myr, m1_cutoff=4 * u.Msun):
     """
     Runs a cogsworth simulation using the FIRE (Feedback In Realistic Environments) simulations, varying star
     particle boundedness.
@@ -146,7 +146,7 @@ def run_boundedness_sim(alpha_vir, subset=None, processes=32):
 
     # create a FIREPop object with the selected stars and other parameters
     p_fire = FIREPop(star_particles=stars_at_formation,
-                     max_ev_time=recent_stars.snap_time,
+                     max_ev_time=recent_stars.snap_time + extra_time,
                      galactic_potential=pot,
                      m1_cutoff=4,
                      particle_boundedness=alpha_vir,
@@ -159,11 +159,18 @@ def run_boundedness_sim(alpha_vir, subset=None, processes=32):
 
     # select main sequence stars and perform galactic evolution
     ms_stars = (p_fire.final_bpp["kstar_1"] <= 1) | (p_fire.final_bpp["kstar_2"] <= 1)
-    p = p_fire[ms_stars]
-    p.perform_galactic_evolution()
+    # p = p_fire[ms_stars]
+    
+    print(f"Sampled {len(p_fire)} systems")
+    print(f"Would have trimmed to {ms_stars.sum()}")
+    
+    p_fire.perform_galactic_evolution()
+    
+    if p_fire._initC is not None and "particle_id" not in p_fire._initC.columns:
+        p_fire._initC["particle_id"] = p_fire._initial_binaries["particle_id"]
 
     # save the results
-    p.save(f"/mnt/home/twagg/ceph/pops/boundedness/alpha_{alpha_vir}")
+    p_fire.save(f"/mnt/home/twagg/ceph/pops/boundedness/alpha_{alpha_vir}", overwrite=True)
 
 
 def main():
@@ -174,9 +181,11 @@ def main():
                         help='Size of subset of star particles to use')
     parser.add_argument('-p', '--processes', default=32, type=int,
                         help='Number of processes to use')
+    parser.add_argument('-e', '--extra_time', default=200, type=int,
+                        help='Extra time to evolve for (in Myr)')
     args = parser.parse_args()
 
-    run_boundedness_sim(args.alpha_vir, args.subset, args.processes)
+    run_boundedness_sim(alpha_vir=args.alpha_vir, subset=args.subset, processes=args.processes, extra_time=args.extra_time * u.Myr)
 
 if __name__ == "__main__":
     main()
