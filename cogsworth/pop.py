@@ -731,7 +731,7 @@ class Population():
                                                                         self.initial_galaxy._v_z]] * u.km/u.s)
 
         # identify the pertinent events in the evolution
-        primary_events, secondary_events = identify_events(full_bpp=self.bpp, full_kick_info=self.kick_info)
+        primary_events, secondary_events = identify_events(p=self)
 
         # if we want to use multiprocessing
         if self.pool is not None or self.processes > 1:
