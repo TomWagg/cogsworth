@@ -278,7 +278,7 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
 
             # label its stellar type if (a) it changed or (b) we're at the start/end of evolution
             if (k1 != pk1 and not mr_1) or (k2 != pk2 and not mr_2) or et_ind in [1, 10]:
-                ax.annotate(k1["short"] if k1 != pk1 else k2["short"], xy=(0, total - i),
+                ax.annotate(k1["short"] if mr_2 else k2["short"], xy=(0, total - i),
                             ha="center", va="center", zorder=10, fontsize=ks_fontsize, fontweight="bold",
                             color="white" if _use_white_text(k1["colour"]
                                                              if mr_2 else k2["colour"]) else "black")
@@ -325,8 +325,10 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
 
                 # annotate the line with period, offset to one side if there's RLOF
                 x = 0 if not (rlof and not common_envelope) else (-offset / 4 if row["RRLO_1"] >= 1.0 else offset / 4)
-                ax.annotate(f'{row["porb"]:1.2e} days' if row["porb"] > 10000 else f'{row["porb"]:1.0f} days',
-                            xy=(x, total - i + 0.05), ha="center", va="bottom", fontsize=0.3*fs)
+                p_lab = f'{row["porb"]:1.2e} days' if row["porb"] > 10000 or row["porb"] < 1\
+                    else f'{row["porb"]:1.0f} days'
+                ax.annotate(p_lab, xy=(x, total - i + 0.05), ha="center", va="bottom",
+                            fontsize=0.2*fs if row["porb"] > 10000 or row["porb"] < 1 else 0.3*fs)
 
             # for non-common-envelope RLOF, plot a RLOF teardrop in the background
             if rlof and not common_envelope:
