@@ -432,7 +432,8 @@ class Population():
 
     @property
     def secondary_orbits(self):
-        return self.orbits[len(self):]
+        order = np.argsort(np.concatenate((self.bin_nums[~self.disrupted], self.bin_nums[self.disrupted])))
+        return np.concatenate((self.primary_orbits[~self.disrupted], self.orbits[len(self):]))[order] 
 
     @property
     def classes(self):
