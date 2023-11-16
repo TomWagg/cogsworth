@@ -432,7 +432,8 @@ class Population():
 
     @property
     def secondary_orbits(self):
-        return self.orbits[len(self):]
+        order = np.argsort(np.concatenate((self.bin_nums[~self.disrupted], self.bin_nums[self.disrupted])))
+        return np.concatenate((self.primary_orbits[~self.disrupted], self.orbits[len(self):]))[order] 
 
     @property
     def classes(self):
@@ -731,7 +732,7 @@ class Population():
                                                                         self.initial_galaxy._v_z]] * u.km/u.s)
 
         # identify the pertinent events in the evolution
-        primary_events, secondary_events = identify_events(full_bpp=self.bpp, full_kick_info=self.kick_info)
+        primary_events, secondary_events = identify_events(p=self)
 
         # if we want to use multiprocessing
         if self.pool is not None or self.processes > 1:

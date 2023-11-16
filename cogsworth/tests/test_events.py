@@ -15,13 +15,13 @@ class Test(unittest.TestCase):
         """
 
         bpp_dict = {
-            "mass_1": [1, 10, 20, 20, 20],
-            "mass_2": [1, 10, 20, 20, 20],
-            "tphys": [0, 0, 0, 0, 1],
-            "sep": [10, 10, 10, 10, 10],
-            "ecc": [0, 0, 0, 0, 0.1],
-            "evol_type": [-1, 15, 15, 15, 16],
-            "bin_num": [1, 2, 3, 4, 4],
+            "mass_1": [1, 10, 20, 1.4, 20, 20, 8],
+            "mass_2": [1, 10, 20, 20, 20, 20, 1.4],
+            "tphys": [0, 0, 0, 1, 0, 1, 2],
+            "sep": [10, 10, 10, -1.0, 10, 10, -1.0],
+            "ecc": [0, 0, 0, -1.0, 0, 0.1, -1.0],
+            "evol_type": [-1, 15, 15, 11, 15, 16, 11],
+            "bin_num": [1, 2, 3, 3, 4, 4, 4],
         }
         bpp = pd.DataFrame(data=bpp_dict)
         bpp.set_index("bin_num", drop=False, inplace=True)
@@ -40,7 +40,13 @@ class Test(unittest.TestCase):
         kick_info = pd.DataFrame(data=kick_info_dict)
         kick_info.set_index("bin_num", drop=False, inplace=True)
 
-        primary_events, secondary_events = cogsworth.events.identify_events(bpp, kick_info)
+        p = cogsworth.pop.Population(4)
+        p._bpp = bpp
+        p._kick_info = kick_info
+        p._initC = pd.DataFrame(data={"metallicity": [1e-2, 1e-2, 1e-2, 1e-2]})
+        p.final_bpp
+
+        primary_events, secondary_events = cogsworth.events.identify_events(p)
 
         self.assertTrue(len(primary_events) == 4)
         self.assertTrue(len(secondary_events) == 4)
