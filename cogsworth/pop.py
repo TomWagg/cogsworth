@@ -1013,11 +1013,12 @@ class Population():
         **kwargs : `various`
             Any arguments to pass to :func:`~cogsworth.utils.translate_COSMIC_tables`
         """
-        self._bpp = translate_COSMIC_tables(self._bpp, **kwargs)
-        self._final_bpp = translate_COSMIC_tables(self._final_bpp, **kwargs)
+        with pd.option_context('mode.chained_assignment', None):
+            self._bpp = translate_COSMIC_tables(self._bpp, **kwargs)
+            self._final_bpp = translate_COSMIC_tables(self._final_bpp, **kwargs)
 
-        kwargs.update({"evol_type": False})
-        self._bcm = translate_COSMIC_tables(self._bcm, **kwargs)
+            kwargs.update({"evol_type": False})
+            self._bcm = translate_COSMIC_tables(self._bcm, **kwargs)
 
     def plot_cartoon_binary(self, bin_num, **kwargs):
         """Plot a cartoon of the evolution of a single binary
