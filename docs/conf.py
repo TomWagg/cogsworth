@@ -55,7 +55,8 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx_copybutton',
     'sphinx.ext.linkcode',
-    'sphinx_gallery.gen_gallery'
+    'sphinx_gallery.gen_gallery',
+    'sphinx_togglebutton'
 ]
 
 sphinx_gallery_conf = {
