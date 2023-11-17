@@ -6,8 +6,9 @@ Show how the main sequence ages of each star in a binary are different.
 
 For primary stars, the main sequence lifetime of a star is directly related to its initial mass, with more
 massive stars living shorter lives (with some dependence on metallicity). For secondary stars, the same
-relation doesn't hold, as the secondary star's main sequence lifetime is affected by the mass transfer, which
-will increase the mass of the secondary star, shortening its main sequence lifetime.
+relation doesn't hold, as the secondary star may accrete mass during its main sequence when its companion
+initiates mass transfer. This will increase the mass of the secondary star,
+shortening its main sequence lifetime.
 """
 
 import cogsworth
