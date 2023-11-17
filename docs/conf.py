@@ -144,7 +144,9 @@ html_sidebars = {
     "index": [],
     "pages/install": ["page-toc"],
     "pages/getting_started": ["page-toc"],
+    "pages/learning": [],
     "pages/tutorials": [],
+    "pages/case_studies": [],
     "auto_examples/*": [],
     "tutorials/**": ["page-toc", "sidebar-nav-bs.html"]
 }
