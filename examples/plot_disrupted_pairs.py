@@ -2,7 +2,7 @@
 Disrupted binary pairs
 ======================
 
-Plot each disrupted binary and draw a line between each pair.
+Plot each disrupted binary on the sky and draw a line between each pair.
 """
 
 import cogsworth
