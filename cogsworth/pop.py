@@ -48,6 +48,8 @@ class Population():
     galaxy_model : :class:`~cogsworth.galaxy.Galaxy`, optional
         A Galaxy class to use for sampling the initial galaxy parameters, by default
         :class:`~cogsworth.galaxy.Wagg2022`
+    galaxy_params : `dict`, optional
+        Any additional parameters to pass to your chosen ``galaxy model`` when it is initialised
     galactic_potential : :class:`Potential <gala.potential.potential.PotentialBase>`, optional
         Galactic potential to use for evolving the orbits of binaries, by default
         :class:`~gala.potential.potential.MilkyWayPotential`
@@ -60,7 +62,7 @@ class Population():
     BSE_settings : `dict`, optional
         Any BSE settings to pass to COSMIC
     sampling_params : `dict`, optional
-        Any addition parameters to pass to the COSMIC sampling (see
+        Any additional parameters to pass to the COSMIC sampling (see
         :meth:`~cosmic.sample.sampler.independent.get_independent_sampler`)
     store_entire_orbits : `bool`, optional
         Whether to store the entire orbit for each binary, by default True. If not then only the final
@@ -109,7 +111,7 @@ class Population():
         used an indices for the population
     """
     def __init__(self, n_binaries, processes=8, m1_cutoff=0, final_kstar1=list(range(16)),
-                 final_kstar2=list(range(16)), galaxy_model=galaxy.Wagg2022,
+                 final_kstar2=list(range(16)), galaxy_model=galaxy.Wagg2022, galaxy_params={},
                  galactic_potential=gp.MilkyWayPotential(), v_dispersion=5 * u.km / u.s,
                  max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, sampling_params={},
                  store_entire_orbits=True):
@@ -126,6 +128,7 @@ class Population():
         self.final_kstar1 = final_kstar1
         self.final_kstar2 = final_kstar2
         self.galaxy_model = galaxy_model
+        self.galaxy_params = galaxy_params
         self.galactic_potential = galactic_potential
         self.v_dispersion = v_dispersion
         self.max_ev_time = max_ev_time
@@ -237,9 +240,11 @@ class Population():
         new_pop = self.__class__(n_binaries=len(bin_nums), processes=self.processes,
                                  m1_cutoff=self.m1_cutoff, final_kstar1=self.final_kstar1,
                                  final_kstar2=self.final_kstar2, galaxy_model=self.galaxy_model,
-                                 galactic_potential=self.galactic_potential, v_dispersion=self.v_dispersion,
-                                 max_ev_time=self.max_ev_time, timestep_size=self.timestep_size,
-                                 BSE_settings=self.BSE_settings, store_entire_orbits=self.store_entire_orbits)
+                                 galaxy_params=self.galaxy_params, galactic_potential=self.galactic_potential,
+                                 v_dispersion=self.v_dispersion, max_ev_time=self.max_ev_time,
+                                 timestep_size=self.timestep_size, BSE_settings=self.BSE_settings,
+                                 sampling_params=self.sampling_params,
+                                 store_entire_orbits=self.store_entire_orbits)
 
         # proxy for checking whether sampling has been done
         if self._mass_binaries is not None:
@@ -532,7 +537,7 @@ class Population():
     def sample_initial_galaxy(self):
         """Sample the initial galactic times, positions and velocities"""
         # initialise the initial galaxy class with correct number of binaries
-        self._initial_galaxy = self.galaxy_model(size=self.n_binaries_match)
+        self._initial_galaxy = self.galaxy_model(size=self.n_binaries_match, **self.galaxy_params)
 
         # add relevant citations
         self.__citations__.extend([c for c in self._initial_galaxy.__citations__ if c != "cogsworth"])
