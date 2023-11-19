@@ -20,7 +20,7 @@ from cogsworth.tests.optional_deps import check_dependencies
 from cogsworth.citations import CITATIONS
 
 
-__all__ = ["Galaxy", "Frankel2018", "QuasiIsothermalDisk", "load"]
+__all__ = ["Galaxy", "Wagg2022", "QuasiIsothermalDisk", "load"]
 
 
 class Galaxy():
@@ -398,11 +398,11 @@ class Galaxy():
             file[key].attrs["params"] = yaml.dump(params, default_flow_style=None)
 
 
-class Frankel2018(Galaxy):
-    """A semi-empirical galaxy model based on
-    `Frankel+2018 <https://ui.adsabs.harvard.edu/abs/2018ApJ...865...96F/abstract>`_. This model was used in
-    detail in `Wagg+2022 <https://ui.adsabs.harvard.edu/abs/2021arXiv211113704W/abstract>`_ -
-    see Figure 1 and Section 2.2.1 for a detailed explanation.
+class Wagg2022(Galaxy):
+    """A semi-empirical galaxy model defined in
+    `Wagg+2022 <https://ui.adsabs.harvard.edu/abs/2021arXiv211113704W/abstract>`_
+    (see Figure 1 and Section 2.2.1 for a detailed explanation.), heavily based on
+    `Frankel+2018 <https://ui.adsabs.harvard.edu/abs/2018ApJ...865...96F/abstract>`_.
 
     Parameters are the same as :class:`Galaxy` but additionally with the following:
 

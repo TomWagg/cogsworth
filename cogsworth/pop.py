@@ -47,7 +47,7 @@ class Population():
         Desired final types for secondary star, by default list(range(16))
     galaxy_model : :class:`~cogsworth.galaxy.Galaxy`, optional
         A Galaxy class to use for sampling the initial galaxy parameters, by default
-        :class:`~cogsworth.galaxy.Frankel2018`
+        :class:`~cogsworth.galaxy.Wagg2022`
     galactic_potential : :class:`Potential <gala.potential.potential.PotentialBase>`, optional
         Galactic potential to use for evolving the orbits of binaries, by default
         :class:`~gala.potential.potential.MilkyWayPotential`
@@ -109,7 +109,7 @@ class Population():
         used an indices for the population
     """
     def __init__(self, n_binaries, processes=8, m1_cutoff=0, final_kstar1=list(range(16)),
-                 final_kstar2=list(range(16)), galaxy_model=galaxy.Frankel2018,
+                 final_kstar2=list(range(16)), galaxy_model=galaxy.Wagg2022,
                  galactic_potential=gp.MilkyWayPotential(), v_dispersion=5 * u.km / u.s,
                  max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, sampling_params={},
                  store_entire_orbits=True):
