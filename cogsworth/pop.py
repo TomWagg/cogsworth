@@ -260,7 +260,8 @@ class Population():
 
         disrupted_bin_num_to_ind = {num: i for i, num in enumerate(self.bin_nums[self.disrupted])}
         sort_idx = np.argsort(list(disrupted_bin_num_to_ind.keys()))
-        idx = np.searchsorted(list(disrupted_bin_num_to_ind.keys()), self.bin_nums[self.disrupted],
+        idx = np.searchsorted(list(disrupted_bin_num_to_ind.keys()),
+                              bin_nums[np.isin(bin_nums, self.bin_nums[self.disrupted])],
                               sorter=sort_idx)
         inds_with_disruptions = np.asarray(list(disrupted_bin_num_to_ind.values()))[sort_idx][idx] + len(self)
         all_inds = np.concatenate((inds, inds_with_disruptions)).astype(int)
