@@ -3,7 +3,7 @@ import matplotlib as mpl
 import numpy as np
 
 
-__all__ = ["kstar_translator", "evol_type_translator", "translate_COSMIC_tables", "plot_cartoon_evolution"]
+__all__ = ["kstar_translator", "evol_type_translator", "translate_COSMIC_tables"]
 
 fs = 24
 
