@@ -90,6 +90,7 @@ class Test(unittest.TestCase):
         it_broke = False
         try:
             g = galaxy.Wagg2022(size=10, immediately_sample=False)
+            len(g)
             g.components
             g.component_masses
             g.tau
