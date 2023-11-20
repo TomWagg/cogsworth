@@ -62,6 +62,10 @@ class Population():
         Size of timesteps to use in galactic evolution, by default 1*u.Myr
     BSE_settings : `dict`, optional
         Any BSE settings to pass to COSMIC
+    bcm_timestep_conditions : List of lists, optional
+        Any timestep conditions to pass to COSMIC evolution. This will affect the rows that are output in the
+        the BCM table, by default only the first and last timesteps are output. For more details check out the
+        `relevant COSMIC docs <https://cosmic-popsynth.github.io/COSMIC/examples/index.html#dynamically-set-time-resolution-for-bcm-array>`_
     sampling_params : `dict`, optional
         Any additional parameters to pass to the COSMIC sampling (see
         :meth:`~cosmic.sample.sampler.independent.get_independent_sampler`)
@@ -115,7 +119,7 @@ class Population():
                  final_kstar2=list(range(16)), galaxy_model=galaxy.Wagg2022, galaxy_params={},
                  galactic_potential=gp.MilkyWayPotential(), v_dispersion=5 * u.km / u.s,
                  max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, sampling_params={},
-                 store_entire_orbits=True):
+                 bcm_timestep_conditions=None, store_entire_orbits=True):
 
         # require a sensible number of binaries if you are not targetting total mass
         if not ("sampling_target" in sampling_params and sampling_params["sampling_target"] == "total_mass"):
@@ -183,6 +187,7 @@ class Population():
         self.sampling_params = {'primary_model': 'kroupa01', 'ecc_model': 'sana12', 'porb_model': 'sana12',
                                 'qmin': -1, 'keep_singles': False}
         self.sampling_params.update(sampling_params)
+        self.bcm_timestep_conditions = bcm_timestep_conditions
 
     def __repr__(self):
         if self._orbits is None:
