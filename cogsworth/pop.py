@@ -886,7 +886,7 @@ class Population():
         for pix, g_mags, bin_nums in zip([pix_inds[:len(self)], pix_inds[len(self):]],
                                          [self.observables["G_app_1"].values,
                                           self.observables["G_app_2"][self.disrupted].values],
-                                         [self.bin_nums[:len(self)], self.bin_nums[len(self):]]):
+                                         [self.bin_nums, self.bin_nums[self.disrupted]]):
             # get the coordinates of the corresponding pixels
             comp_coords = coords_of_centers[pix]
 
