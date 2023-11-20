@@ -3,6 +3,7 @@ Tutorials
 *********
 
 If you're looking to learn more about ``cogsworth`` then you've come to the right place, check out our array of tutorials below!
+If you're new to ``cogsworth`` I recommend going through the whole basics section as an introduction and go from there.
 
 .. grid:: 1 1 2 2
     :gutter: 3
@@ -11,35 +12,49 @@ If you're looking to learn more about ``cogsworth`` then you've come to the righ
 
         .. toctree::
             :titlesonly:
-            :caption: The Population Class
+            :caption: The Basics
 
-            ../tutorials/pops.ipynb
-            ../tutorials/pop_io.ipynb
-            ../tutorials/pop_synth.ipynb
-
-    .. grid-item-card::
-
-        .. toctree::
-            :titlesonly:
-            :caption: General
-
-            ../tutorials/subpops.ipynb
-            ../tutorials/potentials.ipynb
-            ../tutorials/observables.ipynb
+            ../tutorials/basics/pops.ipynb
+            ../tutorials/basics/outputs.ipynb
+            ../tutorials/basics/pop_io.ipynb
 
     .. grid-item-card::
 
         .. toctree::
             :titlesonly:
-            :caption: Interfacing with related codes
+            :caption: Population settings
 
-            ../tutorials/cosmic.ipynb
-            ../tutorials/gala.ipynb
+            ../tutorials/pop_settings/sampling.ipynb
+            ../tutorials/pop_settings/pop_synth.ipynb
+            ../tutorials/pop_settings/potentials.ipynb
+            ../tutorials/pop_settings/initial_galaxy.ipynb
 
     .. grid-item-card::
 
         .. toctree::
             :titlesonly:
-            :caption: Extending cogsworth
+            :caption: Output analysis
 
-            ../tutorials/initial_galaxy.ipynb
+            ../tutorials/output_analysis/subpops.ipynb
+            ../tutorials/output_analysis/rerun.ipynb
+
+    .. grid-item-card::
+
+        .. toctree::
+            :titlesonly:
+            :caption: Observables
+
+            ../tutorials/observables/photometry.ipynb
+            ../tutorials/observables/gaia.ipynb
+
+    .. grid-item-card::
+
+        .. toctree::
+            :titlesonly:
+            :caption: Visualisation
+
+            ../tutorials/visualisation/binary_evolution.ipynb
+            ../tutorials/visualisation/sky_plots.ipynb
+            ../tutorials/visualisation/gala.ipynb
+
+        

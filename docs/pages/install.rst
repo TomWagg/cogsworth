@@ -2,6 +2,9 @@
 Install
 *******
 
+Package installation
+====================
+
 .. tab-set::
 
     .. tab-item:: Stable (with conda)

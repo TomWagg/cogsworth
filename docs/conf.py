@@ -55,7 +55,8 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx_copybutton',
     'sphinx.ext.linkcode',
-    'sphinx_gallery.gen_gallery'
+    'sphinx_gallery.gen_gallery',
+    'sphinx_togglebutton'
 ]
 
 sphinx_gallery_conf = {
@@ -142,11 +143,13 @@ html_favicon = "_static/cog.ico"
 html_sidebars = {
     "*": ["sidebar-nav-bs.html"],
     "index": [],
-    "pages/install": [],
+    "pages/install": ["page-toc"],
     "pages/getting_started": ["page-toc"],
+    "pages/learning": [],
     "pages/tutorials": [],
+    "pages/case_studies": [],
     "auto_examples/*": [],
-    "tutorials/*": ["page-toc", "sidebar-nav-bs.html"]
+    "tutorials/**": ["page-toc", "sidebar-nav-bs.html"]
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,

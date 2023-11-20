@@ -248,3 +248,13 @@ html[data-theme="dark"] .bd-content .sd-card {
 .onthispage {
     font-size: var(--pst-font-size-h5);
 }
+
+/* centre plots when there are multiple */
+.sphx-glr-horizontal {
+    text-align: center;
+}
+
+/* Make card links bigger on landing page */
+#tutorials-examples-case-studies .sd-card-body a {
+    font-size: var(--pst-font-size-h3);
+}

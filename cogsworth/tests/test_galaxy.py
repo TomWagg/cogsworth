@@ -47,7 +47,7 @@ class Test(unittest.TestCase):
 
     def test_bad_inputs(self):
         """Ensure the classes fail with bad input"""
-        g = galaxy.Frankel2018(size=None, immediately_sample=False)
+        g = galaxy.Wagg2022(size=None, immediately_sample=False)
         it_broke = False
         try:
             g.sample()
@@ -55,7 +55,7 @@ class Test(unittest.TestCase):
             it_broke = True
         self.assertTrue(it_broke)
 
-        g = galaxy.Frankel2018(size=100, components=None, component_masses=None,
+        g = galaxy.Wagg2022(size=100, components=None, component_masses=None,
                                immediately_sample=False)
         it_broke = False
         try:
@@ -66,14 +66,14 @@ class Test(unittest.TestCase):
 
     def test_valid_ranges(self):
         """Check that the drawn variables have valid ranges"""
-        g = galaxy.Frankel2018(size=10000)
+        g = galaxy.Wagg2022(size=10000)
 
         self.assertTrue((g.tau.min() >= 0) & (g.tau.max() <= g.galaxy_age))
         self.assertTrue(g.Z.min() >= 0.0)
 
     def test_io(self):
         """Check that a galaxy can be saved and re-loaded"""
-        g = galaxy.Frankel2018(size=10000)
+        g = galaxy.Wagg2022(size=10000)
 
         g.save("testing-galaxy-io")
 
@@ -89,21 +89,21 @@ class Test(unittest.TestCase):
         """Test getting attributes"""
         it_broke = False
         try:
-            g = galaxy.Frankel2018(size=10, immediately_sample=False)
+            g = galaxy.Wagg2022(size=10, immediately_sample=False)
             g.components
             g.component_masses
             g.tau
-            g = galaxy.Frankel2018(size=10, immediately_sample=False)
+            g = galaxy.Wagg2022(size=10, immediately_sample=False)
             g.Z
-            g = galaxy.Frankel2018(size=10, immediately_sample=False)
+            g = galaxy.Wagg2022(size=10, immediately_sample=False)
             g.x
-            g = galaxy.Frankel2018(size=10, immediately_sample=False)
+            g = galaxy.Wagg2022(size=10, immediately_sample=False)
             g.y
-            g = galaxy.Frankel2018(size=10, immediately_sample=False)
+            g = galaxy.Wagg2022(size=10, immediately_sample=False)
             g.z
-            g = galaxy.Frankel2018(size=10, immediately_sample=False)
+            g = galaxy.Wagg2022(size=10, immediately_sample=False)
             g.positions
-            g = galaxy.Frankel2018(size=10, immediately_sample=False)
+            g = galaxy.Wagg2022(size=10, immediately_sample=False)
             g.which_comp
         except Exception as e:
             print(e)
@@ -112,7 +112,7 @@ class Test(unittest.TestCase):
 
     def test_setters(self):
         """Test setting attributes"""
-        g = galaxy.Frankel2018(size=10000, immediately_sample=False)
+        g = galaxy.Wagg2022(size=10000, immediately_sample=False)
         g.size = 100
         self.assertTrue(g.size == 100)
 
@@ -134,7 +134,7 @@ class Test(unittest.TestCase):
     def test_custom_galaxy(self):
         """Test saving a custom galaxy class"""
 
-        class Custom(galaxy.Frankel2018):
+        class Custom(galaxy.Wagg2022):
             def __init__(self, size, components=["low_alpha_disc"], component_masses=[1], **kwargs):
                 super().__init__(size, components, component_masses, **kwargs)
 
@@ -152,7 +152,7 @@ class Test(unittest.TestCase):
 
     def test_plot(self):
         """Test plotting capabilities"""
-        g = galaxy.Frankel2018(size=1000)
+        g = galaxy.Wagg2022(size=1000)
 
         it_broke = False
         try:
@@ -172,7 +172,7 @@ class Test(unittest.TestCase):
 
     def test_indexing(self):
         """Ensure that indexing works correctly (reprs too)"""
-        g = galaxy.Frankel2018(size=10)
+        g = galaxy.Wagg2022(size=10)
         print(g)
 
         # make sure it fails for strings

@@ -20,7 +20,7 @@ from cogsworth.tests.optional_deps import check_dependencies
 from cogsworth.citations import CITATIONS
 
 
-__all__ = ["Galaxy", "Frankel2018", "QuasiIsothermalDisk", "load"]
+__all__ = ["Galaxy", "Wagg2022", "QuasiIsothermalDisk", "load"]
 
 
 class Galaxy():
@@ -77,6 +77,9 @@ class Galaxy():
         if immediately_sample:
             self.sample()
 
+    def __len__(self):
+        return self.size
+
     def __repr__(self):
         return f"<{self.__class__.__name__}, size={self.size}>"
 
@@ -92,13 +95,13 @@ class Galaxy():
         for key in list(kwargs.keys()):
             if key[0] != "_":
                 actual_kwargs[key] = kwargs[key]
+            elif key.startswith("_component"):
+                actual_kwargs[key[1:]] = kwargs[key]
 
         # pre-mask tau to get the length easily
         tau = np.atleast_1d(self.tau[ind])
 
-        new_gal = self.__class__(size=len(tau),
-                                 components=self.components, component_masses=self.component_masses,
-                                 immediately_sample=False, **actual_kwargs)
+        new_gal = self.__class__(size=len(tau), immediately_sample=False, **actual_kwargs)
 
         new_gal._tau = tau
         new_gal._Z = np.atleast_1d(self._Z[ind])
@@ -398,11 +401,11 @@ class Galaxy():
             file[key].attrs["params"] = yaml.dump(params, default_flow_style=None)
 
 
-class Frankel2018(Galaxy):
-    """A semi-empirical galaxy model based on
-    `Frankel+2018 <https://ui.adsabs.harvard.edu/abs/2018ApJ...865...96F/abstract>`_. This model was used in
-    detail in `Wagg+2022 <https://ui.adsabs.harvard.edu/abs/2021arXiv211113704W/abstract>`_ -
-    see Figure 1 and Section 2.2.1 for a detailed explanation.
+class Wagg2022(Galaxy):
+    """A semi-empirical galaxy model defined in
+    `Wagg+2022 <https://ui.adsabs.harvard.edu/abs/2021arXiv211113704W/abstract>`_
+    (see Figure 1 and Section 2.2.1 for a detailed explanation.), heavily based on
+    `Frankel+2018 <https://ui.adsabs.harvard.edu/abs/2018ApJ...865...96F/abstract>`_.
 
     Parameters are the same as :class:`Galaxy` but additionally with the following:
 

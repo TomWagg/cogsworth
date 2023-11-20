@@ -23,7 +23,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // go through any stderr messages and add tqdm classes as necessary
     document.querySelectorAll(".stderr").forEach(x => {
-        if (x.innerText.includes("%") && x.innerText.includes("it/s")) {
+        if (x.innerText.includes("it/s")) {
             x.classList.add("tqdm")
         }
     })
@@ -45,4 +45,10 @@ document.addEventListener("DOMContentLoaded", function() {
             el.classList.add("only-dark");
         }
     })
+
+    // Hack to minimise dropdowns when in a tutorial
+    let nav = document.querySelector('.bd-docs-nav[aria-label="Section Navigation"]');
+    if (nav.querySelector("a").innerText == "Tutorials") {
+        nav.querySelector("label").click();
+    }
 })

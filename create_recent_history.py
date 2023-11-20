@@ -3,7 +3,7 @@ import astropy.units as u
 import numpy as np
 
 
-class RecentHistory(cogsworth.galaxy.Frankel2018):
+class RecentHistory(cogsworth.galaxy.Wagg2022):
     def __init__(self, components=["low_alpha_disc"], component_masses=[1], **kwargs):
         super().__init__(components=components, component_masses=component_masses, **kwargs)
 
