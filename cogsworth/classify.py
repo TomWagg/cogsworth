@@ -8,7 +8,7 @@ __all__ = ["determine_final_classes", "list_classes", "get_eddington_rate", "get
            "get_schwarzchild_radius", "get_x_ray_lum"]
 
 
-def determine_final_classes(population=None, bpp=None, bcm=None, kick_info=None, orbits=None, potential=None):
+def determine_final_classes(population=None, bpp=None, kick_info=None, orbits=None, potential=None):
     """Determine the classes of each member of a population at the last point in the evolution (usually
     present day).
 
@@ -20,8 +20,6 @@ def determine_final_classes(population=None, bpp=None, bcm=None, kick_info=None,
         A full population class created from the pop module, by default None
     bpp : :class:`~pandas.DataFrame`
         Evolutionary history of each binary
-    bcm : :class:`~pandas.DataFrame`
-        Final state of each binary
     initC : :class:`~pandas.DataFrame`
         Initial conditions for each binary
     kick_info : :class:`~pandas.DataFrame`
@@ -43,25 +41,23 @@ def determine_final_classes(population=None, bpp=None, bcm=None, kick_info=None,
         If either `population` is None OR any another parameter is None
     """
     # ensure that there's enough input
-    if population is None and (bpp is None or bcm is None or kick_info is None
-                               or orbits is None or potential is None):
+    if population is None and (bpp is None or kick_info is None or orbits is None or potential is None):
         raise ValueError("Either `population` must be supplied or all other parameters")
 
     # split up the input so that I can use a single interface
     if population is not None:
-        bpp, bcm, kick_info, orbits, potential = population.bpp, population.bcm, population.kick_info, \
+        bpp, kick_info, orbits, potential = population.bpp, population.kick_info, \
             population.orbits, population.galactic_potential
 
     # get the binary indices and also reduce the tables to just the final row in each
     final_bpp = bpp[~bpp.index.duplicated(keep="last")]
-    final_bcm = bcm[~bcm.index.duplicated(keep="last")]
     final_kick_info = kick_info.sort_values(["bin_num", "star"]).drop_duplicates(subset="bin_num",
                                                                                  keep="last")
 
     # set up an empty dataframe
     columns = ["dco", "co-1", "co-2", "xrb", "walkaway-t-1", "walkaway-t-2", "runaway-t-1", "runaway-t-2",
                "walkaway-o-1", "walkaway-o-2", "runaway-o-1", "runaway-o-2", "widow-1", "widow-2",
-               "stellar-merger-co-1", "stellar-merger-co-2", "pisn-1", "pisn-2"]
+               "stellar-merger-co-1", "stellar-merger-co-2"]
     data = np.zeros(shape=(len(final_bpp), len(columns))).astype(bool)
     classes = pd.DataFrame(data=data, columns=columns)
 
@@ -99,9 +95,6 @@ def determine_final_classes(population=None, bpp=None, bcm=None, kick_info=None,
 
     classes["widow-1"] = ~merger & primary_is_star & secondary_ever_bound_bh_ns
     classes["widow-2"] = ~merger & secondary_is_star & primary_ever_bound_bh_ns
-
-    classes["pisn-1"] = final_bcm["SN_1"].isin([6, 7])
-    classes["pisn-2"] = final_bcm["SN_2"].isin([6, 7])
 
     classes["walkaway-t-1"] = disrupted & (final_kick_info["vsys_1_total"] < 30.0) & primary_is_star
     classes["walkaway-t-2"] = disrupted & (final_kick_info["vsys_2_total"] < 30.0) & secondary_is_star
@@ -220,11 +213,6 @@ def list_classes():
             "name": "sdIa",
             "full_name": "Single degenerate type Ia",
             "condition": ("Any disrupted binary that contains a massless remnant that was once a white dwarf")
-        },
-        {
-            "name": "pisn",
-            "full_name": "Pair Instability Supernova",
-            "condition": ("Any binary that had a star with a pair instability supernova")
         },
     ]
 
