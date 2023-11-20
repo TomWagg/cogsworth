@@ -83,7 +83,7 @@ def plot_cmd(pop, m_filter="G", c_filter_1="BP", c_filter_2="RP",
             # select primary stars with the right kstar
             mask = pop.final_bpp["kstar_1"] == kstar
             # use secondaries in cases where they are brighter
-            mask[pop.observables["secondary_brighter"]] = (pop.final_bpp["kstar_2"] == kstar)
+            mask[pop.observables["secondary_brighter"]] = (pop.final_bpp[pop.observables["secondary_brighter"]]["kstar_2"] == kstar)
 
             # apply disruption mask
             mask = mask & pop.disrupted if dis else mask & ~pop.disrupted
