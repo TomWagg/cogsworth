@@ -81,7 +81,7 @@ class Galaxy():
         return self.size
 
     def __repr__(self):
-        return f"<{self.__class__.__name__}, size={self.size}>"
+        return f"<{self.__class__.__name__}, size={len(self)}>"
 
     def __getitem__(self, ind):
         # ensure indexing with the right type

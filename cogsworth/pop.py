@@ -62,6 +62,10 @@ class Population():
         Size of timesteps to use in galactic evolution, by default 1*u.Myr
     BSE_settings : `dict`, optional
         Any BSE settings to pass to COSMIC
+    bcm_timestep_conditions : List of lists, optional
+        Any timestep conditions to pass to COSMIC evolution. This will affect the rows that are output in the
+        the BCM table, by default only the first and last timesteps are output. For more details check out the
+        `relevant COSMIC docs <https://cosmic-popsynth.github.io/COSMIC/examples/index.html#dynamically-set-time-resolution-for-bcm-array>`_
     sampling_params : `dict`, optional
         Any additional parameters to pass to the COSMIC sampling (see
         :meth:`~cosmic.sample.sampler.independent.get_independent_sampler`)
@@ -115,7 +119,7 @@ class Population():
                  final_kstar2=list(range(16)), galaxy_model=galaxy.Wagg2022, galaxy_params={},
                  galactic_potential=gp.MilkyWayPotential(), v_dispersion=5 * u.km / u.s,
                  max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, sampling_params={},
-                 store_entire_orbits=True):
+                 bcm_timestep_conditions=[], store_entire_orbits=True):
 
         # require a sensible number of binaries if you are not targetting total mass
         if not ("sampling_target" in sampling_params and sampling_params["sampling_target"] == "total_mass"):
@@ -183,6 +187,7 @@ class Population():
         self.sampling_params = {'primary_model': 'kroupa01', 'ecc_model': 'sana12', 'porb_model': 'sana12',
                                 'qmin': -1, 'keep_singles': False}
         self.sampling_params.update(sampling_params)
+        self.bcm_timestep_conditions = bcm_timestep_conditions
 
     def __repr__(self):
         if self._orbits is None:
@@ -393,7 +398,11 @@ class Population():
 
     @property
     def bcm(self):
-        if self._bcm is None:
+        if self._bcm is None and self.bcm_timestep_conditions == []:
+            warnings.warn(("You haven't set any timestep conditions for the BCM table, so it is not saved "
+                           "(since the same information is in the bpp table). Set `bcm_timestep_conditions` "
+                           "to something to get a BCM table."))
+        elif self._bcm is None:
             self.perform_stellar_evolution()
         return self._bcm
 
@@ -659,9 +668,14 @@ class Population():
             warnings.filterwarnings("ignore", message=".*to a different value than assumed in the mlwind.*")
 
             # perform the evolution!
-            self._bpp, self._bcm, self._initC, \
+            self._bpp, bcm, self._initC, \
                 self._kick_info = Evolve.evolve(initialbinarytable=self._initial_binaries,
-                                                BSEDict=self.BSE_settings, pool=self.pool)
+                                                BSEDict=self.BSE_settings, pool=self.pool,
+                                                timestep_conditions=self.bcm_timestep_conditions)
+
+            # only save BCM when it has interesting timesteps
+            if self.bcm_timestep_conditions != []:
+                self._bcm = bcm
 
         if no_pool_existed:
             self.pool.close()
@@ -690,7 +704,9 @@ class Population():
             n_nan = len(nan_bin_nums)
             self.n_binaries_match -= n_nan
             self._bpp = self._bpp[~self._bpp["bin_num"].isin(nan_bin_nums)]
-            self._bcm = self._bcm[~self._bcm["bin_num"].isin(nan_bin_nums)]
+
+            if self._bcm is not None:
+                self._bcm = self._bcm[~self._bcm["bin_num"].isin(nan_bin_nums)]
             self._kick_info = self._kick_info[~self._kick_info["bin_num"].isin(nan_bin_nums)]
             self._initC = self._initC[~self._initC["bin_num"].isin(nan_bin_nums)]
 
@@ -1025,8 +1041,9 @@ class Population():
             self._bpp = translate_COSMIC_tables(self._bpp, **kwargs)
             self._final_bpp = translate_COSMIC_tables(self._final_bpp, **kwargs)
 
-            kwargs.update({"evol_type": False})
-            self._bcm = translate_COSMIC_tables(self._bcm, **kwargs)
+            if self._bcm is not None:
+                kwargs.update({"evol_type": False})
+                self._bcm = translate_COSMIC_tables(self._bcm, **kwargs)
 
     def plot_cartoon_binary(self, bin_num, **kwargs):
         """Plot a cartoon of the evolution of a single binary
@@ -1069,7 +1086,9 @@ class Population():
                 raise FileExistsError((f"{file_name} already exists. Set `overwrite=True` to overwrite "
                                        "the file."))
         self.bpp.to_hdf(file_name, key="bpp")
-        self.bcm.to_hdf(file_name, key="bcm")
+
+        if self._bcm is not None:
+            self._bcm.to_hdf(file_name, key="bcm")
         self.initC.to_hdf(file_name, key="initC")
         self.kick_info.to_hdf(file_name, key="kick_info")
 
@@ -1112,6 +1131,7 @@ class Population():
 
             num_par.attrs["final_kstar1"] = self.final_kstar1
             num_par.attrs["final_kstar2"] = self.final_kstar2
+            num_par.attrs["timestep_conditions"] = self.bcm_timestep_conditions
 
             # save BSE settings
             d = file.create_dataset("BSE_settings", data=[])
@@ -1142,6 +1162,7 @@ def load(file_name):
         store_entire_orbits = file["numeric_params"].attrs["store_entire_orbits"]
         final_kstars = [file["numeric_params"].attrs["final_kstar1"],
                         file["numeric_params"].attrs["final_kstar2"]]
+        bcm_tc = file["numeric_params"].attrs["timestep_conditions"]
 
         # load in BSE settings
         for key in file["BSE_settings"].attrs:
@@ -1156,7 +1177,7 @@ def load(file_name):
                    galaxy_model=initial_galaxy.__class__, galactic_potential=galactic_potential,
                    v_dispersion=numeric_params[4] * u.km / u.s, max_ev_time=numeric_params[5] * u.Gyr,
                    timestep_size=numeric_params[6] * u.Myr, BSE_settings=BSE_settings,
-                   store_entire_orbits=store_entire_orbits)
+                   store_entire_orbits=store_entire_orbits, bcm_timestep_conditions=bcm_tc)
 
     p.n_binaries_match = int(numeric_params[1])
     p._mass_singles = numeric_params[7]
@@ -1167,7 +1188,7 @@ def load(file_name):
     p._initial_galaxy = initial_galaxy
 
     p._bpp = pd.read_hdf(file_name, key="bpp")
-    p._bcm = pd.read_hdf(file_name, key="bcm")
+    p._bcm = pd.read_hdf(file_name, key="bcm") if bcm_tc != [] else None
     p._initC = pd.read_hdf(file_name, key="initC")
     p._kick_info = pd.read_hdf(file_name, key="kick_info")
 

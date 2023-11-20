@@ -25,7 +25,7 @@ class Test(unittest.TestCase):
 
     def test_io(self):
         """Check that a population can be saved and re-loaded"""
-        p = pop.Population(2)
+        p = pop.Population(2, bcm_timestep_conditions=[['dtp=100000.0']])
         p.create_population()
 
         p.save("testing-pop-io", overwrite=True)
@@ -195,7 +195,7 @@ class Test(unittest.TestCase):
     @pytest.mark.filterwarnings("ignore:.*duplicate")
     def test_indexing(self):
         """Ensure that indexing works as expected for proper types"""
-        p = pop.Population(10)
+        p = pop.Population(10, bcm_timestep_conditions=[['dtp=100000.0']])
         p.create_population()
         inds = [int(np.random.choice(p.bin_nums, replace=False)),
                 np.random.choice(p.bin_nums, size=4, replace=False),
@@ -349,7 +349,7 @@ class Test(unittest.TestCase):
 
     def test_translation(self):
         """Ensure that COSMIC tables are being translated properly"""
-        p = pop.Population(10)
+        p = pop.Population(10, bcm_timestep_conditions=[['dtp=100000.0']])
         p.perform_stellar_evolution()
         p.translate_tables(replace_columns=False, label_type="short")
 
