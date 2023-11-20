@@ -32,7 +32,7 @@ class Test(unittest.TestCase):
 
     def test_x_rays(self):
         """Test x-ray luminosity calculation"""
-        p = cogsworth.pop.Population(10, final_kstar1=[13, 14])
+        p = cogsworth.pop.Population(10, final_kstar1=[13, 14], bcm_timestep_conditions=[['dtp=100000.0']])
         bcm = p.bcm.drop_duplicates(subset="bin_num", keep='last')
         it_broke = False
         try:
