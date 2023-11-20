@@ -77,9 +77,9 @@ fig.subplots_adjust(wspace=0.1)
 
 # plot initial positions on the left and final positions on the right
 scatter = axes[0].scatter(p_cube.initial_galaxy.x, p_cube.initial_galaxy.y,
-                          c=p_cube.initial_galaxy.phi, cmap="twilight")
+                          c=p_cube.initial_galaxy.phi.value, cmap="twilight")
 scatter = axes[1].scatter(p_cube.final_pos[:, 0], p_cube.final_pos[:, 1],
-                          c=p_cube.initial_galaxy.phi, cmap="twilight")
+                          c=p_cube.initial_galaxy.phi.value, cmap="twilight")
 
 # create a colourbar with custom ticks and labels
 cbar = fig.colorbar(scatter, label=r"$\phi_{\rm init} \, [rad]$", ax=axes, pad=0.0)
