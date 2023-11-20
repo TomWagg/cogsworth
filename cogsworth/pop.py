@@ -23,7 +23,8 @@ from cogsworth.events import identify_events
 from cogsworth.classify import determine_final_classes
 from cogsworth.observables import get_photometry
 from cogsworth.tests.optional_deps import check_dependencies
-from cogsworth.utils import translate_COSMIC_tables, plot_cartoon_evolution
+from cogsworth.plot import plot_cartoon_evolution
+from cogsworth.utils import translate_COSMIC_tables
 
 from cogsworth.citations import CITATIONS
 
@@ -1035,7 +1036,7 @@ class Population():
         bin_num : `int`
             Which binary to plot
         **kwargs : `various`
-            Keyword arguments to pass, see :func:`~cogsworth.utils.plot_cartoon_evolution` for options
+            Keyword arguments to pass, see :func:`~cogsworth.plot.plot_cartoon_evolution` for options
 
         Returns
         -------
