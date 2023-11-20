@@ -16,6 +16,7 @@ then you can also use the search box above!
     ../modules/observables
     ../modules/events
     ../modules/kicks
+    ../modules/plot
     ../modules/utils
 
 .. toctree::
