@@ -98,6 +98,7 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential()
             full_orbit = full_orbit[-1:]
         return full_orbit
 
+    # allow two retries with smaller timesteps
     MAX_DT_RESIZE = 2
     for n in range(MAX_DT_RESIZE):
         try:
@@ -106,7 +107,7 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential()
             # work out what the timesteps would be without kicks
             timesteps = gi.parse_time_specification(units=[u.s], t1=t1, t2=t2, dt=dt) * u.s
 
-            # start the cursor at the smallest timestep
+            # start the cursor at the first timestep
             time_cursor = timesteps[0]
             current_w0 = w0
 
@@ -118,7 +119,7 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential()
                 # find the timesteps that occur before the kick
                 timestep_mask = (timesteps >= time_cursor) & (timesteps < (t1 + event["time"]))
 
-                # if any of them occur before the kick then do some integration
+                # integrate up to the moment of the event (if there are any timesteps before it)
                 if any(timestep_mask):
                     matching_timesteps = timesteps[timestep_mask]
 
@@ -126,14 +127,17 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential()
                     orbit = potential.integrate_orbit(current_w0, t=matching_timesteps,
                                                       Integrator=gi.DOPRI853Integrator)
 
-                    # save the orbit data
-                    orbit_data.append(orbit.data)
+                    # save the orbit data (minus the last timestep to avoid duplicates)
+                    orbit_data.append(orbit.data[:-1])
 
-                    # get new PhaseSpacePosition(s)
+                    # set new PhaseSpacePosition from the last timestep
                     current_w0 = orbit[-1]
 
-                # adjust the time
-                time_cursor = t1 + event["time"]
+                    # adjust the time to the last timestep
+                    time_cursor = matching_timesteps[-1]
+                else:
+                    # otherwise skip forward to the event
+                    time_cursor = t1 + event["time"]
 
                 # calculate the kick differential
                 kick_differential = get_kick_differential(delta_v_sys_xyz=event["delta_v_sys_xyz"],
