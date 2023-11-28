@@ -13,6 +13,7 @@ import yaml
 
 from cosmic.sample.initialbinarytable import InitialBinaryTable
 from cosmic.evolve import Evolve
+from cosmic.checkstate import set_checkstates
 import gala.potential as gp
 import gala.dynamics as gd
 from gala.potential.potential.io import to_dict as potential_to_dict, from_dict as potential_from_dict
@@ -527,6 +528,9 @@ class Population():
             print(f"[{time.time() - start:1.0e}s] Sample initial binaries")
             lap = time.time()
 
+        if self.bcm_timestep_conditions != []:
+            set_checkstates(self.bcm_timestep_conditions)
+
         self.pool = Pool(self.processes) if self.processes > 1 else None
         self.perform_stellar_evolution()
         if with_timing:
@@ -648,6 +652,9 @@ class Population():
         self._bin_nums = None
         self._disrupted = None
         self._escaped = None
+
+        if self.bcm_timestep_conditions != []:
+            set_checkstates(self.bcm_timestep_conditions)
 
         # if no initial binaries have been sampled then we need to create some
         if self._initial_binaries is None and self._initC is None:
