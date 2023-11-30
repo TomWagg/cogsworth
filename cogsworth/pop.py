@@ -807,6 +807,27 @@ class Population():
                                                           events=secondary_events[i], quiet=quiet,
                                                           store_all=self.store_entire_orbits))
 
+        # check for bad orbits
+        bad_orbits = np.array([orbit is None for orbit in orbits])
+
+        # if there are any bad orbits then warn the user and remove them from the population
+        if any(bad_orbits):
+            warnings.warn(f"{bad_orbits.sum()} bad orbit(s) detected, removing them from the population" +
+                          " (initial conditions for these systems were saved to `bad_orbits.h5` file)")
+            bad_bin_nums = np.concatenate((self.bin_nums, self.bin_nums[self.disrupted]))[bad_orbits]
+
+            # save the bad orbits population
+            self.initC.loc[bad_bin_nums].to_hdf("bad_orbits.h5", key="initC")
+            self.bpp.loc[bad_bin_nums].to_hdf("bad_orbits.h5", key="bpp")
+            self.kick_info.loc[bad_bin_nums].to_hdf("bad_orbits.h5", key="kick_info")
+            self.initial_galaxy[np.isin(self.bin_nums, bad_bin_nums)].save("bad_orbits.h5", key="galaxy")
+
+            # mask them out from the main population
+            new_self = self[~np.isin(self.bin_nums, bad_bin_nums)]
+            self.__dict__.update(new_self.__dict__)
+
+            orbits = np.array(orbits, dtype="object")[~bad_orbits]
+
         self._orbits = np.array(orbits, dtype="object")
 
     def _get_final_coords(self):
