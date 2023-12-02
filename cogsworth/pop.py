@@ -1085,10 +1085,31 @@ class Population():
         return plot_cartoon_evolution(self.bpp, bin_num, **kwargs)
 
     def to_legwork_sources(self, distances=None, assume_mw_galactocentric=False):
+        """Convert the final state of the population to a LEGWORK Source class (only including bound binaries)
+
+        Parameters
+        ----------
+        distances : :class:`np.ndarray`, optional
+            Custom distance to each source, by default None
+        assume_mw_galactocentric : `bool`, optional
+            Assume population is in Milky Way and galactocentric coordinate system - such that distances can
+            be calculated assuming the present location of the Earth, by default False
+
+        Returns
+        -------
+        sources : :class:`~legwork.sources.Source`
+            LEGWORK sources
+
+        Raises
+        ------
+        ValueError
+            When distances aren't provided and assume_mw_galactocentric=False
+        """
         assert check_dependencies(["legwork"])
         import legwork as lw
         self.__citations__.append("legwork")
 
+        # calculate distances as necessary
         if distances is None and not assume_mw_galactocentric:
             raise ValueError("Must either provide distances or set assume_mw_galactocentric=True")
         elif distances is None:
@@ -1097,17 +1118,15 @@ class Population():
                                            representation_type="cartesian")
             distances = final_coords.icrs.distance[:len(self)]
 
+        # mask on only bound binaries
         binaries = self.final_bpp["sep"] > 0.0
 
+        # construct LEGWORK sources
         return lw.source.Source(m_1=self.final_bpp["mass_1"].values[binaries] * u.Msun,
                                 m_2=self.final_bpp["mass_2"].values[binaries] * u.Msun,
                                 a=self.final_bpp["sep"].values[binaries] * u.Rsun,
                                 ecc=self.final_bpp["ecc"].values[binaries],
                                 dist=distances[binaries], interpolate_g=binaries.sum() > 1000)
-
-    def get_LISA_snr(self, **kwargs):
-        sources = self.to_legwork_sources(**kwargs)
-        return sources.get_snr()
 
     def save(self, file_name, overwrite=False):
         """Save a Population to disk as an HDF5 file.
