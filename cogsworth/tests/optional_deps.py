@@ -13,10 +13,10 @@ import logging
 # TODO: This list is a duplicate of the dependencies in setup.cfg "all", but
 # some of the package names are different from the pip-install name (e.g.,
 # beautifulsoup4 -> bs4).
-_optional_deps = ['nose', 'tables', 'isochrones', 'dustmaps', 'healpy', 'gaiaunlimited', 'agama']
+_optional_deps = ['nose', 'tables', 'isochrones', 'dustmaps', 'healpy', 'gaiaunlimited', 'agama', 'legwork']
 _purposes = ['observables predictions', 'observables predictions', 'observables predictions',
              'observables predictions', 'healpix maps', 'GAIA observation predictions',
-             'action-based potentials']
+             'action-based potentials', 'LISA gravitational wave predictions']
 _deps = {k: (k, p) for k, p in zip(_optional_deps, _purposes)}
 
 # Any subpackages that have different import behaviour:
