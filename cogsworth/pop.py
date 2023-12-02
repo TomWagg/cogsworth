@@ -313,8 +313,9 @@ class Population():
         sections = {
             "general": "",
             "galaxy": r"The \texttt{cogsworth} population used a galaxy model based on the following papers",
-            "observables": r"Population observables were estimated using dust maps and MIST isochrones",
-            "gaia": r"Observability of systems with Gaia was predicted using an empirical selection function"
+            "observables": "Population observables were estimated using dust maps and MIST isochrones",
+            "gaia": "Observability of systems with Gaia was predicted using an empirical selection function",
+            "legwork": "Calculate of LISA gravitational wave signatures was performed using LEGWORK"
         }
 
         acknowledgement = r"This research made use of \texttt{cogsworth} and its dependencies"
@@ -1082,6 +1083,31 @@ class Population():
             Figure and axis of the plot
         """
         return plot_cartoon_evolution(self.bpp, bin_num, **kwargs)
+
+    def to_legwork_sources(self, distances=None, assume_mw_galactocentric=False):
+        assert check_dependencies(["legwork"])
+        import legwork as lw
+        self.__citations__.append("legwork")
+
+        if distances is None and not assume_mw_galactocentric:
+            raise ValueError("Must either provide distances or set assume_mw_galactocentric=True")
+        elif distances is None:
+            final_coords = coords.SkyCoord(x=self.final_pos[:, 0], y=self.final_pos[:, 1],
+                                           z=self.final_pos[:, 2], frame="galactocentric", unit=u.kpc,
+                                           representation_type="cartesian")
+            distances = final_coords.icrs.distance[:len(self)]
+
+        binaries = self.final_bpp["sep"] > 0.0
+
+        return lw.source.Source(m_1=self.final_bpp["mass_1"].values[binaries] * u.Msun,
+                                m_2=self.final_bpp["mass_2"].values[binaries] * u.Msun,
+                                a=self.final_bpp["sep"].values[binaries] * u.Rsun,
+                                ecc=self.final_bpp["ecc"].values[binaries],
+                                dist=distances[binaries], interpolate_g=binaries.sum() > 1000)
+
+    def get_LISA_snr(self, **kwargs):
+        sources = self.to_legwork_sources(**kwargs)
+        return sources.get_snr()
 
     def save(self, file_name, overwrite=False):
         """Save a Population to disk as an HDF5 file.
