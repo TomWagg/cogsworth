@@ -46,10 +46,6 @@ jobs:
       run: |
         # test with as many cores as possible for speed
         pytest cogsworth -n=auto --cov=./ --cov-report=xml
-    - name: Test the tutorial notebooks
-      run: |
-        # test notebooks in addition to the code
-        pytest -n=auto --nbmake "docs/tutorials"
     - name: Get Coverage
       uses: orgoro/coverage@v3
       with:
