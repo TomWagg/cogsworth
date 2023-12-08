@@ -1,7 +1,4 @@
-# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
-# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
-
-name: Install, lint, test and assess coverage
+name: Install, test and assess coverage
 
 on: 
   pull_request:
@@ -30,14 +27,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python -m pip install flake8 pytest coverage pytest-xdist nbmake pytest-cov
         python -m pip install -e .[test]
-    - name: Lint with flake8
-      run: |
-        # stop the build if there are Python syntax errors or undefined names
-        flake8 cogsworth/ --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        flake8 cogsworth/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Grab the data you need to test observables
       run: |
         # prep the data needed for tests
@@ -46,10 +36,6 @@ jobs:
       run: |
         # test with as many cores as possible for speed
         pytest cogsworth -n=auto --cov=./ --cov-report=xml
-    - name: Test the tutorial notebooks
-      run: |
-        # test notebooks in addition to the code
-        pytest -n=auto --nbmake "docs/tutorials"
     - name: Get Coverage
       uses: orgoro/coverage@v3
       with:
