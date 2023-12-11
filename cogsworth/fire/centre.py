@@ -57,7 +57,7 @@ def find_centre(snap_dir, snap_num, out_path=None, theta=0.0, phi=0.0, project_a
 
         # Shift coordinates, re-centre
         pos_shifted = pos_star - pos_centre
-        pos_shifted_centre = Recent(pos_shifted.T)
+        pos_shifted_centre = recentre(pos_shifted.T)
 
         r_half = half_mass_radius(pos_shifted, mass_star, pos_shifted_centre, gridsize)
 
@@ -71,7 +71,7 @@ def find_centre(snap_dir, snap_num, out_path=None, theta=0.0, phi=0.0, project_a
     # if project_ang_mom, project to the plane perpendicular to the total angular momentum
     if project_ang_mom:
         J = AngularMomentum(pos_shifted, mass_star, vel_star, r_half)
-        theta, phi = RadialVector2AngularCoordiante(J)
+        theta, phi = radial_vector_to_angular_coordinates(J)
         v_CM = get_v_CM(pos_shifted, mass_star, vel_star, 4 * r_half)
 
     # make the projection
@@ -347,14 +347,22 @@ def get_v_CM(pos_shifted, masses, vel_star, r):
     return np.sum(masses[ok, np.newaxis] * vel_star[ok], axis=0) / np.sum(masses[ok])
 
 
-def Recent(Xs):
-    # recalculate the center of a galaxy
-    xc, yc, zc = 0, 0, 0
+def recentre(pos):
+    """Recentre the coordinates of particles.
+
+    Parameters
+    ----------
+    pos : :class:`~numpy.ndarray`
+        Array of particle positions
+
+    Returns
+    -------
+    centre : :class:`~numpy.ndarray`
+        The centre of the particles
+    """
+    centre = np.zeros(3)
     for grid in [20.0, 10.0, 5.0, 2.0]:
         for _ in range(4):
-            ok_star = (np.abs(Xs[0] - xc) < grid) & (np.abs(Xs[1] - yc) < grid) & (np.abs(Xs[2] - zc) < grid)
-            xc = np.median(Xs[0][ok_star])
-            yc = np.median(Xs[1][ok_star])
-            zc = np.median(Xs[2][ok_star])
-    return (xc, yc, zc)
-
+            ok_star = np.all(np.abs(pos - centre[:, np.newaxis]) < grid, axis=0)
+            centre = np.median(pos[:, ok_star], axis=1)
+    return centre

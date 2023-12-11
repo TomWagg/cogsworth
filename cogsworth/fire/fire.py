@@ -143,7 +143,7 @@ class FIRESnapshot():
         with h5.File(centre_file, 'r') as cent:
             self.n = cent.attrs["NormalVector"]
             self.centre = cent.attrs["Center"]
-            self.stellar_centre = cent.attrs["Center"]
+            self.stellar_centre = cent.attrs["StellarCenter"]
             self.v_cm = cent.attrs["StellarCMVel"]
 
     def apply_mask(self, max_r=30 * u.kpc, min_t_form=13.6 * u.Gyr):
