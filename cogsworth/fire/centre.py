@@ -50,7 +50,7 @@ def find_centre(snap_dir, snap_num, out_path=None, theta=0.0, phi=0.0, project_a
     # TODO: Ask Matt about this factor of 404
 
     for centre_func, message in zip([gaussfit_star_centre, calculate_star_centre],
-                                    ["Failed to fit centre with gaussian, retrying with simpler fallback"
+                                    ["Failed to fit centre with gaussian, retrying with simpler fallback",
                                      "Failed to find centre with fallback, no centre found :("]):
         # calculate stellar center
         pos_centre = centre_func(pos_star, pos_gas, rho_gas)
@@ -102,41 +102,30 @@ def find_centre(snap_dir, snap_num, out_path=None, theta=0.0, phi=0.0, project_a
 def calculate_star_centre(ps_p, pg_p, pg_rho, clip_size=2.e10, rho_cut=1.0e-5):
     # Calculates stellar center, provided there's enough star particles, else uses gas particles.
     # Returns center vector. very simple method, don't imagine it would work on major mergers.
-    rgrid = np.array([1.0e10, 1000, 700, 500, 300, 200, 100, 70, 50, 30, 20, 10, 5, 2.5, 1.])
+    rgrid = np.array([1.0e10, 1000, 700, 500, 300, 200, 100, 70, 50, 30, 20, 10, 5, 2.5, 1])
     rgrid = rgrid[rgrid <= clip_size]
-    print("yo")
-    n_new=len(ps_p)
-    if (n_new > 1):
-        pos=np.array(ps_p); x0s=pos[:,0]; y0s=pos[:,1]; z0s=pos[:,2];
-    else:
-        n_new=0
-    rho = np.array(pg_rho)
-    if (rho.shape[0] > 0):
-        pos=np.array(pg_p); x0g=pos[:,0]; y0g=pos[:,1]; z0g=pos[:,2];
 
+    n_star = len(ps_p)
     cen = np.zeros(3)
-
+    dense_enough = pg_rho > rho_cut
     for i_rcut in range(len(rgrid)):
-        for j_looper in range(5):
-            if (n_new > 1000):
-                x=x0s; y=y0s; z=z0s;
-            else:
-                ok=(rho > rho_cut);
-                x=x0g[ok]; y=y0g[ok]; z=z0g[ok];
-            x=x-cen[0]; y=y-cen[1]; z=z-cen[2];
-            r = np.sqrt(x*x + y*y + z*z);
-            ok = (r < rgrid[i_rcut]);
-            if (checklen(r[ok]) > 1000):
-                x=x[ok]; y=y[ok]; z=z[ok];
+        for _ in range(5):
+            pos = ps_p.copy() if n_star > 1000 else pg_p[dense_enough, :].copy()
+            pos -= cen[np.newaxis, :]
+            r = np.sum(pos**2, axis=1)**0.5
+            ok = r < rgrid[i_rcut]
+            if ok.sum() > 1000:
+                pos = pos[ok, :]
                 if (i_rcut <= len(rgrid) - 5):
-                    cen+=np.array([np.median(x),np.median(y),np.median(z)]);
+                    cen += np.median(pos, axis=0)
                 else:
-                    cen+=np.array([np.mean(x),np.mean(y),np.mean(z)]);
-            else:
-                if (checklen(r[ok]) > 200):
-                    x=x[ok]; y=y[ok]; z=z[ok];
-                    cen+=np.array([np.mean(x),np.mean(y),np.mean(z)]);
-    return cen;
+                    cen += np.mean(pos, axis=0)
+            elif ok.sum() > 200:
+                pos = pos[ok]
+                cen += np.mean(pos, axis=0)
+    return cen
+
+
 ##################################################################################################################################
 
 def gaussfit_star_centre(ps_p,pg_p,pg_rho,cen=[0, 0, 0.],clip_size=2.e10,rho_cut=1.0e-5):
@@ -294,7 +283,7 @@ def AngularMomentum(pos_shifted, masses, vel_star, r):
     """
     rs = np.sum(pos_shifted**2, axis=1)**0.5
     ok = rs < r
-    return np.sum(masses[ok, np.newaxis] * np.cross(pos_shifted[ok, :], vel_star[ok, :]), axis=1)
+    return np.sum(masses[ok, np.newaxis] * np.cross(pos_shifted[ok, :], vel_star[ok, :]), axis=0)
 
 
 def radial_vector_to_angular_coordinates(n):
