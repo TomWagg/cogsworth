@@ -2,6 +2,7 @@ import numpy as np
 import h5py as h5
 import os
 from readsnap import read_snapshot
+import warnings
 
 
 def find_centre(snap_dir, snap_num, out_path=None, theta=0.0, phi=0.0, J=1):
@@ -20,35 +21,22 @@ def find_centre(snap_dir, snap_num, out_path=None, theta=0.0, phi=0.0, J=1):
     rho_gas = gas['rho'] * 404      # num density
     # TODO: Ask Matt about this factor of 404
 
-    # calculate stellar center
-    pos_centre = gaussfit_star_center(pos_star, mass_star, pos_gas, rho_gas)
+    for centre_func, message in zip([gaussfit_star_centre, calculate_star_centre],
+                                    ["Failed to fit centre with gaussian, retrying with simpler fallback"
+                                     "Failed to find centre with fallback, no centre found :("]):
+        # calculate stellar center
+        pos_centre = centre_func(pos_star, mass_star, pos_gas, rho_gas)
 
-    # Shift coordinates, recenter
-    pos_shifted = pos_star - pos_centre
-    pos_shifted_centre = Recent(pos_shifted.T)
+        # Shift coordinates, recenter
+        pos_shifted = pos_star - pos_centre
+        pos_shifted_centre = Recent(pos_shifted.T)
 
-    rhalf = half_mass_radius(pos_shifted, mass_star, pos_shifted_centre, gridsize)
+        rhalf = half_mass_radius(pos_shifted, mass_star, pos_shifted_centre, gridsize)
 
-    pos_shifted -= pos_shifted_centre
+        pos_shifted -= pos_shifted_centre
 
-    if np.any(np.isnan(pos_shifted_centre)):
-        print("****gaussfit_star_center CATASTROPHIC FAILURE****")
-        print(" ")
-        print(" RETRYING: calculate_star_center")
-
-        xc, yc, zc = calculate_star_center(pos_star, mass_star, pos_gas, rho_gas)
-        xs = pos_star[:,0] - xc; ys = pos_star[:,1] - yc; zs = pos_star[:,2] - zc
-        (xsc, ysc, zsc) = Recent([xs, ys, zs])
-        rhalf = half_mass_radius(xs, ys, zs, mass_star, xsc, ysc, zsc, gridsize)
-        xs -= xsc
-        ys -= ysc
-        zs -= zsc
-        if np.any(np.isnan([xsc, ysc, zsc])):
-            print("****SUBSEQUENT calculate_star_center CATASTROPHIC FAILURE****")
-            print("CENTERING FAILED.")
-            return
-        else:
-            print("****SUBSEQUENT calculate_star_center SUCCESS****")
+        if np.any(np.isnan(pos_shifted_centre)):
+            warnings.warn(message)
 
     # if J is set, project to the plane perpendicular to the total angular momentum
     if J:
@@ -61,7 +49,7 @@ def find_centre(snap_dir, snap_num, out_path=None, theta=0.0, phi=0.0, J=1):
     # make the projection
     nx = np.array([np.cos(theta) * np.cos(phi), np.cos(theta) * np.sin(phi), -np.sin(theta)])
     ny = np.array([-np.sin(phi), np.cos(phi), 0])
-    nz = np.array([np.sin(theta)*np.cos(phi), np.sin(theta)*np.sin(phi), np.cos(theta)])
+    nz = np.array([np.sin(theta) * np.cos(phi), np.sin(theta) * np.sin(phi), np.cos(theta)])
 
     if out_path is None:
         out_path = os.path.join(snap_dir, "centers")
@@ -81,11 +69,11 @@ def find_centre(snap_dir, snap_num, out_path=None, theta=0.0, phi=0.0, J=1):
 
 ##################################################################################################################################
 
-def calculate_star_center(ps_p,ps_m,pg_p,pg_rho,cen=[0.,0.,0.],clip_size=2.e10,rho_cut=1.0e-5):
+def calculate_star_centre(ps_p, ps_m, pg_p, pg_rho, cen=[0, 0, 0.], clip_size=2.e10, rho_cut=1.0e-5):
     # Calculates stellar center, provided there's enough star particles, else uses gas particles.
     # Returns center vector. very simple method, don't imagine it would work on major mergers.
-    rgrid=np.array([1.0e10,1000.,700.,500.,300.,200.,100.,70.,50.,30.,20.,10.,5.,2.5,1.]);
-    rgrid=rgrid[rgrid <= clip_size];
+    rgrid = np.array([1.0e10, 1000, 700, 500, 300, 200, 100, 70, 50, 30, 20, 10, 5, 2.5, 1.])
+    rgrid = rgrid[rgrid <= clip_size]
     
     n_new=np.array(ps_m).shape[0];
     if (n_new > 1):
@@ -119,79 +107,94 @@ def calculate_star_center(ps_p,ps_m,pg_p,pg_rho,cen=[0.,0.,0.],clip_size=2.e10,r
     return cen;
 ##################################################################################################################################
 
-def gaussfit_star_center(ps_p,ps_m,pg_p,pg_rho,cen=[0.,0.,0.],clip_size=2.e10,rho_cut=1.0e-5):
+def gaussfit_star_centre(ps_p,ps_m,pg_p,pg_rho,cen=[0, 0, 0.],clip_size=2.e10,rho_cut=1.0e-5):
     # Calculates stellar center, provided there's enough star particles, else
     # uses gas particles.
     # Returns center vector. very simple method, don't imagine it would work on major mergers.
     import scipy.optimize
-    rgrid=np.array([1.0e10,1000.,700.,500.,300.,200.,100.,70.,50.,30.,20.]) #,10.,5.,2.5,1.]);
-    rgrid=rgrid[rgrid <= clip_size];
-    gridcells = 1000 # number of cells to tile, to fit gaussian to
-    
-    n_new=len(ps_m);
-    if (n_new > 1):
-        pos=np.array(ps_p); x0s=pos[:,0]; y0s=pos[:,1]; z0s=pos[:,2];
-    else: n_new=0
-    rho=np.array(pg_rho);
-    if (rho.shape[0] > 0):
-        pos=np.array(pg_p); x0g=pos[:,0]; y0g=pos[:,1]; z0g=pos[:,2];
-    cen=np.array(cen);
-    # fit a guassian to the stellar radial density profile
-    fitfunc  = lambda p, x: p[0]*np.exp(-0.5*((x-p[1])/p[2])**2) #+p[3]
-    errfunc  = lambda p, x, y: (y - fitfunc(p, x))
+    rgrid = np.array([1.0e10, 1000, 700, 500, 300, 200, 100, 70, 50, 30, 20.])
+    rgrid = rgrid[rgrid <= clip_size]
 
-    if (n_new > 1000):
-        x=x0s; y=y0s; z=z0s;
+    # number of cells to tile, to fit gaussian to
+    gridcells = 1000
+
+    cen = np.array(cen)
+
+    # fit a gaussian to the stellar radial density profile
+    fitfunc = lambda p, x: p[0] * np.exp(-0.5 * ((x - p[1]) / p[2])**2)
+    errfunc = lambda p, x, y: (y - fitfunc(p, x))
+
+    # if there are at least 1000 star particles, use them, else use gas particles
+    if len(ps_p) > 1000:
+        x = ps_p[:, 0]
+        y = ps_p[:, 1]
+        z = ps_p[:, 2]
     else:
-        ok=(rho > rho_cut);
-        x=x0g[ok]; y=y0g[ok]; z=z0g[ok]
+        dense_enough = np.array(pg_rho) > rho_cut
+        x = pg_p[dense_enough, 0]
+        y = pg_p[dense_enough, 1]
+        z = pg_p[dense_enough, 2]
 
-    # find initial "unresolved" center (i.e., max of 3d histogram, with 200 kpc resolution)
-    unresolved_voxel_size=99.9 # kpc
-    rgrid=rgrid[rgrid<=1.5*unresolved_voxel_size]
-    init_bin = int(np.max([np.max(x),np.max(y),np.max(z)])/unresolved_voxel_size)
-    stardens3, cube_eds1 = np.histogramdd([x,y,z],bins=init_bin)
-    maxinds = np.unravel_index(np.argmax(stardens3),shape=(init_bin,init_bin,init_bin))
-    for dd in [0,1,2]:
+    # find initial "unresolved" center (i.e, max of 3d histogram, with 200 kpc resolution)
+    unresolved_voxel_size = 99.9 # kpc
+    rgrid = rgrid[rgrid <= 1.5*unresolved_voxel_size]
+    init_bin = int(np.max([np.max(x), np.max(y), np.max(z)]) / unresolved_voxel_size)
+    stardens3, cube_eds1 = np.histogramdd([x, y, z], bins=init_bin)
+    maxinds = np.unravel_index(np.argmax(stardens3), shape=(init_bin, init_bin, init_bin))
+    for dd in [0, 1, 2]:
         # grab coordinates of max star voxel, correcting for edges.
-        cen[dd] = cube_eds1[dd][maxinds[dd]]+(cube_eds1[dd][1]-cube_eds1[dd][0])/2.
-    sigmas=np.array([50.,50.,50.]) # initialize smoothing lengths, 50 kpc.
+        cen[dd] = cube_eds1[dd][maxinds[dd]] + (cube_eds1[dd][1] - cube_eds1[dd][0]) / 2.
+
+    # initialize smoothing lengths, 50 kpc
+    sigmas = np.array([50, 50, 50.])
     for i_rcut in range(len(rgrid)):
-        gridcells = int(np.min([rgrid[i_rcut]/0.05, 1000.])) # grid resolution never below 50 pc.
-        sigmas=np.array([np.min([sigmas[0],rgrid[i_rcut]/2.]),np.min([sigmas[1],rgrid[i_rcut]/2.]),np.min([sigmas[2],rgrid[i_rcut]/2.])])
-        ok = ((np.abs(x-cen[0]) < rgrid[i_rcut]) & (np.abs(y-cen[1]) < rgrid[i_rcut]) & (np.abs(z-cen[2]) < rgrid[i_rcut]))
+        # grid resolution never below 50 pc
+        gridcells = int(np.min([rgrid[i_rcut]/0.05, 1000.]))
+        sigmas = np.array([np.min([sigmas[0], rgrid[i_rcut] / 2.]),
+                           np.min([sigmas[1], rgrid[i_rcut] / 2.]),
+                           np.min([sigmas[2], rgrid[i_rcut] / 2.])])
+        ok = ((np.abs(x - cen[0]) < rgrid[i_rcut])
+              & (np.abs(y - cen[1]) < rgrid[i_rcut])
+              & (np.abs(z - cen[2]) < rgrid[i_rcut]))
         if (len(x[ok]) > 1000):
-            x=x[ok]; y=y[ok]; z=z[ok]
-            
+            x = x[ok]
+            y = y[ok]
+            z = z[ok]
+
             # fit in x
-            xbins, xed = np.histogram(x,bins=gridcells)
-            ybins, yed = np.histogram(y,bins=gridcells)
-            zbins, zed = np.histogram(z,bins=gridcells)
-            
+            xbins, xed = np.histogram(x, bins=gridcells)
+            ybins, yed = np.histogram(y, bins=gridcells)
+            zbins, zed = np.histogram(z, bins=gridcells)
+
             xcents = xed[:len(xed)-1]+(xed[1]-xed[0])/2.
             ycents = yed[:len(yed)-1]+(yed[1]-yed[0])/2.
             zcents = zed[:len(zed)-1]+(zed[1]-zed[0])/2.
-            
-            init  = [np.average(xbins), cen[0], sigmas[0]]
-            out = scipy.optimize.leastsq( errfunc, init, args=(xcents, xbins))
-            gauslen_x = out[0][2];gauscent_x = out[0][1]
-            
-            init  = [np.average(ybins), cen[1], sigmas[1]]
-            out = scipy.optimize.leastsq( errfunc, init, args=(ycents, ybins))
-            gauslen_y = out[0][2];gauscent_y = out[0][1]
-            
-            init  = [np.average(zbins), cen[2], sigmas[2]]
-            out = scipy.optimize.leastsq( errfunc, init, args=(zcents, zbins))
-            gauslen_z = out[0][2];gauscent_z = out[0][1]
-            
-            cen=np.array([gauscent_x,gauscent_y,gauscent_z]);
-            sigmas=np.array([gauslen_x,gauslen_y,gauslen_z])
-        
+
+            init = [np.average(xbins), cen[0], sigmas[0]]
+            out = scipy.optimize.leastsq(errfunc, init, args=(xcents, xbins))
+            gauslen_x = out[0][2]
+            gauscent_x = out[0][1]
+
+            init = [np.average(ybins), cen[1], sigmas[1]]
+            out = scipy.optimize.leastsq(errfunc, init, args=(ycents, ybins))
+            gauslen_y = out[0][2]
+            gauscent_y = out[0][1]
+
+            init = [np.average(zbins), cen[2], sigmas[2]]
+            out = scipy.optimize.leastsq(errfunc, init, args=(zcents, zbins))
+            gauslen_z = out[0][2]
+            gauscent_z = out[0][1]
+
+            cen = np.array([gauscent_x, gauscent_y, gauscent_z]);
+            sigmas = np.array([gauslen_x, gauslen_y, gauslen_z])
+
         else:
             if (len(x[ok]) > 200):
-                x=x[ok]; y=y[ok]; z=z[ok];
-                cen=np.array([np.mean(x),np.mean(y),np.mean(z)]);
-    return cen;
+                x = x[ok]
+                y = y[ok]
+                z = z[ok]
+                cen = np.array([np.mean(x), np.mean(y), np.mean(z)])
+    return cen
 
 #############################################################################
 def half_mass_radius(pos_shifted, ms, pos_shifted_centre, Rout, ratio=0.5):
@@ -203,11 +206,7 @@ def half_mass_radius(pos_shifted, ms, pos_shifted_centre, Rout, ratio=0.5):
     # keyword:
     #    ratio - a number between 0 and 1, what fraction of total mass within Rout,
     #         0.5 by default
-    print(pos_shifted.shape)
-    # xs, ys, zs = pos_shifted
-    # xc, yc, zc = pos_shifted_centre
     rs = np.sum((pos_shifted - pos_shifted_centre)**2, axis=1)**0.5
-    # rs = np.sqrt((xs-xc)**2+(ys-yc)**2+(zs-zc)**2)
     rs_in = rs[rs < Rout]; ms_in = ms[rs < Rout]
     Mtotal = np.sum(ms_in); Mhalf = ratio*Mtotal
     # I require 10 star particles at least to further calculation, otherwise,
@@ -257,23 +256,18 @@ def RadialVector2AngularCoordiante(nx, ny, nz):
         phi = 2*np.pi - phi
     return theta, phi
 
-def CMvelocity(pos_shifted, ms, vel_star, r, cen=[0,0,0]):
+
+def CMvelocity(pos_shifted, ms, vel_star, r):
     # calculate center of mass velocity of all star particles within some radius
     # input:
     #    xs, ys, zs, ms, vxs, vys, vzs - coordiantes, masses and velocities
     #    r - the outermost radius we consider
     # keywords:
     #    cen - the center
-    xs, ys, zs = pos_shifted.T
-    vxs, vys, vzs = vel_star.T
-    xc = cen[0]; yc = cen[1]; zc = cen[2]
-    rs = np.sqrt((xs-xc)**2+(ys-yc)**2+(zs-zc)**2)
+    # xs, ys, zs = pos_shifted.T
+    rs = np.sum(pos_shifted**2, axis=1)**0.5
     ok = rs < r
-    Mtot = np.sum(ms[ok])
-    Vx = np.sum(ms[ok]*vxs[ok])/Mtot
-    Vy = np.sum(ms[ok]*vys[ok])/Mtot
-    Vz = np.sum(ms[ok]*vzs[ok])/Mtot
-    return Vx, Vy, Vz
+    return np.sum(ms[ok, np.newaxis] * vel_star[ok], axis=0) / np.sum(ms[ok])
 
 
 def Recent(Xs):
