@@ -5,9 +5,37 @@ from readsnap import read_snapshot
 import warnings
 
 
-def find_centre(snap_dir, snap_num, out_path=None, theta=0.0, phi=0.0, J=1):
+def find_centre(snap_dir, snap_num, out_path=None, theta=0.0, phi=0.0, J=True):
+    """Find the centre of a galaxy by analysing star and gas particle positions and densities.
 
-    gridsize = 50. # kpc, radius in which total (stellar) mass should be defined (idk, just <Rvir, it doesn't matter)
+    Parameters
+    ----------
+    snap_dir : `str`
+        The directory path of the snapshot.
+    snap_num : `int`
+        The snapshot number.
+    out_path : `str`, optional
+        The output directory path. If not provided, a folder will be created in the snapshot directory.
+    theta : `float`, optional
+        The theta angle for projection. Default is 0.0.
+    phi : `float`, optional
+        The phi angle for projection. Default is 0.0.
+    J : `bool`, optional
+        Whether to project to the plane perpendicular to the total angular momentum. Default is True.
+
+    Returns
+    -------
+    pos_centre : `~numpy.ndarray`
+        The position of the galaxy centre.
+    v_CM : `~numpy.ndarray`
+        The centre of mass velocity of the galaxy.
+    normal_vector : `list`
+        The normal vector of the projected plane.
+    r_half : `float`
+        The half-mass radius of the galaxy.
+    """
+    # kpc, radius in which total (stellar) mass should be defined (idk, just <Rvir, it doesn't matter)
+    gridsize = 50
 
     # Pull up the star particle positions, and masses
     stars, _ = read_snapshot(snap_dir=snap_dir, snap_num=snap_num, ptype=4)
@@ -25,13 +53,13 @@ def find_centre(snap_dir, snap_num, out_path=None, theta=0.0, phi=0.0, J=1):
                                     ["Failed to fit centre with gaussian, retrying with simpler fallback"
                                      "Failed to find centre with fallback, no centre found :("]):
         # calculate stellar center
-        pos_centre = centre_func(pos_star, mass_star, pos_gas, rho_gas)
+        pos_centre = centre_func(pos_star, pos_gas, rho_gas)
 
-        # Shift coordinates, recenter
+        # Shift coordinates, re-centre
         pos_shifted = pos_star - pos_centre
         pos_shifted_centre = Recent(pos_shifted.T)
 
-        rhalf = half_mass_radius(pos_shifted, mass_star, pos_shifted_centre, gridsize)
+        r_half = half_mass_radius(pos_shifted, mass_star, pos_shifted_centre, gridsize)
 
         pos_shifted -= pos_shifted_centre
 
@@ -40,42 +68,42 @@ def find_centre(snap_dir, snap_num, out_path=None, theta=0.0, phi=0.0, J=1):
 
     # if J is set, project to the plane perpendicular to the total angular momentum
     if J:
-        Jx, Jy, Jz = AngularMomentum(pos_shifted, mass_star,
-                                     vel_star, rhalf)
+        Jx, Jy, Jz = AngularMomentum(pos_shifted, mass_star, vel_star, r_half)
         theta, phi = RadialVector2AngularCoordiante(Jx, Jy, Jz)
-
-        Vx_cm, Vy_cm, Vz_cm = CMvelocity(pos_shifted, mass_star, vel_star, 4.*rhalf)
+        v_CM = CMvelocity(pos_shifted, mass_star, vel_star, 4 * r_half)
 
     # make the projection
     nx = np.array([np.cos(theta) * np.cos(phi), np.cos(theta) * np.sin(phi), -np.sin(theta)])
     ny = np.array([-np.sin(phi), np.cos(phi), 0])
     nz = np.array([np.sin(theta) * np.cos(phi), np.sin(theta) * np.sin(phi), np.cos(theta)])
 
+    # create the output path (and directory) if necessary
     if out_path is None:
         out_path = os.path.join(snap_dir, "centers")
         if not os.path.exists(out_path):
             os.path.mkdir(out_path)
 
+    # write all of the information to the output file
     with h5.File(os.path.join(out_path, f"snap_{snap_num}_cents.hdf5"), 'a') as f:
-        # Write Map/gal Attributes to cenFile, to be referenced in future.
         f.attrs["snap_num"] = snap_num
         f.attrs["Theta"] = theta
         f.attrs["Phi"] = phi
         f.attrs["Center"] = pos_centre
-        f.attrs["StellarCMVel"] = [Vx_cm, Vy_cm, Vz_cm]
+        f.attrs["StellarCMVel"] = v_CM
         f.attrs["StellarCenter"] = pos_centre + pos_shifted_centre
         f.attrs["NormalVector"] = [nx, ny, nz]
-        f.attrs["Rhalfstar"] = rhalf
+        f.attrs["Rhalfstar"] = r_half
 
-##################################################################################################################################
+    return pos_centre + pos_shifted_centre, v_CM, [nx, ny, nz], r_half
 
-def calculate_star_centre(ps_p, ps_m, pg_p, pg_rho, cen=[0, 0, 0.], clip_size=2.e10, rho_cut=1.0e-5):
+
+def calculate_star_centre(ps_p, pg_p, pg_rho, cen=[0, 0, 0.], clip_size=2.e10, rho_cut=1.0e-5):
     # Calculates stellar center, provided there's enough star particles, else uses gas particles.
     # Returns center vector. very simple method, don't imagine it would work on major mergers.
     rgrid = np.array([1.0e10, 1000, 700, 500, 300, 200, 100, 70, 50, 30, 20, 10, 5, 2.5, 1.])
     rgrid = rgrid[rgrid <= clip_size]
     
-    n_new=np.array(ps_m).shape[0];
+    n_new=len(ps_p)
     if (n_new > 1):
         pos=np.array(ps_p); x0s=pos[:,0]; y0s=pos[:,1]; z0s=pos[:,2];
     else: n_new=0
@@ -107,7 +135,7 @@ def calculate_star_centre(ps_p, ps_m, pg_p, pg_rho, cen=[0, 0, 0.], clip_size=2.
     return cen;
 ##################################################################################################################################
 
-def gaussfit_star_centre(ps_p,ps_m,pg_p,pg_rho,cen=[0, 0, 0.],clip_size=2.e10,rho_cut=1.0e-5):
+def gaussfit_star_centre(ps_p,pg_p,pg_rho,cen=[0, 0, 0.],clip_size=2.e10,rho_cut=1.0e-5):
     # Calculates stellar center, provided there's enough star particles, else
     # uses gas particles.
     # Returns center vector. very simple method, don't imagine it would work on major mergers.
@@ -196,31 +224,51 @@ def gaussfit_star_centre(ps_p,ps_m,pg_p,pg_rho,cen=[0, 0, 0.],clip_size=2.e10,rh
                 cen = np.array([np.mean(x), np.mean(y), np.mean(z)])
     return cen
 
-#############################################################################
-def half_mass_radius(pos_shifted, ms, pos_shifted_centre, Rout, ratio=0.5):
-    # calculate the half-stellar mass radius (ratio=0.5)
-    # input:
-    #    xs, ys, zs, ms - coordinates and masses of star particles
-    #    xc, yc, zc - the center
-    #    Rout - the radius within which the total mass is defined
-    # keyword:
-    #    ratio - a number between 0 and 1, what fraction of total mass within Rout,
-    #         0.5 by default
+
+def half_mass_radius(pos_shifted, masses, pos_shifted_centre, Rout, ratio=0.5):
+    """
+    Calculate the half-stellar mass radius within a given radius.
+
+    Parameters
+    ----------
+    pos_shifted : `~numpy.ndarray`
+        The shifted coordinates of star particles.
+    masses : `~numpy.ndarray`
+        The masses of star particles.
+    pos_shifted_centre : numpy.ndarray
+        The center coordinates.
+    Rout : `float`
+        The radius within which the total mass is defined.
+    ratio : `float`, optional
+        The fraction of total mass within Rout. Defaults to 0.5.
+
+    Returns
+    -------
+    r_half : `float`
+        The half-stellar mass radius.
+
+    Notes
+    -----
+    This function calculates the half-stellar mass radius, which is the radius within which half of the
+    total stellar mass is contained.
+    """
     rs = np.sum((pos_shifted - pos_shifted_centre)**2, axis=1)**0.5
-    rs_in = rs[rs < Rout]; ms_in = ms[rs < Rout]
-    Mtotal = np.sum(ms_in); Mhalf = ratio*Mtotal
-    # I require 10 star particles at least to further calculation, otherwise,
-    # it will just return Rout
+    rs_in = rs[rs < Rout]
+    ms_in = masses[rs < Rout]
+    Mtotal = np.sum(ms_in)
+    Mhalf = ratio * Mtotal
+
     Rhalf = Rout
-    if (len(rs_in)>10):
-        # sort the particles according to the distance
-        order = np.argsort(rs_in)
-        rs_in_sorted = rs_in[order]; ms_in_sorted = ms_in[order]
-        ms_in_cum = np.cumsum(ms_in_sorted)
-        place = np.searchsorted(ms_in_cum, Mhalf)
-        Rhalf = rs_in_sorted[place-1]
-    return Rhalf
-#############################################################################
+    if len(rs_in) < 10:
+        return Rout
+    order = np.argsort(rs_in)
+    rs_in_sorted = rs_in[order]
+    ms_in_sorted = ms_in[order]
+    ms_in_cum = np.cumsum(ms_in_sorted)
+    place = np.searchsorted(ms_in_cum, Mhalf)
+    r_half = rs_in_sorted[place - 1]
+    return r_half
+
 def AngularMomentum(pos_shifted, ms, vel_star, r, cen=[0,0,0]):
     # calculate the angular momentum of all star particles within some radius
     # input:
@@ -243,12 +291,12 @@ def RadialVector2AngularCoordiante(nx, ny, nz):
     # convert radial vector to angular coordinate
     # input:
     #    nx, ny, nz - component of radial vector
-    length = np.sqrt(nx**2+ny**2+nz**2)
+    length = np.sqrt(nx**2 + ny**2 + nz**2)
     nx /= length; ny /= length; nz /= length
     if (nz == 1.0):
-        theta = 0.0; phi = 0.0
+        theta, phi = 0.0, 0.0
     elif (nz == -1.0):
-        theta = np.pi; phi = np.pi
+        theta, phi = np.pi, np.pi
     else:
         theta = np.arccos(nz)
     phi = np.arccos(nx/np.sin(theta))
@@ -280,6 +328,4 @@ def Recent(Xs):
             yc = np.median(Xs[1][ok_star])
             zc = np.median(Xs[2][ok_star])
     return (xc, yc, zc)
-
-##################################################################################################################################
 
