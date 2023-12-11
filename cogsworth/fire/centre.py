@@ -1,8 +1,8 @@
 import numpy as np
 import h5py as h5
 import os
-from readsnap import read_snapshot
 import warnings
+from .readsnap import read_snapshot
 
 
 def find_centre(snap_dir, snap_num, out_path=None, theta=0.0, phi=0.0, project_ang_mom=True):
@@ -81,9 +81,9 @@ def find_centre(snap_dir, snap_num, out_path=None, theta=0.0, phi=0.0, project_a
 
     # create the output path (and directory) if necessary
     if out_path is None:
-        out_path = os.path.join(snap_dir, "centers")
-        if not os.path.exists(out_path):
-            os.path.mkdir(out_path)
+        out_path = os.path.join(snap_dir, "centres")
+    if not os.path.exists(out_path):
+        os.mkdir(out_path)
 
     # write all of the information to the output file
     with h5.File(os.path.join(out_path, f"snap_{snap_num}_cents.hdf5"), 'a') as f:
