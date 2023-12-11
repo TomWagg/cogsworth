@@ -67,12 +67,12 @@ def find_centre(snap_dir, snap_num, out_path=None, theta=0.0, phi=0.0, project_a
             warnings.warn(message)
         else:
             break
+    v_CM = get_v_CM(pos_shifted, mass_star, vel_star, 4 * r_half)
 
     # if project_ang_mom, project to the plane perpendicular to the total angular momentum
     if project_ang_mom:
         J = AngularMomentum(pos_shifted, mass_star, vel_star, r_half)
         theta, phi = radial_vector_to_angular_coordinates(J)
-        v_CM = get_v_CM(pos_shifted, mass_star, vel_star, 4 * r_half)
 
     # make the projection
     nx = np.array([np.cos(theta) * np.cos(phi), np.cos(theta) * np.sin(phi), -np.sin(theta)])
@@ -96,7 +96,7 @@ def find_centre(snap_dir, snap_num, out_path=None, theta=0.0, phi=0.0, project_a
         f.attrs["NormalVector"] = [nx, ny, nz]
         f.attrs["Rhalfstar"] = r_half
 
-    return pos_centre + pos_shifted_centre, v_CM, [nx, ny, nz], r_half
+    return pos_centre + pos_shifted_centre, v_CM, np.array([nx, ny, nz]), r_half
 
 
 def calculate_star_centre(ps_p, pg_p, pg_rho, clip_size=2.e10, rho_cut=1.0e-5):
