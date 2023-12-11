@@ -1,4 +1,4 @@
-from . import galaxy, kicks, pop, events, classify, observables, plot, utils
+from . import galaxy, kicks, pop, events, classify, observables, plot, utils, fire
 from ._version import __version__
 from .citations import CITATIONS
 
