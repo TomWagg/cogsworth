@@ -65,8 +65,8 @@ def find_centre(snap_dir, snap_num, out_path=None, theta=0.0, phi=0.0, project_a
 
         if np.any(np.isnan(pos_shifted_centre)):
             warnings.warn(message)
-
-        print(f"Centre: {pos_centre}")
+        else:
+            break
 
     # if project_ang_mom, project to the plane perpendicular to the total angular momentum
     if project_ang_mom:
@@ -100,8 +100,31 @@ def find_centre(snap_dir, snap_num, out_path=None, theta=0.0, phi=0.0, project_a
 
 
 def calculate_star_centre(ps_p, pg_p, pg_rho, clip_size=2.e10, rho_cut=1.0e-5):
-    # Calculates stellar center, provided there's enough star particles, else uses gas particles.
-    # Returns center vector. very simple method, don't imagine it would work on major mergers.
+    """Find the centre of a galaxy with simple shrinking spheres on star particles, provided there's enough
+    star particles, otherwise uses gas particles.
+
+    .. warning::
+
+        This is a very simple method, I don't imagine it would work on major mergers.
+
+    Parameters
+    ----------
+    ps_p : :class:`~numpy.ndarray`
+        Positions of star particles
+    pg_p : :class:`~numpy.ndarray`
+        Positions of gas particles
+    pg_rho : :class:`~numpy.ndarray`
+        Density of gas particles
+    clip_size : `float`, optional
+        Maximum radius of shrinking spheres, by default 2.e10
+    rho_cut : `float`, optional
+        Minimum density to include gas particles, by default 1.0e-5
+
+    Returns
+    -------
+    centre : :class:`~numpy.ndarray`
+        The centre of the galaxy
+    """
     rgrid = np.array([1.0e10, 1000, 700, 500, 300, 200, 100, 70, 50, 30, 20, 10, 5, 2.5, 1])
     rgrid = rgrid[rgrid <= clip_size]
 
@@ -128,10 +151,32 @@ def calculate_star_centre(ps_p, pg_p, pg_rho, clip_size=2.e10, rho_cut=1.0e-5):
 
 ##################################################################################################################################
 
-def gaussfit_star_centre(ps_p,pg_p,pg_rho,cen=[0, 0, 0.],clip_size=2.e10,rho_cut=1.0e-5):
-    # Calculates stellar center, provided there's enough star particles, else
-    # uses gas particles.
-    # Returns center vector. very simple method, don't imagine it would work on major mergers.
+def gaussfit_star_centre(ps_p, pg_p, pg_rho, clip_size=2.e10, rho_cut=1.0e-5):
+    """Find the centre of a galaxy by fitting a gaussian to the stellar radial density profile,
+    provided there's enough star particles, otherwise uses gas particles.
+
+    .. warning::
+
+        This is a very simple method, I don't imagine it would work on major mergers.
+
+    Parameters
+    ----------
+    ps_p : :class:`~numpy.ndarray`
+        Positions of star particles
+    pg_p : :class:`~numpy.ndarray`
+        Positions of gas particles
+    pg_rho : :class:`~numpy.ndarray`
+        Density of gas particles
+    clip_size : `float`, optional
+        Maximum radius of shrinking spheres, by default 2.e10
+    rho_cut : `float`, optional
+        Minimum density to include gas particles, by default 1.0e-5
+
+    Returns
+    -------
+    centre : :class:`~numpy.ndarray`
+        The centre of the galaxy
+    """
     import scipy.optimize
     rgrid = np.array([1.0e10, 1000, 700, 500, 300, 200, 100, 70, 50, 30, 20.])
     rgrid = rgrid[rgrid <= clip_size]
@@ -139,7 +184,7 @@ def gaussfit_star_centre(ps_p,pg_p,pg_rho,cen=[0, 0, 0.],clip_size=2.e10,rho_cut
     # number of cells to tile, to fit gaussian to
     gridcells = 1000
 
-    cen = np.array(cen)
+    cen = np.zeros(3)
 
     # fit a gaussian to the stellar radial density profile
     fitfunc = lambda p, x: p[0] * np.exp(-0.5 * ((x - p[1]) / p[2])**2)
@@ -157,8 +202,8 @@ def gaussfit_star_centre(ps_p,pg_p,pg_rho,cen=[0, 0, 0.],clip_size=2.e10,rho_cut
         z = pg_p[dense_enough, 2]
 
     # find initial "unresolved" center (i.e, max of 3d histogram, with 200 kpc resolution)
-    unresolved_voxel_size = 99.9 # kpc
-    rgrid = rgrid[rgrid <= 1.5*unresolved_voxel_size]
+    unresolved_voxel_size = 99.9        # kpc
+    rgrid = rgrid[rgrid <= 1.5 * unresolved_voxel_size]
     init_bin = int(np.max([np.max(x), np.max(y), np.max(z)]) / unresolved_voxel_size)
     stardens3, cube_eds1 = np.histogramdd([x, y, z], bins=init_bin)
     maxinds = np.unravel_index(np.argmax(stardens3), shape=(init_bin, init_bin, init_bin))
