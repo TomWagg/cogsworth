@@ -67,7 +67,7 @@ class FIRESnapshot():
         if centres_dir is None:
             centres_dir = os.path.join(snap_dir, "centers")
         self.centres_dir = centres_dir
-        self.set_centre(theta=0.0, phi=0.0, J=1, force=recalculate_centre)
+        self.set_centre(theta=0.0, phi=0.0, project_ang_mom=True, force=recalculate_centre)
 
         self.h = header["hubble"]
         self.Omega_M = header["Omega0"]
@@ -130,7 +130,7 @@ class FIRESnapshot():
                              h0=h0, cosmological=self.cosmological if cosmological is None else cosmological,
                              header_only=header_only)
 
-    def set_centre(self, theta=0.0, phi=0.0, J=1, force=False, verbose=False):
+    def set_centre(self, theta=0.0, phi=0.0, project_ang_mom=1, force=False, verbose=False):
         # Check if center has already been found
         centre_file = os.path.join(self.centres_dir, f"snap_{self.snap_num}_cents.hdf5")
         if (os.path.exists(centre_file) and not force):
@@ -138,7 +138,7 @@ class FIRESnapshot():
                 print("Using previously calculated centre and normal vector from {centre_file}")
         else:
             find_centre(self.snap_dir, self.snap_num, out_path=self.centres_dir,
-                        theta=theta, phi=phi, J=J)
+                        theta=theta, phi=phi, project_ang_mom=project_ang_mom)
 
         with h5.File(centre_file, 'r') as cent:
             self.n = cent.attrs["NormalVector"]

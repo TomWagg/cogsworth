@@ -5,7 +5,7 @@ from readsnap import read_snapshot
 import warnings
 
 
-def find_centre(snap_dir, snap_num, out_path=None, theta=0.0, phi=0.0, J=True):
+def find_centre(snap_dir, snap_num, out_path=None, theta=0.0, phi=0.0, project_ang_mom=True):
     """Find the centre of a galaxy by analysing star and gas particle positions and densities.
 
     Parameters
@@ -20,14 +20,14 @@ def find_centre(snap_dir, snap_num, out_path=None, theta=0.0, phi=0.0, J=True):
         The theta angle for projection. Default is 0.0.
     phi : `float`, optional
         The phi angle for projection. Default is 0.0.
-    J : `bool`, optional
+    project_ang_mom : `bool`, optional
         Whether to project to the plane perpendicular to the total angular momentum. Default is True.
 
     Returns
     -------
-    pos_centre : `~numpy.ndarray`
+    pos_centre : :class:`~numpy.ndarray`
         The position of the galaxy centre.
-    v_CM : `~numpy.ndarray`
+    v_CM : :class:`~numpy.ndarray`
         The centre of mass velocity of the galaxy.
     normal_vector : `list`
         The normal vector of the projected plane.
@@ -66,11 +66,13 @@ def find_centre(snap_dir, snap_num, out_path=None, theta=0.0, phi=0.0, J=True):
         if np.any(np.isnan(pos_shifted_centre)):
             warnings.warn(message)
 
-    # if J is set, project to the plane perpendicular to the total angular momentum
-    if J:
-        Jx, Jy, Jz = AngularMomentum(pos_shifted, mass_star, vel_star, r_half)
-        theta, phi = RadialVector2AngularCoordiante(Jx, Jy, Jz)
-        v_CM = CMvelocity(pos_shifted, mass_star, vel_star, 4 * r_half)
+        print(f"Centre: {pos_centre}")
+
+    # if project_ang_mom, project to the plane perpendicular to the total angular momentum
+    if project_ang_mom:
+        J = AngularMomentum(pos_shifted, mass_star, vel_star, r_half)
+        theta, phi = RadialVector2AngularCoordiante(J)
+        v_CM = get_v_CM(pos_shifted, mass_star, vel_star, 4 * r_half)
 
     # make the projection
     nx = np.array([np.cos(theta) * np.cos(phi), np.cos(theta) * np.sin(phi), -np.sin(theta)])
@@ -97,21 +99,23 @@ def find_centre(snap_dir, snap_num, out_path=None, theta=0.0, phi=0.0, J=True):
     return pos_centre + pos_shifted_centre, v_CM, [nx, ny, nz], r_half
 
 
-def calculate_star_centre(ps_p, pg_p, pg_rho, cen=[0, 0, 0.], clip_size=2.e10, rho_cut=1.0e-5):
+def calculate_star_centre(ps_p, pg_p, pg_rho, clip_size=2.e10, rho_cut=1.0e-5):
     # Calculates stellar center, provided there's enough star particles, else uses gas particles.
     # Returns center vector. very simple method, don't imagine it would work on major mergers.
     rgrid = np.array([1.0e10, 1000, 700, 500, 300, 200, 100, 70, 50, 30, 20, 10, 5, 2.5, 1.])
     rgrid = rgrid[rgrid <= clip_size]
-    
+    print("yo")
     n_new=len(ps_p)
     if (n_new > 1):
         pos=np.array(ps_p); x0s=pos[:,0]; y0s=pos[:,1]; z0s=pos[:,2];
-    else: n_new=0
-    rho=np.array(pg_rho);
+    else:
+        n_new=0
+    rho = np.array(pg_rho)
     if (rho.shape[0] > 0):
         pos=np.array(pg_p); x0g=pos[:,0]; y0g=pos[:,1]; z0g=pos[:,2];
-    cen=np.array(cen);
-    
+
+    cen = np.zeros(3)
+
     for i_rcut in range(len(rgrid)):
         for j_looper in range(5):
             if (n_new > 1000):
@@ -124,7 +128,7 @@ def calculate_star_centre(ps_p, pg_p, pg_rho, cen=[0, 0, 0.], clip_size=2.e10, r
             ok = (r < rgrid[i_rcut]);
             if (checklen(r[ok]) > 1000):
                 x=x[ok]; y=y[ok]; z=z[ok];
-                if (i_rcut <= len(rgrid)-5):
+                if (i_rcut <= len(rgrid) - 5):
                     cen+=np.array([np.median(x),np.median(y),np.median(z)]);
                 else:
                     cen+=np.array([np.mean(x),np.mean(y),np.mean(z)]);
@@ -225,22 +229,22 @@ def gaussfit_star_centre(ps_p,pg_p,pg_rho,cen=[0, 0, 0.],clip_size=2.e10,rho_cut
     return cen
 
 
-def half_mass_radius(pos_shifted, masses, pos_shifted_centre, Rout, ratio=0.5):
+def half_mass_radius(pos_shifted, masses, pos_shifted_centre, r_out, ratio=0.5):
     """
     Calculate the half-stellar mass radius within a given radius.
 
     Parameters
     ----------
-    pos_shifted : `~numpy.ndarray`
+    pos_shifted : :class:`~numpy.ndarray`
         The shifted coordinates of star particles.
-    masses : `~numpy.ndarray`
+    masses : :class:`~numpy.ndarray`
         The masses of star particles.
     pos_shifted_centre : numpy.ndarray
         The center coordinates.
-    Rout : `float`
+    r_out : `float`
         The radius within which the total mass is defined.
     ratio : `float`, optional
-        The fraction of total mass within Rout. Defaults to 0.5.
+        The fraction of total mass within r_out. Defaults to 0.5.
 
     Returns
     -------
@@ -253,14 +257,13 @@ def half_mass_radius(pos_shifted, masses, pos_shifted_centre, Rout, ratio=0.5):
     total stellar mass is contained.
     """
     rs = np.sum((pos_shifted - pos_shifted_centre)**2, axis=1)**0.5
-    rs_in = rs[rs < Rout]
-    ms_in = masses[rs < Rout]
+    rs_in = rs[rs < r_out]
+    ms_in = masses[rs < r_out]
     Mtotal = np.sum(ms_in)
     Mhalf = ratio * Mtotal
 
-    Rhalf = Rout
     if len(rs_in) < 10:
-        return Rout
+        return r_out
     order = np.argsort(rs_in)
     rs_in_sorted = rs_in[order]
     ms_in_sorted = ms_in[order]
@@ -269,53 +272,79 @@ def half_mass_radius(pos_shifted, masses, pos_shifted_centre, Rout, ratio=0.5):
     r_half = rs_in_sorted[place - 1]
     return r_half
 
-def AngularMomentum(pos_shifted, ms, vel_star, r, cen=[0,0,0]):
-    # calculate the angular momentum of all star particles within some radius
-    # input:
-    #    xs, ys, zs, ms, vxs, vys, vzs - coordiantes, masses and velocities
-    #    r - the outermost radius we consider
-    # keywords:
-    #    cen - the center
-    xs, ys, zs = pos_shifted.T
-    vxs, vys, vzs = vel_star.T
-    xc = cen[0]; yc = cen[1]; zc = cen[2]
-    rs = np.sqrt((xs-xc)**2+(ys-yc)**2+(zs-zc)**2)
+
+def AngularMomentum(pos_shifted, masses, vel_star, r):
+    """Calculate the angular momentum of particles within a given radius.
+
+    Parameters
+    ----------
+    pos_shifted : :class:`~numpy.ndarray`
+        The shifted coordinates of particles.
+    masses : :class:`~numpy.ndarray`
+        The masses of particles.
+    vel_star : :class:`~numpy.ndarray`
+        The velocities of particles.
+    r : `float`
+        The radius within which to calculate the angular momentum.
+
+    Returns
+    -------
+    J : :class:`~numpy.ndarray`
+        The angular momentum of particles within the given radius.
+    """
+    rs = np.sum(pos_shifted**2, axis=1)**0.5
     ok = rs < r
-    Jx = np.sum(ms[ok]*((ys[ok]-yc)*vzs[ok]-(zs[ok]-zc)*vys[ok]))
-    Jy = np.sum(ms[ok]*((zs[ok]-zc)*vxs[ok]-(xs[ok]-xc)*vzs[ok]))
-    Jz = np.sum(ms[ok]*((xs[ok]-xc)*vys[ok]-(ys[ok]-yc)*vxs[ok]))
-    return Jx, Jy, Jz
+    return np.sum(masses[ok, np.newaxis] * np.cross(pos_shifted[ok, :], vel_star[ok, :]), axis=1)
 
 
-def RadialVector2AngularCoordiante(nx, ny, nz):
-    # convert radial vector to angular coordinate
-    # input:
-    #    nx, ny, nz - component of radial vector
-    length = np.sqrt(nx**2 + ny**2 + nz**2)
-    nx /= length; ny /= length; nz /= length
-    if (nz == 1.0):
+def radial_vector_to_angular_coordinates(n):
+    """Calculate the angular coordinates (theta, phi) from a radial vector.
+
+    Parameters
+    ----------
+    n : :class:`~numpy.ndarray`
+        Radial vector
+
+    Returns
+    -------
+    theta, phi : `tuple`
+        Angular coordinates (theta, phi)
+    """
+    n /= np.sum(n**2, axis=0)**0.5
+    if (n[2] == 1.0):
         theta, phi = 0.0, 0.0
-    elif (nz == -1.0):
+    elif (n[2] == -1.0):
         theta, phi = np.pi, np.pi
     else:
-        theta = np.arccos(nz)
-    phi = np.arccos(nx/np.sin(theta))
-    if (ny < 0):
-        phi = 2*np.pi - phi
+        theta = np.arccos(n[2])
+        phi = np.arccos(n[0] / np.sin(theta))
+        if (n[1] < 0):
+            phi = 2 * np.pi - phi
     return theta, phi
 
 
-def CMvelocity(pos_shifted, ms, vel_star, r):
-    # calculate center of mass velocity of all star particles within some radius
-    # input:
-    #    xs, ys, zs, ms, vxs, vys, vzs - coordiantes, masses and velocities
-    #    r - the outermost radius we consider
-    # keywords:
-    #    cen - the center
-    # xs, ys, zs = pos_shifted.T
+def get_v_CM(pos_shifted, masses, vel_star, r):
+    """Calculate the velocity of the centre of mass (CM) of particles within a given radius.
+
+    Parameters:
+    ----------
+    pos_shifted : :class:`~numpy.ndarray`
+        Array of particle positions.
+    masses : :class:`~numpy.ndarray`
+        Array of particle masses.
+    vel_star : :class:`~numpy.ndarray`
+        Array of particle velocities.
+    r : `float`
+        Radius within which to calculate the CM velocity.
+
+    Returns:
+    -------
+    numpy.ndarray
+        Velocity of the center of mass of particles within the given radius.
+    """
     rs = np.sum(pos_shifted**2, axis=1)**0.5
     ok = rs < r
-    return np.sum(ms[ok, np.newaxis] * vel_star[ok], axis=0) / np.sum(ms[ok])
+    return np.sum(masses[ok, np.newaxis] * vel_star[ok], axis=0) / np.sum(masses[ok])
 
 
 def Recent(Xs):
