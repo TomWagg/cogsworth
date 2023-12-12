@@ -137,3 +137,7 @@ dustmaps/*
 docs/api
 docs/auto_examples
 cov.xml
+
+*.h5
+*.out
+*.npy

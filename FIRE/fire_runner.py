@@ -122,7 +122,7 @@ def dispersion_from_virial_parameter(alpha_vir, R, M):
     return np.sqrt(alpha_vir * const.G * M / (5 * R)).to(u.km / u.s)
 
 
-def run_boundedness_sim(alpha_vir, subset=None, processes=32, extra_time=200 * u.Myr, m1_cutoff=4 * u.Msun):
+def run_boundedness_sim(alpha_vir, alpha_ce, mt_eff=-1, ecsn_kick=-20, bhflag=1, subset=None, processes=32, extra_time=200 * u.Myr, m1_cutoff=4 * u.Msun):
     """
     Runs a cogsworth simulation using the FIRE (Feedback In Realistic Environments) simulations, varying star
     particle boundedness.
@@ -151,7 +151,8 @@ def run_boundedness_sim(alpha_vir, subset=None, processes=32, extra_time=200 * u
                      m1_cutoff=4,
                      particle_boundedness=alpha_vir,
                      particle_size=1 * u.pc,
-                     processes=processes)
+                     processes=processes,
+                     BSE_settings={"alpha1": alpha_ce, "acc_lim": mt_eff, 'bhflag': bhflag, 'sigmadiv': ecsn_kick})
 
     # sample initial binaries and perform stellar evolution
     p_fire.sample_initial_binaries()
@@ -170,22 +171,30 @@ def run_boundedness_sim(alpha_vir, subset=None, processes=32, extra_time=200 * u
         p_fire._initC["particle_id"] = p_fire._initial_binaries["particle_id"]
 
     # save the results
-    p_fire.save(f"/mnt/home/twagg/ceph/pops/boundedness/alpha_{alpha_vir}", overwrite=True)
+    p_fire.save(f"/mnt/home/twagg/ceph/pops/supernovae/ecsn_kick_{ecsn_kick}", overwrite=True)
 
 
 def main():
     parser = argparse.ArgumentParser(description='Boundedness simulation runner')
     parser.add_argument('-a', '--alpha_vir', default=1.0, type=float,
                         help='Star particle virial parameter')
+    parser.add_argument('-c', '--alpha_ce', default=1.0, type=float,
+                        help='Common-envelope efficiency')
+    parser.add_argument('-b', '--beta', default=-1, type=float,
+                        help='Mass transfer efficiency')
+    parser.add_argument('-k', '--bhflag', default=1, type=int,
+                        help='BH kick flag')
+    parser.add_argument('-e', '--ecsn-kick', default=-20, type=int,
+                        help='ECSN kick strength')
     parser.add_argument('-s', '--subset', default=None, type=int,
                         help='Size of subset of star particles to use')
     parser.add_argument('-p', '--processes', default=32, type=int,
                         help='Number of processes to use')
-    parser.add_argument('-e', '--extra_time', default=200, type=int,
+    parser.add_argument('-t', '--extra_time', default=200, type=int,
                         help='Extra time to evolve for (in Myr)')
     args = parser.parse_args()
 
-    run_boundedness_sim(alpha_vir=args.alpha_vir, subset=args.subset, processes=args.processes, extra_time=args.extra_time * u.Myr)
+    run_boundedness_sim(alpha_vir=args.alpha_vir, alpha_ce=args.alpha_ce, mt_eff=args.beta, bhflag=args.bhflag, ecsn_kick=args.ecsn_kick, subset=args.subset, processes=args.processes, extra_time=args.extra_time * u.Myr)
 
 if __name__ == "__main__":
     main()
