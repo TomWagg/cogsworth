@@ -7,7 +7,7 @@ each module in detail, as well as the changelog for the package. If you can't fi
 then you can also use the search box above!
 
 .. toctree::
-    :maxdepth: 1
+    :maxdepth: 10
     :caption: Modules
 
     ../modules/pop
@@ -16,6 +16,7 @@ then you can also use the search box above!
     ../modules/observables
     ../modules/events
     ../modules/kicks
+    ../modules/fire
     ../modules/plot
     ../modules/utils
 

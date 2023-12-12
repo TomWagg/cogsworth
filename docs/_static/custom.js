@@ -51,4 +51,10 @@ document.addEventListener("DOMContentLoaded", function() {
     if (nav.querySelector("a").innerText == "Tutorials") {
         nav.querySelector("label").click();
     }
+
+    if (document.querySelector(".navbar-nav .active").innerText == "User Guide") {
+        document.querySelectorAll("h3").forEach(el => {
+            el.remove();
+        });
+    }
 })
