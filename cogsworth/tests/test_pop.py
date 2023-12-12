@@ -375,3 +375,18 @@ class Test(unittest.TestCase):
         p.sample_initial_binaries(initC=p.initC,
                                   overwrite_initC_settings=True,
                                   reset_sampled_kicks=True)
+
+    def test_legwork_conversion(self):
+        """Check construction of LEGWORK sources"""
+        p = pop.Population(100)
+        p.create_population()
+
+        it_failed = False
+        try:
+            p.to_legwork_sources(assume_mw_galactocentric=False)
+        except ValueError:
+            it_failed = True
+        self.assertTrue(it_failed)
+
+        sources = p.to_legwork_sources(assume_mw_galactocentric=True)
+        sources.get_merger_time()
