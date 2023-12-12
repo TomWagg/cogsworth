@@ -4,6 +4,8 @@ import os
 import warnings
 from .readsnap import read_snapshot
 
+__all__ = ["find_centre", "half_mass_radius", "get_angular_momentum", "get_v_CM"]
+
 
 def find_centre(snap_dir, snap_num, out_path=None, theta=0.0, phi=0.0, project_ang_mom=True):
     """Find the centre of a galaxy by analysing star and gas particle positions and densities.
@@ -71,7 +73,7 @@ def find_centre(snap_dir, snap_num, out_path=None, theta=0.0, phi=0.0, project_a
 
     # if project_ang_mom, project to the plane perpendicular to the total angular momentum
     if project_ang_mom:
-        J = AngularMomentum(pos_shifted, mass_star, vel_star, r_half)
+        J = get_angular_momentum(pos_shifted, mass_star, vel_star, r_half)
         theta, phi = radial_vector_to_angular_coordinates(J)
 
     # make the projection
@@ -307,7 +309,7 @@ def half_mass_radius(pos_shifted, masses, pos_shifted_centre, r_out, ratio=0.5):
     return r_half
 
 
-def AngularMomentum(pos_shifted, masses, vel_star, r):
+def get_angular_momentum(pos_shifted, masses, vel_star, r):
     """Calculate the angular momentum of particles within a given radius.
 
     Parameters
@@ -360,7 +362,7 @@ def radial_vector_to_angular_coordinates(n):
 def get_v_CM(pos_shifted, masses, vel_star, r):
     """Calculate the velocity of the centre of mass (CM) of particles within a given radius.
 
-    Parameters:
+    Parameters
     ----------
     pos_shifted : :class:`~numpy.ndarray`
         Array of particle positions.
@@ -371,7 +373,7 @@ def get_v_CM(pos_shifted, masses, vel_star, r):
     r : `float`
         Radius within which to calculate the CM velocity.
 
-    Returns:
+    Returns
     -------
     numpy.ndarray
         Velocity of the center of mass of particles within the given radius.

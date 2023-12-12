@@ -298,9 +298,9 @@ class FIREPopulation(Population):
 
         Parameters
         ----------
-        stars_snapshot : :class:`~cogsworth.fire.FIRESnapshot`
+        stars_snapshot : :class:`~cogsworth.fire.fire.FIRESnapshot`
             The snapshot to sample from
-        particle_size : :class:`~astropy., optional
+        particle_size : :class:`~astropy.units.Quantity`, optional
             Size of gaussian for cluster for each star particle, by default 1*u.pc
         virial_parameter : `float`, optional
             Virial parameter for each cluster, for setting velocity dispersions, by default 1.0

@@ -10,14 +10,14 @@ def dispersion_from_virial_parameter(alpha_vir, R, M):
     ----------
     alpha_vir : `float`
         Virial parameter
-    R : :class:`astropy.units.Quantity` [length]
+    R : :class:`~astropy.units.Quantity` [length]
         Cluster radius
-    M : :class:`astropy.units.Quantity` [mass]
+    M : :class:`~astropy.units.Quantity` [mass]
         Cluster mass
 
     Returns
     -------
-    v_disp : :class:`astropy.units.Quantity` [speed]
+    v_disp : :class:`~astropy.units.Quantity` [speed]
         Velocity dispersion
     """
     return np.sqrt(alpha_vir * const.G * M / (5 * R)).to(u.km / u.s)
@@ -28,7 +28,7 @@ def quick_lookback_time(z, h=0.71, Omega_M=0.27):
 
     Parameters
     ----------
-    z : :class:`numpy.ndarray` or `float`
+    z : :class:`~numpy.ndarray` or `float`
         Redshift
     h : `float`, optional
         Hubble parameter, by default 0.71
@@ -37,7 +37,7 @@ def quick_lookback_time(z, h=0.71, Omega_M=0.27):
 
     Returns
     -------
-    t : :class:`numpy.ndarray` or `float`
+    t : :class:`~numpy.ndarray` or `float`
         Lookback time
     """
     # exact solution for a flat universe
