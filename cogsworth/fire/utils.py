@@ -3,6 +3,9 @@ import astropy.units as u
 import astropy.constants as const
 
 
+FIRE_ptypes = ["gas", "dark matter", "dark matter low res", "dark matter low res", "star"]
+
+
 def dispersion_from_virial_parameter(alpha_vir, R, M):
     """Calculate the velocity dispersion from the virial parameter
 

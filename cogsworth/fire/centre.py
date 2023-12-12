@@ -2,7 +2,7 @@ import numpy as np
 import h5py as h5
 import os
 import warnings
-from .readsnap import read_snapshot
+from .snap import read_snapshot
 
 __all__ = ["find_centre", "half_mass_radius", "get_angular_momentum", "get_v_CM"]
 

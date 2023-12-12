@@ -1,23 +1,11 @@
-import numpy as np
+import os
 import h5py as h5
 import astropy.units as u
-import os.path
-import pandas as pd
-
-from cosmic.sample.initialbinarytable import InitialBinaryTable
-
-from ..pop import Population
-from ..galaxy import Galaxy
+import numpy as np
+from collections import defaultdict
 
 from .centre import find_centre
-from .readsnap import read_snapshot
-from .utils import quick_lookback_time, dispersion_from_virial_parameter
-
-
-__all__ = ["FIRESnapshot", "FIREPopulation"]
-
-
-FIRE_ptypes = ["gas", "dark matter", "dark matter low res", "dark matter low res", "star"]
+from .utils import quick_lookback_time, FIRE_ptypes
 
 
 class FIRESnapshot():
@@ -288,128 +276,150 @@ class FIRESnapshot():
         return self.V_s[2]
 
 
-class FIREPopulation(Population):
-    def __init__(self, stars_snapshot, particle_size=1 * u.pc, virial_parameter=1.0, subset=None,
-                 sampling_params={"sampling_target": "total_mass", "trim_extra_samples": True}, **kwargs):
-        """A population of stars sampled from a FIRE snapshot
+def read_snapshot(snap_dir, snap_num, ptype, h0=False, cosmological=True, header_only=False):
+    """Read in a snapshot from a FIRE simulation
 
-        Each star particle in FIRE is converted to a (binary) stellar population, sampled with COSMIC, with
-        initial positions and kinematics determined based on the virial parameter and particle size.
+    This code is heavily based on a function written by Matt Orr, thanks Matt!
 
-        Parameters
-        ----------
-        stars_snapshot : :class:`~cogsworth.fire.fire.FIRESnapshot`
-            The snapshot to sample from
-        particle_size : :class:`~astropy.units.Quantity`, optional
-            Size of gaussian for cluster for each star particle, by default 1*u.pc
-        virial_parameter : `float`, optional
-            Virial parameter for each cluster, for setting velocity dispersions, by default 1.0
-        sampling_params : `dict`, optional
-            As in :class:~cogsworth.pop.Population` but changing the defaults to
-            {"sampling_target": "total_mass", "trim_extra_samples": True} (i.e. to sample to the total mass of
-            the star particle)
-        **kwargs : various
-            Parameters to pass to :class:`~cogsworth.pop.Population`
-        """
-        self.stars_snapshot = stars_snapshot
-        self.particle_size = particle_size
-        self.virial_parameter = virial_parameter
-        self._subset_inds = np.arange(len(self.stars_snapshot)).astype(int)
-        if subset is not None and isinstance(subset, int):
-            self._subset_inds = np.random.choice(self._subset_inds, size=subset, replace=False)
-        elif subset is not None:
-            self._subset_inds = subset
-        if "n_binaries" not in kwargs:
-            kwargs["n_binaries"] = None
-        super().__init__(sampling_params=sampling_params, **kwargs)
-        self.__citations__.append("FIRE")
+    Parameters
+    ----------
+    ptype : `int`
+        Particle type to use
+    h0 : `bool`, optional
+        _description_, by default False
+    cosmological : `bool`, optional
+        Whether the simulation was run in cosmological mode, by default True
+    header_only : `bool`, optional
+        Whether to just return the header information, by default False
 
-    def __getitem__(self, ind):
-        if self._initC is not None and "particle_id" not in self._initC.columns:
-            self._initC["particle_id"] = self._initial_binaries["particle_id"]
-        new_pop = super().__getitem__(ind)
-        new_pop.stars_snapshot = self.stars_snapshot
-        new_pop.particle_size = self.particle_size
-        new_pop.virial_parameter = self.virial_parameter
-        return new_pop
+    Returns
+    -------
+    params : `dict`
+        The various parameters associated with the snapshot and `self.particle_type` across every file
+        from this snapshot (only returned when `header_only` is False)
+    header_params : `dict`
+        The header parameters for this snapshot
 
-    def get_citations(self, filename=None):
-        super().get_citations(filename)
-        print("\nNOTE: This population was sampled from a FIRE snapshot...but I don't know which one so I "
-              "can't automate this citation, please cite the relevant FIRE paper(s) (e.g. see here: "
-              "http://flathub.flatironinstitute.org/fire)")
+    Raises
+    ------
+    FileNotFoundError
+        No snapshot file could be found
+    ValueError
+        No particles of type `self.particle_type` in snapshot
+    """
+    # by default assume it's in one file
+    file_path = os.path.join(snap_dir, f"snapshot_{snap_num}.hdf5")
 
-    def sample_initial_binaries(self):
-        """Sample initial binaries from the star particles in the snapshot"""
-        initial_binaries_list = [None for _ in range(len(self.stars_snapshot))]
-        self._mass_singles, self._mass_binaries, self._n_singles_req, self._n_bin_req = 0.0, 0.0, 0, 0
+    # if I can't find that then let's assume it's in multiple files
+    if not os.path.exists(file_path):
+        file_path = os.path.join(snap_dir, f"snapshot_{snap_num}.0.hdf5")
 
-        for i in self._subset_inds:
-            samples = InitialBinaryTable.sampler('independent', self.final_kstar1, self.final_kstar2,
-                                                 binfrac_model=self.BSE_settings["binfrac"],
-                                                 SF_start=(self.max_ev_time - self.stars_snapshot.t_form[i]).to(u.Myr).value,
-                                                 SF_duration=0.0, met=self.stars_snapshot.Z[i],
-                                                 total_mass=self.stars_snapshot.m[i].to(u.Msun).value,
-                                                 size=self.stars_snapshot.m[i].to(u.Msun).value * 0.8,
-                                                 **self.sampling_params)
+    # if I can't find *that* then we've got a real problem and need to quit
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Could not find snapshot {snap_num} in {snap_dir}")
 
-            # apply the mass cutoff and record particle ID
-            samples[0].reset_index(inplace=True)
-            samples[0].drop(samples[0][samples[0]["mass_1"] < self.m1_cutoff].index, inplace=True)
-            samples[0]["particle_id"] = np.repeat(self.stars_snapshot.ids[i], len(samples[0]))
+    # open file and parse its header information
+    file = h5.File(file_path, 'r')
+    header = file["Header"].attrs
 
-            # save samples
-            initial_binaries_list[i] = samples[0]
-            self._mass_singles += samples[1]
-            self._mass_binaries += samples[2]
-            self._n_singles_req += samples[3]
-            self._n_bin_req += samples[4]
+    npart = header["NumPart_ThisFile"]
+    time = header["Time"]
+    boxsize = header["BoxSize"]
+    fixed_masses = header["MassTable"][ptype] > 0
+    omega_matter = header["Omega0"] if "Omega0" in list(header.keys()) else header["Omega_Matter"]
 
-        self._initial_binaries = pd.concat(initial_binaries_list, ignore_index=True)
+    hinv = 1 / header["HubbleParam"] if h0 else 1
+    ascale = 1.
+    if cosmological:
+        ascale = time
+        hinv = 1 / header["HubbleParam"]
+    else:
+        time *= hinv
+    boxsize *= hinv * ascale
 
-        # just in case, probably unnecessary
-        self._initial_binaries = self._initial_binaries[self._initial_binaries["mass_1"] >= self.m1_cutoff]
+    if header["NumPart_Total"][ptype] <= 0:
+        file.close()
+        raise ValueError(f"No particles of type {ptype} in snapshot!")
 
-        # these are the same for this class
-        self.n_binaries = len(self._initial_binaries)
-        self.n_binaries_match = len(self._initial_binaries)
+    header_params = {'k': 0, 'time': time, 'boxsize': boxsize, 'hubble': header["HubbleParam"],
+                     'npart': npart, 'npartTotal': header["NumPart_Total"], 'Omega0': omega_matter}
+    if header_only:
+        file.close()
+        return header_params
 
-        # ensure metallicities remain in a range valid for COSMIC
-        self._initial_binaries.loc[self._initial_binaries["metallicity"] < 1e-4, "metallicity"] = 1e-4
-        self._initial_binaries.loc[self._initial_binaries["metallicity"] > 0.03, "metallicity"] = 0.03
+    # initialize variables to be read
+    pos = np.zeros([header["NumPart_Total"][ptype], 3], dtype=np.float64)
+    vel = np.copy(pos)
+    ids = np.zeros([header["NumPart_Total"][ptype]], dtype=int)
+    mass = np.zeros([header["NumPart_Total"][ptype]], dtype=np.float64)
+    one_D_vars = defaultdict(lambda: np.zeros([header["NumPart_Total"][ptype]], dtype=np.float64))
+    if (ptype == 0 or ptype == 4) and (header["Flag_Metals"] > 0):
+        metal = np.zeros([header["NumPart_Total"][ptype], header["Flag_Metals"]], dtype=np.float64)
 
-        self.sample_initial_galaxy()
+    # loop over the snapshot parts to get the different data pieces
+    nL = 0
+    for i_file in range(header["NumFilesPerSnapshot"]):
+        if header["NumFilesPerSnapshot"] > 1:
+            file.close()
+            file = h5.File(os.path.join(snap_dir, f"snap_{snap_num}.{i_file}.hdf5"), 'r')
 
-    def sample_initial_galaxy(self):
-        inds = np.searchsorted(self.stars_snapshot.ids, self._initial_binaries["particle_id"].values)
-        x, y, z = self.stars_snapshot.x[inds], self.stars_snapshot.y[inds], self.stars_snapshot.z[inds]
-        v_x, v_y = self.stars_snapshot.v_x[inds], self.stars_snapshot.v_y[inds]
-        v_z = self.stars_snapshot.v_z[inds]
-        pos = np.random.normal([x.to(u.kpc).value, y.to(u.kpc).value, z.to(u.kpc).value],
-                               self.particle_size.to(u.kpc).value / np.sqrt(3),
-                               size=(3, self.n_binaries_match)) * u.kpc
+        input_struct = file
+        npart = file["Header"].attrs["NumPart_ThisFile"]
+        bname = f"PartType{ptype}/"
 
-        self._initial_galaxy = Galaxy(self.n_binaries_match, immediately_sample=False)
-        self._initial_galaxy._x = pos[0]
-        self._initial_galaxy._y = pos[1]
-        self._initial_galaxy._z = pos[2]
-        self._initial_galaxy._tau = self._initial_binaries["tphysf"].values * u.Myr
-        self._initial_galaxy._Z = self._initial_binaries["metallicity"].values
-        self._initial_galaxy._which_comp = np.repeat("FIRE", len(self.initial_galaxy._tau))
+        # now do the actual reading
+        if npart[ptype] > 0:
+            nR = nL + npart[ptype]
+            pos[nL:nR, :] = input_struct[bname + "Coordinates"]
+            vel[nL:nR, :] = input_struct[bname + "Velocities"]
+            ids[nL:nR] = input_struct[bname + "ParticleIDs"]
+            mass[nL:nR] = input_struct[bname + "Masses"] if ~fixed_masses else header["MassTable"][ptype]
 
-        v_R = (x * v_x + y * v_y) / (x**2 + y**2)**0.5
-        v_T = (x * v_y - y * v_x) / (x**2 + y**2)**0.5
+            if ptype == 0:
+                one_D_vars["u"][nL:nR] = input_struct[bname + "InternalEnergy"]
+                one_D_vars["rho"][nL:nR] = input_struct[bname + "Density"]
+                one_D_vars["h"][nL:nR] = input_struct[bname + "SmoothingLength"]
+                if "MolecularHydrogenFraction" in list(input_struct[bname].keys()):
+                    one_D_vars["fH2"][nL:nR] = input_struct[bname + "MolecularHydrogenFraction"]
+                if (header["NumPart_Total"][ptype] > 0):
+                    one_D_vars["ne"][nL:nR] = input_struct[bname + "ElectronAbundance"]
+                    one_D_vars["nh"][nL:nR] = input_struct[bname + "NeutralHydrogenAbundance"]
+                if (header["Flag_Sfr"] > 0):
+                    one_D_vars["sfr"][nL:nR] = input_struct[bname + "StarFormationRate"]
 
-        vel_units = u.km / u.s
-        dispersion = dispersion_from_virial_parameter(self.virial_parameter,
-                                                      self.particle_size,
-                                                      self.stars_snapshot.m[inds])
-        v_R, v_T, v_z = np.random.normal([v_R.to(vel_units).value,
-                                          v_T.to(vel_units).value,
-                                          v_z.to(vel_units).value],
-                                         dispersion.to(vel_units).value / np.sqrt(3),
-                                         size=(3, self.n_binaries_match)) * vel_units
+            if (ptype == 0 or ptype == 4) and (header["Flag_Metals"] > 0):
+                metal_t = input_struct[bname + "Metallicity"]
+                if (header["Flag_Metals"] > 1):
+                    if (metal_t.shape[0] != npart[ptype]):
+                        metal_t = np.transpose(metal_t)
+                else:
+                    metal_t = np.reshape(np.array(metal_t), (np.array(metal_t).size, 1))
+                metal[nL:nR, :] = metal_t
 
-        self._initial_galaxy._v_R = v_R
-        self._initial_galaxy._v_T = v_T
-        self._initial_galaxy._v_z = v_z
+            if ptype == 4 and header["Flag_Sfr"] > 0 and header["Flag_StellarAge"] > 0:
+                one_D_vars["age"][nL:nR] = input_struct[bname + "StellarFormationTime"]
+
+            # move cursor for next iteration
+            nL = nR
+
+    # correct to same ID as original gas particle for new stars, if bit-flip applied
+    if (np.min(ids) < 0) | (np.max(ids) > 1.e9):
+        bad = (ids < 0) | (ids > 1.e9)
+        ids[bad] += (1 << 31)
+
+    # do the cosmological conversions on final vectors as needed
+    pos *= hinv * ascale        # snapshot units are comoving
+    mass *= hinv
+    vel *= np.sqrt(ascale)      # remember gadget's weird velocity units!
+    if ptype == 0:
+        one_D_vars["rho"] *= (hinv / (ascale*hinv)**3)
+        one_D_vars["h"] *= hinv * ascale
+    if ptype == 4 and header["Flag_Sfr"] > 0 and header["Flag_StellarAge"] > 0 and not cosmological:
+        one_D_vars["age"] *= hinv
+
+    params = {'k': 1, 'p': pos, 'v': vel, 'm': mass, 'id': ids}
+    params.update(one_D_vars)
+    if ptype in [0, 4] and header["Flag_Metals"] > 0:
+        params.update({'Z': metal})
+    file.close()
+    return params, header_params
