@@ -315,7 +315,8 @@ class Population():
             "galaxy": r"The \texttt{cogsworth} population used a galaxy model based on the following papers",
             "observables": "Population observables were estimated using dust maps and MIST isochrones",
             "gaia": "Observability of systems with Gaia was predicted using an empirical selection function",
-            "legwork": "Calculation of LISA gravitational wave signatures was performed using LEGWORK"
+            "legwork": "Calculation of LISA gravitational wave signatures was performed using LEGWORK",
+            "FIRE": "The initial conditions for the population were sampled from the FIRE simulations",
         }
 
         acknowledgement = r"This research made use of \texttt{cogsworth} and its dependencies"

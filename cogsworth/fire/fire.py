@@ -319,6 +319,7 @@ class FIREPopulation(Population):
         if "n_binaries" not in kwargs:
             kwargs["n_binaries"] = None
         super().__init__(sampling_params=sampling_params, **kwargs)
+        self.__citations__.append("FIRE")
 
     def __getitem__(self, ind):
         if self._initC is not None and "particle_id" not in self._initC.columns:
@@ -328,6 +329,12 @@ class FIREPopulation(Population):
         new_pop.particle_size = self.particle_size
         new_pop.virial_parameter = self.virial_parameter
         return new_pop
+
+    def get_citations(self, filename=None):
+        super().get_citations(filename)
+        print("\nNOTE: This population was sampled from a FIRE snapshot...but I don't know which one so I "
+              "can't automate this citation, please cite the relevant FIRE paper(s) (e.g. see here: "
+              "http://flathub.flatironinstitute.org/fire)")
 
     def sample_initial_binaries(self):
         """Sample initial binaries from the star particles in the snapshot"""
