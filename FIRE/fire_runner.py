@@ -127,8 +127,8 @@ def run_boundedness_sim(alpha_vir, subset=None, processes=32, extra_time=200 * u
     Runs a cogsworth simulation using the FIRE (Feedback In Realistic Environments) simulations, varying star
     particle boundedness.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     alpha_vir : float
         The virial parameter used to determine star particle boundedness.
     subset : int, optional

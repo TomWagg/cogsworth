@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.optimize
 import h5py as h5
 import os
 import warnings
@@ -179,7 +180,6 @@ def gaussfit_star_centre(ps_p, pg_p, pg_rho, clip_size=2.e10, rho_cut=1.0e-5):
     centre : :class:`~numpy.ndarray`
         The centre of the galaxy
     """
-    import scipy.optimize
     rgrid = np.array([1.0e10, 1000, 700, 500, 300, 200, 100, 70, 50, 30, 20.])
     rgrid = rgrid[rgrid <= clip_size]
 
