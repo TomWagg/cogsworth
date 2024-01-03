@@ -137,3 +137,4 @@ dustmaps/*
 docs/api
 docs/auto_examples
 cov.xml
+how_much_code.sh
