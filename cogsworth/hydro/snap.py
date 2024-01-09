@@ -41,15 +41,15 @@ class Snapshot():
         self.max_r = max_r
         self.min_t_form = min_t_form
 
-        self._p = None
-        self._v = None
+        self._snap_p = None
+        self._snap_v = None
         self._m = None
         self._Z = None
         self._ids = None
         self._t_form = None
 
-        self._X_s = None
-        self._V_s = None
+        self._p = None
+        self._v = None
 
     def apply_mask(self, max_r=30 * u.kpc, min_t_form=13.6 * u.Gyr):
         """Apply a radius/age cut to the snapshot
@@ -62,7 +62,7 @@ class Snapshot():
             Minimum formation time that a particle can have, by default 13.6*u.Gyr
         """
         # mask based on max distance to galaxy centre
-        r_mask = np.linalg.norm(self.p_all, axis=1) < max_r
+        r_mask = np.linalg.norm(self.snap_p_all, axis=1) < max_r
 
         # only stars have formation times
         if self.particle_type == 4:
@@ -71,37 +71,38 @@ class Snapshot():
             total_mask = r_mask & age_mask
         else:
             total_mask = r_mask
-        self._p = self.p_all[total_mask]
-        self._v = self.v_all[total_mask]
+        self._snap_p = self.snap_p_all[total_mask]
+        self._snap_v = self.snap_v_all[total_mask]
         self._m = self.m_all[total_mask]
         self._Z = self.Z_all[total_mask] if self.Z_all is not None else None
         self._ids = self.ids_all[total_mask]
-        self._X_s = None
-        self._V_s = None
+        self._p = None
+        self._v = None
 
         if self.particle_type == 4:
             self._t_form = self.t_form_all[total_mask]
 
     def __repr__(self) -> str:
-        return (f"<{self.__class__.__name__} | {len(self.p)} {FIRE_ptypes[self.particle_type]} particles | "
+        return (f"<{self.__class__.__name__} | {len(self.snap_p)} "
+                f"{FIRE_ptypes[self.particle_type]} particles | "
                 f"R < {self.max_r} & t_form > {self.min_t_form}>")
 
     def __len__(self) -> int:
-        return len(self.p)
+        return len(self.snap_p)
 
     @property
-    def p(self):
-        """FIRE Positions"""
-        if self._p is None:
+    def snap_p(self):
+        """Snapshot positions"""
+        if self._snap_p is None:
             self.apply_mask(max_r=self.max_r, min_t_form=self.min_t_form)
-        return self._p
+        return self._snap_p
 
     @property
-    def v(self):
-        """FIRE Velocities"""
-        if self._v is None:
+    def snap_v(self):
+        """Snapshot velocities"""
+        if self._snap_v is None:
             self.apply_mask(max_r=self.max_r, min_t_form=self.min_t_form)
-        return self._v
+        return self._snap_v
 
     @property
     def m(self):
@@ -134,37 +135,37 @@ class Snapshot():
     @property
     def x(self):
         """Galactocentric x positions"""
-        return self.X_s[0]
+        return self.p[0]
 
     @property
     def y(self):
         """Galactocentric y positions"""
-        return self.X_s[1]
+        return self.p[1]
 
     @property
     def z(self):
         """Galactocentric z positions"""
-        return self.X_s[2]
+        return self.p[2]
 
     @property
     def r(self):
         """Galactocentric radius"""
-        return np.linalg.norm(self.X_s, axis=0)
+        return np.linalg.norm(self.p, axis=0)
 
     @property
     def v_x(self):
         """Galactocentric x velocities"""
-        return self.V_s[0]
+        return self.v[0]
 
     @property
     def v_y(self):
         """Galactocentric y velocities"""
-        return self.V_s[1]
+        return self.v[1]
 
     @property
     def v_z(self):
         """Galactocentric x velocities"""
-        return self.V_s[2]
+        return self.v[2]
 
 
 class FIRESnapshot(Snapshot):
@@ -204,8 +205,8 @@ class FIRESnapshot(Snapshot):
         self.snap_time = quick_lookback_time(1 / header["time"] - 1, h=self.h, Omega_M=self.Omega_M) * u.Gyr
 
         # get the positions, velocities, masses and ages in right units
-        self.p_all = (snap["p"] - self.stellar_centre) * u.kpc / self.h
-        self.v_all = (snap["v"] - self.v_cm) * u.km / u.s
+        self.snap_p_all = (snap["p"] - self.stellar_centre) * u.kpc / self.h
+        self.snap_v_all = (snap["v"] - self.v_cm) * u.km / u.s
         self.m_all = snap["m"] * 1e10 * u.Msun / self.h
         self.Z_all = snap["Z"][:, 0] if "Z" in list(snap.keys()) else None
         self.ids_all = snap["id"]
@@ -287,18 +288,18 @@ class FIRESnapshot(Snapshot):
                                                                     project_ang_mom=project_ang_mom)
 
     @property
-    def X_s(self):
+    def p(self):
         """Galactocentric positions"""
-        if self._X_s is None:
-            self._X_s = np.matmul(self.p.to(u.kpc).value, self.n.T).T * u.kpc
-        return self._X_s
+        if self._p is None:
+            self._p = np.matmul(self.snap_p.to(u.kpc).value, self.n.T).T * u.kpc
+        return self._p
 
     @property
-    def V_s(self):
+    def v(self):
         """Galactocentric velocities"""
-        if self._V_s is None:
-            self._V_s = np.matmul(self.v.to(u.km / u.s).value, self.n.T).T * u.km / u.s
-        return self._V_s
+        if self._v is None:
+            self._v = np.matmul(self.snap_v.to(u.km / u.s).value, self.n.T).T * u.km / u.s
+        return self._v
 
 
 def read_snapshot(snap_dir, snap_num, ptype, h0=False, cosmological=True, header_only=False):
