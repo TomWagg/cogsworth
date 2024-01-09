@@ -3,12 +3,11 @@ import scipy.optimize
 import h5py as h5
 import os
 import warnings
-from .snap import read_snapshot
 
 __all__ = ["find_centre", "half_mass_radius", "get_angular_momentum", "get_v_CM"]
 
 
-def find_centre(snap_dir, snap_num, out_path=None, theta=0.0, phi=0.0, project_ang_mom=True):
+def find_centre(stars, gas, out_path=None, theta=0.0, phi=0.0, project_ang_mom=True):
     """Find the centre of a galaxy by analysing star and gas particle positions and densities.
 
     Parameters
@@ -41,13 +40,13 @@ def find_centre(snap_dir, snap_num, out_path=None, theta=0.0, phi=0.0, project_a
     gridsize = 50
 
     # Pull up the star particle positions, and masses
-    stars, _ = read_snapshot(snap_dir=snap_dir, snap_num=snap_num, ptype=4)
+    # stars, _ = read_snapshot(snap_dir=snap_dir, snap_num=snap_num, ptype=4)
     pos_star = stars['p']
     vel_star = stars['v']
     mass_star = stars['m']
 
     # Pull up the gas particle positions, and number densities.
-    gas, _ = read_snapshot(snap_dir=snap_dir, snap_num=snap_num, ptype=0)
+    # gas, _ = read_snapshot(snap_dir=snap_dir, snap_num=snap_num, ptype=0)
     pos_gas = gas['p']
     rho_gas = gas['rho'] * 404      # num density
     # TODO: Ask Matt about this factor of 404
