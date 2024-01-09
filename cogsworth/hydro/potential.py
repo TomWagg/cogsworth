@@ -12,10 +12,10 @@ def get_snapshot_potential(components=None, snap_dir=None, snap_num=None, snap_p
         if verbose:
             print("Loading snapshots from files")
         components = [FIRESnapshot(snap_dir=snap_dir, snap_num=snap_num, particle_type=pt, **snap_params)
-                      for pt in ["stars", "dark_matter", "gas"]]
+                      for pt in ["star", "dark matter", "gas"]]
 
     pot = gp.CompositePotential()
-    for label, snap, r_s in zip(["stars", "dark_matter", "gas"], components, [3, 10, 3]):
+    for label, snap, r_s in zip(["star", "dark matter", "gas"], components, [3, 10, 3]):
         if verbose:
             print(f"Computing potential for {label}")
         Snlm, Tnlm = gp.scf.compute_coeffs_discrete(xyz=snap.X_s.T.to(u.kpc).value,
