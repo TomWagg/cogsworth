@@ -8,10 +8,10 @@ from .centre import find_centre
 from .utils import quick_lookback_time, FIRE_ptypes
 
 
-class FIRESnapshot():
-    def __init__(self, snap_dir, snap_num, max_r=30 * u.kpc,
-                 min_t_form=13.6 * u.Gyr, particle_type="star", cosmological=True, centre_params={}):
-        """Access data from a specific FIRE snapshot.
+class Snapshot():
+    def __init__(self, snap_dir, snap_num=None, particle_type="star",
+                 max_r=1 * u.Gpc, min_t_form=0 * u.Gyr):
+        """Access data from a hydrodynamical zoom-in snapshot.
 
         Allows you mask data based on radius and age, as well as account for offsets from centre in position
         and velocity.
@@ -21,18 +21,14 @@ class FIRESnapshot():
         snap_dir : `str`, optional
             Directory in which to find the snapshot
         snap_num : `int`, optional
-            ID of the snapshot
-        max_r : :class:`~astropy.units.Quantity` [length], optional
-            Maximum distance from galactic centre of particle to include, by default 30*u.kpc
-        min_t_form : :class:`~astropy.units.Quantity` [time], optional
-            Minimum formation time that a particle can have, by default 13.6*u.Gyr
+            ID of the snapshot, by default None (not all snapshot classes require this)
         particle_type : `str` or `int`, optional
-            Which type of particle to consider either one of {"gas", "dark matter", "dark matter low res", 
+            Which type of particle to consider either one of {"gas", "dark matter", "dark matter low res",
             "star"} or {0, 1, 2, 4}, by default "star"
-        cosmological : `bool`, optional
-            Whether the simulation was run in cosmological mode, by default True
-        centre_params : `dict`, optional
-            Parameters to pass to :meth:`FIRESnapshot.set_centre` when calculating the centre of the galaxy
+        max_r : :class:`~astropy.units.Quantity` [length], optional
+            Maximum distance from galactic centre of particle to include, by default 1*u.Gpc (i.e. no cut)
+        min_t_form : :class:`~astropy.units.Quantity` [time], optional
+            Minimum formation time that a particle can have, by default 0*u.Gyr (i.e. no cut)
         """
         # convert particle type to expected int
         if isinstance(particle_type, str):
@@ -42,27 +38,8 @@ class FIRESnapshot():
         self.particle_type = particle_type
         self.snap_dir = snap_dir
         self.snap_num = snap_num
-        self.cosmological = cosmological
-
-        # grab the snapshot data
-        snap, header = self.get_snap(cosmological=self.cosmological)
-
-        self.set_centre(**centre_params)
-
-        self.h = header["hubble"]
-        self.Omega_M = header["Omega0"]
-        self.snap_time = quick_lookback_time(1 / header["time"] - 1, h=self.h, Omega_M=self.Omega_M) * u.Gyr
         self.max_r = max_r
         self.min_t_form = min_t_form
-
-        # get the positions, velocities, masses and ages in right units
-        self.p_all = (snap["p"] - self.stellar_centre) * u.kpc / self.h
-        self.v_all = (snap["v"] - self.v_cm) * u.km / u.s
-        self.m_all = snap["m"] * 1e10 * u.Msun / self.h
-        self.Z_all = snap["Z"][:, 0]
-        self.ids_all = snap["id"]
-        self.t_form_all = quick_lookback_time(1 / snap["age"] - 1, h=self.h, Omega_M=self.Omega_M) * u.Gyr\
-            if particle_type == 4 else None
 
         self._p = None
         self._v = None
@@ -73,78 +50,6 @@ class FIRESnapshot():
 
         self._X_s = None
         self._V_s = None
-
-    def get_snap(self, ptype=None, h0=False, cosmological=None, header_only=False):
-        """Read in a snapshot from a FIRE simulation
-
-        This code is heavily based on a function written by Matt Orr, thanks Matt!
-
-        Parameters
-        ----------
-        ptype : `int`, optional
-            Particle type to use, by default self.particle_type
-        h0 : `bool`, optional
-            _description_, by default False
-        cosmological : `bool`, optional
-            Whether the simulation was run in cosmological mode, by default self.cosmological
-        header_only : `bool`, optional
-            Whether to just return the header information, by default False
-
-        Returns
-        -------
-        params : `dict`
-            The various parameters associated with the snapshot and `self.particle_type` across every file
-            from this snapshot (only returned when `header_only` is False)
-        header_params : `dict`
-            The header parameters for this snapshot
-
-        Raises
-        ------
-        FileNotFoundError
-            No snapshot file could be found
-        ValueError
-            No particles of type `self.particle_type` in snapshot
-        """
-        return read_snapshot(self.snap_dir, self.snap_num,
-                             ptype=self.particle_type if ptype is None else ptype,
-                             h0=h0, cosmological=self.cosmological if cosmological is None else cosmological,
-                             header_only=header_only)
-
-    def set_centre(self, centres_dir=None, theta=0.0, phi=0.0, project_ang_mom=True, force_recalculate=False, verbose=False):
-        """Set the centre of the galaxy, the centre of mass velocity and normal vector to galactic plane
-
-        If this already exists in a file then it will be read in, otherwise it will be calculated and saved
-
-        Parameters
-        ----------
-        centres_dir : `str`, optional
-            Directory of the files listing the centres of the galaxy, by default subdirectory "centres" in
-            `snap_dir`
-        theta : `float`, optional
-            Angle to use if not projecting, by default 0.0
-        phi : , optional
-            Angle to use if not projecting, by default 0.0
-        project_ang_mom : `bool`, optional
-            Whether to project to the plane perpendicular to the total angular momentum, by default True
-        force_recalculate : `bool`, optional
-            Whether to recalculate even if there's a file with a centre already found, by default False
-        verbose : `bool`, optional
-            Whether to print out more information, by default False
-        """
-        centres_dir = os.path.join(self.snap_dir, "centres") if centres_dir is None else centres_dir
-        centre_file = os.path.join(centres_dir, f"snap_{self.snap_num}_cents.hdf5")
-        if (os.path.exists(centre_file) and not force_recalculate):
-            if verbose:
-                print("Using previously calculated centre and normal vector from {centre_file}")
-            with h5.File(centre_file, 'r') as cent:
-                self.n = cent.attrs["NormalVector"]
-                self.stellar_centre = cent.attrs["StellarCenter"]
-                self.v_cm = cent.attrs["StellarCMVel"]
-        else:
-            self.stellar_centre, self.v_cm, self.n, _ = find_centre(self.snap_dir, self.snap_num,
-                                                                    out_path=centres_dir,
-                                                                    theta=theta, phi=phi,
-                                                                    project_ang_mom=project_ang_mom)
 
     def apply_mask(self, max_r=30 * u.kpc, min_t_form=13.6 * u.Gyr):
         """Apply a radius/age cut to the snapshot
@@ -227,20 +132,6 @@ class FIRESnapshot():
         return self._t_form
 
     @property
-    def X_s(self):
-        """Galactocentric positions"""
-        if self._X_s is None:
-            self._X_s = np.matmul(self.p.to(u.kpc).value, self.n.T).T * u.kpc
-        return self._X_s
-
-    @property
-    def V_s(self):
-        """Galactocentric velocities"""
-        if self._V_s is None:
-            self._V_s = np.matmul(self.v.to(u.km / u.s).value, self.n.T).T * u.km / u.s
-        return self._V_s
-
-    @property
     def x(self):
         """Galactocentric x positions"""
         return self.X_s[0]
@@ -274,6 +165,138 @@ class FIRESnapshot():
     def v_z(self):
         """Galactocentric x velocities"""
         return self.V_s[2]
+
+
+class FIRESnapshot(Snapshot):
+    def __init__(self, snap_dir, snap_num=None, particle_type="star",
+                 max_r=1 * u.Gpc, min_t_form=0 * u.Gyr, cosmological=True, centre_params={}):
+        """Access data from a FIRE snapshot.
+
+        Parameters
+        ----------
+        snap_dir : `str`, optional
+            Directory in which to find the snapshot
+        snap_num : `int`, optional
+            ID of the snapshot
+        max_r : :class:`~astropy.units.Quantity` [length], optional
+            Maximum distance from galactic centre of particle to include, by default 30*u.kpc
+        min_t_form : :class:`~astropy.units.Quantity` [time], optional
+            Minimum formation time that a particle can have, by default 13.6*u.Gyr
+        particle_type : `str` or `int`, optional
+            Which type of particle to consider either one of {"gas", "dark matter", "dark matter low res", 
+            "star"} or {0, 1, 2, 4}, by default "star"
+        cosmological : `bool`, optional
+            Whether the simulation was run in cosmological mode, by default True
+        centre_params : `dict`, optional
+            Parameters to pass to :meth:`FIRESnapshot.set_centre` when calculating the centre of the galaxy
+        """
+        super().__init__(snap_dir=snap_dir, snap_num=snap_num, particle_type=particle_type,
+                         max_r=max_r, min_t_form=min_t_form)
+
+        # grab the snapshot data
+        self.cosmological = cosmological
+        snap, header = self.get_snap(cosmological=self.cosmological)
+
+        self.set_centre(**centre_params)
+
+        self.h = header["hubble"]
+        self.Omega_M = header["Omega0"]
+        self.snap_time = quick_lookback_time(1 / header["time"] - 1, h=self.h, Omega_M=self.Omega_M) * u.Gyr
+
+        # get the positions, velocities, masses and ages in right units
+        self.p_all = (snap["p"] - self.stellar_centre) * u.kpc / self.h
+        self.v_all = (snap["v"] - self.v_cm) * u.km / u.s
+        self.m_all = snap["m"] * 1e10 * u.Msun / self.h
+        self.Z_all = snap["Z"][:, 0]
+        self.ids_all = snap["id"]
+        self.t_form_all = quick_lookback_time(1 / snap["age"] - 1, h=self.h, Omega_M=self.Omega_M) * u.Gyr\
+            if particle_type == 4 else None
+
+    def get_snap(self, ptype=None, h0=False, cosmological=None, header_only=False):
+        """Read in a snapshot from a FIRE simulation
+
+        This code is heavily based on a function written by Matt Orr, thanks Matt!
+
+        Parameters
+        ----------
+        ptype : `int`, optional
+            Particle type to use, by default self.particle_type
+        h0 : `bool`, optional
+            _description_, by default False
+        cosmological : `bool`, optional
+            Whether the simulation was run in cosmological mode, by default self.cosmological
+        header_only : `bool`, optional
+            Whether to just return the header information, by default False
+
+        Returns
+        -------
+        params : `dict`
+            The various parameters associated with the snapshot and `self.particle_type` across every file
+            from this snapshot (only returned when `header_only` is False)
+        header_params : `dict`
+            The header parameters for this snapshot
+
+        Raises
+        ------
+        FileNotFoundError
+            No snapshot file could be found
+        ValueError
+            No particles of type `self.particle_type` in snapshot
+        """
+        return read_snapshot(self.snap_dir, self.snap_num,
+                             ptype=self.particle_type if ptype is None else ptype,
+                             h0=h0, cosmological=self.cosmological if cosmological is None else cosmological,
+                             header_only=header_only)
+
+    def set_centre(self, centres_dir=None, theta=0.0, phi=0.0, project_ang_mom=True, force_recalculate=False, verbose=False):
+        """Set the centre of the galaxy, the centre of mass velocity and normal vector to galactic plane
+
+        If this already exists in a file then it will be read in, otherwise it will be calculated and saved
+
+        Parameters
+        ----------
+        centres_dir : `str`, optional
+            Directory of the files listing the centres of the galaxy, by default subdirectory "centres" in
+            `snap_dir`
+        theta : `float`, optional
+            Angle to use if not projecting, by default 0.0
+        phi : , optional
+            Angle to use if not projecting, by default 0.0
+        project_ang_mom : `bool`, optional
+            Whether to project to the plane perpendicular to the total angular momentum, by default True
+        force_recalculate : `bool`, optional
+            Whether to recalculate even if there's a file with a centre already found, by default False
+        verbose : `bool`, optional
+            Whether to print out more information, by default False
+        """
+        centres_dir = os.path.join(self.snap_dir, "centres") if centres_dir is None else centres_dir
+        centre_file = os.path.join(centres_dir, f"snap_{self.snap_num}_cents.hdf5")
+        if (os.path.exists(centre_file) and not force_recalculate):
+            if verbose:
+                print("Using previously calculated centre and normal vector from {centre_file}")
+            with h5.File(centre_file, 'r') as cent:
+                self.n = cent.attrs["NormalVector"]
+                self.stellar_centre = cent.attrs["StellarCenter"]
+                self.v_cm = cent.attrs["StellarCMVel"]
+        else:
+            self.stellar_centre, self.v_cm, self.n, _ = find_centre(self.snap_dir, self.snap_num,
+                                                                    out_path=centres_dir,
+                                                                    theta=theta, phi=phi,
+                                                                    project_ang_mom=project_ang_mom)
+
+    @property
+    def X_s(self):
+        """Galactocentric positions"""
+        if self._X_s is None:
+            self._X_s = np.matmul(self.p.to(u.kpc).value, self.n.T).T * u.kpc
+        return self._X_s
+
+    @property
+    def V_s(self):
+        """Galactocentric velocities"""
+        if self._V_s is None:
+            self._V_s = np.matmul(self.v.to(u.km / u.s).value, self.n.T).T * u.km / u.s
+        return self._V_s
 
 
 def read_snapshot(snap_dir, snap_num, ptype, h0=False, cosmological=True, header_only=False):
