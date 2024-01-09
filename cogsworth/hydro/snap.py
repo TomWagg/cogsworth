@@ -74,7 +74,7 @@ class Snapshot():
         self._p = self.p_all[total_mask]
         self._v = self.v_all[total_mask]
         self._m = self.m_all[total_mask]
-        self._Z = self.Z_all[total_mask]
+        self._Z = self.Z_all[total_mask] if self.Z_all is not None else None
         self._ids = self.ids_all[total_mask]
         self._X_s = None
         self._V_s = None
@@ -207,10 +207,10 @@ class FIRESnapshot(Snapshot):
         self.p_all = (snap["p"] - self.stellar_centre) * u.kpc / self.h
         self.v_all = (snap["v"] - self.v_cm) * u.km / u.s
         self.m_all = snap["m"] * 1e10 * u.Msun / self.h
-        self.Z_all = snap["Z"][:, 0]
+        self.Z_all = snap["Z"][:, 0] if "Z" in list(snap.keys()) else None
         self.ids_all = snap["id"]
         self.t_form_all = quick_lookback_time(1 / snap["age"] - 1, h=self.h, Omega_M=self.Omega_M) * u.Gyr\
-            if particle_type == 4 else None
+            if self.particle_type == 4 else None
 
     def get_snap(self, ptype=None, h0=False, cosmological=None, header_only=False):
         """Read in a snapshot from a FIRE simulation
@@ -279,7 +279,9 @@ class FIRESnapshot(Snapshot):
                 self.stellar_centre = cent.attrs["StellarCenter"]
                 self.v_cm = cent.attrs["StellarCMVel"]
         else:
-            self.stellar_centre, self.v_cm, self.n, _ = find_centre(self.snap_dir, self.snap_num,
+            stars = self.get_snap(ptype=4, header_only=False)[0]
+            gas = self.get_snap(ptype=0, header_only=False)[0]
+            self.stellar_centre, self.v_cm, self.n, _ = find_centre(stars, gas,
                                                                     out_path=centres_dir,
                                                                     theta=theta, phi=phi,
                                                                     project_ang_mom=project_ang_mom)
