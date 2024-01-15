@@ -15,7 +15,7 @@ __all__ = ["HydroPopulation"]
 
 class HydroPopulation(Population):
     def __init__(self, star_particles, particle_size=1 * u.pc, virial_parameter=1.0, subset=None,
-                 sampling_params={"sampling_target": "total_mass", "trim_extra_samples": True}, **kwargs):
+                 sampling_params={}, snapshot_type=None, **kwargs):
         """A population of stars sampled from a hydrodynamical zoom-in snapshot
 
         Each star particle in the snapshot is converted to a (binary) stellar population, sampled with COSMIC,
@@ -36,9 +36,12 @@ class HydroPopulation(Population):
             passed, a random subset of that size is used, if a list of integers is passed, only those IDs are
             used.
         sampling_params : `dict`, optional
-            As in :class:~cogsworth.pop.Population` but changing the defaults to
+            As in :class:`~cogsworth.pop.Population` BUT changing the defaults to
             {"sampling_target": "total_mass", "trim_extra_samples": True} (i.e. to sample to the total mass of
             the star particle)
+        snapshot_type : `str`, optional
+            What sort of snapshot this to infer what citations to use, by default None (i.e. don't infer).
+            Currently supported: "FIRE"
         **kwargs : various
             Parameters to pass to :class:`~cogsworth.pop.Population`
         """
@@ -52,8 +55,14 @@ class HydroPopulation(Population):
             self._subset_inds = subset
         if "n_binaries" not in kwargs:
             kwargs["n_binaries"] = None
-        super().__init__(sampling_params=sampling_params, **kwargs)
-        self.__citations__.append("FIRE")
+
+        base_sampling_params = {"sampling_target": "total_mass", "trim_extra_samples": True}
+        base_sampling_params.update(sampling_params)
+        super().__init__(sampling_params=base_sampling_params, **kwargs)
+
+        if snapshot_type is not None:
+            if snapshot_type.lower() == "fire":
+                self.__citations__.append("FIRE")
 
     def __getitem__(self, ind):
         if self._initC is not None and "particle_id" not in self._initC.columns:
@@ -66,16 +75,16 @@ class HydroPopulation(Population):
 
     def get_citations(self, filename=None):
         super().get_citations(filename)
-        print("\nNOTE: This population was sampled from a FIRE snapshot...but I don't know which one so I "
-              "can't automate this citation, please cite the relevant FIRE paper(s) (e.g. see here: "
-              "http://flathub.flatironinstitute.org/fire)")
+        print("\nNOTE: This population was sampled from a hydrodynamical zoom-in snapshot...but I don't know "
+              "which one so I can't automate this citation, please cite the relevant paper(s) (e.g. for FIRE "
+              "snapshots see here: http://flathub.flatironinstitute.org/fire)")
 
     def sample_initial_binaries(self):
         """Sample initial binaries from the star particles in the snapshot"""
         initial_binaries_list = [None for _ in range(len(self.star_particles))]
         self._mass_singles, self._mass_binaries, self._n_singles_req, self._n_bin_req = 0.0, 0.0, 0, 0
 
-        for i in self._subset_inds:
+        for ibl_ind, i in enumerate(self._subset_inds):
             particle = self.star_particles.loc[i]
             samples = InitialBinaryTable.sampler('independent', self.final_kstar1, self.final_kstar2,
                                                  binfrac_model=self.BSE_settings["binfrac"],
@@ -91,7 +100,7 @@ class HydroPopulation(Population):
             samples[0]["particle_id"] = np.repeat(i, len(samples[0]))
 
             # save samples
-            initial_binaries_list[i] = samples[0]
+            initial_binaries_list[ibl_ind] = samples[0]
             self._mass_singles += samples[1]
             self._mass_binaries += samples[2]
             self._n_singles_req += samples[3]
