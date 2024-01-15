@@ -8,6 +8,8 @@ from multiprocessing import Pool
 from tqdm import tqdm
 import warnings
 
+__all__ = ["rewind_to_formation"]
+
 
 def rewind_to_formation(subsnap, pot, dt=-1 * u.Myr, processes=1):
     """Rewind a snapshot to the time of formation of each particle

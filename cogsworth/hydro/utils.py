@@ -4,8 +4,10 @@ import astropy.constants as const
 
 import pynbody
 
+__all__ = ["prepare_snapshot", "dispersion_from_virial_parameter"]
 
-def prepare_snapshot(path, halo_params={}):
+
+def prepare_snapshot(path, halo_params={"mode": "hyb"}):
     """Prepare a snapshot for use in cogsworth
 
     Convert a snapshot to physical units, centre it on the main halo, and orient it face-on and side-on.
@@ -13,9 +15,9 @@ def prepare_snapshot(path, halo_params={}):
     Parameters
     ----------
     path : `string`
-        Path to the snapshot file or directory (as used in :meth:`pynbody.load`)
+        Path to the snapshot file or directory (as used in :func:`pynbody.snapshot.load`)
     halo_params : `dict`, optional
-        Keyword parameters to be passed to :meth:`pynbody.analysis.halo.center`, by default {}
+        Keyword parameters to be passed to :func:`pynbody.analysis.halo.center`, by default {"mode": "hyb"}
 
     Returns
     -------

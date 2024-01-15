@@ -1,6 +1,8 @@
 from gala.units import galactic
 import gala.potential as gp
 
+__all__ = ["get_snapshot_potential"]
+
 
 def get_snapshot_potential(snap, components=[{"label": "star", "attr": "s", "r_s": 3},
                                              {"label": "dark matter", "attr": "dm", "r_s": 10},
