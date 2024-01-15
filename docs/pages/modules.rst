@@ -7,7 +7,7 @@ each module in detail, as well as the changelog for the package. If you can't fi
 then you can also use the search box above!
 
 .. toctree::
-    :maxdepth: 10
+    :maxdepth: 1
     :caption: Modules
 
     ../modules/pop
