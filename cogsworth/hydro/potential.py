@@ -10,7 +10,7 @@ def get_snapshot_potential(snap, components=[{"label": "star", "attr": "s", "r_s
 
     Parameters
     ----------
-    snap : `pynbody.snapshot.SimSnap`
+    snap : :class:`pynbody.snapshot.SimSnap`
         The snapshot
     components : `list`, optional
         List of components to add to the potential, each component specifies the label to use, attribute in
@@ -27,7 +27,7 @@ def get_snapshot_potential(snap, components=[{"label": "star", "attr": "s", "r_s
 
     Returns
     -------
-    pot : `gala.potential.CompositePotential`
+    pot : :class:`gala.potential.potential.CompositePotential`
         Potential of the snapshot
     """
     # start a composite potential

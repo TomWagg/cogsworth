@@ -16,7 +16,7 @@ def rewind_to_formation(subsnap, pot, dt=-1 * u.Myr, processes=1):
     ----------
     subsnap : :class:`pynbody.snapshot.SimSnap`
         A subset of a snapshot containing only the particles to rewind
-    pot : :class:`gala.potential.CompositePotential`
+    pot : :class:`gala.potential.potential.CompositePotential`
         The potential of the snapshot
     dt : :class:`~astropy.units.Quantity` [time], optional
         Timestep size, by default -1*u.Myr
