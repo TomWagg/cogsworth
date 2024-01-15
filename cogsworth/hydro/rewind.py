@@ -11,6 +11,13 @@ import warnings
 __all__ = ["rewind_to_formation"]
 
 
+# define a function to integrate the orbit of a particle backwards in time
+def _tohspans(pot, wf, t1, t2, dt):
+    """tohspans = snapshot backwards in time lol"""
+    return pot.integrate_orbit(wf, t1=t1, t2=t2, dt=dt,
+                               Integrator=gi.DOPRI853Integrator, store_all=False)[-1]
+
+
 def rewind_to_formation(subsnap, pot, dt=-1 * u.Myr, processes=1):
     """Rewind a snapshot to the time of formation of each particle
 
@@ -34,27 +41,25 @@ def rewind_to_formation(subsnap, pot, dt=-1 * u.Myr, processes=1):
     # get the final time of the snapshot in Myr
     final_time = subsnap.properties["time"].in_units("Myr") * u.Myr
 
-    # define a function to integrate the orbit of a particle backwards in time
-    def _tohspans(w0, t2):
-        """tohspans = snapshot backwards in time lol"""
-        return pot.integrate_orbit(w0, t1=final_time, t2=t2, dt=dt,
-                                   Integrator=gi.DOPRI853Integrator, store_all=False)[-1]
-
     # convert the final particles to a phase-space position
     wf = gd.PhaseSpacePosition(pos=np.transpose(subsnap["pos"].in_units("kpc")) * u.kpc,
                                vel=np.transpose(subsnap["vel"].in_units("km s**-1")) * u.km / u.s)
     # store their formation times in Myr
     tforms = subsnap["tform"].in_units("Myr") * u.Myr
 
+    def args(wf, tforms):
+        for w, t in zip(wf, tforms):
+            yield pot, w, final_time, t, dt
+
     # integrate the orbits of the particles backwards in time to their formation times
     # if the user wants to use multiple processes, do so
     if processes > 1:
         with Pool(processes) as pool:
-            w0 = pool.starmap(_tohspans, tqdm(zip(wf, tforms), total=len(subsnap)))
+            w0 = list(pool.starmap(_tohspans, tqdm(args(wf, tforms), total=len(subsnap))))
 
     # otherwise, just do it single-threaded
     else:
-        w0 = [_tohspans(wf[i], tforms[i]) for i in tqdm(range(len(subsnap)))]
+        w0 = [_tohspans(pot, wf[i], final_time, tforms[i], dt) for i in tqdm(range(len(subsnap)))]
 
     # check if the formation masses are available, warn if not
     if "massform" not in subsnap.all_keys():
@@ -76,5 +81,7 @@ def rewind_to_formation(subsnap, pot, dt=-1 * u.Myr, processes=1):
 
     df = pd.DataFrame(init_particles, columns=["mass", "Z", "t_form", "id",
                                                "x", "y", 'z', 'v_x', 'v_y', 'v_z'])
+    # change ID column to integers and use as index
+    df = df.astype({"id": int}, copy=False)
     df.set_index("id", inplace=True)
     return df
