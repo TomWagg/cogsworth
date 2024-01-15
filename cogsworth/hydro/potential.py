@@ -1,28 +1,54 @@
-import astropy.units as u
 from gala.units import galactic
 import gala.potential as gp
 
 
-def get_snapshot_potential(components=None, snap_dir=None, snap_num=None, snap_params={}, out_path=None,
-                           nmax=15, lmax=5, verbose=False):
-    if components is None and (snap_dir is None or snap_num is None):
-        raise ValueError("Must provide either `components` or `snap_dir` and `snap_num`")
-    elif components is None:
-        if verbose:
-            print("Loading snapshots from files")
-        components = [FIRESnapshot(snap_dir=snap_dir, snap_num=snap_num, particle_type=pt, **snap_params)
-                      for pt in ["star", "dark matter", "gas"]]
+def get_snapshot_potential(snap, components=[{"label": "star", "attr": "s", "r_s": 3},
+                                             {"label": "dark matter", "attr": "dm", "r_s": 10},
+                                             {"label": "gas", "attr": "g", "r_s": 3}],
+                           out_path=None, nmax=15, lmax=5, verbose=False):
+    r"""Compute the potential of a snapshot of a hydrodynamical zoom-in simulation
 
+    Parameters
+    ----------
+    snap : `pynbody.snapshot.SimSnap`
+        The snapshot
+    components : `list`, optional
+        List of components to add to the potential, each component specifies the label to use, attribute in
+        the pynbody snap and scale radius to use, by default includes stars, dark matter and gas with scale
+        radii of 3, 10 and 3 kpc respectively
+    out_path : `str`, optional
+        Path to save the potential (should be a .yml file), by default None
+    nmax : `int`, optional
+        Maximum value of $n$ for the radial expansion, by default 15
+    lmax : `int`, optional
+        Maximum value of $\ell$ for the spherical harmonics, by default 5
+    verbose : `bool`, optional
+        Whether to report on progress, by default False
+
+    Returns
+    -------
+    pot : `gala.potential.CompositePotential`
+        Potential of the snapshot
+    """
+    # start a composite potential
     pot = gp.CompositePotential()
-    for label, snap, r_s in zip(["star", "dark matter", "gas"], components, [3, 10, 3]):
+
+    # compute the potential for each component
+    for comp in components:
         if verbose:
-            print(f"Computing potential for {label}")
-        Snlm, Tnlm = gp.scf.compute_coeffs_discrete(xyz=snap.X_s.T.to(u.kpc).value,
-                                                    mass=snap.m.to(u.Msun).value / snap.m.sum().value,
-                                                    nmax=nmax, lmax=lmax, r_s=r_s, skip_m=True)
+            print(f"Computing potential for {comp['label']}")
+        subsnap = snap[comp["attr"]]
 
-        pot[label] = gp.scf.SCFPotential(m=snap.m.sum().value, r_s=r_s, Snlm=Snlm, Tnlm=Tnlm, units=galactic)
+        # compute the coefficients for the SCF potential
+        Snlm, Tnlm = gp.scf.compute_coeffs_discrete(xyz=subsnap["pos"],
+                                                    mass=subsnap["mass"] / subsnap["mass"].sum(),
+                                                    nmax=nmax, lmax=lmax, r_s=comp["r_s"], skip_m=True)
 
+        # add the SCF potential to the composite potential
+        pot[comp["label"]] = gp.scf.SCFPotential(m=subsnap["mass"].sum(), r_s=comp["r_s"],
+                                                 Snlm=Snlm, Tnlm=Tnlm, units=galactic)
+
+    # save the potential to a file if requested
     if out_path is not None:
         pot.save(out_path)
 
