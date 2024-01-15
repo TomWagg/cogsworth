@@ -205,9 +205,9 @@ class FIRESnapshot(Snapshot):
         self.snap_time = quick_lookback_time(1 / header["time"] - 1, h=self.h, Omega_M=self.Omega_M) * u.Gyr
 
         # get the positions, velocities, masses and ages in right units
-        self.snap_p_all = (snap["p"] - self.stellar_centre) * u.kpc / self.h
+        self.snap_p_all = (snap["p"] - self.stellar_centre) * u.kpc
         self.snap_v_all = (snap["v"] - self.v_cm) * u.km / u.s
-        self.m_all = snap["m"] * 1e10 * u.Msun / self.h
+        self.m_all = snap["m"] * 1e10 * u.Msun
         self.Z_all = snap["Z"][:, 0] if "Z" in list(snap.keys()) else None
         self.ids_all = snap["id"]
         self.t_form_all = quick_lookback_time(1 / snap["age"] - 1, h=self.h, Omega_M=self.Omega_M) * u.Gyr\
