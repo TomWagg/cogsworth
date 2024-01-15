@@ -1,6 +1,6 @@
-**********************************************
-Hydrodynamical zoom-in simulations (``hydro``)
-**********************************************
+**************************************
+Hydrodynamical simulations (``hydro``)
+**************************************
 
 The ``hydro`` module contains the functionality necessary for running simulations that use hydrodynamical
 zoom-in simulations as their initial conditions. This includes the ability to read in snapshots,
