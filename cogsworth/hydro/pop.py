@@ -10,25 +10,31 @@ from ..galaxy import Galaxy
 from .utils import dispersion_from_virial_parameter
 
 
-__all__ = ["FIREPopulation"]
+__all__ = ["HydroPopulation"]
 
 
-class FIREPopulation(Population):
-    def __init__(self, stars_snapshot, particle_size=1 * u.pc, virial_parameter=1.0, subset=None,
+class HydroPopulation(Population):
+    def __init__(self, star_particles, particle_size=1 * u.pc, virial_parameter=1.0, subset=None,
                  sampling_params={"sampling_target": "total_mass", "trim_extra_samples": True}, **kwargs):
-        """A population of stars sampled from a FIRE snapshot
+        """A population of stars sampled from a hydrodynamical zoom-in snapshot
 
-        Each star particle in FIRE is converted to a (binary) stellar population, sampled with COSMIC, with
-        initial positions and kinematics determined based on the virial parameter and particle size.
+        Each star particle in the snapshot is converted to a (binary) stellar population, sampled with COSMIC,
+        with initial positions and kinematics determined based on the virial parameter and particle size.
 
         Parameters
         ----------
-        stars_snapshot : :class:`~cogsworth.fire.fire.FIRESnapshot`
-            The snapshot to sample from
+        star_particles : :class:`~pandas.DataFrame`
+            A table of star particles from a snapshot that contains the mass, metallicity, formation time,
+            position and velocity of each particle, as returned by
+            :func:`~cogsworth.hydro.rewind.rewind_to_formation`
         particle_size : :class:`~astropy.units.Quantity`, optional
             Size of gaussian for cluster for each star particle, by default 1*u.pc
         virial_parameter : `float`, optional
             Virial parameter for each cluster, for setting velocity dispersions, by default 1.0
+        subset : `int` or `list` of `int`, optional
+            If set, only use a subset of the star particles, by default use all of them. If an integer is
+            passed, a random subset of that size is used, if a list of integers is passed, only those IDs are
+            used.
         sampling_params : `dict`, optional
             As in :class:~cogsworth.pop.Population` but changing the defaults to
             {"sampling_target": "total_mass", "trim_extra_samples": True} (i.e. to sample to the total mass of
@@ -36,10 +42,10 @@ class FIREPopulation(Population):
         **kwargs : various
             Parameters to pass to :class:`~cogsworth.pop.Population`
         """
-        self.stars_snapshot = stars_snapshot
+        self.star_particles = star_particles
         self.particle_size = particle_size
         self.virial_parameter = virial_parameter
-        self._subset_inds = np.arange(len(self.stars_snapshot)).astype(int)
+        self._subset_inds = self.star_particles.index.values
         if subset is not None and isinstance(subset, int):
             self._subset_inds = np.random.choice(self._subset_inds, size=subset, replace=False)
         elif subset is not None:
@@ -53,7 +59,7 @@ class FIREPopulation(Population):
         if self._initC is not None and "particle_id" not in self._initC.columns:
             self._initC["particle_id"] = self._initial_binaries["particle_id"]
         new_pop = super().__getitem__(ind)
-        new_pop.stars_snapshot = self.stars_snapshot
+        new_pop.star_particles = self.star_particles
         new_pop.particle_size = self.particle_size
         new_pop.virial_parameter = self.virial_parameter
         return new_pop
@@ -66,22 +72,23 @@ class FIREPopulation(Population):
 
     def sample_initial_binaries(self):
         """Sample initial binaries from the star particles in the snapshot"""
-        initial_binaries_list = [None for _ in range(len(self.stars_snapshot))]
+        initial_binaries_list = [None for _ in range(len(self.star_particles))]
         self._mass_singles, self._mass_binaries, self._n_singles_req, self._n_bin_req = 0.0, 0.0, 0, 0
 
         for i in self._subset_inds:
+            particle = self.star_particles.loc[i]
             samples = InitialBinaryTable.sampler('independent', self.final_kstar1, self.final_kstar2,
                                                  binfrac_model=self.BSE_settings["binfrac"],
-                                                 SF_start=(self.max_ev_time - self.stars_snapshot.t_form[i]).to(u.Myr).value,
-                                                 SF_duration=0.0, met=self.stars_snapshot.Z[i],
-                                                 total_mass=self.stars_snapshot.m[i].to(u.Msun).value,
-                                                 size=self.stars_snapshot.m[i].to(u.Msun).value * 0.8,
+                                                 SF_start=(self.max_ev_time - particle["t_form"] * u.Gyr).to(u.Myr).value,
+                                                 SF_duration=0.0, met=particle["Z"],
+                                                 total_mass=particle["mass"],
+                                                 size=particle["mass"] * 0.8,
                                                  **self.sampling_params)
 
             # apply the mass cutoff and record particle ID
             samples[0].reset_index(inplace=True)
             samples[0].drop(samples[0][samples[0]["mass_1"] < self.m1_cutoff].index, inplace=True)
-            samples[0]["particle_id"] = np.repeat(self.stars_snapshot.ids[i], len(samples[0]))
+            samples[0]["particle_id"] = np.repeat(i, len(samples[0]))
 
             # save samples
             initial_binaries_list[i] = samples[0]
@@ -106,10 +113,12 @@ class FIREPopulation(Population):
         self.sample_initial_galaxy()
 
     def sample_initial_galaxy(self):
-        inds = np.searchsorted(self.stars_snapshot.ids, self._initial_binaries["particle_id"].values)
-        x, y, z = self.stars_snapshot.x[inds], self.stars_snapshot.y[inds], self.stars_snapshot.z[inds]
-        v_x, v_y = self.stars_snapshot.v_x[inds], self.stars_snapshot.v_y[inds]
-        v_z = self.stars_snapshot.v_z[inds]
+        inds = np.searchsorted(self._subset_inds, self._initial_binaries["particle_id"].values)
+        particles = self.star_particles.loc[self._subset_inds[inds]]
+        x, y, z = particles["x"].values * u.kpc, particles["y"].values * u.kpc, particles["z"].values * u.kpc
+        v_x = particles["v_x"].values * u.km / u.s
+        v_y = particles["v_y"].values * u.km / u.s
+        v_z = particles["v_z"].values * u.km / u.s
         pos = np.random.normal([x.to(u.kpc).value, y.to(u.kpc).value, z.to(u.kpc).value],
                                self.particle_size.to(u.kpc).value / np.sqrt(3),
                                size=(3, self.n_binaries_match)) * u.kpc
@@ -128,7 +137,7 @@ class FIREPopulation(Population):
         vel_units = u.km / u.s
         dispersion = dispersion_from_virial_parameter(self.virial_parameter,
                                                       self.particle_size,
-                                                      self.stars_snapshot.m[inds])
+                                                      particles["mass"].values * u.Msun)
         v_R, v_T, v_z = np.random.normal([v_R.to(vel_units).value,
                                           v_T.to(vel_units).value,
                                           v_z.to(vel_units).value],

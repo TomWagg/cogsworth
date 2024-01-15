@@ -28,7 +28,7 @@ def rewind_to_formation(subsnap, pot, dt=-1 * u.Myr, processes=1):
     Returns
     -------
     init_particles : :class:`~pandas.DataFrame`
-        A dataframe containing the initial mass, metallicity, formation time,
+        A dataframe containing the initial mass, metallicity, formation time, ID,
         position and velocity of each particle
     """
     # get the final time of the snapshot in Myr
@@ -64,14 +64,17 @@ def rewind_to_formation(subsnap, pot, dt=-1 * u.Myr, processes=1):
         mass = subsnap["massform"].in_units("Msol")
 
     # create a df of the initial particles and return
-    init_particles = np.zeros((len(subsnap), 9))
+    init_particles = np.zeros((len(subsnap), 10))
     init_particles[:, 0] = mass
     init_particles[:, 1] = subsnap["metals"] if np.ndim(subsnap["metals"]) == 1 else subsnap["metals"][:, 0]
     init_particles[:, 2] = subsnap["tform"].in_units("Gyr")
+    init_particles[:, 3] = subsnap["iord"]
 
     for i in range(len(w0)):
-        init_particles[i, 3:6] = w0[i].xyz.to(u.kpc).value
-        init_particles[i, 6:9] = w0[i].vel.d_xyz.to(u.km / u.s).value
+        init_particles[i, 4:7] = w0[i].xyz.to(u.kpc).value
+        init_particles[i, 7:10] = w0[i].vel.d_xyz.to(u.km / u.s).value
 
-    df = pd.DataFrame(init_particles, columns=["mass", "Z", "t_form", "x", "y", 'z', 'v_x', 'v_y', 'v_z'])
+    df = pd.DataFrame(init_particles, columns=["mass", "Z", "t_form", "id",
+                                               "x", "y", 'z', 'v_x', 'v_y', 'v_z'])
+    df.set_index("id", inplace=True)
     return df
