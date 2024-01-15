@@ -1,7 +1,6 @@
 import astropy.units as u
 from gala.units import galactic
 import gala.potential as gp
-from .snap import FIRESnapshot
 
 
 def get_snapshot_potential(components=None, snap_dir=None, snap_num=None, snap_params={}, out_path=None,
