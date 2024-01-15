@@ -1,13 +1,14 @@
 import numpy as np
 import astropy.units as u
 import astropy.constants as const
+import warnings
 
 import pynbody
 
 __all__ = ["prepare_snapshot", "dispersion_from_virial_parameter"]
 
 
-def prepare_snapshot(path, halo_params={"mode": "hyb"}):
+def prepare_snapshot(path, halo_params={"mode": "ssc"}):
     """Prepare a snapshot for use in cogsworth
 
     Convert a snapshot to physical units, centre it on the main halo, and orient it face-on and side-on.
@@ -17,7 +18,7 @@ def prepare_snapshot(path, halo_params={"mode": "hyb"}):
     path : `string`
         Path to the snapshot file or directory (as used in :func:`pynbody.snapshot.load`)
     halo_params : `dict`, optional
-        Keyword parameters to be passed to :func:`pynbody.analysis.halo.center`, by default {"mode": "hyb"}
+        Keyword parameters to be passed to :func:`pynbody.analysis.halo.center`, by default {"mode": "ssc"}
 
     Returns
     -------
@@ -34,6 +35,7 @@ def prepare_snapshot(path, halo_params={"mode": "hyb"}):
         pynbody.analysis.halo.center(h[1], **halo_params)
     # otherwise, use pynbody's built-in halo finder to centre the snapshot
     except RuntimeError:
+        warnings.warn("No halo catalogue found, using pynbody's built-in halo finder to centre the snapshot")
         pynbody.analysis.halo.center(snap, **halo_params)
 
     # orient the snapshot face-on and side-on
