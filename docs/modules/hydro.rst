@@ -12,6 +12,9 @@ Populations (``hydro.pop``)
 
 .. automodapi:: cogsworth.hydro.pop
     :no-inheritance-diagram:
+    :headings: -
+    :no-heading:
+    :noindex:
 
 Estimating potentials (``hydro.potential``)
 ===========================================
@@ -19,8 +22,8 @@ Estimating potentials (``hydro.potential``)
 .. automodapi:: cogsworth.hydro.potential
     :no-heading:
 
-Initial conditions (``hydro.potential``)
-========================================
+Initial conditions (``hydro.rewind``)
+=====================================
 
 .. automodapi:: cogsworth.hydro.rewind
     :no-heading:
