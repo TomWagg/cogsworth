@@ -39,7 +39,7 @@ def get_snapshot_potential(snap, components=[{"label": "star", "attr": "s", "r_s
     for comp in components:
         if verbose:
             print(f"Computing potential for {comp['label']}")
-        subsnap = snap[comp["attr"]]
+        subsnap = getattr(snap, comp["attr"])
 
         # compute the coefficients for the SCF potential
         Snlm, Tnlm = gp.scf.compute_coeffs_discrete(xyz=subsnap["pos"],
