@@ -116,8 +116,11 @@ class HydroPopulation(Population):
                                  v_dispersion=self.v_dispersion, max_ev_time=self.max_ev_time,
                                  timestep_size=self.timestep_size, BSE_settings=self.BSE_settings,
                                  sampling_params=self.sampling_params,
-                                 store_entire_orbits=self.store_entire_orbits, 
+                                 store_entire_orbits=self.store_entire_orbits,
                                  virial_parameter=self.virial_parameter, particle_size=self.particle_size)
+
+        new_pop.n_binaries = len(bin_nums)
+        new_pop.n_binaries_match = len(bin_nums)
 
         # proxy for checking whether sampling has been done
         if self._mass_binaries is not None:
