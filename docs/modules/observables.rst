@@ -8,3 +8,4 @@ produced in a ``cogsworth`` :class:`~cogsworth.pop.Population`. The main functio
 but there are also some helper functions for dealing with magnitudes.
 
 .. automodapi:: cogsworth.observables
+    :no-heading:

@@ -315,7 +315,8 @@ class Population():
             "galaxy": r"The \texttt{cogsworth} population used a galaxy model based on the following papers",
             "observables": "Population observables were estimated using dust maps and MIST isochrones",
             "gaia": "Observability of systems with Gaia was predicted using an empirical selection function",
-            "legwork": "Calculation of LISA gravitational wave signatures was performed using LEGWORK"
+            "legwork": "Calculation of LISA gravitational wave signatures was performed using LEGWORK",
+            "FIRE": "The initial conditions for the population were sampled from the FIRE simulations",
         }
 
         acknowledgement = r"This research made use of \texttt{cogsworth} and its dependencies"
@@ -812,7 +813,7 @@ class Population():
         bad_orbits = np.array([orbit is None for orbit in orbits])
 
         # if there are any bad orbits then warn the user and remove them from the population
-        if any(bad_orbits):
+        if any(bad_orbits):             # pragma: no cover
             warnings.warn(f"{bad_orbits.sum()} bad orbit(s) detected, removing them from the population" +
                           " (initial conditions for these systems were saved to `bad_orbits.h5` file)")
             bad_bin_nums = np.concatenate((self.bin_nums, self.bin_nums[self.disrupted]))[bad_orbits]
