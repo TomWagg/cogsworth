@@ -3,7 +3,7 @@ import astropy.units as u
 import astropy.constants as const
 import warnings
 
-import pynbody
+from ..tests.optional_deps import check_dependencies
 
 __all__ = ["prepare_snapshot", "dispersion_from_virial_parameter"]
 
@@ -25,6 +25,9 @@ def prepare_snapshot(path, halo_params={"mode": "ssc"}):
     snap : :class:`pynbody.snapshot.SimSnap`
         The prepared snapshot
     """
+    assert check_dependencies("pynbody")
+    import pynbody
+
     # load in the snapshot and use physical units
     snap = pynbody.load(path)
     snap.physical_units()
