@@ -8,6 +8,7 @@ from ..pop import Population
 from ..galaxy import Galaxy
 
 from .utils import dispersion_from_virial_parameter
+import warnings
 
 
 __all__ = ["HydroPopulation"]
@@ -67,10 +68,106 @@ class HydroPopulation(Population):
     def __getitem__(self, ind):
         if self._initC is not None and "particle_id" not in self._initC.columns:
             self._initC["particle_id"] = self._initial_binaries["particle_id"]
-        new_pop = super().__getitem__(ind)
-        new_pop.star_particles = self.star_particles
-        new_pop.particle_size = self.particle_size
-        new_pop.virial_parameter = self.virial_parameter
+
+        # convert any Pandas Series to numpy arrays
+        ind = ind.values if isinstance(ind, pd.Series) else ind
+
+        # ensure indexing with the right type
+        ALLOWED_TYPES = (int, slice, list, np.ndarray, tuple)
+        if not isinstance(ind, ALLOWED_TYPES):
+            raise ValueError((f"Can only index using one of {[at.__name__ for at in ALLOWED_TYPES]}, "
+                              f"you supplied a '{type(ind).__name__}'"))
+
+        # check validity of indices for array-like types
+        if isinstance(ind, (list, tuple, np.ndarray)):
+            # check every element is a boolean (if so, convert to bin_nums after asserting length sensible)
+            if all(isinstance(x, (bool, np.bool_)) for x in ind):
+                assert len(ind) == len(self.bin_nums), "Boolean mask must be same length as the population"
+                ind = self.bin_nums[ind]
+            # otherwise ensure all elements are integers
+            else:
+                assert all(isinstance(x, (int, np.integer)) for x in ind), \
+                    "Can only index using integers or a boolean mask"
+                if len(np.unique(ind)) < len(ind):
+                    warnings.warn(("You have supplied duplicate indices, this will invalidate the "
+                                   "normalisation of the Population (e.g. mass_binaries will be wrong)"))
+
+        # set up the bin_nums we are selecting
+        bin_nums = ind
+
+        # turn ints into arrays and convert slices to exact bin_nums
+        if isinstance(ind, int):
+            bin_nums = [ind]
+        elif isinstance(ind, slice):
+            bin_nums = self.bin_nums[ind]
+        bin_nums = np.asarray(bin_nums)
+
+        # check that the bin_nums are all valid
+        check_nums = np.isin(bin_nums, self.bin_nums)
+        if not check_nums.all():
+            raise ValueError(("The index that you supplied includes a `bin_num` that does not exist. "
+                              f"The first bin_num I couldn't find was {bin_nums[~check_nums][0]}"))
+
+        # start a new population with the same parameters
+        new_pop = self.__class__(star_particles=self.star_particles, processes=self.processes,
+                                 m1_cutoff=self.m1_cutoff, final_kstar1=self.final_kstar1,
+                                 final_kstar2=self.final_kstar2, galaxy_model=self.galaxy_model,
+                                 galaxy_params=self.galaxy_params, galactic_potential=self.galactic_potential,
+                                 v_dispersion=self.v_dispersion, max_ev_time=self.max_ev_time,
+                                 timestep_size=self.timestep_size, BSE_settings=self.BSE_settings,
+                                 sampling_params=self.sampling_params,
+                                 store_entire_orbits=self.store_entire_orbits, 
+                                 virial_parameter=self.virial_parameter, particle_size=self.particle_size)
+
+        # proxy for checking whether sampling has been done
+        if self._mass_binaries is not None:
+            new_pop._mass_binaries = self._mass_binaries
+            new_pop._mass_singles = self._mass_singles
+            new_pop._n_singles_req = self._n_singles_req
+            new_pop._n_bin_req = self._n_bin_req
+
+        bin_num_to_ind = {num: i for i, num in enumerate(self.bin_nums)}
+        sort_idx = np.argsort(list(bin_num_to_ind.keys()))
+        idx = np.searchsorted(list(bin_num_to_ind.keys()), bin_nums, sorter=sort_idx)
+        inds = np.asarray(list(bin_num_to_ind.values()))[sort_idx][idx]
+
+        disrupted_bin_num_to_ind = {num: i for i, num in enumerate(self.bin_nums[self.disrupted])}
+        sort_idx = np.argsort(list(disrupted_bin_num_to_ind.keys()))
+        idx = np.searchsorted(list(disrupted_bin_num_to_ind.keys()),
+                              bin_nums[np.isin(bin_nums, self.bin_nums[self.disrupted])],
+                              sorter=sort_idx)
+        inds_with_disruptions = np.asarray(list(disrupted_bin_num_to_ind.values()))[sort_idx][idx] + len(self)
+        all_inds = np.concatenate((inds, inds_with_disruptions)).astype(int)
+
+        if self._initial_galaxy is not None:
+            new_pop._initial_galaxy = self._initial_galaxy[inds]
+
+        # checking whether stellar evolution has been done
+        if self._bpp is not None:
+            # copy over subsets of data when they aren't None
+            new_pop._bpp = self._bpp.loc[bin_nums]
+            if self._bcm is not None:
+                new_pop._bcm = self._bcm.loc[bin_nums]
+            if self._initC is not None:
+                new_pop._initC = self._initC.loc[bin_nums]
+            if self._kick_info is not None:
+                new_pop._kick_info = self._kick_info.loc[bin_nums]
+            if self._final_bpp is not None:
+                new_pop._final_bpp = self._final_bpp.loc[bin_nums]
+            if self._disrupted is not None:
+                new_pop._disrupted = self._disrupted[inds]
+            if self._classes is not None:
+                new_pop._classes = self._classes.iloc[inds]
+            if self._observables is not None:
+                new_pop._observables = self._observables.iloc[inds]
+
+            # same thing but for arrays with appended disrupted secondaries
+            if self._orbits is not None:
+                new_pop._orbits = self.orbits[all_inds]
+            if self._final_pos is not None:
+                new_pop._final_pos = self._final_pos[all_inds]
+            if self._final_vel is not None:
+                new_pop._final_vel = self._final_vel[all_inds]
         return new_pop
 
     def get_citations(self, filename=None):
