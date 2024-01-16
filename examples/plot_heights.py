@@ -27,7 +27,8 @@ params = {'figure.figsize': (12, 8),
           'xtick.major.size': 7,
           'xtick.minor.size': 4,
           'ytick.major.size': 7,
-          'ytick.minor.size': 4}
+          'ytick.minor.size': 4,
+          'savefig.dpi': 300}
 plt.rcParams.update(params)
 # sphinx_gallery_end_ignore
 

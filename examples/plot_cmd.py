@@ -1,13 +1,16 @@
 """
-Binary evolution cartoon
-========================
+Gaia colour-magnitude diagram
+=============================
 
-Show an example of binary evolution in a simple cartoon.
+A colour-magnitude diagram using simulated photometry for Gaia.
+
+Each point represents a star in the population, coloured by its stellar type. Circles are used for bound
+binaries, and triangles for unbound binaries (upwards indicating the primary star, downwards indicating
+the secondary star).
 """
 
 import cogsworth
 import matplotlib.pyplot as plt
-import numpy as np
 
 # sphinx_gallery_start_ignore
 plt.rc('font', family='serif')
@@ -29,17 +32,12 @@ params = {'figure.figsize': (12, 8),
 plt.rcParams.update(params)
 # sphinx_gallery_end_ignore
 
-p = cogsworth.pop.Population(100, final_kstar1=[13, 14])
-p.sample_initial_binaries()
-p.perform_stellar_evolution()
+p = cogsworth.pop.Population(2000)
+p.create_population()
 
-# find something that experiences mass transfer, common envelope, and undergoes a supernova
-mt_bin_nums = p.bpp[p.bpp["evol_type"] == 3]["bin_num"].values
-ce_bin_nums = p.bpp[p.bpp["evol_type"] == 7]["bin_num"].values
-sn_bin_nums = p.bpp[p.bpp["evol_type"] == 15]["bin_num"].values
-uni, counts = np.unique(np.concatenate((mt_bin_nums, ce_bin_nums, sn_bin_nums)), return_counts=True)
-bin_num = uni[np.argmax(counts)]
+p.get_observables(filters=["G", "BP", "RP"],
+                  assume_mw_galactocentric=True, ignore_extinction=True)
 
-p.plot_cartoon_binary(bin_num, show=False)
+cogsworth.plot.plot_cmd(p, show=False)
 plt.tight_layout()          # <-- this is just to get rid of weird padding in online docs
 plt.show()
