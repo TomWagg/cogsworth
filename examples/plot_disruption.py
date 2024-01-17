@@ -40,8 +40,6 @@ combined_orbit = gd.Orbit(pos=np.array([primary_orbit.pos.xyz.T, secondary_orbit
 
 fig, axes = plt.subplots(1, 3, figsize=(21, 7))
 
-from matplotlib.colors import LogNorm
-
 plt.rc('font', family='serif')
 plt.rcParams['text.usetex'] = False
 fs = 24
@@ -80,6 +78,7 @@ fig, anim = combined_orbit.animate(stride=5, segment_nsteps=50, underplot_full_o
                                    segment_style=segment_style, marker_style={"color": "C1"})
 
 plt.show()
+plt.close()
 
 # from matplotlib import animation
 # writergif = animation.PillowWriter(fps=1000 / faster)

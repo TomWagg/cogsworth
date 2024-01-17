@@ -101,3 +101,4 @@ axes[1].annotate("TheCube...and it's ROTATING!", xy=(0, 1.05), xycoords="axes fr
                  ha="center", va="center", fontsize=fs)
 
 plt.show()
+plt.close()

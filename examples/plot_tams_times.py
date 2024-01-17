@@ -13,7 +13,6 @@ shortening its main sequence lifetime.
 
 import cogsworth
 import matplotlib.pyplot as plt
-import numpy as np
 from matplotlib.colors import LogNorm
 
 # sphinx_gallery_start_ignore
@@ -62,3 +61,4 @@ for suffix, label in zip(["_1", "_2"], ["Primary stars", "Secondary stars"]):
     ax.annotate(label, xy=(0.95, 0.95), xycoords="axes fraction", ha="right", va="top", fontsize=fs)
 
     plt.show()
+    plt.close()

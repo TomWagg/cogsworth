@@ -53,3 +53,4 @@ for pop, label, colour in zip([p_unkicked, p_kicked], ["Unkicked", "Kicked"], ["
 ax.set(xscale="log", xlabel="Distance from Galactic Plane [kpc]", ylabel="Number of systems")
 ax.legend()
 plt.show()
+plt.close()

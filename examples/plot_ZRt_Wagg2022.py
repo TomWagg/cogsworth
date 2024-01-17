@@ -79,6 +79,7 @@ for ax in [axes[0, 0], axes[1, 1]]:
     ax.spines[:].set_visible(False)
 
 plt.show()
+plt.close()
 
 # --------------------------------------------------------------
 # Second plot starts here
@@ -128,3 +129,4 @@ for ax in [axes[0, 0], axes[1, 1]]:
     ax.spines[:].set_visible(False)
 
 plt.show()
+plt.close()
