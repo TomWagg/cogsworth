@@ -56,4 +56,3 @@ ax.set_xlabel("Right Ascension [deg]")
 ax.set_ylabel("Declination [deg]")
 
 plt.show()
-plt.close()

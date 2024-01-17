@@ -43,4 +43,3 @@ bin_num = uni[np.argmax(counts)]
 p.plot_cartoon_binary(bin_num, show=False)
 plt.tight_layout()          # <-- this is just to get rid of weird padding in online docs
 plt.show()
-plt.close()

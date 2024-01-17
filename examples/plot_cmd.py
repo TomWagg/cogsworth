@@ -41,4 +41,3 @@ p.get_observables(filters=["G", "BP", "RP"],
 cogsworth.plot.plot_cmd(p, show=False)
 plt.tight_layout()          # <-- this is just to get rid of weird padding in online docs
 plt.show()
-plt.close()

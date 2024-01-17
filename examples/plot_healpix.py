@@ -16,4 +16,3 @@ p = cogsworth.pop.Population(1000)
 p.create_population(with_timing=False)
 
 p.plot_map(ra="auto", dec="auto", nside=16, norm="log")
-plt.close()

@@ -78,7 +78,6 @@ fig, anim = combined_orbit.animate(stride=5, segment_nsteps=50, underplot_full_o
                                    segment_style=segment_style, marker_style={"color": "C1"})
 
 plt.show()
-plt.close()
 
 # from matplotlib import animation
 # writergif = animation.PillowWriter(fps=1000 / faster)

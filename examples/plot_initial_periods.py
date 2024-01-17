@@ -53,4 +53,3 @@ ax.set_xlabel("Initial period [log days]")
 ax.set_ylabel(r"${\rm d}N/{\rm d}({\rm log} P)$")
 
 plt.show()
-plt.close()
