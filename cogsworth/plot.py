@@ -80,10 +80,9 @@ def plot_cmd(pop, m_filter="G", c_filter_1="BP", c_filter_2="RP",
     for kstar in range(13):
         # loop over bound binaries, disrupted primaries and disrupted secondaries
         for dis, marker, suffix in zip([False, True, True], ["o", "^", "v"], ["1", "1", "2"]):
-            # select primary stars with the right kstar
-            mask = pop.final_bpp["kstar_1"] == kstar
-            # use secondaries in cases where they are brighter
-            mask[pop.observables["secondary_brighter"]] = (pop.final_bpp[pop.observables["secondary_brighter"]]["kstar_2"] == kstar)
+            # select stars with the right kstar (based on which is brighter)
+            mask = ((pop.final_bpp["kstar_1"] == kstar & ~pop.observables["secondary_brighter"])
+                    | (pop.final_bpp["kstar_2"] == kstar & pop.observables["secondary_brighter"]))
 
             # apply disruption mask
             mask = mask & pop.disrupted if dis else mask & ~pop.disrupted
