@@ -228,17 +228,10 @@ class HydroPopulation(Population):
         v_x = particles["v_x"].values * u.km / u.s
         v_y = particles["v_y"].values * u.km / u.s
         v_z = particles["v_z"].values * u.km / u.s
+
         pos = np.random.normal([x.to(u.kpc).value, y.to(u.kpc).value, z.to(u.kpc).value],
                                self.particle_size.to(u.kpc).value / np.sqrt(3),
                                size=(3, self.n_binaries_match)) * u.kpc
-
-        self._initial_galaxy = Galaxy(self.n_binaries_match, immediately_sample=False)
-        self._initial_galaxy._x = pos[0]
-        self._initial_galaxy._y = pos[1]
-        self._initial_galaxy._z = pos[2]
-        self._initial_galaxy._tau = self._initial_binaries["tphysf"].values * u.Myr
-        self._initial_galaxy._Z = self._initial_binaries["metallicity"].values
-        self._initial_galaxy._which_comp = np.repeat("FIRE", len(self.initial_galaxy._tau))
 
         v_R = (x * v_x + y * v_y) / (x**2 + y**2)**0.5
         v_T = (x * v_y - y * v_x) / (x**2 + y**2)**0.5
@@ -253,6 +246,24 @@ class HydroPopulation(Population):
                                          dispersion.to(vel_units).value / np.sqrt(3),
                                          size=(3, self.n_binaries_match)) * vel_units
 
+        if self.des_settings["on"]:
+            upper = np.inf
+            for mass, frac in self.des_settings["ejection_fracs"]:
+                mask = (self._initial_binaries["mass_1"] >= mass) & (self._initial_binaries["mass_1"] < upper)
+                ejected = np.random.rand(mask.sum()) < frac
+
+                # TODO: eject those binaries
+
+                upper = mass
+
+        self._initial_galaxy = Galaxy(self.n_binaries_match, immediately_sample=False)
+        self._initial_galaxy._tau = self._initial_binaries["tphysf"].values * u.Myr
+        self._initial_galaxy._Z = self._initial_binaries["metallicity"].values
+        self._initial_galaxy._which_comp = np.repeat("FIRE", len(self.initial_galaxy._tau))
+
+        self._initial_galaxy._x = pos[0]
+        self._initial_galaxy._y = pos[1]
+        self._initial_galaxy._z = pos[2]
         self._initial_galaxy._v_R = v_R
         self._initial_galaxy._v_T = v_T
         self._initial_galaxy._v_z = v_z
