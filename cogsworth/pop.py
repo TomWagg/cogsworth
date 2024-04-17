@@ -18,7 +18,7 @@ import gala.potential as gp
 import gala.dynamics as gd
 from gala.potential.potential.io import to_dict as potential_to_dict, from_dict as potential_from_dict
 
-from cogsworth import galaxy
+from cogsworth import sfh
 from cogsworth.kicks import integrate_orbit_with_events
 from cogsworth.events import identify_events
 from cogsworth.classify import determine_final_classes
@@ -47,11 +47,11 @@ class Population():
         Desired final types for primary star, by default list(range(16))
     final_kstar2 : `list`, optional
         Desired final types for secondary star, by default list(range(16))
-    galaxy_model : :class:`~cogsworth.galaxy.Galaxy`, optional
-        A Galaxy class to use for sampling the initial galaxy parameters, by default
-        :class:`~cogsworth.galaxy.Wagg2022`
-    galaxy_params : `dict`, optional
-        Any additional parameters to pass to your chosen ``galaxy model`` when it is initialised
+    sfh_model : :class:`~cogsworth.sfh.StarFormationHistory`, optional
+        A StarFormationHistory class to use for sampling the initial galaxy parameters, by default
+        :class:`~cogsworth.sfh.Wagg2022`
+    sfh_params : `dict`, optional
+        Any additional parameters to pass to your chosen ``SFH model`` when it is initialised
     galactic_potential : :class:`Potential <gala.potential.potential.PotentialBase>`, optional
         Galactic potential to use for evolving the orbits of binaries, by default
         :class:`~gala.potential.potential.MilkyWayPotential`
@@ -117,7 +117,7 @@ class Population():
         used an indices for the population
     """
     def __init__(self, n_binaries, processes=8, m1_cutoff=0, final_kstar1=list(range(16)),
-                 final_kstar2=list(range(16)), galaxy_model=galaxy.Wagg2022, galaxy_params={},
+                 final_kstar2=list(range(16)), sfh_model=sfh.Wagg2022, sfh_params={},
                  galactic_potential=gp.MilkyWayPotential(), v_dispersion=5 * u.km / u.s,
                  max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, sampling_params={},
                  bcm_timestep_conditions=[], store_entire_orbits=True):
@@ -133,8 +133,8 @@ class Population():
         self.m1_cutoff = m1_cutoff
         self.final_kstar1 = final_kstar1
         self.final_kstar2 = final_kstar2
-        self.galaxy_model = galaxy_model
-        self.galaxy_params = galaxy_params
+        self.sfh_model = sfh_model
+        self.sfh_params = sfh_params
         self.galactic_potential = galactic_potential
         self.v_dispersion = v_dispersion
         self.max_ev_time = max_ev_time
@@ -182,7 +182,7 @@ class Population():
                              'bhspinflag': 0, 'bhspinmag': 0.0, 'rejuv_fac': 1.0, 'rejuvflag': 0, 'htpmb': 1,
                              'ST_cr': 1, 'ST_tide': 1, 'bdecayfac': 1, 'rembar_massloss': 0.5, 'kickflag': 0,
                              'zsun': 0.014, 'bhms_coll_flag': 0, 'don_lim': -1, 'acc_lim': -1, 'binfrac': 0.5,
-                             'rtmsflag': 0}
+                             'rtmsflag': 0, 'wd_mass_lim': 1}
         self.BSE_settings.update(BSE_settings)
 
         self.sampling_params = {'primary_model': 'kroupa01', 'ecc_model': 'sana12', 'porb_model': 'sana12',
@@ -194,11 +194,11 @@ class Population():
         if self._orbits is None:
             return (f"<{self.__class__.__name__} - {self.n_binaries} systems - "
                     f"galactic_potential={self.galactic_potential.__class__.__name__}, "
-                    f"SFH={self.galaxy_model.__name__}>")
+                    f"SFH={self.sfh_model.__name__}>")
         else:
             return (f"<{self.__class__.__name__} - {self.n_binaries_match} evolved systems - "
                     f"galactic_potential={self.galactic_potential.__class__.__name__}, "
-                    f"galaxy_model={self.galaxy_model.__name__}>")
+                    f"sfh_model={self.sfh_model.__name__}>")
 
     def __len__(self):
         return self.n_binaries_match
@@ -246,8 +246,8 @@ class Population():
         # start a new population with the same parameters
         new_pop = self.__class__(n_binaries=len(bin_nums), processes=self.processes,
                                  m1_cutoff=self.m1_cutoff, final_kstar1=self.final_kstar1,
-                                 final_kstar2=self.final_kstar2, galaxy_model=self.galaxy_model,
-                                 galaxy_params=self.galaxy_params, galactic_potential=self.galactic_potential,
+                                 final_kstar2=self.final_kstar2, sfh_model=self.sfh_model,
+                                 sfh_params=self.sfh_params, galactic_potential=self.galactic_potential,
                                  v_dispersion=self.v_dispersion, max_ev_time=self.max_ev_time,
                                  timestep_size=self.timestep_size, BSE_settings=self.BSE_settings,
                                  sampling_params=self.sampling_params,
@@ -313,7 +313,7 @@ class Population():
 
         sections = {
             "general": "",
-            "galaxy": r"The \texttt{cogsworth} population used a galaxy model based on the following papers",
+            "sfh": r"The \texttt{cogsworth} population used a star formation history model based on the following papers",
             "observables": "Population observables were estimated using dust maps and MIST isochrones",
             "gaia": "Observability of systems with Gaia was predicted using an empirical selection function",
             "legwork": "Calculation of LISA gravitational wave signatures was performed using LEGWORK",
@@ -554,7 +554,7 @@ class Population():
     def sample_initial_galaxy(self):
         """Sample the initial galactic times, positions and velocities"""
         # initialise the initial galaxy class with correct number of binaries
-        self._initial_galaxy = self.galaxy_model(size=self.n_binaries_match, **self.galaxy_params)
+        self._initial_galaxy = self.sfh_model(size=self.n_binaries_match, **self.sfh_params)
 
         # add relevant citations
         self.__citations__.extend([c for c in self._initial_galaxy.__citations__ if c != "cogsworth"])
@@ -829,7 +829,7 @@ class Population():
             self.initC.loc[bad_bin_nums].to_hdf("bad_orbits.h5", key="initC")
             self.bpp.loc[bad_bin_nums].to_hdf("bad_orbits.h5", key="bpp")
             self.kick_info.loc[bad_bin_nums].to_hdf("bad_orbits.h5", key="kick_info")
-            self.initial_galaxy[np.isin(self.bin_nums, bad_bin_nums)].save("bad_orbits.h5", key="galaxy")
+            self.initial_galaxy[np.isin(self.bin_nums, bad_bin_nums)].save("bad_orbits.h5", key="sfh")
 
             # mask them out from the main population
             new_self = self[~np.isin(self.bin_nums, bad_bin_nums)]
@@ -1242,13 +1242,13 @@ def load(file_name):
         for key in file["BSE_settings"].attrs:
             BSE_settings[key] = file["BSE_settings"].attrs[key]
 
-    initial_galaxy = galaxy.load(file_name, key="initial_galaxy")
+    initial_galaxy = sfh.load(file_name, key="initial_galaxy")
     with h5.File(file_name, 'r') as f:
         galactic_potential = potential_from_dict(yaml.load(f.attrs["potential_dict"], Loader=yaml.Loader))
 
     p = Population(n_binaries=int(numeric_params[0]), processes=int(numeric_params[2]),
                    m1_cutoff=numeric_params[3], final_kstar1=final_kstars[0], final_kstar2=final_kstars[1],
-                   galaxy_model=initial_galaxy.__class__, galactic_potential=galactic_potential,
+                   sfh_model=initial_galaxy.__class__, galactic_potential=galactic_potential,
                    v_dispersion=numeric_params[4] * u.km / u.s, max_ev_time=numeric_params[5] * u.Gyr,
                    timestep_size=numeric_params[6] * u.Myr, BSE_settings=BSE_settings,
                    store_entire_orbits=store_entire_orbits, bcm_timestep_conditions=bcm_tc)

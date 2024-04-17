@@ -41,7 +41,7 @@ archivePrefix = {arXiv},
         journal = {The Journal of Open Source Software}}"""
         },
     },
-    "galaxy": {
+    "sfh": {
         "Wagg+2022": {
             "tags": ["Wagg+2022"],
             "bibtex": r"""@ARTICLE{Wagg+2022,
