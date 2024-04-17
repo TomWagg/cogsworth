@@ -11,7 +11,8 @@ import astropy.units as u
 import numpy as np
 import gala.dynamics as gd
 
-p = cogsworth.pop.Population(100, processes=6, final_kstar1=[13, 14], timestep_size=0.2 * u.Myr)
+p = cogsworth.pop.Population(100, final_kstar1=[13, 14], timestep_size=0.2 * u.Myr,
+                             processes=1, BSE_settings={"binfrac": 1.0})
 p.create_population()
 
 g_cen_dist = np.sum(p.final_pos**2, axis=1)**(0.5)

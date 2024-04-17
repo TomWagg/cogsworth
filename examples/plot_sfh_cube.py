@@ -67,7 +67,7 @@ class TheCube(cogsworth.sfh.StarFormationHistory):
         self._Z = (nonsense - nonsense.min()) / nonsense.max()
 
 
-p_cube = cogsworth.pop.Population(1000, sfh_model=TheCube)
+p_cube = cogsworth.pop.Population(1000, sfh_model=TheCube, processes=1, BSE_settings={"binfrac": 1.0})
 p_cube.create_population()
 
 # remove disrupted systems (they go to random locations)
