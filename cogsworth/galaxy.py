@@ -401,13 +401,13 @@ class StarFormationHistory():
             file[key].attrs["params"] = yaml.dump(params, default_flow_style=None)
 
 
-class Wagg2022(Galaxy):
-    """A semi-empirical galaxy model defined in
+class Wagg2022(StarFormationHistory):
+    """A semi-empirical model defined in
     `Wagg+2022 <https://ui.adsabs.harvard.edu/abs/2021arXiv211113704W/abstract>`_
     (see Figure 1 and Section 2.2.1 for a detailed explanation.), heavily based on
     `Frankel+2018 <https://ui.adsabs.harvard.edu/abs/2018ApJ...865...96F/abstract>`_.
 
-    Parameters are the same as :class:`Galaxy` but additionally with the following:
+    Parameters are the same as :class:`StarFormationHistory` but additionally with the following:
 
     Parameters
     ----------
@@ -573,11 +573,11 @@ class Wagg2022(Galaxy):
         return np.power(10, FeH + np.log10(self.zsun))
 
 
-class QuasiIsothermalDisk(Galaxy):      # pragma: no cover
+class QuasiIsothermalDisk(StarFormationHistory):      # pragma: no cover
     """A quasi-isothermal distribution function with parameters from
     `Sanders & Binney 2015 <https://ui.adsabs.harvard.edu/abs/2015MNRAS.449.3479S/abstract>`_.
 
-    Parameters are the same as :class:`Galaxy` but additionally with the following:
+    Parameters are the same as :class:`StarFormationHistory` but additionally with the following:
 
     Parameters
     ----------
@@ -770,11 +770,11 @@ class QuasiIsothermalDisk(Galaxy):      # pragma: no cover
         return self._tau, self.positions, self.Z
 
 
-class SpheroidalDwarf(Galaxy):      # pragma: no cover
+class SpheroidalDwarf(StarFormationHistory):      # pragma: no cover
     """An action-based model for dwarf spheroidal galaxies and globular clusters
     `Pascale+2019 <https://ui.adsabs.harvard.edu/abs/2019MNRAS.488.2423P/abstract>`_.
 
-    Parameters are the same as :class:`Galaxy` but additionally with the following:
+    Parameters are the same as :class:`StarFormationHistory` but additionally with the following:
 
     Parameters
     ----------
@@ -947,7 +947,7 @@ class SpheroidalDwarf(Galaxy):      # pragma: no cover
         return self._tau, self.positions, self.Z
 
 
-def load(file_name, key="galaxy"):
+def load(file_name, key="sfh"):
     """Load an entire class from storage.
 
     Data should be stored in an hdf5 file using `file_name`.
@@ -957,7 +957,7 @@ def load(file_name, key="galaxy"):
     file_name : `str`
         A name of the .h5 file in which samples are stored and .txt file in which parameters are stored
     key : `str`, optional
-        Key to use for the hdf5 file, by default "galaxy"
+        Key to use for the hdf5 file, by default "sfh"
     """
     # append file extension if necessary
     if file_name[-3:] != ".h5":
