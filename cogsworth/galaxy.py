@@ -20,30 +20,30 @@ from cogsworth.tests.optional_deps import check_dependencies
 from cogsworth.citations import CITATIONS
 
 
-__all__ = ["Galaxy", "Wagg2022", "QuasiIsothermalDisk", "load"]
+__all__ = ["StarFormationHistory", "Wagg2022", "QuasiIsothermalDisk", "load"]
 
 
-class Galaxy():
-    """Class for a generic galaxy model from which to sample
+class StarFormationHistory():
+    """Class for a generic galactic star formation history model from which to sample
 
-    This class sets out an outline for sampling from a galaxy model but a subclass will be needed for things
-    to function properly.
+    This class sets out an outline for sampling from a star formation history model but a subclass will be
+    needed for things to function properly.
 
-    All attributes listed below are a given value for the sampled points in the galaxy. If ine hasn't been
+    All attributes listed below are a given value for the sampled points in the galaxy. If one hasn't been
     sampled/calculated when accessed then it will be automatically sampled/calculated. If sampling, ALL values
     will be sampled.
 
     Parameters
     ----------
     size : `int`
-        Number of points to sample from the galaxy model
+        Number of points to sample from the model
     components : `list`, optional
         List of component names, by default None
     component_masses : `list`, optional
         List of masses associated with each component (must be the same length as `components`),
         by default None
     immediately_sample : `bool`, optional
-        Whether to immediately sample the points from the galaxy, by default True
+        Whether to immediately sample the points, by default True
 
 
     Attributes
@@ -101,24 +101,24 @@ class Galaxy():
         # pre-mask tau to get the length easily
         tau = np.atleast_1d(self.tau[ind])
 
-        new_gal = self.__class__(size=len(tau), immediately_sample=False, **actual_kwargs)
+        new_sfh = self.__class__(size=len(tau), immediately_sample=False, **actual_kwargs)
 
-        new_gal._tau = tau
-        new_gal._Z = np.atleast_1d(self._Z[ind])
-        new_gal._x = np.atleast_1d(self._x[ind])
-        new_gal._y = np.atleast_1d(self._y[ind])
-        new_gal._z = np.atleast_1d(self._z[ind])
-        new_gal._which_comp = np.atleast_1d(self._which_comp[ind])
+        new_sfh._tau = tau
+        new_sfh._Z = np.atleast_1d(self._Z[ind])
+        new_sfh._x = np.atleast_1d(self._x[ind])
+        new_sfh._y = np.atleast_1d(self._y[ind])
+        new_sfh._z = np.atleast_1d(self._z[ind])
+        new_sfh._which_comp = np.atleast_1d(self._which_comp[ind])
 
         # if we have any of the velocity components then we need to slice them too
         if hasattr(self, "_v_R"):
-            new_gal._v_R = np.atleast_1d(self._v_R[ind])
+            new_sfh._v_R = np.atleast_1d(self._v_R[ind])
         if hasattr(self, "_v_T"):
-            new_gal._v_T = np.atleast_1d(self._v_T[ind])
+            new_sfh._v_T = np.atleast_1d(self._v_T[ind])
         if hasattr(self, "_v_z"):
-            new_gal._v_z = np.atleast_1d(self._v_z[ind])
+            new_sfh._v_z = np.atleast_1d(self._v_z[ind])
 
-        return new_gal
+        return new_sfh
 
     @property
     def size(self):
@@ -189,9 +189,9 @@ class Galaxy():
         return self._which_comp
 
     def get_citations(self, filename=None):
-        """Print the citations for the packages/papers used in the galaxy"""
+        """Print the citations for the packages/papers used in the star formation history"""
         if not hasattr(self, "__citations__") or len(self.__citations__) == 0:
-            print("No citations need for this galaxy model")
+            print("No citations need for this star formation history model")
             return
 
         # ask users for a filename to save the bibtex to
@@ -230,7 +230,7 @@ class Galaxy():
             print(bibtex_str)
 
     def sample(self):
-        """Sample from the Galaxy distributions for each component, combine and save in class attributes"""
+        """Sample from the distributions for each component, combine and save in class attributes"""
         if self.size is None:
             raise ValueError("`self.size` has not been set")
 
@@ -281,19 +281,19 @@ class Galaxy():
         return self._tau, self.positions, self.Z
 
     def draw_lookback_times(self, size=None, component=None):
-        raise NotImplementedError("This Galaxy model has not implemented this method")
+        raise NotImplementedError("This StarFormationHistory model has not implemented this method")
 
     def draw_radii(self, size=None, component=None):
-        raise NotImplementedError("This Galaxy model has not implemented this method")
+        raise NotImplementedError("This StarFormationHistory model has not implemented this method")
 
     def draw_heights(self, size=None, component=None):
-        raise NotImplementedError("This Galaxy model has not implemented this method")
+        raise NotImplementedError("This StarFormationHistory model has not implemented this method")
 
     def draw_phi(self, size=None, component=None):
-        raise NotImplementedError("This Galaxy model has not implemented this method")
+        raise NotImplementedError("This StarFormationHistory model has not implemented this method")
 
     def get_metallicity(self):
-        raise NotImplementedError("This Galaxy model has not implemented this method")
+        raise NotImplementedError("This StarFormationHistory model has not implemented this method")
 
     def plot(self, coordinates="cartesian", component=None, colour_by=None, show=True, cbar_norm=LogNorm(),
              cbar_label=r"Metallicity, $Z$", cmap="plasma", xlim=None, ylim=None, zlim=None, **kwargs):
@@ -349,7 +349,7 @@ class Galaxy():
         if show:
             plt.show()
 
-    def save(self, file_name, key="galaxy"):
+    def save(self, file_name, key="sfh"):
         """Save the entire class to storage.
 
         Data will be stored in an hdf5 file using `file_name`.
@@ -360,7 +360,7 @@ class Galaxy():
             A name to use for the hdf5 file in which samples will be stored. If this doesn't end in ".h5" then
             ".h5" will be appended.
         key : `str`, optional
-            Key to use for the hdf5 file, by default "galaxy"
+            Key to use for the hdf5 file, by default "sfh"
         """
         # append file extension if necessary
         if file_name[-3:] != ".h5":
@@ -391,7 +391,7 @@ class Galaxy():
 
         # warn the user if we saved a different class name
         if class_name != self.__class__.__name__:
-            print((f"Warning: Galaxy class being saved as `{class_name}` instead of "
+            print((f"Warning: StarFormationHistory class being saved as `{class_name}` instead of "
                    f"`{self.__class__.__name__}`. Data will be copied but new sampling will draw from the "
                    f"functions in `{class_name}` rather than the custom class you used."))
         params["class_name"] = class_name
