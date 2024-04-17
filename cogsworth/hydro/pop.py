@@ -5,7 +5,7 @@ import pandas as pd
 from cosmic.sample.initialbinarytable import InitialBinaryTable
 
 from ..pop import Population
-from ..galaxy import Galaxy
+from ..sfh import StarFormationHistory
 
 from .utils import dispersion_from_virial_parameter
 import warnings
@@ -111,8 +111,8 @@ class HydroPopulation(Population):
         # start a new population with the same parameters
         new_pop = self.__class__(star_particles=self.star_particles, processes=self.processes,
                                  m1_cutoff=self.m1_cutoff, final_kstar1=self.final_kstar1,
-                                 final_kstar2=self.final_kstar2, galaxy_model=self.galaxy_model,
-                                 galaxy_params=self.galaxy_params, galactic_potential=self.galactic_potential,
+                                 final_kstar2=self.final_kstar2, sfh_model=self.sfh_model,
+                                 sfh_params=self.sfh_params, galactic_potential=self.galactic_potential,
                                  v_dispersion=self.v_dispersion, max_ev_time=self.max_ev_time,
                                  timestep_size=self.timestep_size, BSE_settings=self.BSE_settings,
                                  sampling_params=self.sampling_params,
@@ -232,7 +232,7 @@ class HydroPopulation(Population):
                                self.particle_size.to(u.kpc).value / np.sqrt(3),
                                size=(3, self.n_binaries_match)) * u.kpc
 
-        self._initial_galaxy = Galaxy(self.n_binaries_match, immediately_sample=False)
+        self._initial_galaxy = StarFormationHistory(self.n_binaries_match, immediately_sample=False)
         self._initial_galaxy._x = pos[0]
         self._initial_galaxy._y = pos[1]
         self._initial_galaxy._z = pos[2]

@@ -1,6 +1,6 @@
 import numpy as np
 import unittest
-import cogsworth.galaxy as galaxy
+import cogsworth.sfh as sfh
 import os
 
 
@@ -8,8 +8,8 @@ class Test(unittest.TestCase):
     def test_basic_class(self):
         """Check that base class can't be used alone"""
 
-        g = galaxy.Galaxy(size=10000, components=[""], component_masses=[1],
-                          immediately_sample=False)
+        g = sfh.StarFormationHistory(size=10000, components=[""], component_masses=[1],
+                                     immediately_sample=False)
         it_broke = False
         try:
             g.draw_lookback_times()
@@ -47,7 +47,7 @@ class Test(unittest.TestCase):
 
     def test_bad_inputs(self):
         """Ensure the classes fail with bad input"""
-        g = galaxy.Wagg2022(size=None, immediately_sample=False)
+        g = sfh.Wagg2022(size=None, immediately_sample=False)
         it_broke = False
         try:
             g.sample()
@@ -55,8 +55,7 @@ class Test(unittest.TestCase):
             it_broke = True
         self.assertTrue(it_broke)
 
-        g = galaxy.Wagg2022(size=100, components=None, component_masses=None,
-                               immediately_sample=False)
+        g = sfh.Wagg2022(size=100, components=None, component_masses=None, immediately_sample=False)
         it_broke = False
         try:
             g.sample()
@@ -66,18 +65,18 @@ class Test(unittest.TestCase):
 
     def test_valid_ranges(self):
         """Check that the drawn variables have valid ranges"""
-        g = galaxy.Wagg2022(size=10000)
+        g = sfh.Wagg2022(size=10000)
 
         self.assertTrue((g.tau.min() >= 0) & (g.tau.max() <= g.galaxy_age))
         self.assertTrue(g.Z.min() >= 0.0)
 
     def test_io(self):
         """Check that a galaxy can be saved and re-loaded"""
-        g = galaxy.Wagg2022(size=10000)
+        g = sfh.Wagg2022(size=10000)
 
         g.save("testing-galaxy-io")
 
-        g_loaded = galaxy.load("testing-galaxy-io")
+        g_loaded = sfh.load("testing-galaxy-io")
 
         self.assertTrue(np.all(g.tau == g_loaded.tau))
         self.assertTrue(np.all(g.rho == g_loaded.rho))
@@ -89,22 +88,22 @@ class Test(unittest.TestCase):
         """Test getting attributes"""
         it_broke = False
         try:
-            g = galaxy.Wagg2022(size=10, immediately_sample=False)
+            g = sfh.Wagg2022(size=10, immediately_sample=False)
             len(g)
             g.components
             g.component_masses
             g.tau
-            g = galaxy.Wagg2022(size=10, immediately_sample=False)
+            g = sfh.Wagg2022(size=10, immediately_sample=False)
             g.Z
-            g = galaxy.Wagg2022(size=10, immediately_sample=False)
+            g = sfh.Wagg2022(size=10, immediately_sample=False)
             g.x
-            g = galaxy.Wagg2022(size=10, immediately_sample=False)
+            g = sfh.Wagg2022(size=10, immediately_sample=False)
             g.y
-            g = galaxy.Wagg2022(size=10, immediately_sample=False)
+            g = sfh.Wagg2022(size=10, immediately_sample=False)
             g.z
-            g = galaxy.Wagg2022(size=10, immediately_sample=False)
+            g = sfh.Wagg2022(size=10, immediately_sample=False)
             g.positions
-            g = galaxy.Wagg2022(size=10, immediately_sample=False)
+            g = sfh.Wagg2022(size=10, immediately_sample=False)
             g.which_comp
         except Exception as e:
             print(e)
@@ -113,7 +112,7 @@ class Test(unittest.TestCase):
 
     def test_setters(self):
         """Test setting attributes"""
-        g = galaxy.Wagg2022(size=10000, immediately_sample=False)
+        g = sfh.Wagg2022(size=10000, immediately_sample=False)
         g.size = 100
         self.assertTrue(g.size == 100)
 
@@ -135,7 +134,7 @@ class Test(unittest.TestCase):
     def test_custom_galaxy(self):
         """Test saving a custom galaxy class"""
 
-        class Custom(galaxy.Wagg2022):
+        class Custom(sfh.Wagg2022):
             def __init__(self, size, components=["low_alpha_disc"], component_masses=[1], **kwargs):
                 super().__init__(size, components, component_masses, **kwargs)
 
@@ -143,7 +142,7 @@ class Test(unittest.TestCase):
 
         g.save("testing-galaxy-custom")
 
-        g_loaded = galaxy.load("testing-galaxy-custom")
+        g_loaded = sfh.load("testing-galaxy-custom")
 
         self.assertTrue(np.all(g.tau == g_loaded.tau))
         self.assertTrue(np.all(g.rho == g_loaded.rho))
@@ -153,7 +152,7 @@ class Test(unittest.TestCase):
 
     def test_plot(self):
         """Test plotting capabilities"""
-        g = galaxy.Wagg2022(size=1000)
+        g = sfh.Wagg2022(size=1000)
 
         it_broke = False
         try:
@@ -173,7 +172,7 @@ class Test(unittest.TestCase):
 
     def test_indexing(self):
         """Ensure that indexing works correctly (reprs too)"""
-        g = galaxy.Wagg2022(size=10)
+        g = sfh.Wagg2022(size=10)
         print(g)
 
         # make sure it fails for strings
