@@ -1167,6 +1167,7 @@ class Population():
         self.kick_info.to_hdf(file_name, key="kick_info")
 
         with h5.File(file_name, "a") as f:
+            f.attrs["cogsworth_f_type"] = "Population"
             f.attrs["potential_dict"] = yaml.dump(potential_to_dict(self.galactic_potential),
                                                   default_flow_style=None)
         self.initial_galaxy.save(file_name, key="initial_galaxy")
@@ -1231,6 +1232,9 @@ def load(file_name):
 
     BSE_settings = {}
     with h5.File(file_name, "r") as file:
+        if "cogsworth_f_type" not in file.attrs or file.attrs["cogsworth_f_type"] != "Population":
+            raise ValueError((f"{file_name} is not a Population file, "
+                             "perhaps you meant to use `cogsworth.sfh.load`?"))
         numeric_params = file["numeric_params"][...]
 
         store_entire_orbits = file["numeric_params"].attrs["store_entire_orbits"]
