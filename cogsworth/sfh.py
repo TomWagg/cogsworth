@@ -965,6 +965,8 @@ def load(file_name, key="sfh"):
 
     # load the parameters back in using yaml
     with h5.File(file_name, "r") as file:
+        if key not in file.keys():
+            raise ValueError((f"Can't find a saved SFH in {file_name} under the key {key}."))
         params = yaml.load(file[key].attrs["params"], Loader=yaml.Loader)
 
     # get the current module, get a class using the name, delete it from parameters that will be passed

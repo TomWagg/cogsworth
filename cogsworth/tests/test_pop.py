@@ -1,6 +1,7 @@
 import numpy as np
 import unittest
 import cogsworth.pop as pop
+import cogsworth.sfh as sfh
 import cogsworth.observables as obs
 import os
 import pytest
@@ -25,7 +26,7 @@ class Test(unittest.TestCase):
 
     def test_io(self):
         """Check that a population can be saved and re-loaded"""
-        p = pop.Population(2, bcm_timestep_conditions=[['dtp=100000.0']])
+        p = pop.Population(2, processes=1, bcm_timestep_conditions=[['dtp=100000.0']])
         p.create_population()
 
         p.save("testing-pop-io", overwrite=True)
@@ -55,6 +56,30 @@ class Test(unittest.TestCase):
 
         os.remove("testing-pop-io.h5")
 
+    def test_wrong_load_function(self):
+        """Check that errors are properly raised when the wrong load function is used"""
+        g = sfh.Wagg2022(10000)
+        g.save("test-sfh-for-load")
+
+        it_broke = False
+        try:
+            pop.load("test-sfh-for-load")
+        except ValueError:
+            it_broke = True
+        os.remove("test-sfh-for-load.h5")
+        self.assertTrue(it_broke)
+
+        p = pop.Population(2, processes=1)
+        p.create_population()
+        p.save("test-pop-for-load", overwrite=True)
+        it_broke = False
+        try:
+            sfh.load("test-pop-for-load")
+        except ValueError:
+            it_broke = True
+        os.remove("test-pop-for-load.h5")
+        self.assertTrue(it_broke)
+
     def test_orbit_storage(self):
         """Test that we can control how orbits are stored"""
         p = pop.Population(20, final_kstar1=[13, 14], processes=1, store_entire_orbits=True)
@@ -72,7 +97,7 @@ class Test(unittest.TestCase):
 
     def test_overly_stringent_cutoff(self):
         """Make sure that it crashes if the m1_cutoff is too large to create anything"""
-        p = pop.Population(10, m1_cutoff=10000)
+        p = pop.Population(10, processes=1, m1_cutoff=10000)
 
         it_broke = False
         try:
@@ -84,14 +109,14 @@ class Test(unittest.TestCase):
 
     def test_interface(self):
         """Test the interface of this class with the other modules"""
-        p = pop.Population(10, final_kstar1=[13, 14], store_entire_orbits=False)
+        p = pop.Population(10, processes=1, final_kstar1=[13, 14], store_entire_orbits=False)
         p.create_population()
 
         # ensure we get something that disrupts to ensure coverage
         MAX_REPS = 5
         i = 0
         while not p.disrupted.any() and i < MAX_REPS:
-            p = pop.Population(10, final_kstar1=[13, 14])
+            p = pop.Population(10, processes=1, final_kstar1=[13, 14])
             p.create_population()
             i += 1
         if i == MAX_REPS:
@@ -123,7 +148,7 @@ class Test(unittest.TestCase):
 
     def test_getters(self):
         """Test the property getters"""
-        p = pop.Population(2, store_entire_orbits=False)
+        p = pop.Population(2, processes=1, store_entire_orbits=False)
 
         # test getters from sampling
         p.mass_singles
@@ -159,7 +184,7 @@ class Test(unittest.TestCase):
 
     def test_singles_evolution(self):
         """Check everything works well when evolving singles"""
-        p = pop.Population(2, BSE_settings={"binfrac": 0.0},
+        p = pop.Population(2, processes=1, BSE_settings={"binfrac": 0.0},
                            sampling_params={'keep_singles': True, 'total_mass': 100,
                                             'sampling_target': 'total_mass'})
         p.create_population(with_timing=False)
@@ -169,7 +194,7 @@ class Test(unittest.TestCase):
     def test_singles_bad_input(self):
         """Test what happens when you mess up single stars"""
         it_failed = True
-        p = pop.Population(1, BSE_settings={"binfrac": 0.0},
+        p = pop.Population(1, processes=1, BSE_settings={"binfrac": 0.0},
                            sampling_params={'total_mass': 1000, 'sampling_target': 'total_mass'})
         try:
             p.sample_initial_binaries()

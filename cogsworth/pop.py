@@ -1231,6 +1231,9 @@ def load(file_name):
 
     BSE_settings = {}
     with h5.File(file_name, "r") as file:
+        if "numeric_params" not in file.keys():
+            raise ValueError((f"{file_name} is not a Population file, "
+                             "perhaps you meant to use `cogsworth.sfh.load`?"))
         numeric_params = file["numeric_params"][...]
 
         store_entire_orbits = file["numeric_params"].attrs["store_entire_orbits"]
