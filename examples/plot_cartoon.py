@@ -29,7 +29,7 @@ params = {'figure.figsize': (12, 8),
 plt.rcParams.update(params)
 # sphinx_gallery_end_ignore
 
-p = cogsworth.pop.Population(100, final_kstar1=[13, 14])
+p = cogsworth.pop.Population(100, final_kstar1=[13, 14], processes=1, BSE_settings={"binfrac": 1.0})
 p.sample_initial_binaries()
 p.perform_stellar_evolution()
 

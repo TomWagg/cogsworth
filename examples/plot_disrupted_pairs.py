@@ -31,7 +31,7 @@ plt.rcParams.update(params)
 # sphinx_gallery_end_ignore
 
 
-p = cogsworth.pop.Population(100, final_kstar1=[13, 14])
+p = cogsworth.pop.Population(100, final_kstar1=[13, 14], processes=1, BSE_settings={"binfrac": 1.0})
 p.create_population(with_timing=False)
 
 galactic_plane = SkyCoord(l=np.linspace(1e-10, 2 * np.pi, 10000), b=np.zeros(10000),

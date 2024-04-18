@@ -41,7 +41,7 @@ params = {'figure.figsize': (12, 8),
 plt.rcParams.update(params)
 # sphinx_gallery_end_ignore
 
-class TheCube(cogsworth.galaxy.Galaxy):
+class TheCube(cogsworth.sfh.StarFormationHistory):
     def __init__(self, size, components=None, 
                  component_masses=None, immediately_sample=True):
         super().__init__(size=size, components=components,
@@ -67,7 +67,7 @@ class TheCube(cogsworth.galaxy.Galaxy):
         self._Z = (nonsense - nonsense.min()) / nonsense.max()
 
 
-p_cube = cogsworth.pop.Population(1000, galaxy_model=TheCube)
+p_cube = cogsworth.pop.Population(1000, sfh_model=TheCube, processes=1, BSE_settings={"binfrac": 1.0})
 p_cube.create_population()
 
 # remove disrupted systems (they go to random locations)

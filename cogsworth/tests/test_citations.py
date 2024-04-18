@@ -6,7 +6,7 @@ import os
 class Test(unittest.TestCase):
     def test_cite_galaxy(self):
         """Test citations for Galaxy"""
-        g = cogsworth.galaxy.Wagg2022(size=100, immediately_sample=False)
+        g = cogsworth.sfh.Wagg2022(size=100, immediately_sample=False)
         g.get_citations(filename="test.bib")
 
         self.assertTrue(os.path.exists("test.bib"))
@@ -14,7 +14,7 @@ class Test(unittest.TestCase):
 
     def test_cite_galaxy_no_bibs(self):
         """Test citations for Galaxy with no bibs"""
-        class DummyGalaxy(cogsworth.galaxy.Galaxy):
+        class DummyGalaxy(cogsworth.sfh.StarFormationHistory):
             def __init__(self, **kwargs):
                 super().__init__(**kwargs)
                 self.__citations__ = []
@@ -44,5 +44,5 @@ def test_cite_stdin_galaxy(monkeypatch):
     """Test citations when using stdin/stdout (monkeypatch time!)"""
     monkeypatch.setattr('builtins.input', lambda _: "")
 
-    g = cogsworth.galaxy.Wagg2022(size=100, immediately_sample=False)
+    g = cogsworth.sfh.Wagg2022(size=100, immediately_sample=False)
     g.get_citations(filename=None)

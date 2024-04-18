@@ -5,7 +5,7 @@ import pandas as pd
 from cosmic.sample.initialbinarytable import InitialBinaryTable
 
 from ..pop import Population
-from ..galaxy import Galaxy
+from ..sfh import StarFormationHistory
 
 from .utils import dispersion_from_virial_parameter
 import warnings
@@ -115,8 +115,8 @@ class HydroPopulation(Population):
         # start a new population with the same parameters
         new_pop = self.__class__(star_particles=self.star_particles, processes=self.processes,
                                  m1_cutoff=self.m1_cutoff, final_kstar1=self.final_kstar1,
-                                 final_kstar2=self.final_kstar2, galaxy_model=self.galaxy_model,
-                                 galaxy_params=self.galaxy_params, galactic_potential=self.galactic_potential,
+                                 final_kstar2=self.final_kstar2, sfh_model=self.sfh_model,
+                                 sfh_params=self.sfh_params, galactic_potential=self.galactic_potential,
                                  v_dispersion=self.v_dispersion, max_ev_time=self.max_ev_time,
                                  timestep_size=self.timestep_size, BSE_settings=self.BSE_settings,
                                  sampling_params=self.sampling_params,
@@ -249,18 +249,7 @@ class HydroPopulation(Population):
                                          dispersion.to(vel_units).value / np.sqrt(3),
                                          size=(3, self.n_binaries_match)) * vel_units
 
-        # TODO: implement ejection of binaries due to dynamical encounters
-        # if self.des_settings["on"]:
-        #     upper = np.inf
-        #     for mass, frac in self.des_settings["ejection_fracs"]:
-        #         mask = (self._initial_binaries["mass_1"] >= mass) & (self._initial_binaries["mass_1"] < upper)
-        #         ejected = np.random.rand(mask.sum()) < frac
-
-        #         # TODO: eject those binaries
-
-        #         upper = mass
-
-        self._initial_galaxy = Galaxy(self.n_binaries_match, immediately_sample=False)
+        self._initial_galaxy = StarFormationHistory(self.n_binaries_match, immediately_sample=False)
         self._initial_galaxy._tau = self._initial_binaries["tphysf"].values * u.Myr
         self._initial_galaxy._Z = self._initial_binaries["metallicity"].values
         self._initial_galaxy._which_comp = np.repeat("FIRE", len(self.initial_galaxy._tau))

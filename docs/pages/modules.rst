@@ -11,7 +11,7 @@ then you can also use the search box above!
     :caption: Modules
 
     ../modules/pop
-    ../modules/galaxy
+    ../modules/sfh
     ../modules/classify
     ../modules/observables
     ../modules/events

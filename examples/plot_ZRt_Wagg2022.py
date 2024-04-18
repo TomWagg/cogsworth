@@ -3,7 +3,7 @@ Metallicity-radius-time relations
 =================================
 
 Plots showing how metallicity, birth radius and birth time are correlated in the
-:class:`~cogsworth.galaxy.Wagg2022` star formation history model.
+:class:`~cogsworth.sfh.Wagg2022` star formation history model.
 
 In the first plot we can see that the highest metallicities are confined to the centre of the galaxy. For each
 radius we also see a range of metallicities - this is a result of systems having different formation times.
@@ -41,7 +41,7 @@ params = {'figure.figsize': (12, 8),
 plt.rcParams.update(params)
 # sphinx_gallery_end_ignore
 
-g = cogsworth.galaxy.Wagg2022(size=500000)
+g = cogsworth.sfh.Wagg2022(size=500000)
 
 # create a 2x2 plot with no space between axes
 fig, axes = plt.subplots(2, 2, figsize=(15, 15),
