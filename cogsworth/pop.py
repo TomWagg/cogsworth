@@ -958,6 +958,12 @@ class Population():
         primary_observed, secondary_observed = observed
         return primary_observed, secondary_observed
 
+    def get_final_skycoord(self):
+        """Get the final positions and velocities as an astropy SkyCoord object"""
+        return coords.SkyCoord(x=self.final_pos[:, 0], y=self.final_pos[:, 1], z=self.final_pos[:, 2],
+                               v_x=self.final_vel[:, 0], v_y=self.final_vel[:, 1], v_z=self.final_vel[:, 2],
+                               representation_type="cartesian", unit=u.kpc, frame="galactocentric")
+
     def get_healpix_inds(self, ra=None, dec=None, nside=128):
         """Get the indices of the healpix pixels that each binary is in
 
@@ -983,9 +989,7 @@ class Population():
         if ra is None or dec is None:
             raise ValueError("You must provide both `ra` and `dec`, or set them to 'auto'")
         if ra == "auto" or dec == "auto":
-            final_coords = coords.SkyCoord(x=self.final_pos[:, 0], y=self.final_pos[:, 1],
-                                           z=self.final_pos[:, 2], representation_type="cartesian",
-                                           unit=u.kpc, frame="galactocentric")
+            final_coords = self.get_final_skycoord()
             ra = final_coords.icrs.ra.to(u.rad).value
             dec = final_coords.icrs.dec.to(u.rad).value
 
