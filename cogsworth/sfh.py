@@ -398,7 +398,7 @@ class StarFormationHistory():
 
         # dump it all into the file attrs using yaml
         with h5.File(file_name, "a") as file:
-            file.attrs["cogsworth_f_type"] = "SFH"
+            file.attrs["has_sfh"] = True
             file[key].attrs["params"] = yaml.dump(params, default_flow_style=None)
 
 
@@ -966,7 +966,7 @@ def load(file_name, key="sfh"):
 
     # load the parameters back in using yaml
     with h5.File(file_name, "r") as file:
-        if "cogsworth_f_type" not in file.attrs or file.attrs["cogsworth_f_type"] != "SFH":
+        if "has_sfh" not in file.attrs or not file.attrs["has_sfh"]:
             raise ValueError((f"{file_name} is not a SFH file, "
                              "perhaps you meant to use `cogsworth.pop.load`?"))
         params = yaml.load(file[key].attrs["params"], Loader=yaml.Loader)
