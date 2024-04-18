@@ -628,6 +628,9 @@ class Population():
         # apply the mass cutoff
         self._initial_binaries = self._initial_binaries[self._initial_binaries["mass_1"] >= self.m1_cutoff]
 
+        # reset index to match new `bin_num`s
+        self._initial_binaries.reset_index(inplace=True)
+
         # count how many binaries actually match the criteria (may be larger than `n_binaries` due to sampler)
         self.n_binaries_match = len(self._initial_binaries)
 
