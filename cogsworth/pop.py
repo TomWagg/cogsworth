@@ -958,6 +958,45 @@ class Population():
         primary_observed, secondary_observed = observed
         return primary_observed, secondary_observed
 
+    def get_final_mw_skycoord(self):
+        """Get the final positions and velocities as an astropy SkyCoord object
+
+        ..warning::
+
+            This function assumes the final positions and velocities are in the MW galactocentric frame"""
+        return coords.SkyCoord(x=self.final_pos[:, 0], y=self.final_pos[:, 1], z=self.final_pos[:, 2],
+                               v_x=self.final_vel[:, 0], v_y=self.final_vel[:, 1], v_z=self.final_vel[:, 2],
+                               representation_type="cartesian", unit=u.kpc, frame="galactocentric")
+
+    def plot_sky_locations(self, fig=None, ax=None, show=True, show_galactic_plane=True, **kwargs):
+        """Plot the final positions of the binaries in the Milky Way galactocentric frame"""
+        assert check_dependencies(["healpy", "matplotlib"])
+        import matplotlib.pyplot as plt
+
+        # get the final positions and velocities
+        final_coords = self.get_final_mw_skycoord().icrs
+
+        # plot the positions
+        if fig is None or ax is None:
+            fig, ax = plt.subplots()
+
+        # plot the galactic plane if desired
+        if show_galactic_plane:
+            galactic_plane = coords.SkyCoord(l=np.linspace(1e-10, 2 * np.pi, 10000), b=np.zeros(10000),
+                                             unit="rad", frame="galactic").transform_to("icrs")
+            in_order = np.argsort(galactic_plane.ra.value)
+            ax.plot(galactic_plane.ra.value[in_order], galactic_plane.dec.value[in_order],
+                    label="Galactic Plane", color="black" if ax.get_facecolor() == (1,1,1,0) else "white",
+                    linestyle="dotted")
+
+        ax.scatter(final_coords.ra.value, final_coords.dec.value, **kwargs)
+        ax.set(xlabel="Right Ascension [deg]", ylabel="Declination [deg]")
+        ax.legend()
+
+        if show:
+            plt.show()
+        return fig, ax
+
     def get_healpix_inds(self, ra=None, dec=None, nside=128):
         """Get the indices of the healpix pixels that each binary is in
 
@@ -983,9 +1022,7 @@ class Population():
         if ra is None or dec is None:
             raise ValueError("You must provide both `ra` and `dec`, or set them to 'auto'")
         if ra == "auto" or dec == "auto":
-            final_coords = coords.SkyCoord(x=self.final_pos[:, 0], y=self.final_pos[:, 1],
-                                           z=self.final_pos[:, 2], representation_type="cartesian",
-                                           unit=u.kpc, frame="galactocentric")
+            final_coords = self.get_final_mw_skycoord()
             ra = final_coords.icrs.ra.to(u.rad).value
             dec = final_coords.icrs.dec.to(u.rad).value
 
