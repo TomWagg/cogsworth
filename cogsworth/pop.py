@@ -962,7 +962,7 @@ class Population():
         """Get the final positions and velocities as an astropy SkyCoord object
 
         ..warning::
-            
+
             This function assumes the final positions and velocities are in the MW galactocentric frame"""
         return coords.SkyCoord(x=self.final_pos[:, 0], y=self.final_pos[:, 1], z=self.final_pos[:, 2],
                                v_x=self.final_vel[:, 0], v_y=self.final_vel[:, 1], v_z=self.final_vel[:, 2],
@@ -986,7 +986,8 @@ class Population():
                                              unit="rad", frame="galactic").transform_to("icrs")
             in_order = np.argsort(galactic_plane.ra.value)
             ax.plot(galactic_plane.ra.value[in_order], galactic_plane.dec.value[in_order],
-                    label="Galactic Plane", color="black", linestyle="dotted")
+                    label="Galactic Plane", color="black" if ax.get_facecolor() == (1,1,1,0) else "white",
+                    linestyle="dotted")
 
         ax.scatter(final_coords.ra.value, final_coords.dec.value, **kwargs)
         ax.set(xlabel="Right Ascension [deg]", ylabel="Declination [deg]")
