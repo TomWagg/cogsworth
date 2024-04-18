@@ -155,6 +155,8 @@ class Test(unittest.TestCase):
         p.primary_orbits
         p.secondary_orbits
 
+        p.get_final_mw_skycoord()
+
         p.escaped
 
     def test_singles_evolution(self):

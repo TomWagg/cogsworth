@@ -37,8 +37,7 @@ p.create_population(with_timing=False)
 galactic_plane = SkyCoord(l=np.linspace(1e-10, 2 * np.pi, 10000), b=np.zeros(10000),
                           unit="rad", frame="galactic").transform_to("icrs")
 
-final_coords = SkyCoord(x=p.final_pos[:, 0], y=p.final_pos[:, 1], z=p.final_pos[:, 2],
-                        frame="galactocentric", representation_type="cartesian").icrs
+final_coords = p.get_final_mw_skycoord().icrs
 
 fig, ax = plt.subplots()
 
