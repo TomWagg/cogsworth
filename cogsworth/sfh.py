@@ -398,7 +398,7 @@ class StarFormationHistory():
 
         # dump it all into the file attrs using yaml
         with h5.File(file_name, "a") as file:
-            file.attrs["cogsworth-f-type"] = "SFH"
+            file.attrs["cogsworth_f_type"] = "SFH"
             file[key].attrs["params"] = yaml.dump(params, default_flow_style=None)
 
 
