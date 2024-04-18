@@ -1022,7 +1022,7 @@ class Population():
         if ra is None or dec is None:
             raise ValueError("You must provide both `ra` and `dec`, or set them to 'auto'")
         if ra == "auto" or dec == "auto":
-            final_coords = self.get_final_skycoord()
+            final_coords = self.get_final_mw_skycoord()
             ra = final_coords.icrs.ra.to(u.rad).value
             dec = final_coords.icrs.dec.to(u.rad).value
 
