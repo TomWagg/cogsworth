@@ -181,6 +181,9 @@ class Test(unittest.TestCase):
         p.primary_orbits
         p.secondary_orbits
 
+        p._final_vel = None
+        p.final_vel
+
         p.get_final_mw_skycoord()
 
         p.escaped
