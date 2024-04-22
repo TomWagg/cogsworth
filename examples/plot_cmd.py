@@ -32,7 +32,7 @@ params = {'figure.figsize': (12, 8),
 plt.rcParams.update(params)
 # sphinx_gallery_end_ignore
 
-p = cogsworth.pop.Population(2000)
+p = cogsworth.pop.Population(2000, processes=1, BSE_settings={"binfrac": 1.0})
 p.create_population()
 
 p.get_observables(filters=["G", "BP", "RP"],

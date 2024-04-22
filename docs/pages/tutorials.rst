@@ -66,4 +66,10 @@ If you're new to ``cogsworth`` I recommend going through the whole basics sectio
             ../tutorials/visualisation/sky_plots.ipynb
             ../tutorials/visualisation/gala.ipynb
 
-        
+    .. grid-item-card::
+
+        .. toctree::
+            :titlesonly:
+            :caption: Miscellaneous
+
+            ../tutorials/misc/lisa.ipynb

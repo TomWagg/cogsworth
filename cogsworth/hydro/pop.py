@@ -5,7 +5,7 @@ import pandas as pd
 from cosmic.sample.initialbinarytable import InitialBinaryTable
 
 from ..pop import Population
-from ..galaxy import Galaxy
+from ..sfh import StarFormationHistory
 
 from .utils import dispersion_from_virial_parameter
 import warnings
@@ -15,8 +15,8 @@ __all__ = ["HydroPopulation"]
 
 
 class HydroPopulation(Population):
-    def __init__(self, star_particles, particle_size=1 * u.pc, virial_parameter=1.0, subset=None,
-                 sampling_params={}, snapshot_type=None, **kwargs):
+    def __init__(self, star_particles, cluster_radius=3 * u.pc, cluster_mass=1e4 * u.Msun,
+                 virial_parameter=1.0, subset=None, sampling_params={}, snapshot_type=None, **kwargs):
         """A population of stars sampled from a hydrodynamical zoom-in snapshot
 
         Each star particle in the snapshot is converted to a (binary) stellar population, sampled with COSMIC,
@@ -28,8 +28,11 @@ class HydroPopulation(Population):
             A table of star particles from a snapshot that contains the mass, metallicity, formation time,
             position and velocity of each particle, as returned by
             :func:`~cogsworth.hydro.rewind.rewind_to_formation`
-        particle_size : :class:`~astropy.units.Quantity`, optional
-            Size of gaussian for cluster for each star particle, by default 1*u.pc
+        cluster_radius : :class:`~astropy.units.Quantity`, optional
+            Size of gaussian for cluster for each star particle, by default 3 * u.pc
+        cluster_mass : :class:`~astropy.units.Quantity`, optional
+            Mass of cluster for each star particle for calculating velocity dispersion,
+            by default 1e4 * u.Msun
         virial_parameter : `float`, optional
             Virial parameter for each cluster, for setting velocity dispersions, by default 1.0
         subset : `int` or `list` of `int`, optional
@@ -47,7 +50,8 @@ class HydroPopulation(Population):
             Parameters to pass to :class:`~cogsworth.pop.Population`
         """
         self.star_particles = star_particles
-        self.particle_size = particle_size
+        self.cluster_radius = cluster_radius
+        self.cluster_mass = cluster_mass
         self.virial_parameter = virial_parameter
         self._subset_inds = self.star_particles.index.values
         if subset is not None and isinstance(subset, int):
@@ -111,13 +115,13 @@ class HydroPopulation(Population):
         # start a new population with the same parameters
         new_pop = self.__class__(star_particles=self.star_particles, processes=self.processes,
                                  m1_cutoff=self.m1_cutoff, final_kstar1=self.final_kstar1,
-                                 final_kstar2=self.final_kstar2, galaxy_model=self.galaxy_model,
-                                 galaxy_params=self.galaxy_params, galactic_potential=self.galactic_potential,
+                                 final_kstar2=self.final_kstar2, sfh_model=self.sfh_model,
+                                 sfh_params=self.sfh_params, galactic_potential=self.galactic_potential,
                                  v_dispersion=self.v_dispersion, max_ev_time=self.max_ev_time,
                                  timestep_size=self.timestep_size, BSE_settings=self.BSE_settings,
                                  sampling_params=self.sampling_params,
                                  store_entire_orbits=self.store_entire_orbits,
-                                 virial_parameter=self.virial_parameter, particle_size=self.particle_size)
+                                 virial_parameter=self.virial_parameter, cluster_radius=self.cluster_radius)
 
         new_pop.n_binaries = len(bin_nums)
         new_pop.n_binaries_match = len(bin_nums)
@@ -228,31 +232,31 @@ class HydroPopulation(Population):
         v_x = particles["v_x"].values * u.km / u.s
         v_y = particles["v_y"].values * u.km / u.s
         v_z = particles["v_z"].values * u.km / u.s
-        pos = np.random.normal([x.to(u.kpc).value, y.to(u.kpc).value, z.to(u.kpc).value],
-                               self.particle_size.to(u.kpc).value / np.sqrt(3),
-                               size=(3, self.n_binaries_match)) * u.kpc
 
-        self._initial_galaxy = Galaxy(self.n_binaries_match, immediately_sample=False)
-        self._initial_galaxy._x = pos[0]
-        self._initial_galaxy._y = pos[1]
-        self._initial_galaxy._z = pos[2]
-        self._initial_galaxy._tau = self._initial_binaries["tphysf"].values * u.Myr
-        self._initial_galaxy._Z = self._initial_binaries["metallicity"].values
-        self._initial_galaxy._which_comp = np.repeat("FIRE", len(self.initial_galaxy._tau))
+        pos = np.random.normal([x.to(u.kpc).value, y.to(u.kpc).value, z.to(u.kpc).value],
+                               self.cluster_radius.to(u.kpc).value / np.sqrt(3),
+                               size=(3, self.n_binaries_match)) * u.kpc
 
         v_R = (x * v_x + y * v_y) / (x**2 + y**2)**0.5
         v_T = (x * v_y - y * v_x) / (x**2 + y**2)**0.5
 
         vel_units = u.km / u.s
         dispersion = dispersion_from_virial_parameter(self.virial_parameter,
-                                                      self.particle_size,
-                                                      particles["mass"].values * u.Msun)
+                                                      self.cluster_radius, self.cluster_mass)
         v_R, v_T, v_z = np.random.normal([v_R.to(vel_units).value,
                                           v_T.to(vel_units).value,
                                           v_z.to(vel_units).value],
                                          dispersion.to(vel_units).value / np.sqrt(3),
                                          size=(3, self.n_binaries_match)) * vel_units
 
+        self._initial_galaxy = StarFormationHistory(self.n_binaries_match, immediately_sample=False)
+        self._initial_galaxy._tau = self._initial_binaries["tphysf"].values * u.Myr
+        self._initial_galaxy._Z = self._initial_binaries["metallicity"].values
+        self._initial_galaxy._which_comp = np.repeat("FIRE", len(self.initial_galaxy._tau))
+
+        self._initial_galaxy._x = pos[0]
+        self._initial_galaxy._y = pos[1]
+        self._initial_galaxy._z = pos[2]
         self._initial_galaxy._v_R = v_R
         self._initial_galaxy._v_T = v_T
         self._initial_galaxy._v_z = v_z

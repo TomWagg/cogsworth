@@ -36,7 +36,7 @@ plt.rcParams.update(params)
 # sphinx_gallery_end_ignore
 
 
-p = cogsworth.pop.Population(10000)
+p = cogsworth.pop.Population(10000, processes=1, BSE_settings={"binfrac": 1.0})
 p.sample_initial_binaries()
 p.perform_stellar_evolution()
 

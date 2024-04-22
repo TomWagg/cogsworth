@@ -79,7 +79,8 @@ intersphinx_mapping = {'python': ('https://docs.python.org/3', None),
                        'pandas': ('https://pandas.pydata.org/docs/', None),
                        'gala': ('http://gala.adrian.pw/en/latest/', None),
                        'cosmic': ('https://cosmic-popsynth.github.io/docs/stable/', None),
-                       'pynbody': ('https://pynbody.github.io/pynbody/', None)}
+                       'pynbody': ('https://pynbody.github.io/pynbody/', None),
+                       'legwork': ('https://legwork.readthedocs.io/en/latest/', None),}
 
 bibtex_bibfiles = ['tutorials/refs.bib']
 
