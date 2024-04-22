@@ -1,5 +1,6 @@
 from gala.units import galactic
 import gala.potential as gp
+import logging
 
 __all__ = ["get_snapshot_potential"]
 
@@ -38,7 +39,7 @@ def get_snapshot_potential(snap, components=[{"label": "star", "attr": "s", "r_s
     # compute the potential for each component
     for comp in components:
         if verbose:
-            print(f"Computing potential for {comp['label']}")
+            logging.getLogger("cogsworth").info(f"Computing potential for {comp['label']}")
         subsnap = getattr(snap, comp["attr"])
 
         # compute the coefficients for the SCF potential
