@@ -421,3 +421,12 @@ class Test(unittest.TestCase):
 
         sources = p.to_legwork_sources(assume_mw_galactocentric=True)
         sources.get_merger_time()
+
+    def test_galactic_pool(self):
+        """Check that you can create a pool on the fly for galactic evolution"""
+        p = pop.Population(10, processes=2)
+        p.sample_initial_binaries()
+        p.sample_initial_galaxy()
+        p.perform_stellar_evolution()
+        p.perform_galactic_evolution()
+        self.assertTrue(p.pool is None)
