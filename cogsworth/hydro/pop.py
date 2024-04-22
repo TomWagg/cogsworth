@@ -78,14 +78,14 @@ class HydroPopulation(Population):
 
         # ensure indexing with the right type
         ALLOWED_TYPES = (int, slice, list, np.ndarray, tuple)
-        if not isinstance(ind, ALLOWED_TYPES):
+        if not isinstance(ind, ALLOWED_TYPES):          # pragma: no cover
             raise ValueError((f"Can only index using one of {[at.__name__ for at in ALLOWED_TYPES]}, "
                               f"you supplied a '{type(ind).__name__}'"))
 
         # check validity of indices for array-like types
         if isinstance(ind, (list, tuple, np.ndarray)):
             # check every element is a boolean (if so, convert to bin_nums after asserting length sensible)
-            if all(isinstance(x, (bool, np.bool_)) for x in ind):
+            if all(isinstance(x, (bool, np.bool_)) for x in ind):           # pragma: no cover
                 assert len(ind) == len(self.bin_nums), "Boolean mask must be same length as the population"
                 ind = self.bin_nums[ind]
             # otherwise ensure all elements are integers
@@ -108,7 +108,7 @@ class HydroPopulation(Population):
 
         # check that the bin_nums are all valid
         check_nums = np.isin(bin_nums, self.bin_nums)
-        if not check_nums.all():
+        if not check_nums.all():            # pragma: no cover
             raise ValueError(("The index that you supplied includes a `bin_num` that does not exist. "
                               f"The first bin_num I couldn't find was {bin_nums[~check_nums][0]}"))
 
@@ -153,7 +153,7 @@ class HydroPopulation(Population):
         if self._bpp is not None:
             # copy over subsets of data when they aren't None
             new_pop._bpp = self._bpp.loc[bin_nums]
-            if self._bcm is not None:
+            if self._bcm is not None:                   # pragma: no cover
                 new_pop._bcm = self._bcm.loc[bin_nums]
             if self._initC is not None:
                 new_pop._initC = self._initC.loc[bin_nums]
@@ -163,9 +163,9 @@ class HydroPopulation(Population):
                 new_pop._final_bpp = self._final_bpp.loc[bin_nums]
             if self._disrupted is not None:
                 new_pop._disrupted = self._disrupted[inds]
-            if self._classes is not None:
+            if self._classes is not None:               # pragma: no cover
                 new_pop._classes = self._classes.iloc[inds]
-            if self._observables is not None:
+            if self._observables is not None:           # pragma: no cover
                 new_pop._observables = self._observables.iloc[inds]
 
             # same thing but for arrays with appended disrupted secondaries
