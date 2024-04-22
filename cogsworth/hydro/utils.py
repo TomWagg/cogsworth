@@ -35,7 +35,7 @@ def prepare_snapshot(path, halo_params={"mode": "ssc"}):
         try:
             snap = pynbody.load(path)
             snap.physical_units()
-        except RuntimeWarning:
+        except RuntimeWarning:          # pragma: no cover
             warnings.filterwarnings("ignore", message=".*units.*")
             BOLD, RESET = "\033[1m", "\033[0m"
             logging.getLogger("cogsworth").warning(f"{BOLD}cogsworth warning:{RESET} Looks like you're loading a snapshot that doesn't specify its units, I'm going to infer them but make sure the outputted units looks right!")
