@@ -48,7 +48,7 @@ def rewind_to_formation(subsnap, pot, dt=-1 * u.Myr, processes=1):
     # store their formation times in Myr
     tforms = subsnap["tform"].in_units("Myr") * u.Myr
 
-    def args(wf, tforms):
+    def args(wf, tforms):       # pragma: no cover
         for w, t in zip(wf, tforms):
             yield pot, w, final_time, t, dt
 
