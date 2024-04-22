@@ -145,6 +145,7 @@ class Test(unittest.TestCase):
 
         p.plot_map(ra="auto", dec="auto", coord="C", show=False)
         p.plot_map(ra="auto", dec="auto", coord="G", show=False)
+        p.plot_sky_locations(show=False)
 
     def test_getters(self):
         """Test the property getters"""
