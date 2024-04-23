@@ -1,0 +1,3 @@
+# This file automatically created by pynbody
+families: gas dm star 
+dtype: <class 'numpy.int32'>

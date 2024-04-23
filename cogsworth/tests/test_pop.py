@@ -145,6 +145,7 @@ class Test(unittest.TestCase):
 
         p.plot_map(ra="auto", dec="auto", coord="C", show=False)
         p.plot_map(ra="auto", dec="auto", coord="G", show=False)
+        p.plot_sky_locations(show=False)
 
     def test_getters(self):
         """Test the property getters"""
@@ -179,6 +180,9 @@ class Test(unittest.TestCase):
         p.orbits
         p.primary_orbits
         p.secondary_orbits
+
+        p._final_vel = None
+        p.final_vel
 
         p.get_final_mw_skycoord()
 
@@ -417,3 +421,12 @@ class Test(unittest.TestCase):
 
         sources = p.to_legwork_sources(assume_mw_galactocentric=True)
         sources.get_merger_time()
+
+    def test_galactic_pool(self):
+        """Check that you can create a pool on the fly for galactic evolution"""
+        p = pop.Population(10, processes=2)
+        p.sample_initial_binaries()
+        p.sample_initial_galaxy()
+        p.perform_stellar_evolution()
+        p.perform_galactic_evolution()
+        self.assertTrue(p.pool is None)

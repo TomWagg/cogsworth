@@ -1,0 +1,4 @@
+# This file automatically created by pynbody
+units: 1.99e+15 Msol
+families: gas dm star 
+dtype: <class 'numpy.float32'>

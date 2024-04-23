@@ -135,7 +135,7 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential()
 
                     # adjust the time to the last timestep
                     time_cursor = matching_timesteps[-1]
-                else:
+                else:           # pragma: no cover
                     # otherwise skip forward to the event
                     time_cursor = t1 + event["time"]
 

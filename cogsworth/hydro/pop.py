@@ -69,6 +69,17 @@ class HydroPopulation(Population):
             if snapshot_type.lower() == "fire":
                 self.__citations__.append("FIRE")
 
+    def __repr__(self):
+        if self._orbits is None:
+            return (f"<{self.__class__.__name__} - {len(self._subset_inds)} star particles - "
+                    f"galactic_potential={self.galactic_potential.__class__.__name__}, "
+                    f"SFH={self.sfh_model.__name__}>")
+        else:
+            return (f"<{self.__class__.__name__} - {len(self._subset_inds)} star particles - "
+                    f"{self.n_binaries_match} evolved systems - "
+                    f"galactic_potential={self.galactic_potential.__class__.__name__}, "
+                    f"SFH={self.sfh_model.__name__}>")
+
     def __getitem__(self, ind):
         if self._initC is not None and "particle_id" not in self._initC.columns:
             self._initC["particle_id"] = self._initial_binaries["particle_id"]
@@ -78,14 +89,14 @@ class HydroPopulation(Population):
 
         # ensure indexing with the right type
         ALLOWED_TYPES = (int, slice, list, np.ndarray, tuple)
-        if not isinstance(ind, ALLOWED_TYPES):
+        if not isinstance(ind, ALLOWED_TYPES):          # pragma: no cover
             raise ValueError((f"Can only index using one of {[at.__name__ for at in ALLOWED_TYPES]}, "
                               f"you supplied a '{type(ind).__name__}'"))
 
         # check validity of indices for array-like types
         if isinstance(ind, (list, tuple, np.ndarray)):
             # check every element is a boolean (if so, convert to bin_nums after asserting length sensible)
-            if all(isinstance(x, (bool, np.bool_)) for x in ind):
+            if all(isinstance(x, (bool, np.bool_)) for x in ind):           # pragma: no cover
                 assert len(ind) == len(self.bin_nums), "Boolean mask must be same length as the population"
                 ind = self.bin_nums[ind]
             # otherwise ensure all elements are integers
@@ -108,7 +119,7 @@ class HydroPopulation(Population):
 
         # check that the bin_nums are all valid
         check_nums = np.isin(bin_nums, self.bin_nums)
-        if not check_nums.all():
+        if not check_nums.all():            # pragma: no cover
             raise ValueError(("The index that you supplied includes a `bin_num` that does not exist. "
                               f"The first bin_num I couldn't find was {bin_nums[~check_nums][0]}"))
 
@@ -153,7 +164,7 @@ class HydroPopulation(Population):
         if self._bpp is not None:
             # copy over subsets of data when they aren't None
             new_pop._bpp = self._bpp.loc[bin_nums]
-            if self._bcm is not None:
+            if self._bcm is not None:                   # pragma: no cover
                 new_pop._bcm = self._bcm.loc[bin_nums]
             if self._initC is not None:
                 new_pop._initC = self._initC.loc[bin_nums]
@@ -163,9 +174,9 @@ class HydroPopulation(Population):
                 new_pop._final_bpp = self._final_bpp.loc[bin_nums]
             if self._disrupted is not None:
                 new_pop._disrupted = self._disrupted[inds]
-            if self._classes is not None:
+            if self._classes is not None:               # pragma: no cover
                 new_pop._classes = self._classes.iloc[inds]
-            if self._observables is not None:
+            if self._observables is not None:           # pragma: no cover
                 new_pop._observables = self._observables.iloc[inds]
 
             # same thing but for arrays with appended disrupted secondaries
@@ -260,3 +271,9 @@ class HydroPopulation(Population):
         self._initial_galaxy._v_R = v_R
         self._initial_galaxy._v_T = v_T
         self._initial_galaxy._v_z = v_z
+
+    def perform_stellar_evolution(self, **kwargs):
+        """Perform stellar evolution on systems sampled from the star particles
+        and track their parent particles"""
+        super().perform_stellar_evolution(**kwargs)
+        self._initC["particle_id"] = self._initial_binaries["particle_id"]

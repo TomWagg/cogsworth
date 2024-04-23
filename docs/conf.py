@@ -150,6 +150,8 @@ html_sidebars = {
     "pages/learning": [],
     "pages/tutorials": [],
     "pages/case_studies": [],
+    "pages/cite": [],
+    "pages/feedback": [],
     "auto_examples/*": [],
     "tutorials/**": ["page-toc", "sidebar-nav-bs.html"]
 }

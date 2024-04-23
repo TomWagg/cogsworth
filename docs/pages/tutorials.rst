@@ -42,6 +42,15 @@ If you're new to ``cogsworth`` I recommend going through the whole basics sectio
 
         .. toctree::
             :titlesonly:
+            :caption: Hydrodynamical zoom-in simulations
+
+            ../tutorials/hydro/prep.ipynb
+            ../tutorials/hydro/pop.ipynb
+
+    .. grid-item-card::
+
+        .. toctree::
+            :titlesonly:
             :caption: Observables
 
             ../tutorials/observables/photometry.ipynb

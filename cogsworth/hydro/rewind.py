@@ -7,6 +7,7 @@ import gala.integrate as gi
 from multiprocessing import Pool
 from tqdm import tqdm
 import warnings
+import logging
 
 __all__ = ["rewind_to_formation"]
 
@@ -47,7 +48,7 @@ def rewind_to_formation(subsnap, pot, dt=-1 * u.Myr, processes=1):
     # store their formation times in Myr
     tforms = subsnap["tform"].in_units("Myr") * u.Myr
 
-    def args(wf, tforms):
+    def args(wf, tforms):       # pragma: no cover
         for w, t in zip(wf, tforms):
             yield pot, w, final_time, t, dt
 
@@ -64,7 +65,7 @@ def rewind_to_formation(subsnap, pot, dt=-1 * u.Myr, processes=1):
     # check if the formation masses are available, warn if not
     if "massform" not in subsnap.all_keys():
         mass = subsnap["mass"].in_units("Msol")
-        warnings.warn("Formation masses (`massform`) not found, using present day masses instead")
+        logging.getLogger("cogsworth").info("Formation masses (`massform`) not found, using present day masses instead")
     else:
         mass = subsnap["massform"].in_units("Msol")
 

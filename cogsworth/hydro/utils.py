@@ -2,6 +2,7 @@ import numpy as np
 import astropy.units as u
 import astropy.constants as const
 import warnings
+import logging
 
 from ..tests.optional_deps import check_dependencies
 
@@ -29,8 +30,17 @@ def prepare_snapshot(path, halo_params={"mode": "ssc"}):
     import pynbody
 
     # load in the snapshot and use physical units
-    snap = pynbody.load(path)
-    snap.physical_units()
+    with warnings.catch_warnings():
+        warnings.filterwarnings("error", message=".*units.*")
+        try:
+            snap = pynbody.load(path)
+            snap.physical_units()
+        except RuntimeWarning:          # pragma: no cover
+            warnings.filterwarnings("ignore", message=".*units.*")
+            BOLD, RESET = "\033[1m", "\033[0m"
+            logging.getLogger("cogsworth").warning(f"{BOLD}cogsworth warning:{RESET} Looks like you're loading a snapshot that doesn't specify its units, I'm going to infer them but make sure the outputted units looks right!")
+            snap = pynbody.load(path)
+            snap.physical_units()
 
     # try to use a halo catalogue to centre the snapshot
     try:
@@ -38,8 +48,11 @@ def prepare_snapshot(path, halo_params={"mode": "ssc"}):
         pynbody.analysis.halo.center(h[1], **halo_params)
     # otherwise, use pynbody's built-in halo finder to centre the snapshot
     except RuntimeError:
-        warnings.warn("No halo catalogue found, using pynbody's built-in halo finder to centre the snapshot")
-        pynbody.analysis.halo.center(snap, **halo_params)
+        BOLD, RESET = "\033[1m", "\033[0m"
+        logging.getLogger("cogsworth").warning(f"{BOLD}cogsworth warning:{RESET} I couldn't find a halo catalogue, so I'll use pynbody's built-in halo finder to centre the snapshot")
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message=".*units.*")
+            pynbody.analysis.halo.center(snap, **halo_params)
 
     # orient the snapshot face-on and side-on
     side_on = pynbody.analysis.angmom.sideon(snap, cen=(0, 0, 0))
