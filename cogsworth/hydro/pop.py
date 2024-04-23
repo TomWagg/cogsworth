@@ -69,6 +69,17 @@ class HydroPopulation(Population):
             if snapshot_type.lower() == "fire":
                 self.__citations__.append("FIRE")
 
+    def __repr__(self):
+        if self._orbits is None:
+            return (f"<{self.__class__.__name__} - {len(self._subset_inds)} star particles - "
+                    f"galactic_potential={self.galactic_potential.__class__.__name__}, "
+                    f"SFH={self.sfh_model.__name__}>")
+        else:
+            return (f"<{self.__class__.__name__} - {len(self._subset_inds)} star particles - "
+                    f"{self.n_binaries_match} evolved systems - "
+                    f"galactic_potential={self.galactic_potential.__class__.__name__}, "
+                    f"SFH={self.sfh_model.__name__}>")
+
     def __getitem__(self, ind):
         if self._initC is not None and "particle_id" not in self._initC.columns:
             self._initC["particle_id"] = self._initial_binaries["particle_id"]
