@@ -54,6 +54,7 @@ class Test(unittest.TestCase):
             pop = cogsworth.hydro.pop.HydroPopulation(init_particles, galactic_potential=pot,
                                                       subset=subset, snapshot_type="FIRE")
             self.assertEqual(len(pop._subset_inds), length)
+        self.assertTrue("star particles" in pop.__repr__())
 
         # also test citations
         it_broke = False
@@ -76,6 +77,8 @@ class Test(unittest.TestCase):
         p = cogsworth.hydro.pop.HydroPopulation(init_particles, galactic_potential=pot,
                                                 max_ev_time=100 * u.Myr, snapshot_type="FIRE", processes=1)
         p.create_population()
+
+        self.assertTrue("star particles" in p.__repr__() and "evolved systems" in p.__repr__())
 
         p.disrupted
         p.final_bpp

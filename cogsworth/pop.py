@@ -14,6 +14,7 @@ import yaml
 from cosmic.sample.initialbinarytable import InitialBinaryTable
 from cosmic.evolve import Evolve
 from cosmic.checkstate import set_checkstates
+from cosmic.utils import parse_inifile
 import gala.potential as gp
 import gala.dynamics as gd
 from gala.potential.potential.io import to_dict as potential_to_dict, from_dict as potential_from_dict
@@ -62,7 +63,9 @@ class Population():
     timestep_size : :class:`~astropy.units.Quantity` [time], optional
         Size of timesteps to use in galactic evolution, by default 1*u.Myr
     BSE_settings : `dict`, optional
-        Any BSE settings to pass to COSMIC
+        Any BSE settings to pass to COSMIC, superseded by `ini_file` if provided
+    ini_file : `str`, optional
+        Path to an ini file to use for the COSMIC stellar evolution, supersedes `BSE_settings` by default None
     bcm_timestep_conditions : List of lists, optional
         Any timestep conditions to pass to COSMIC evolution. This will affect the rows that are output in the
         the BCM table, by default only the first and last timesteps are output. For more details check out the
@@ -119,8 +122,8 @@ class Population():
     def __init__(self, n_binaries, processes=8, m1_cutoff=0, final_kstar1=list(range(16)),
                  final_kstar2=list(range(16)), sfh_model=sfh.Wagg2022, sfh_params={},
                  galactic_potential=gp.MilkyWayPotential(), v_dispersion=5 * u.km / u.s,
-                 max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, sampling_params={},
-                 bcm_timestep_conditions=[], store_entire_orbits=True):
+                 max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, ini_file=None,
+                 sampling_params={}, bcm_timestep_conditions=[], store_entire_orbits=True):
 
         # require a sensible number of binaries if you are not targetting total mass
         if not ("sampling_target" in sampling_params and sampling_params["sampling_target"] == "total_mass"):
@@ -183,7 +186,7 @@ class Population():
                              'ST_cr': 1, 'ST_tide': 1, 'bdecayfac': 1, 'rembar_massloss': 0.5, 'kickflag': 0,
                              'zsun': 0.014, 'bhms_coll_flag': 0, 'don_lim': -1, 'acc_lim': -1, 'binfrac': 0.5,
                              'rtmsflag': 0, 'wd_mass_lim': 1}
-        self.BSE_settings.update(BSE_settings)
+        self.BSE_settings.update(BSE_settings if ini_file is None else parse_inifile(ini_file)[0])
 
         self.sampling_params = {'primary_model': 'kroupa01', 'ecc_model': 'sana12', 'porb_model': 'sana12',
                                 'qmin': -1, 'keep_singles': False}

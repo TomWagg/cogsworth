@@ -81,9 +81,6 @@ class HydroPopulation(Population):
                     f"SFH={self.sfh_model.__name__}>")
 
     def __getitem__(self, ind):
-        if self._initC is not None and "particle_id" not in self._initC.columns:
-            self._initC["particle_id"] = self._initial_binaries["particle_id"]
-
         # convert any Pandas Series to numpy arrays
         ind = ind.values if isinstance(ind, pd.Series) else ind
 

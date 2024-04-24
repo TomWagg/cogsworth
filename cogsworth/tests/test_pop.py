@@ -127,7 +127,8 @@ class Test(unittest.TestCase):
 
         # test that observable table is done right (with or without extinction)
         p.observables
-        p.get_observables(filters=["G", "BP", "RP", "J", "H", "K"], assume_mw_galactocentric=True)
+        p.get_observables(filters=["G", "BP", "RP", "J", "H", "K"],
+                          assume_mw_galactocentric=True, ignore_extinction=True)
         obs.get_photometry(filters=["G", "BP", "RP", "J", "H", "K"], final_bpp=p.final_bpp,
                            final_pos=p.final_pos, assume_mw_galactocentric=True, ignore_extinction=True)
         p.observables
