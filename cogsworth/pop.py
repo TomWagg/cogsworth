@@ -1279,6 +1279,7 @@ def load(file_name):
         file_name += ".h5"
 
     BSE_settings = {}
+    sampling_params = {}
     with h5.File(file_name, "r") as file:
         if "numeric_params" not in file.keys():
             raise ValueError((f"{file_name} is not a Population file, "
@@ -1294,6 +1295,10 @@ def load(file_name):
         for key in file["BSE_settings"].attrs:
             BSE_settings[key] = file["BSE_settings"].attrs[key]
 
+        # load in sampling params
+        for key in file["sampling_params"].attrs:
+            sampling_params[key] = file["sampling_params"].attrs[key]
+
     initial_galaxy = sfh.load(file_name, key="initial_galaxy")
     with h5.File(file_name, 'r') as f:
         galactic_potential = potential_from_dict(yaml.load(f.attrs["potential_dict"], Loader=yaml.Loader))
@@ -1303,7 +1308,8 @@ def load(file_name):
                    sfh_model=initial_galaxy.__class__, galactic_potential=galactic_potential,
                    v_dispersion=numeric_params[4] * u.km / u.s, max_ev_time=numeric_params[5] * u.Gyr,
                    timestep_size=numeric_params[6] * u.Myr, BSE_settings=BSE_settings,
-                   store_entire_orbits=store_entire_orbits, bcm_timestep_conditions=bcm_tc)
+                   sampling_params=sampling_params, store_entire_orbits=store_entire_orbits,
+                   bcm_timestep_conditions=bcm_tc)
 
     p.n_binaries_match = int(numeric_params[1])
     p._mass_singles = numeric_params[7]
