@@ -579,7 +579,7 @@ class Population():
                                          self.v_dispersion.to(vel_units) / np.sqrt(3),
                                          size=(3, self.n_binaries_match))
         v_R, v_T, v_z = v_R * vel_units, v_T * vel_units, v_z * vel_units
-        self._initial_galaxy. = v_R
+        self._initial_galaxy.v_R = v_R
         self._initial_galaxy.v_T = v_T
         self._initial_galaxy.v_z = v_z
 

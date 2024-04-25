@@ -93,7 +93,7 @@ class StarFormationHistory():
         kwargs = self.__dict__
         actual_kwargs = {}
         for key in list(kwargs.keys()):
-            if key[0] != "_":
+            if key[0] != "_" and key not in ["v_R", "v_T", "v_z"]:
                 actual_kwargs[key] = kwargs[key]
             elif key.startswith("_component"):
                 actual_kwargs[key[1:]] = kwargs[key]
