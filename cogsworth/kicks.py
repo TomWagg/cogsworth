@@ -182,20 +182,61 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential()
     return full_orbit
 
 
-def get_recoil_kick(m_1, m_2, S_1=0, S_2=0):
+def get_recoil_kick(m_1, m_2, a_1=0, a_2=0):
     # https://arxiv.org/pdf/1801.08162.pdf
     m = m_1 + m_2
     dm = (m_1 - m_2) / m
-
     eta = (m_1 * m_2) / m**2
     q = m_1 / m_2
-    S = (S_1 + S_2) / m**2
-    delta = (S_2 / m_2 - S_1 / m_1) / m
 
-    km_s = u.km / u.s
-    A = -8712 * km_s
-    B = -6516 * km_s
-    C = 3907 * km_s
-    v_m = eta**2 * dm * (A + B * dm**2 + C * dm**4)
+    S = (a_2 + q**2 * a_1) / (1 + q)**2
+    delta = (a_2 - q * a_1) / (1 + q)
 
-    return v_m
+    params = {
+        "A": -8712,
+        "B": -6516,
+        "C": 3907,
+        "a": 2.489240,
+        "b": 1.428658,
+        "c": 0.558505,
+        "H": 7499.115,
+        "H2a": -1.736510,
+        "H2b": -0.598144,
+        "H3a": -0.318117,
+        "H3b": -0.748613,
+        "H3c": -1.749784,
+        "H3d": -0.011247,
+        "H3e": -0.920198,
+        "H4a": -0.434318,
+        "H4b": -1.716134,
+        "H4c": 0.619181,
+        "H4d": 1.633127,
+        "H4e": -2.253606,
+        "H4f": -0.028194,
+    }
+
+    v_m = eta**2 * dm * (params['A'] + params['B'] * dm**2 + params['C'] * dm**4)
+
+    v_perp_terms = [
+        delta,
+        params["H2a"] * S * dm,
+        params["H2b"] * delta * S,
+        params["H3a"] * delta**2 * dm,
+        params["H3b"] * S**2 * dm,
+        params["H3c"] * delta * S**2,
+        params["H3d"] * delta**3,
+        params["H3e"] * delta * dm**2,
+        params["H4a"] * S * delta**2 * dm,
+        params["H4b"] * S**3 * dm,
+        params["H4c"] * S * dm**3,
+        params["H4d"] * delta * S * dm**2,
+        params["H4e"] * delta * S**3,
+        params["H4f"] * S * delta**3,
+    ]
+    v_perp = params["H"] * eta**2 * np.sum(v_perp_terms)
+    zeta = params['a'] + params['b'] * S + params['c'] * dm * delta
+
+    v_perp_e1 = np.cos(zeta) * v_perp
+    v_perp_e2 = np.sin(zeta) * v_perp
+
+    return ((v_m + v_perp_e1)**2 + v_perp_e2**2)**(0.5) * u.km / u.s
