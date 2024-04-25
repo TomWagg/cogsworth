@@ -1256,6 +1256,11 @@ class Population():
             for key in self.BSE_settings:
                 d.attrs[key] = self.BSE_settings[key]
 
+            # save sampling params
+            d = file.create_dataset("sampling_params", data=[])
+            for key in self.sampling_params:
+                d.attrs[key] = self.sampling_params[key]
+
 
 def load(file_name):
     """Load a Population from a series of files
