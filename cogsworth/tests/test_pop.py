@@ -36,6 +36,7 @@ class Test(unittest.TestCase):
         self.assertTrue(np.all(p.bpp == p_loaded.bpp))
         self.assertTrue(np.all(p.final_pos == p_loaded.final_pos))
         self.assertTrue(np.all(p.orbits[0].pos == p_loaded.orbits[0].pos))
+        self.assertTrue(np.all(p.initial_galaxy.v_R == p_loaded.initial_galaxy.v_R))
 
         # attempt overwrite without setting flag
         it_broke = False
@@ -410,7 +411,7 @@ class Test(unittest.TestCase):
 
     def test_legwork_conversion(self):
         """Check construction of LEGWORK sources"""
-        p = pop.Population(100)
+        p = pop.Population(100, processes=1)
         p.create_population()
 
         it_failed = False
