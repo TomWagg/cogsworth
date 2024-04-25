@@ -26,7 +26,8 @@ class Test(unittest.TestCase):
 
     def test_io(self):
         """Check that a population can be saved and re-loaded"""
-        p = pop.Population(2, processes=1, bcm_timestep_conditions=[['dtp=100000.0']])
+        p = pop.Population(2, processes=1, bcm_timestep_conditions=[['dtp=100000.0']],
+                           sampling_params={"qmin": 0.5})
         p.create_population()
 
         p.save("testing-pop-io", overwrite=True)
@@ -37,6 +38,7 @@ class Test(unittest.TestCase):
         self.assertTrue(np.all(p.final_pos == p_loaded.final_pos))
         self.assertTrue(np.all(p.orbits[0].pos == p_loaded.orbits[0].pos))
         self.assertTrue(np.all(p.initial_galaxy.v_R == p_loaded.initial_galaxy.v_R))
+        self.assertTrue(p.sampling_params == p_loaded.sampling_params)
 
         # attempt overwrite without setting flag
         it_broke = False
