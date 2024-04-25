@@ -376,7 +376,10 @@ class StarFormationHistory():
             "which_comp": self.which_comp
         }
 
+        # additionally store velocity components if they exist
         for attr in ["v_R", "v_T", "v_z"]:
+            if hasattr(self, attr):
+                data[attr] = getattr(self, attr).to(u.km / u.s).value
 
         df = pd.DataFrame(data=data)
         df.to_hdf(file_name, key=key)
@@ -975,26 +978,31 @@ def load(file_name, key="sfh"):
     # get the current module, get a class using the name, delete it from parameters that will be passed
     module = sys.modules[__name__]
 
-    galaxy_class = getattr(module, params["class_name"])
+    sfh_class = getattr(module, params["class_name"])
     del params["class_name"]
 
     # ensure no samples are taken
     params["immediately_sample"] = False
 
-    # create a new galaxy using the parameters
-    galaxy = galaxy_class(**complicate_params(params))
+    # create a new sfh using the parameters
+    loaded_sfh = sfh_class(**complicate_params(params))
 
     # read in the data and save it into the class
     df = pd.read_hdf(file_name, key=key)
-    galaxy._tau = df["tau"].values * u.Gyr
-    galaxy._Z = df["Z"].values * u.dimensionless_unscaled
-    galaxy._which_comp = df["which_comp"].values
-    galaxy._x = df["x"].values * u.kpc
-    galaxy._y = df["y"].values * u.kpc
-    galaxy._z = df["z"].values * u.kpc
+    loaded_sfh._tau = df["tau"].values * u.Gyr
+    loaded_sfh._Z = df["Z"].values * u.dimensionless_unscaled
+    loaded_sfh._which_comp = df["which_comp"].values
+    loaded_sfh._x = df["x"].values * u.kpc
+    loaded_sfh._y = df["y"].values * u.kpc
+    loaded_sfh._z = df["z"].values * u.kpc
+
+    # additionally read in velocity components if they exist
+    for attr in ["v_R", "v_T", "v_z"]:
+        if attr in df:
+            setattr(loaded_sfh, attr, df[attr].values * u.km / u.s)
 
     # return the newly created class
-    return galaxy
+    return loaded_sfh
 
 
 def simplify_params(params, dont_save=["_tau", "_Z", "_x", "_y", "_z", "_which_comp", "v_R", "v_T", "v_z",
