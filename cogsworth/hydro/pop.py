@@ -265,9 +265,9 @@ class HydroPopulation(Population):
         self._initial_galaxy._x = pos[0]
         self._initial_galaxy._y = pos[1]
         self._initial_galaxy._z = pos[2]
-        self._initial_galaxy._v_R = v_R
-        self._initial_galaxy._v_T = v_T
-        self._initial_galaxy._v_z = v_z
+        self._initial_galaxy.v_R = v_R
+        self._initial_galaxy.v_T = v_T
+        self._initial_galaxy.v_z = v_z
 
     def perform_stellar_evolution(self, **kwargs):
         """Perform stellar evolution on systems sampled from the star particles

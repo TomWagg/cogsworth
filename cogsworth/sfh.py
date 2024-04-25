@@ -111,12 +111,12 @@ class StarFormationHistory():
         new_sfh._which_comp = np.atleast_1d(self._which_comp[ind])
 
         # if we have any of the velocity components then we need to slice them too
-        if hasattr(self, "_v_R"):
-            new_sfh._v_R = np.atleast_1d(self._v_R[ind])
-        if hasattr(self, "_v_T"):
-            new_sfh._v_T = np.atleast_1d(self._v_T[ind])
-        if hasattr(self, "_v_z"):
-            new_sfh._v_z = np.atleast_1d(self._v_z[ind])
+        if hasattr(self, "v_R"):
+            new_sfh.v_R = np.atleast_1d(self.v_R[ind])
+        if hasattr(self, "v_T"):
+            new_sfh.v_T = np.atleast_1d(self.v_T[ind])
+        if hasattr(self, "v_z"):
+            new_sfh.v_z = np.atleast_1d(self.v_z[ind])
 
         return new_sfh
 
@@ -375,6 +375,9 @@ class StarFormationHistory():
             "z": self.z.to(u.kpc),
             "which_comp": self.which_comp
         }
+
+        for attr in ["v_R", "v_T", "v_z"]:
+
         df = pd.DataFrame(data=data)
         df.to_hdf(file_name, key=key)
 
@@ -760,9 +763,9 @@ class QuasiIsothermalDisk(StarFormationHistory):      # pragma: no cover
                               frame="galactocentric").represent_as("cylindrical")
 
         with u.set_enabled_equivalencies(u.dimensionless_angles()):
-            self._v_R = full_coord.differentials['s'].d_rho
-            self._v_T = (full_coord.differentials['s'].d_phi * full_coord.rho).to(u.km / u.s)
-            self._v_z = full_coord.differentials['s'].d_z
+            self.v_R = full_coord.differentials['s'].d_rho
+            self.v_T = (full_coord.differentials['s'].d_phi * full_coord.rho).to(u.km / u.s)
+            self.v_z = full_coord.differentials['s'].d_z
 
         # compute the metallicity given the other values
         self._Z = self.get_metallicity()
@@ -937,9 +940,9 @@ class SpheroidalDwarf(StarFormationHistory):      # pragma: no cover
                               frame="galactocentric").represent_as("cylindrical")
 
         with u.set_enabled_equivalencies(u.dimensionless_angles()):
-            self._v_R = full_coord.differentials['s'].d_rho
-            self._v_T = (full_coord.differentials['s'].d_phi * full_coord.rho).to(u.km / u.s)
-            self._v_z = full_coord.differentials['s'].d_z
+            self.v_R = full_coord.differentials['s'].d_rho
+            self.v_T = (full_coord.differentials['s'].d_phi * full_coord.rho).to(u.km / u.s)
+            self.v_z = full_coord.differentials['s'].d_z
 
         # compute the metallicity given the other values
         self._Z = self.get_metallicity()
@@ -994,7 +997,7 @@ def load(file_name, key="sfh"):
     return galaxy
 
 
-def simplify_params(params, dont_save=["_tau", "_Z", "_x", "_y", "_z", "_which_comp", "_v_R", "_v_T", "_v_z",
+def simplify_params(params, dont_save=["_tau", "_Z", "_x", "_y", "_z", "_which_comp", "v_R", "v_T", "v_z",
                                        "_df", "_agama_pot", "__citations__"]):
     # delete any keys that we don't want to save
     delete_keys = [key for key in params.keys() if key in dont_save]
