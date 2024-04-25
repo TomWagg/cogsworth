@@ -180,3 +180,22 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential()
         full_orbit = full_orbit[-1:]
 
     return full_orbit
+
+
+def get_recoil_kick(m_1, m_2, S_1=0, S_2=0):
+    # https://arxiv.org/pdf/1801.08162.pdf
+    m = m_1 + m_2
+    dm = (m_1 - m_2) / m
+
+    eta = (m_1 * m_2) / m**2
+    q = m_1 / m_2
+    S = (S_1 + S_2) / m**2
+    delta = (S_2 / m_2 - S_1 / m_1) / m
+
+    km_s = u.km / u.s
+    A = -8712 * km_s
+    B = -6516 * km_s
+    C = 3907 * km_s
+    v_m = eta**2 * dm * (A + B * dm**2 + C * dm**4)
+
+    return v_m
