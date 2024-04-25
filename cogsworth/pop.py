@@ -10,6 +10,7 @@ import h5py as h5
 import pandas as pd
 from tqdm import tqdm
 import yaml
+import logging
 
 from cosmic.sample.initialbinarytable import InitialBinaryTable
 from cosmic.evolve import Evolve
@@ -704,9 +705,7 @@ class Population():
         # if we detect NaNs
         if nans.any() or kick_info_nans.any():      # pragma: no cover
             # make sure the user knows bad things have happened
-            print("WARNING! PANIC! THE SKY THE FALLING!")
-            print("------------------------------------")
-            print("(NaNs detected)")
+            logging.getLogger("cogsworth").warning("NaNs detected in COSMIC evolution")
 
             # store the bad things for later
             nan_bin_nums = np.unique(np.concatenate((self.final_bpp[nans]["bin_num"].values,
@@ -731,17 +730,19 @@ class Population():
             self._initial_galaxy._x = self._initial_galaxy._x[not_nan]
             self._initial_galaxy._y = self._initial_galaxy._y[not_nan]
             self._initial_galaxy._z = self._initial_galaxy._z[not_nan]
-            self._initial_galaxy.v_R = self._initial_galaxy.v_R[not_nan]
-            self._initial_galaxy.v_T = self._initial_galaxy.v_T[not_nan]
-            self._initial_galaxy.v_z = self._initial_galaxy.v_z[not_nan]
-            self._initial_galaxy._which_comp = self._initial_galaxy._which_comp[not_nan]
+
+            for attr in ["v_R", "v_T", "v_z", "_which_comp"]:
+                if hasattr(self._initial_galaxy, attr):
+                    setattr(self._initial_galaxy, attr, getattr(self._initial_galaxy, attr)[not_nan])
             self._initial_galaxy._size -= n_nan
 
             # reset final bpp
             self._final_bpp = None
 
-            print(f"WARNING: {n_nan} bad binaries removed from tables - but normalisation may be off")
-            print("I've added the offending binaries to the `nan.h5` file, do with them what you will")
+            logging.getLogger("cogsworth").warning((f"{n_nan} bad binaries removed from tables - but "
+                                                    "normalisation may be off. I've added the offending "
+                                                    "binaries to a `nan.h5` file with their initC, bpp, "
+                                                    "and kick_info tables"))
 
     def perform_galactic_evolution(self, quiet=False, progress_bar=True):
         """Use :py:mod:`gala` to perform the orbital integration for each evolved binary
