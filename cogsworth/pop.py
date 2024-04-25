@@ -563,7 +563,7 @@ class Population():
         self.__citations__.extend([c for c in self._initial_galaxy.__citations__ if c != "cogsworth"])
 
         # if velocities are already set then just immediately return
-        if all(hasattr(self._initial_galaxy, attr) for attr in ["_v_R", "_v_T", "_v_z"]):   # pragma: no cover
+        if all(hasattr(self._initial_galaxy, attr) for attr in ["v_R", "v_T", "v_z"]):   # pragma: no cover
             return
 
         # work out the initial velocities of each binary
@@ -579,9 +579,9 @@ class Population():
                                          self.v_dispersion.to(vel_units) / np.sqrt(3),
                                          size=(3, self.n_binaries_match))
         v_R, v_T, v_z = v_R * vel_units, v_T * vel_units, v_z * vel_units
-        self._initial_galaxy._v_R = v_R
-        self._initial_galaxy._v_T = v_T
-        self._initial_galaxy._v_z = v_z
+        self._initial_galaxy.v_R = v_R
+        self._initial_galaxy.v_T = v_T
+        self._initial_galaxy.v_z = v_z
 
     def sample_initial_binaries(self, initC=None, overwrite_initC_settings=True, reset_sampled_kicks=True):
         """Sample the initial binary parameters for the population.
@@ -731,9 +731,9 @@ class Population():
             self._initial_galaxy._x = self._initial_galaxy._x[not_nan]
             self._initial_galaxy._y = self._initial_galaxy._y[not_nan]
             self._initial_galaxy._z = self._initial_galaxy._z[not_nan]
-            self._initial_galaxy._v_R = self._initial_galaxy._v_R[not_nan]
-            self._initial_galaxy._v_T = self._initial_galaxy._v_T[not_nan]
-            self._initial_galaxy._v_z = self._initial_galaxy._v_z[not_nan]
+            self._initial_galaxy.v_R = self._initial_galaxy.v_R[not_nan]
+            self._initial_galaxy.v_T = self._initial_galaxy.v_T[not_nan]
+            self._initial_galaxy.v_z = self._initial_galaxy.v_z[not_nan]
             self._initial_galaxy._which_comp = self._initial_galaxy._which_comp[not_nan]
             self._initial_galaxy._size -= n_nan
 
@@ -756,10 +756,10 @@ class Population():
         self._final_vel = None
         self._observables = None
 
-        v_phi = (self.initial_galaxy._v_T / self.initial_galaxy.rho)
-        v_X = (self.initial_galaxy._v_R * np.cos(self.initial_galaxy.phi)
+        v_phi = (self.initial_galaxy.v_T / self.initial_galaxy.rho)
+        v_X = (self.initial_galaxy.v_R * np.cos(self.initial_galaxy.phi)
                - self.initial_galaxy.rho * np.sin(self.initial_galaxy.phi) * v_phi)
-        v_Y = (self.initial_galaxy._v_R * np.sin(self.initial_galaxy.phi)
+        v_Y = (self.initial_galaxy.v_R * np.sin(self.initial_galaxy.phi)
                + self.initial_galaxy.rho * np.cos(self.initial_galaxy.phi) * v_phi)
 
         # combine the representation and differentials into a Gala PhaseSpacePosition
@@ -767,7 +767,7 @@ class Population():
                                                                      self.initial_galaxy.y,
                                                                      self.initial_galaxy.z]] * u.kpc,
                                     vel=[a.to(u.km/u.s).value for a in [v_X, v_Y,
-                                                                        self.initial_galaxy._v_z]] * u.km/u.s)
+                                                                        self.initial_galaxy.v_z]] * u.km/u.s)
 
         # identify the pertinent events in the evolution
         primary_events, secondary_events = identify_events(p=self)

@@ -93,7 +93,7 @@ class StarFormationHistory():
         kwargs = self.__dict__
         actual_kwargs = {}
         for key in list(kwargs.keys()):
-            if key[0] != "_":
+            if key[0] != "_" and key not in ["v_R", "v_T", "v_z"]:
                 actual_kwargs[key] = kwargs[key]
             elif key.startswith("_component"):
                 actual_kwargs[key[1:]] = kwargs[key]
@@ -111,12 +111,12 @@ class StarFormationHistory():
         new_sfh._which_comp = np.atleast_1d(self._which_comp[ind])
 
         # if we have any of the velocity components then we need to slice them too
-        if hasattr(self, "_v_R"):
-            new_sfh._v_R = np.atleast_1d(self._v_R[ind])
-        if hasattr(self, "_v_T"):
-            new_sfh._v_T = np.atleast_1d(self._v_T[ind])
-        if hasattr(self, "_v_z"):
-            new_sfh._v_z = np.atleast_1d(self._v_z[ind])
+        if hasattr(self, "v_R"):
+            new_sfh.v_R = np.atleast_1d(self.v_R[ind])
+        if hasattr(self, "v_T"):
+            new_sfh.v_T = np.atleast_1d(self.v_T[ind])
+        if hasattr(self, "v_z"):
+            new_sfh.v_z = np.atleast_1d(self.v_z[ind])
 
         return new_sfh
 
@@ -375,6 +375,12 @@ class StarFormationHistory():
             "z": self.z.to(u.kpc),
             "which_comp": self.which_comp
         }
+
+        # additionally store velocity components if they exist
+        for attr in ["v_R", "v_T", "v_z"]:
+            if hasattr(self, attr):
+                data[attr] = getattr(self, attr).to(u.km / u.s).value
+
         df = pd.DataFrame(data=data)
         df.to_hdf(file_name, key=key)
 
@@ -760,9 +766,9 @@ class QuasiIsothermalDisk(StarFormationHistory):      # pragma: no cover
                               frame="galactocentric").represent_as("cylindrical")
 
         with u.set_enabled_equivalencies(u.dimensionless_angles()):
-            self._v_R = full_coord.differentials['s'].d_rho
-            self._v_T = (full_coord.differentials['s'].d_phi * full_coord.rho).to(u.km / u.s)
-            self._v_z = full_coord.differentials['s'].d_z
+            self.v_R = full_coord.differentials['s'].d_rho
+            self.v_T = (full_coord.differentials['s'].d_phi * full_coord.rho).to(u.km / u.s)
+            self.v_z = full_coord.differentials['s'].d_z
 
         # compute the metallicity given the other values
         self._Z = self.get_metallicity()
@@ -937,9 +943,9 @@ class SpheroidalDwarf(StarFormationHistory):      # pragma: no cover
                               frame="galactocentric").represent_as("cylindrical")
 
         with u.set_enabled_equivalencies(u.dimensionless_angles()):
-            self._v_R = full_coord.differentials['s'].d_rho
-            self._v_T = (full_coord.differentials['s'].d_phi * full_coord.rho).to(u.km / u.s)
-            self._v_z = full_coord.differentials['s'].d_z
+            self.v_R = full_coord.differentials['s'].d_rho
+            self.v_T = (full_coord.differentials['s'].d_phi * full_coord.rho).to(u.km / u.s)
+            self.v_z = full_coord.differentials['s'].d_z
 
         # compute the metallicity given the other values
         self._Z = self.get_metallicity()
@@ -972,29 +978,34 @@ def load(file_name, key="sfh"):
     # get the current module, get a class using the name, delete it from parameters that will be passed
     module = sys.modules[__name__]
 
-    galaxy_class = getattr(module, params["class_name"])
+    sfh_class = getattr(module, params["class_name"])
     del params["class_name"]
 
     # ensure no samples are taken
     params["immediately_sample"] = False
 
-    # create a new galaxy using the parameters
-    galaxy = galaxy_class(**complicate_params(params))
+    # create a new sfh using the parameters
+    loaded_sfh = sfh_class(**complicate_params(params))
 
     # read in the data and save it into the class
     df = pd.read_hdf(file_name, key=key)
-    galaxy._tau = df["tau"].values * u.Gyr
-    galaxy._Z = df["Z"].values * u.dimensionless_unscaled
-    galaxy._which_comp = df["which_comp"].values
-    galaxy._x = df["x"].values * u.kpc
-    galaxy._y = df["y"].values * u.kpc
-    galaxy._z = df["z"].values * u.kpc
+    loaded_sfh._tau = df["tau"].values * u.Gyr
+    loaded_sfh._Z = df["Z"].values * u.dimensionless_unscaled
+    loaded_sfh._which_comp = df["which_comp"].values
+    loaded_sfh._x = df["x"].values * u.kpc
+    loaded_sfh._y = df["y"].values * u.kpc
+    loaded_sfh._z = df["z"].values * u.kpc
+
+    # additionally read in velocity components if they exist
+    for attr in ["v_R", "v_T", "v_z"]:
+        if attr in df:
+            setattr(loaded_sfh, attr, df[attr].values * u.km / u.s)
 
     # return the newly created class
-    return galaxy
+    return loaded_sfh
 
 
-def simplify_params(params, dont_save=["_tau", "_Z", "_x", "_y", "_z", "_which_comp", "_v_R", "_v_T", "_v_z",
+def simplify_params(params, dont_save=["_tau", "_Z", "_x", "_y", "_z", "_which_comp", "v_R", "v_T", "v_z",
                                        "_df", "_agama_pot", "__citations__"]):
     # delete any keys that we don't want to save
     delete_keys = [key for key in params.keys() if key in dont_save]
