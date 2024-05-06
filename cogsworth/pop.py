@@ -148,6 +148,7 @@ class Population():
 
         self._file = None
         self._initial_binaries = None
+        self._initial_galaxy = None
         self._mass_singles = None
         self._mass_binaries = None
         self._n_singles_req = None
