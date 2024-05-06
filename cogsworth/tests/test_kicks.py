@@ -35,3 +35,16 @@ class Test(unittest.TestCase):
                 valid_orbit[i] = False
 
         self.assertTrue(np.all(valid_orbit))
+
+    def test_saved_inc_phase(self):
+        """Test that the inclination and phase are saved correctly in the kick events - such that the same
+        population at present day is fully recreated"""
+
+        p = cogsworth.pop.Population(5, final_kstar1=[13, 14], processes=1, BSE_settings={"binfrac": 1.0})
+        p.create_population()
+        first_pos = p.final_pos.copy()
+
+        p.perform_galactic_evolution()
+        second_pos = p.final_pos.copy()
+
+        self.assertTrue(np.allclose(first_pos, second_pos))
