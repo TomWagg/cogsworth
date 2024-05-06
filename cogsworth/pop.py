@@ -157,7 +157,6 @@ class Population():
         self._initC = None
         self._kick_info = None
         self._orbits = None
-        self._orbits_file = None
         self._classes = None
         self._final_pos = None
         self._final_vel = None
@@ -441,12 +440,12 @@ class Population():
     @property
     def orbits(self):
         # if orbits are uncalculated and no file is provided then perform galactic orbit evolution
-        if self._orbits is None and self._orbits_file is None:
+        if self._orbits is None and self._file is None:
             self.perform_galactic_evolution()
         # otherwise if orbits are uncalculated but a file is provided then load the orbits from the file
         elif self._orbits is None:
             # load the entire file into memory
-            with h5.File(self._orbits_file, "r") as f:
+            with h5.File(self._file, "r") as f:
                 offsets = f["orbits"]["offsets"][...]
                 pos, vel = f["orbits"]["pos"][...] * u.kpc, f["orbits"]["vel"][...] * u.km / u.s
                 t = f["orbits"]["t"][...] * u.Myr
@@ -870,8 +869,8 @@ class Population():
             `self.disrupted.sum()` entries are for disrupted secondaries. Any missing orbits (where orbit=None
             will be set to `np.inf` for ease of masking.
         """
-        if self._orbits_file is not None:
-            with h5.File(self._orbits_file, "r") as f:
+        if self._file is not None:
+            with h5.File(self._file, "r") as f:
                 offsets = f["orbits"]["offsets"][...]
                 pos, vel = f["orbits"]["pos"][...] * u.kpc, f["orbits"]["vel"][...] * u.km / u.s
 
@@ -1339,6 +1338,7 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
     # load parts as necessary
     if "initial_binaries" in parts:
         p.initC
+
     if "initial_galaxy" in parts:
         p.initial_galaxy
 
