@@ -1215,28 +1215,30 @@ class Population():
                                                   default_flow_style=None)
         self.initial_galaxy.save(file_name, key="initial_galaxy")
 
-        # go through the orbits calculate their lengths (and therefore offsets in the file)
-        orbit_lengths = [len(orbit.pos) for orbit in self.orbits]
-        orbit_lengths_total = sum(orbit_lengths)
-        offsets = np.insert(np.cumsum(orbit_lengths), 0, 0)
+        # save the orbits if they have been calculated/loaded
+        if self._orbits is not None:
+            # go through the orbits calculate their lengths (and therefore offsets in the file)
+            orbit_lengths = [len(orbit.pos) for orbit in self.orbits]
+            orbit_lengths_total = sum(orbit_lengths)
+            offsets = np.insert(np.cumsum(orbit_lengths), 0, 0)
 
-        # start some empty arrays to store the data
-        orbits_data = {"offsets": offsets,
-                       "pos": np.zeros((3, orbit_lengths_total)),
-                       "vel": np.zeros((3, orbit_lengths_total)),
-                       "t": np.zeros(orbit_lengths_total)}
+            # start some empty arrays to store the data
+            orbits_data = {"offsets": offsets,
+                        "pos": np.zeros((3, orbit_lengths_total)),
+                        "vel": np.zeros((3, orbit_lengths_total)),
+                        "t": np.zeros(orbit_lengths_total)}
 
-        # save each orbit to the arrays with the same units
-        for i, orbit in enumerate(self.orbits):
-            orbits_data["pos"][:, offsets[i]:offsets[i + 1]] = orbit.pos.xyz.to(u.kpc).value
-            orbits_data["vel"][:, offsets[i]:offsets[i + 1]] = orbit.vel.d_xyz.to(u.km / u.s).value
-            orbits_data["t"][offsets[i]:offsets[i + 1]] = orbit.t.to(u.Myr).value
+            # save each orbit to the arrays with the same units
+            for i, orbit in enumerate(self.orbits):
+                orbits_data["pos"][:, offsets[i]:offsets[i + 1]] = orbit.pos.xyz.to(u.kpc).value
+                orbits_data["vel"][:, offsets[i]:offsets[i + 1]] = orbit.vel.d_xyz.to(u.km / u.s).value
+                orbits_data["t"][offsets[i]:offsets[i + 1]] = orbit.t.to(u.Myr).value
 
-        # save the orbits arrays to the file
-        with h5.File(file_name, "a") as file:
-            orbits = file.create_group("orbits")
-            for key in orbits_data:
-                orbits[key] = orbits_data[key]
+            # save the orbits arrays to the file
+            with h5.File(file_name, "a") as file:
+                orbits = file.create_group("orbits")
+                for key in orbits_data:
+                    orbits[key] = orbits_data[key]
 
         with h5.File(file_name, "a") as file:
             numeric_params = np.array([self.n_binaries, self.n_binaries_match, self.processes, self.m1_cutoff,
@@ -1262,13 +1264,17 @@ class Population():
                 d.attrs[key] = self.sampling_params[key]
 
 
-def load(file_name):
+def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolution"]):
     """Load a Population from a series of files
 
     Parameters
     ----------
     file_name : `str`
         Base name of the files to use. Should either have no file extension or ".h5"
+    parts : `list`, optional
+        Which parts of the Population to load immediately, the rest are loaded as necessary. Any of
+        ["initial_binaries", "initial_galaxy", "stellar_evolution", "galactic_orbits"], by default
+        ["initial_binaries", "initial_galaxy", "stellar_evolution"]
 
     Returns
     -------
@@ -1299,30 +1305,39 @@ def load(file_name):
         for key in file["sampling_params"].attrs:
             sampling_params[key] = file["sampling_params"].attrs[key]
 
-    initial_galaxy = sfh.load(file_name, key="initial_galaxy")
     with h5.File(file_name, 'r') as f:
         galactic_potential = potential_from_dict(yaml.load(f.attrs["potential_dict"], Loader=yaml.Loader))
 
+    # load the initial binaries as necessary
+    if "initial_binaries" in parts:
+        initial_galaxy = sfh.load(file_name, key="initial_galaxy")
+        sfh_model = initial_galaxy.__class__
+    else:
+        sfh_model = sfh.StarFormationHistory
+
     p = Population(n_binaries=int(numeric_params[0]), processes=int(numeric_params[2]),
                    m1_cutoff=numeric_params[3], final_kstar1=final_kstars[0], final_kstar2=final_kstars[1],
-                   sfh_model=initial_galaxy.__class__, galactic_potential=galactic_potential,
+                   sfh_model=sfh_model, galactic_potential=galactic_potential,
                    v_dispersion=numeric_params[4] * u.km / u.s, max_ev_time=numeric_params[5] * u.Gyr,
                    timestep_size=numeric_params[6] * u.Myr, BSE_settings=BSE_settings,
                    sampling_params=sampling_params, store_entire_orbits=store_entire_orbits,
                    bcm_timestep_conditions=bcm_tc)
 
+    p._file = file_name
     p.n_binaries_match = int(numeric_params[1])
     p._mass_singles = numeric_params[7]
     p._mass_binaries = numeric_params[8]
     p._n_singles_req = numeric_params[9]
     p._n_bin_req = numeric_params[10]
 
-    p._initial_galaxy = initial_galaxy
+    if "initial_binaries" in parts:
+        p._initial_galaxy = initial_galaxy
 
-    p._bpp = pd.read_hdf(file_name, key="bpp")
-    p._bcm = pd.read_hdf(file_name, key="bcm") if bcm_tc != [] else None
-    p._initC = pd.read_hdf(file_name, key="initC")
-    p._kick_info = pd.read_hdf(file_name, key="kick_info")
+    if "stellar_evolution" in parts:
+        p._bpp = pd.read_hdf(file_name, key="bpp")
+        p._bcm = pd.read_hdf(file_name, key="bcm") if bcm_tc != [] else None
+        p._initC = pd.read_hdf(file_name, key="initC")
+        p._kick_info = pd.read_hdf(file_name, key="kick_info")
 
     # don't directly load the orbits, just store the file name for later
     p._orbits_file = file_name
