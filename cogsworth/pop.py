@@ -790,6 +790,11 @@ class Population():
                                     vel=[a.to(u.km/u.s).value for a in [v_X, v_Y,
                                                                         self.initial_galaxy.v_z]] * u.km/u.s)
 
+        # randomly drawn phase and inclination angles as necessary
+        for col in ["phase_sn_1", "phase_sn_2", "inc_sn_1", "inc_sn_2"]:
+            if col not in self.initC:
+                self.initC[col] = np.random.uniform(0, 2 * np.pi, len(self.initC))
+
         # identify the pertinent events in the evolution
         primary_events, secondary_events = identify_events(p=self)
 
