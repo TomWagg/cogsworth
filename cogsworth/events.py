@@ -39,17 +39,16 @@ def identify_events(p):
 
         bpp = full_bpp.loc[[bin_num]]
         kick_info = full_kick_info.loc[[bin_num]]
+        initC = p.initC.loc[[bin_num]]
 
         # for primaries and bound binaries we just need a simple list
         primary_events_list[i] = [{
             "time": bpp.iloc[j]["tphys"] * u.Myr,
-            "m_1": bpp.iloc[j]["mass_1"] * u.Msun,
-            "m_2": bpp.iloc[j]["mass_2"] * u.Msun,
-            "a": bpp.iloc[j]["sep"] * u.Rsun,
-            "ecc": bpp.iloc[j]["ecc"],
             "delta_v_sys_xyz": [kick_info.iloc[j]["delta_vsysx_1"],
                                 kick_info.iloc[j]["delta_vsysy_1"],
-                                kick_info.iloc[j]["delta_vsysz_1"]] * u.km / u.s
+                                kick_info.iloc[j]["delta_vsysz_1"]] * u.km / u.s,
+            "inc": initC[f"inc_sn_{j + 1:0d}"] if f"inc_sn_{j + 1:0d}" in initC else None,
+            "phase": initC[f"phase_sn_{j + 1:0d}"] if f"phase_sn_{j + 1:0d}" in initC else None,
         } for j in range(len(kick_info))]
 
         # iterate over the kick file and store the relevant information (for both if disruption will occur)
@@ -60,12 +59,10 @@ def identify_events(p):
                 col_suffix = "_1" if kick_info.iloc[j]["disrupted"] == 0.0 else "_2"
                 secondary_events_list[i].append({
                     "time": bpp.iloc[j]["tphys"] * u.Myr,
-                    "m_1": bpp.iloc[j]["mass_1"] * u.Msun,
-                    "m_2": bpp.iloc[j]["mass_2"] * u.Msun,
-                    "a": bpp.iloc[j]["sep"] * u.Rsun,
-                    "ecc": bpp.iloc[j]["ecc"],
                     "delta_v_sys_xyz": [kick_info.iloc[j][f'delta_vsysx{col_suffix}'],
                                         kick_info.iloc[j][f'delta_vsysy{col_suffix}'],
-                                        kick_info.iloc[j][f'delta_vsysz{col_suffix}']] * u.km / u.s
+                                        kick_info.iloc[j][f'delta_vsysz{col_suffix}']] * u.km / u.s,
+                    "inc": initC[f"inc_sn_{j + 1:0d}"] if f"inc_sn_{j + 1:0d}" in initC else None,
+                    "phase": initC[f"phase_sn_{j + 1:0d}"] if f"phase_sn_{j + 1:0d}" in initC else None,
                 })
     return primary_events_list, secondary_events_list
