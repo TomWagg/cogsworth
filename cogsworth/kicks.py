@@ -131,7 +131,7 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential()
 
                 # calculate the kick differential
                 kick_differential = get_kick_differential(delta_v_sys_xyz=event["delta_v_sys_xyz"],
-                                                          m_1=event["m_1"], m_2=event["m_2"], a=event["a"])
+                                                          phase=event["phase"], inclination=event["inc"])
 
                 # update the velocity of the current PhaseSpacePosition
                 current_w0 = gd.PhaseSpacePosition(pos=current_w0.pos,
