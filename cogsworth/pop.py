@@ -146,6 +146,7 @@ class Population():
         self.pool = None
         self.store_entire_orbits = store_entire_orbits
 
+        self._file = None
         self._initial_binaries = None
         self._mass_singles = None
         self._mass_binaries = None
@@ -369,7 +370,10 @@ class Population():
 
     @property
     def initial_galaxy(self):
-        if self._initial_galaxy is None:
+        if self._initial_galaxy is None and self._file is not None:
+            self._initial_galaxy = sfh.load(self._file, key="initial_galaxy")
+            self.sfh_model = self._initial_galaxy.__class__
+        elif self._initial_galaxy is None:
             self.sample_initial_binaries()
         return self._initial_galaxy
 
@@ -399,7 +403,9 @@ class Population():
 
     @property
     def bpp(self):
-        if self._bpp is None:
+        if self._bpp is None and self._file is not None:
+            self._bpp = pd.read_hdf(self._file, key="bpp")
+        elif self._bpp is None:
             self.perform_stellar_evolution()
         return self._bpp
 
@@ -409,18 +415,25 @@ class Population():
             warnings.warn(("You haven't set any timestep conditions for the BCM table, so it is not saved "
                            "(since the same information is in the bpp table). Set `bcm_timestep_conditions` "
                            "to something to get a BCM table."))
+
+        if self._bcm is None and self._file is not None:
+            self._bcm = pd.read_hdf(self._file, key="bcm")
         elif self._bcm is None:
             self.perform_stellar_evolution()
         return self._bcm
 
     @property
     def initC(self):
-        if self._initC is None:
+        if self._initC is None and self._file is not None:
+            self._initC = pd.read_hdf(self._file, key="initC")
+        elif self._initC is None:
             self.perform_stellar_evolution()
         return self._initC
 
     @property
     def kick_info(self):
+        if self._kick_info is None and self._file is not None:
+            self._kick_info = pd.read_hdf(self._file, key="kick_info")
         if self._kick_info is None:
             self.perform_stellar_evolution()
         return self._kick_info
@@ -1312,12 +1325,10 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
     if "initial_binaries" in parts:
         initial_galaxy = sfh.load(file_name, key="initial_galaxy")
         sfh_model = initial_galaxy.__class__
-    else:
-        sfh_model = sfh.StarFormationHistory
 
     p = Population(n_binaries=int(numeric_params[0]), processes=int(numeric_params[2]),
                    m1_cutoff=numeric_params[3], final_kstar1=final_kstars[0], final_kstar2=final_kstars[1],
-                   sfh_model=sfh_model, galactic_potential=galactic_potential,
+                   sfh_model=sfh.StarFormationHistory, galactic_potential=galactic_potential,
                    v_dispersion=numeric_params[4] * u.km / u.s, max_ev_time=numeric_params[5] * u.Gyr,
                    timestep_size=numeric_params[6] * u.Myr, BSE_settings=BSE_settings,
                    sampling_params=sampling_params, store_entire_orbits=store_entire_orbits,
