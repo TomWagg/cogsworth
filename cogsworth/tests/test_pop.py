@@ -61,7 +61,7 @@ class Test(unittest.TestCase):
         os.remove("testing-pop-io.h5")
 
     def test_lazy_io(self):
-        """Check that a population can be saved and re-loaded"""
+        """Check that a population can be saved and re-loaded lazily"""
         p = pop.Population(2, processes=1, bcm_timestep_conditions=[['dtp=100000.0']],
                            sampling_params={"qmin": 0.5})
         p.create_population()
@@ -78,6 +78,27 @@ class Test(unittest.TestCase):
         self.assertTrue(p.sampling_params == p_loaded.sampling_params)
 
         os.remove("testing-lazy-io.h5")
+
+    def test_load_no_orbits(self):
+        """Check that a population can be saved without orbits, and raises an error if trying to load them"""
+        p = pop.Population(2, processes=1, bcm_timestep_conditions=[['dtp=100000.0']],
+                           sampling_params={"qmin": 0.5})
+        p.sample_initial_galaxy()
+        p.sample_initial_binaries()
+        p.perform_stellar_evolution()
+
+        p.save("testing-no-orbits", overwrite=True)
+
+        p_loaded = pop.load("testing-no-orbits", parts=[])
+
+        it_broke = False
+        try:
+            p_loaded.orbits
+        except ValueError:
+            it_broke = True
+        self.assertTrue(it_broke)
+
+        os.remove("testing-no-orbits.h5")
 
     def test_wrong_load_function(self):
         """Check that errors are properly raised when the wrong load function is used"""
