@@ -1321,11 +1321,6 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
     with h5.File(file_name, 'r') as f:
         galactic_potential = potential_from_dict(yaml.load(f.attrs["potential_dict"], Loader=yaml.Loader))
 
-    # load the initial binaries as necessary
-    if "initial_binaries" in parts:
-        initial_galaxy = sfh.load(file_name, key="initial_galaxy")
-        sfh_model = initial_galaxy.__class__
-
     p = Population(n_binaries=int(numeric_params[0]), processes=int(numeric_params[2]),
                    m1_cutoff=numeric_params[3], final_kstar1=final_kstars[0], final_kstar2=final_kstars[1],
                    sfh_model=sfh.StarFormationHistory, galactic_potential=galactic_potential,
@@ -1341,17 +1336,19 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
     p._n_singles_req = numeric_params[9]
     p._n_bin_req = numeric_params[10]
 
+    # load parts as necessary
     if "initial_binaries" in parts:
-        p._initial_galaxy = initial_galaxy
+        p.initC
+    if "initial_galaxy" in parts:
+        p.initial_galaxy
 
     if "stellar_evolution" in parts:
-        p._bpp = pd.read_hdf(file_name, key="bpp")
-        p._bcm = pd.read_hdf(file_name, key="bcm") if bcm_tc != [] else None
-        p._initC = pd.read_hdf(file_name, key="initC")
-        p._kick_info = pd.read_hdf(file_name, key="kick_info")
+        p.kick_info
+        p.bcm
+        p.bpp
 
-    # don't directly load the orbits, just store the file name for later
-    p._orbits_file = file_name
+    if "galactic_orbits" in parts:
+        p.orbits
 
     return p
 
