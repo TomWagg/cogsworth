@@ -66,9 +66,9 @@ class Test(unittest.TestCase):
                            sampling_params={"qmin": 0.5})
         p.create_population()
 
-        p.save("testing-pop-io", overwrite=True)
+        p.save("testing-lazy-io", overwrite=True)
 
-        p_loaded = pop.load("testing-pop-io", parts=[])
+        p_loaded = pop.load("testing-lazy-io", parts=[])
 
         self.assertTrue(np.all(p.initC == p_loaded.initC))
         self.assertTrue(np.all(p.bpp == p_loaded.bpp))
@@ -77,7 +77,7 @@ class Test(unittest.TestCase):
         self.assertTrue(np.all(p.initial_galaxy.v_R == p_loaded.initial_galaxy.v_R))
         self.assertTrue(p.sampling_params == p_loaded.sampling_params)
 
-        os.remove("testing-pop-io.h5")
+        os.remove("testing-lazy-io.h5")
 
     def test_wrong_load_function(self):
         """Check that errors are properly raised when the wrong load function is used"""
