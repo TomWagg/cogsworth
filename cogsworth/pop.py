@@ -1236,9 +1236,9 @@ class Population():
 
             # start some empty arrays to store the data
             orbits_data = {"offsets": offsets,
-                        "pos": np.zeros((3, orbit_lengths_total)),
-                        "vel": np.zeros((3, orbit_lengths_total)),
-                        "t": np.zeros(orbit_lengths_total)}
+                           "pos": np.zeros((3, orbit_lengths_total)),
+                           "vel": np.zeros((3, orbit_lengths_total)),
+                           "t": np.zeros(orbit_lengths_total)}
 
             # save each orbit to the arrays with the same units
             for i, orbit in enumerate(self.orbits):
