@@ -39,7 +39,7 @@ def identify_events(p):
 
         bpp = full_bpp.loc[[bin_num]]
         kick_info = full_kick_info.loc[[bin_num]]
-        initC = p.initC.loc[[bin_num]]
+        initC = p.initC.loc[bin_num]
 
         # for primaries and bound binaries we just need a simple list
         primary_events_list[i] = [{
