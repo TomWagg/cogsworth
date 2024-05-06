@@ -32,7 +32,8 @@ class Test(unittest.TestCase):
 
         p.save("testing-pop-io", overwrite=True)
 
-        p_loaded = pop.load("testing-pop-io")
+        p_loaded = pop.load("testing-pop-io", parts=["initial_binaries", "initial_galaxy",
+                                                     "stellar_evolution", "galactic_orbits"])
 
         self.assertTrue(np.all(p.bpp == p_loaded.bpp))
         self.assertTrue(np.all(p.final_pos == p_loaded.final_pos))
@@ -58,6 +59,46 @@ class Test(unittest.TestCase):
         self.assertFalse(it_broke)
 
         os.remove("testing-pop-io.h5")
+
+    def test_lazy_io(self):
+        """Check that a population can be saved and re-loaded lazily"""
+        p = pop.Population(2, processes=1, bcm_timestep_conditions=[['dtp=100000.0']],
+                           sampling_params={"qmin": 0.5})
+        p.create_population()
+
+        p.save("testing-lazy-io", overwrite=True)
+
+        p_loaded = pop.load("testing-lazy-io", parts=[])
+
+        self.assertTrue(np.all(p.initC == p_loaded.initC))
+        self.assertTrue(np.all(p.bpp == p_loaded.bpp))
+        self.assertTrue(np.all(p.final_pos == p_loaded.final_pos))
+        self.assertTrue(np.all(p.orbits[0].pos == p_loaded.orbits[0].pos))
+        self.assertTrue(np.all(p.initial_galaxy.v_R == p_loaded.initial_galaxy.v_R))
+        self.assertTrue(p.sampling_params == p_loaded.sampling_params)
+
+        os.remove("testing-lazy-io.h5")
+
+    def test_load_no_orbits(self):
+        """Check that a population can be saved without orbits, and raises an error if trying to load them"""
+        p = pop.Population(2, processes=1, bcm_timestep_conditions=[['dtp=100000.0']],
+                           sampling_params={"qmin": 0.5})
+        p.sample_initial_galaxy()
+        p.sample_initial_binaries()
+        p.perform_stellar_evolution()
+
+        p.save("testing-no-orbits", overwrite=True)
+
+        p_loaded = pop.load("testing-no-orbits", parts=[])
+
+        it_broke = False
+        try:
+            p_loaded.orbits
+        except ValueError:
+            it_broke = True
+        self.assertTrue(it_broke)
+
+        os.remove("testing-no-orbits.h5")
 
     def test_wrong_load_function(self):
         """Check that errors are properly raised when the wrong load function is used"""

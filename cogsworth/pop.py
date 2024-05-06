@@ -146,7 +146,9 @@ class Population():
         self.pool = None
         self.store_entire_orbits = store_entire_orbits
 
+        self._file = None
         self._initial_binaries = None
+        self._initial_galaxy = None
         self._mass_singles = None
         self._mass_binaries = None
         self._n_singles_req = None
@@ -156,7 +158,6 @@ class Population():
         self._initC = None
         self._kick_info = None
         self._orbits = None
-        self._orbits_file = None
         self._classes = None
         self._final_pos = None
         self._final_vel = None
@@ -369,7 +370,10 @@ class Population():
 
     @property
     def initial_galaxy(self):
-        if self._initial_galaxy is None:
+        if self._initial_galaxy is None and self._file is not None:
+            self._initial_galaxy = sfh.load(self._file, key="initial_galaxy")
+            self.sfh_model = self._initial_galaxy.__class__
+        elif self._initial_galaxy is None:
             self.sample_initial_binaries()
         return self._initial_galaxy
 
@@ -399,28 +403,41 @@ class Population():
 
     @property
     def bpp(self):
-        if self._bpp is None:
+        if self._bpp is None and self._file is not None:
+            self._bpp = pd.read_hdf(self._file, key="bpp")
+        elif self._bpp is None:
             self.perform_stellar_evolution()
         return self._bpp
 
     @property
     def bcm(self):
-        if self._bcm is None and self.bcm_timestep_conditions == []:
-            warnings.warn(("You haven't set any timestep conditions for the BCM table, so it is not saved "
-                           "(since the same information is in the bpp table). Set `bcm_timestep_conditions` "
-                           "to something to get a BCM table."))
+        if self._bcm is None and self._file is not None:
+            has_bcm = None
+            with h5.File(self._file, "r") as f:
+                has_bcm = "bcm" in f
+            self._bcm = pd.read_hdf(self._file, key="bcm") if has_bcm else None
         elif self._bcm is None:
-            self.perform_stellar_evolution()
+            if len(np.ravel(self.bcm_timestep_conditions)) == 0:        # pragma: no cover
+                logging.getLogger("cogsworth").warning(("cogsworth warning: You haven't set any timestep "
+                                                        "conditions for the BCM table, so it is not "
+                                                        "calculated. Set `bcm_timestep_conditions` to get a "
+                                                        "BCM table."))
+            else:
+                self.perform_stellar_evolution()
         return self._bcm
 
     @property
     def initC(self):
-        if self._initC is None:
+        if self._initC is None and self._file is not None:
+            self._initC = pd.read_hdf(self._file, key="initC")
+        elif self._initC is None:
             self.perform_stellar_evolution()
         return self._initC
 
     @property
     def kick_info(self):
+        if self._kick_info is None and self._file is not None:
+            self._kick_info = pd.read_hdf(self._file, key="kick_info")
         if self._kick_info is None:
             self.perform_stellar_evolution()
         return self._kick_info
@@ -428,12 +445,15 @@ class Population():
     @property
     def orbits(self):
         # if orbits are uncalculated and no file is provided then perform galactic orbit evolution
-        if self._orbits is None and self._orbits_file is None:
+        if self._orbits is None and self._file is None:
             self.perform_galactic_evolution()
         # otherwise if orbits are uncalculated but a file is provided then load the orbits from the file
         elif self._orbits is None:
             # load the entire file into memory
-            with h5.File(self._orbits_file, "r") as f:
+            with h5.File(self._file, "r") as f:
+                if "orbits" not in f:
+                    raise ValueError(f"No orbits found in population file ({self._file})")
+
                 offsets = f["orbits"]["offsets"][...]
                 pos, vel = f["orbits"]["pos"][...] * u.kpc, f["orbits"]["vel"][...] * u.km / u.s
                 t = f["orbits"]["t"][...] * u.Myr
@@ -857,8 +877,8 @@ class Population():
             `self.disrupted.sum()` entries are for disrupted secondaries. Any missing orbits (where orbit=None
             will be set to `np.inf` for ease of masking.
         """
-        if self._orbits_file is not None:
-            with h5.File(self._orbits_file, "r") as f:
+        if self._file is not None:
+            with h5.File(self._file, "r") as f:
                 offsets = f["orbits"]["offsets"][...]
                 pos, vel = f["orbits"]["pos"][...] * u.kpc, f["orbits"]["vel"][...] * u.km / u.s
 
@@ -1215,28 +1235,30 @@ class Population():
                                                   default_flow_style=None)
         self.initial_galaxy.save(file_name, key="initial_galaxy")
 
-        # go through the orbits calculate their lengths (and therefore offsets in the file)
-        orbit_lengths = [len(orbit.pos) for orbit in self.orbits]
-        orbit_lengths_total = sum(orbit_lengths)
-        offsets = np.insert(np.cumsum(orbit_lengths), 0, 0)
+        # save the orbits if they have been calculated/loaded
+        if self._orbits is not None:
+            # go through the orbits calculate their lengths (and therefore offsets in the file)
+            orbit_lengths = [len(orbit.pos) for orbit in self.orbits]
+            orbit_lengths_total = sum(orbit_lengths)
+            offsets = np.insert(np.cumsum(orbit_lengths), 0, 0)
 
-        # start some empty arrays to store the data
-        orbits_data = {"offsets": offsets,
-                       "pos": np.zeros((3, orbit_lengths_total)),
-                       "vel": np.zeros((3, orbit_lengths_total)),
-                       "t": np.zeros(orbit_lengths_total)}
+            # start some empty arrays to store the data
+            orbits_data = {"offsets": offsets,
+                           "pos": np.zeros((3, orbit_lengths_total)),
+                           "vel": np.zeros((3, orbit_lengths_total)),
+                           "t": np.zeros(orbit_lengths_total)}
 
-        # save each orbit to the arrays with the same units
-        for i, orbit in enumerate(self.orbits):
-            orbits_data["pos"][:, offsets[i]:offsets[i + 1]] = orbit.pos.xyz.to(u.kpc).value
-            orbits_data["vel"][:, offsets[i]:offsets[i + 1]] = orbit.vel.d_xyz.to(u.km / u.s).value
-            orbits_data["t"][offsets[i]:offsets[i + 1]] = orbit.t.to(u.Myr).value
+            # save each orbit to the arrays with the same units
+            for i, orbit in enumerate(self.orbits):
+                orbits_data["pos"][:, offsets[i]:offsets[i + 1]] = orbit.pos.xyz.to(u.kpc).value
+                orbits_data["vel"][:, offsets[i]:offsets[i + 1]] = orbit.vel.d_xyz.to(u.km / u.s).value
+                orbits_data["t"][offsets[i]:offsets[i + 1]] = orbit.t.to(u.Myr).value
 
-        # save the orbits arrays to the file
-        with h5.File(file_name, "a") as file:
-            orbits = file.create_group("orbits")
-            for key in orbits_data:
-                orbits[key] = orbits_data[key]
+            # save the orbits arrays to the file
+            with h5.File(file_name, "a") as file:
+                orbits = file.create_group("orbits")
+                for key in orbits_data:
+                    orbits[key] = orbits_data[key]
 
         with h5.File(file_name, "a") as file:
             numeric_params = np.array([self.n_binaries, self.n_binaries_match, self.processes, self.m1_cutoff,
@@ -1262,13 +1284,17 @@ class Population():
                 d.attrs[key] = self.sampling_params[key]
 
 
-def load(file_name):
+def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolution"]):
     """Load a Population from a series of files
 
     Parameters
     ----------
     file_name : `str`
         Base name of the files to use. Should either have no file extension or ".h5"
+    parts : `list`, optional
+        Which parts of the Population to load immediately, the rest are loaded as necessary. Any of
+        ["initial_binaries", "initial_galaxy", "stellar_evolution", "galactic_orbits"], by default
+        ["initial_binaries", "initial_galaxy", "stellar_evolution"]
 
     Returns
     -------
@@ -1299,33 +1325,38 @@ def load(file_name):
         for key in file["sampling_params"].attrs:
             sampling_params[key] = file["sampling_params"].attrs[key]
 
-    initial_galaxy = sfh.load(file_name, key="initial_galaxy")
     with h5.File(file_name, 'r') as f:
         galactic_potential = potential_from_dict(yaml.load(f.attrs["potential_dict"], Loader=yaml.Loader))
 
     p = Population(n_binaries=int(numeric_params[0]), processes=int(numeric_params[2]),
                    m1_cutoff=numeric_params[3], final_kstar1=final_kstars[0], final_kstar2=final_kstars[1],
-                   sfh_model=initial_galaxy.__class__, galactic_potential=galactic_potential,
+                   sfh_model=sfh.StarFormationHistory, galactic_potential=galactic_potential,
                    v_dispersion=numeric_params[4] * u.km / u.s, max_ev_time=numeric_params[5] * u.Gyr,
                    timestep_size=numeric_params[6] * u.Myr, BSE_settings=BSE_settings,
                    sampling_params=sampling_params, store_entire_orbits=store_entire_orbits,
                    bcm_timestep_conditions=bcm_tc)
 
+    p._file = file_name
     p.n_binaries_match = int(numeric_params[1])
     p._mass_singles = numeric_params[7]
     p._mass_binaries = numeric_params[8]
     p._n_singles_req = numeric_params[9]
     p._n_bin_req = numeric_params[10]
 
-    p._initial_galaxy = initial_galaxy
+    # load parts as necessary
+    if "initial_binaries" in parts:
+        p.initC
 
-    p._bpp = pd.read_hdf(file_name, key="bpp")
-    p._bcm = pd.read_hdf(file_name, key="bcm") if bcm_tc != [] else None
-    p._initC = pd.read_hdf(file_name, key="initC")
-    p._kick_info = pd.read_hdf(file_name, key="kick_info")
+    if "initial_galaxy" in parts:
+        p.initial_galaxy
 
-    # don't directly load the orbits, just store the file name for later
-    p._orbits_file = file_name
+    if "stellar_evolution" in parts:
+        p.kick_info
+        p.bcm
+        p.bpp
+
+    if "galactic_orbits" in parts:
+        p.orbits
 
     return p
 
