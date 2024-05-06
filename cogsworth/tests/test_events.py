@@ -21,7 +21,7 @@ class Test(unittest.TestCase):
             "sep": [10, 10, 10, -1.0, 10, 10, -1.0],
             "ecc": [0, 0, 0, -1.0, 0, 0.1, -1.0],
             "evol_type": [-1, 15, 15, 11, 15, 16, 11],
-            "bin_num": [1, 2, 3, 3, 4, 4, 4],
+            "bin_num": [0, 1, 2, 2, 3, 3, 3],
         }
         bpp = pd.DataFrame(data=bpp_dict)
         bpp.set_index("bin_num", drop=False, inplace=True)
@@ -35,7 +35,7 @@ class Test(unittest.TestCase):
             "delta_vsysx_2": [0, 0, 0, 0, 0],
             "delta_vsysy_2": [0, 0, 0, 0, 0],
             "delta_vsysz_2": [0, 0, 0, 0, 0],
-            "bin_num": [1, 2, 3, 4, 4],
+            "bin_num": [0, 1, 2, 3, 3],
         }
         kick_info = pd.DataFrame(data=kick_info_dict)
         kick_info.set_index("bin_num", drop=False, inplace=True)
