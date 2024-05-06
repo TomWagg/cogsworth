@@ -411,15 +411,19 @@ class Population():
 
     @property
     def bcm(self):
-        if self._bcm is None and self.bcm_timestep_conditions == []:
-            warnings.warn(("You haven't set any timestep conditions for the BCM table, so it is not saved "
-                           "(since the same information is in the bpp table). Set `bcm_timestep_conditions` "
-                           "to something to get a BCM table."))
-
         if self._bcm is None and self._file is not None:
-            self._bcm = pd.read_hdf(self._file, key="bcm")
+            has_bcm = None
+            with h5.File(self._file, "r") as f:
+                has_bcm = "bcm" in f
+            self._bcm = pd.read_hdf(self._file, key="bcm") if has_bcm else None
         elif self._bcm is None:
-            self.perform_stellar_evolution()
+            if len(np.ravel(self.bcm_timestep_conditions)) == 0:        # pragma: no cover
+                logging.getLogger("cogsworth").warning(("cogsworth warning: You haven't set any timestep "
+                                                        "conditions for the BCM table, so it is not "
+                                                        "calculated. Set `bcm_timestep_conditions` to get a "
+                                                        "BCM table."))
+            else:
+                self.perform_stellar_evolution()
         return self._bcm
 
     @property
@@ -447,6 +451,9 @@ class Population():
         elif self._orbits is None:
             # load the entire file into memory
             with h5.File(self._file, "r") as f:
+                if "orbits" not in f:
+                    raise ValueError(f"No orbits found in population file ({self._file})")
+
                 offsets = f["orbits"]["offsets"][...]
                 pos, vel = f["orbits"]["pos"][...] * u.kpc, f["orbits"]["vel"][...] * u.km / u.s
                 t = f["orbits"]["t"][...] * u.Myr
