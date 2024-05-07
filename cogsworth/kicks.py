@@ -9,7 +9,7 @@ import astropy.units as u
 __all__ = ["get_kick_differential", "integrate_orbit_with_events"]
 
 
-def get_kick_differential(delta_v_sys_xyz, m_1, m_2, a):
+def get_kick_differential(delta_v_sys_xyz, phase=None, inclination=None):
     """Calculate the :class:`~astropy.coordinates.CylindricalDifferential` from a combination of the natal
     kick, Blauuw kick and orbital motion.
 
@@ -18,29 +18,19 @@ def get_kick_differential(delta_v_sys_xyz, m_1, m_2, a):
     delta_v_sys_xyz : :class:`~astropy.units.Quantity` [velocity]
         Change in systemic velocity due to natal and Blauuw kicks in BSE :math:`(v_x, v_y, v_z)` frame
         (see Fig A1 of `Hurley+02 <https://ui.adsabs.harvard.edu/abs/2002MNRAS.329..897H/abstract>`_)
-    m_1 : :class:`~astropy.units.Quantity` [mass]
-        Primary mass
-    m_2 : :class:`~astropy.units.Quantity` [mass]
-        Secondary Mass
-    a : :class:`~astropy.units.Quantity` [length]
-        Binary separation
+    phase : `float`
+        Orbital phase angle in radians
+    inclination : `float`
+        Inclination to the Galactic plane in radians
 
     Returns
     -------
     kick_differential : :class:`~astropy.coordinates.CylindricalDifferential`
         Kick differential
     """
-    # TODO: Check whether this should be included but it seems not
-    # calculate the orbital velocity ASSUMING A CIRCULAR ORBIT
-    # if a.value > 0.0:
-    #     v_orb = np.sqrt(const.G * (m_1 + m_2) / a)
-
-    #     # adjust change in velocity by orbital motion of supernova star
-    #     delta_v_sys_xyz -= v_orb
-
     # orbital phase angle and inclination to Galactic plane
-    theta = np.random.uniform(0, 2 * np.pi)
-    phi = np.random.uniform(0, 2 * np.pi)
+    theta = np.random.uniform(0, 2 * np.pi) if phase is None else phase
+    phi = np.random.uniform(0, 2 * np.pi) if inclination is None else inclination
 
     # rotate BSE (v_x, v_y, v_z) into Galactocentric (v_X, v_Y, v_Z)
     v_X = delta_v_sys_xyz[0] * np.cos(theta) - delta_v_sys_xyz[1] * np.sin(theta) * np.cos(phi)\
@@ -141,7 +131,7 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential()
 
                 # calculate the kick differential
                 kick_differential = get_kick_differential(delta_v_sys_xyz=event["delta_v_sys_xyz"],
-                                                          m_1=event["m_1"], m_2=event["m_2"], a=event["a"])
+                                                          phase=event["phase"], inclination=event["inc"])
 
                 # update the velocity of the current PhaseSpacePosition
                 current_w0 = gd.PhaseSpacePosition(pos=current_w0.pos,
