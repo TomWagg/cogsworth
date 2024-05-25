@@ -11,7 +11,7 @@ build:
     python: "3.10"
   jobs:
     pre_install:
-      - pip install isochrones @ git+https://github.com/TomWagg/isochrones.git
+      - pip install git+https://github.com/TomWagg/isochrones.git
       - pip install matplotlib < 3.9
 
 # Build documentation in the docs/ directory with Sphinx
