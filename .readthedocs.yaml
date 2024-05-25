@@ -10,7 +10,7 @@ build:
   tools:
     python: "3.10"
   jobs:
-    pre-install:
+    pre_install:
       - pip install isochrones @ git+https://github.com/TomWagg/isochrones.git
       - pip install matplotlib < 3.9
 
