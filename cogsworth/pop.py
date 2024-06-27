@@ -208,6 +208,9 @@ class Population():
     def __len__(self):
         return self.n_binaries_match
 
+    def __add__(self, other):
+        return concat(self, other)
+
     def __getitem__(self, ind):
         # convert any Pandas Series to numpy arrays
         ind = ind.values if isinstance(ind, pd.Series) else ind
@@ -1364,6 +1367,96 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
         p.orbits
 
     return p
+
+
+def concat(*pops):
+    """Concatenate multiple populations into a single population
+
+    NOTE: The final population will have the same settings as the first population in the list (but data
+    from all populations)
+
+    Parameters
+    ----------
+    pops : `list` of :class:`~cogsworth.Population` or :class:`~cogsworth.EvolvedPopulation`
+        List of populations to concatenate
+
+    Returns
+    -------
+    total_pop : :class:`~cogsworth.Population` or :class:`~cogsworth.EvolvedPopulation`
+        The concatenated population
+    """
+    # ensure the input is a list of populations
+    pops = list(pops)
+    assert all([isinstance(pop, Population) for pop in pops])
+
+    # if there's only one population then just return it
+    if len(pops) == 1:
+        return pops[0]
+    elif len(pops) == 0:
+        raise ValueError("No populations provided to concatenate")
+
+    # get the offset for the bin numbers
+    bin_num_offset = max(pops[0].bin_nums) + 1
+
+    # create a new population to store the final population (just a copy of the first population)
+    final_pop = pops[0][:]
+
+    # loop over the remaining populations
+    for pop in pops[1:]:
+        # sum the total numbers of binaries
+        final_pop.n_binaries += pop.n_binaries
+
+        # combine the star formation history distributions
+        if final_pop._initial_galaxy is not None:
+            if pop._initial_galaxy is None:
+                raise ValueError(f"Population {pop} does not have an initial galaxy, but the first does")
+
+            final_pop._initial_galaxy += pop._initial_galaxy
+
+        if final_pop._initial_binaries is not None:
+            if pop._initial_binaries is None:
+                raise ValueError(f"Population {pop} does not have initial binaries, but the first does")
+            new_initial_binaries = pop._initial_binaries.copy()
+            new_initial_binaries.index += bin_num_offset
+            final_pop._initial_binaries = pd.concat([final_pop._initial_binaries, pop._initial_binaries])
+
+        # loop through pandas tables that may need to be copied
+        for table in ["_initC", "_bpp", "_bcm", "_kick_info"]:
+            # only copy if the table exists in the main population
+            if getattr(final_pop, table) is not None:
+                # if the table doesn't exist in the new population then raise an error
+                if getattr(pop, table) is None:
+                    raise ValueError(f"Population {pop} does not have a {table} table, but the first does")
+
+                # otherwise copy the table and update the bin nums
+                new_table = getattr(pop, table).copy()
+                new_table.index += bin_num_offset
+                new_table["bin_num"] += bin_num_offset
+                setattr(final_pop, table, pd.concat([getattr(final_pop, table), new_table]))
+
+        # sum the sampling numbers
+        final_pop._n_singles_req += pop._n_singles_req
+        final_pop._n_bin_req += pop._n_bin_req
+        final_pop._mass_singles += pop._mass_singles
+        final_pop._mass_binaries += pop._mass_binaries
+        final_pop.n_binaries_match += pop.n_binaries_match
+
+        if final_pop._orbits is not None or pop._orbits is not None:
+            raise NotImplementedError("Cannot concatenate populations with orbits for now")
+
+        bin_num_offset = max(final_pop._bpp["bin_num"]) + 1
+
+    # reset auto-calculated class variables
+    final_pop._bin_nums = None
+    final_pop._classes = None
+    final_pop._final_pos = None
+    final_pop._final_vel = None
+    final_pop._final_bpp = None
+    final_pop._disrupted = None
+    final_pop._escaped = None
+    final_pop._observables = None
+
+    return final_pop
 
 
 class EvolvedPopulation(Population):
