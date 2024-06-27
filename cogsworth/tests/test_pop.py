@@ -475,3 +475,78 @@ class Test(unittest.TestCase):
         p.perform_stellar_evolution()
         p.perform_galactic_evolution()
         self.assertTrue(p.pool is None)
+
+    def test_concat(self):
+        """Check that we can concatenate populations"""
+        p = pop.Population(10)
+        q = pop.Population(10)
+        p.perform_stellar_evolution()
+        q.perform_stellar_evolution()
+
+        r = p + q
+        self.assertTrue(len(r) == len(p) + len(q))
+        self.assertTrue(len(r.initC["bin_num"].unique()) == len(r))
+        self.assertTrue(len(r.initial_galaxy) == len(r))
+
+        self.assertTrue(len(pop.concat(p)) == len(p))
+        self.assertTrue(len(sfh.concat(p.initial_galaxy)) == len(p.initial_galaxy))
+
+    def test_concat_wrong_type(self):
+        """Check that we can't concatenate with the wrong type"""
+        p = pop.Population(10)
+        it_failed = False
+        try:
+            p + 1
+        except AssertionError:
+            it_failed = True
+        self.assertTrue(it_failed)
+
+    def test_concat_empty(self):
+        it_failed = False
+        try:
+            sfh.concat()
+        except ValueError:
+            it_failed = True
+        self.assertTrue(it_failed)
+
+        it_failed = False
+        try:
+            pop.concat()
+        except ValueError:
+            it_failed = True
+        self.assertTrue(it_failed)
+
+    def test_concat_mismatch(self):
+        """Check that we can't concatenate populations with different stuff"""
+        p = pop.Population(10)
+        q = pop.Population(10)
+        p.perform_stellar_evolution()
+
+        it_failed = False
+        try:
+            p + q
+        except ValueError:
+            it_failed = True
+        self.assertTrue(it_failed)
+
+        q.sample_initial_galaxy()
+        it_failed = False
+        try:
+            p + q
+        except ValueError:
+            it_failed = True
+        self.assertTrue(it_failed)
+
+    def test_concat_no_orbits(self):
+        """Check that we can't concatenate populations without orbits"""
+        p = pop.Population(10)
+        q = pop.Population(10)
+        p.create_population()
+        q.create_population()
+
+        it_failed = False
+        try:
+            r = p + q
+        except NotImplementedError:
+            it_failed = True
+        self.assertTrue(it_failed)
