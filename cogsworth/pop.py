@@ -1413,9 +1413,12 @@ def concat(*pops):
 
             final_pop._initial_galaxy += pop._initial_galaxy
 
-        new_initial_binaries = pop._initial_binaries.copy()
-        new_initial_binaries.index += bin_num_offset
-        final_pop._initial_binaries = pd.concat([final_pop._initial_binaries, pop._initial_binaries])
+        if final_pop._initial_binaries is not None:
+            if pop._initial_binaries is None:
+                raise ValueError(f"Population {pop} does not have initial binaries, but the first does")
+            new_initial_binaries = pop._initial_binaries.copy()
+            new_initial_binaries.index += bin_num_offset
+            final_pop._initial_binaries = pd.concat([final_pop._initial_binaries, pop._initial_binaries])
 
         # loop through pandas tables that may need to be copied
         for table in ["_initC", "_bpp", "_bcm", "_kick_info"]:
