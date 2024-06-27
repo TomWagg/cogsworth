@@ -530,6 +530,15 @@ class Test(unittest.TestCase):
         self.assertTrue(it_failed)
 
         q.sample_initial_galaxy()
+        q._initial_binaries = None
+        it_failed = False
+        try:
+            p + q
+        except ValueError:
+            it_failed = True
+        self.assertTrue(it_failed)
+
+        q.sample_initial_binaries()
         it_failed = False
         try:
             p + q
