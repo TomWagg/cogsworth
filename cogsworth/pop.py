@@ -208,6 +208,9 @@ class Population():
     def __len__(self):
         return self.n_binaries_match
 
+    def __add__(self, other):
+        return concat(self, other)
+
     def __getitem__(self, ind):
         # convert any Pandas Series to numpy arrays
         ind = ind.values if isinstance(ind, pd.Series) else ind
