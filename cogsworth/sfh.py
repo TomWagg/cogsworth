@@ -83,6 +83,9 @@ class StarFormationHistory():
     def __repr__(self):
         return f"<{self.__class__.__name__}, size={len(self)}>"
 
+    def __add__(self, other):
+        return concat(self, other)
+
     def __getitem__(self, ind):
         # ensure indexing with the right type
         if not isinstance(ind, (int, slice, list, np.ndarray, tuple)):
@@ -1003,6 +1006,40 @@ def load(file_name, key="sfh"):
 
     # return the newly created class
     return loaded_sfh
+
+
+def concat(*sfhs):
+    """Concatenate multiple StarFormationHistory objects together.
+
+    Parameters
+    ----------
+    *sfhs : `StarFormationHistory`
+        Any number of StarFormationHistory objects to concatenate
+
+    Returns
+    -------
+    `StarFormationHistory`
+        A new StarFormationHistory object that is the concatenation of all the input objects
+    """
+    # check that all the objects are of the same type
+    sfhs = list(sfhs)
+    assert all([isinstance(sfh, StarFormationHistory) for sfh in sfhs])
+    if len(sfhs) == 1:
+        return sfhs[0]
+    elif len(sfhs) == 0:
+        raise ValueError("No objects to concatenate")
+
+    # create a new object with the same parameters as the first
+    new_sfh = sfhs[0][:]
+
+    # concatenate the velocity components if they exist
+    for attr in ["_tau", "_Z", "_which_comp", "_x", "_y", "_z", "v_R", "v_T", "v_z"]:
+        if hasattr(sfhs[0], attr):
+            setattr(new_sfh, attr, np.concatenate([getattr(sfh, attr) for sfh in sfhs]))
+
+    new_sfh._size = len(new_sfh._tau)
+
+    return new_sfh
 
 
 def simplify_params(params, dont_save=["_tau", "_Z", "_x", "_y", "_z", "_which_comp", "v_R", "v_T", "v_z",

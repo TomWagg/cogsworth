@@ -1387,7 +1387,7 @@ def concat(*pops):
     """
     # ensure the input is a list of populations
     pops = list(pops)
-    assert all([isinstance(pop, Population) or isinstance(pop, EvolvedPopulation) for pop in pops])
+    assert all([isinstance(pop, Population) for pop in pops])
 
     # if there's only one population then just return it
     if len(pops) == 1:
@@ -1412,6 +1412,13 @@ def concat(*pops):
         # sum the total numbers of binaries
         final_pop.n_binaries += pop.n_binaries
         final_pop.n_binaries_match += pop.n_binaries_match
+
+        # combine the star formation history distributions
+        if final_pop._initial_galaxy is not None:
+            if pop._initial_galaxy is None:
+                raise ValueError(f"Population {pop} does not have an initial galaxy, but the first does")
+
+            final_pop._initial_galaxy += pop._initial_galaxy
 
         new_initial_binaries = pop._initial_binaries.copy()
         new_initial_binaries.index += bin_num_offset
