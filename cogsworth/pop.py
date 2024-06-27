@@ -1403,15 +1403,8 @@ def concat(*pops):
 
     # loop over the remaining populations
     for pop in pops[1:]:
-        # sum the sampling numbers
-        final_pop._n_singles_req += pop.n_singles_req
-        final_pop._n_bin_req += pop.n_bin_req
-        final_pop._mass_singles = final_pop.mass_singles + pop.mass_singles
-        final_pop._mass_binaries = final_pop.mass_singles + pop.mass_singles
-
         # sum the total numbers of binaries
         final_pop.n_binaries += pop.n_binaries
-        final_pop.n_binaries_match += pop.n_binaries_match
 
         # combine the star formation history distributions
         if final_pop._initial_galaxy is not None:
@@ -1437,6 +1430,13 @@ def concat(*pops):
                 new_table.index += bin_num_offset
                 new_table["bin_num"] += bin_num_offset
                 setattr(final_pop, table, pd.concat([getattr(final_pop, table), new_table]))
+
+        # sum the sampling numbers
+        final_pop._n_singles_req += pop._n_singles_req
+        final_pop._n_bin_req += pop._n_bin_req
+        final_pop._mass_singles += pop._mass_singles
+        final_pop._mass_binaries += pop._mass_binaries
+        final_pop.n_binaries_match += pop.n_binaries_match
 
         if final_pop._orbits is not None or pop._orbits is not None:
             raise NotImplementedError("Cannot concatenate populations with orbits for now")
