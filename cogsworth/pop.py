@@ -31,7 +31,7 @@ from cogsworth.utils import translate_COSMIC_tables
 
 from cogsworth.citations import CITATIONS
 
-__all__ = ["Population", "load"]
+__all__ = ["Population", "EvolvedPopulation", "load", "concat"]
 
 
 class Population():
