@@ -7,6 +7,11 @@ This page tracks all of the changes that have been made to ``cogsworth``. We fol
 1.1.1
 =====
 
+- Bug fix: ``concat`` functions now accessible in the main namespace
+
+1.1.0
+=====
+
 - New feature: Concatenate multiple populations together with ``pop.concat`` or simply `+` (see #116)
 
 1.0.0
