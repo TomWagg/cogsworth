@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import pandas as pd
 from astropy.coordinates import SkyCoord
+import logging
 
 # for action-based potentials
 import gala.potential as gp
@@ -61,7 +62,7 @@ class StarFormationHistory():
 
     """
     def __init__(self, size, components=None, component_masses=None,
-                 immediately_sample=True):
+                 immediately_sample=True, **kwargs):
         self._components = components
         self._component_masses = component_masses
         self._size = size
@@ -71,6 +72,11 @@ class StarFormationHistory():
         self._y = None
         self._z = None
         self._which_comp = None
+
+        # check for any extra parameters that have been passed
+        # this may occur when loading from a file and the user was writing a custom class
+        if len(kwargs) > 0:
+            logging.getLogger("cogsworth").warning(f"Ignoring extra parameters: {kwargs.keys()}")
 
         self.__citations__ = ["cogsworth"]
 

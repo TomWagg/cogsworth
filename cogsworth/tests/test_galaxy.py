@@ -84,6 +84,44 @@ class Test(unittest.TestCase):
 
         os.remove("testing-galaxy-io.h5")
 
+    def test_io_custom_sfh(self):
+        """Check you can save a custom SFH class"""
+        class Fixed_Z(sfh.Wagg2022):
+            def get_metallicity(self):
+                return 0.02
+
+        g = Fixed_Z(size=10000)
+        g.save("testing-galaxy-io-custom")
+
+        g_loaded = sfh.load("testing-galaxy-io-custom")
+
+        self.assertTrue(np.all(g.tau == g_loaded.tau))
+        self.assertTrue(np.all(g.rho == g_loaded.rho))
+        self.assertTrue(np.all(g.z == g_loaded.z))
+
+        os.remove("testing-galaxy-io-custom.h5")
+
+    def test_io_custom_sfh_with_params(self):
+        """Check you can save a custom SFH class with its own parameters"""
+        class Fixed_Z(sfh.Wagg2022):
+            def __init__(self, fixed_Z, **kwargs):
+                self.fixed_Z = fixed_Z
+                super().__init__(**kwargs)
+
+            def get_metallicity(self):
+                return self.fixed_Z
+
+        g = Fixed_Z(size=10000, fixed_Z=0.02)
+        g.save("testing-galaxy-io-custom-params")
+
+        g_loaded = sfh.load("testing-galaxy-io-custom-params")
+
+        self.assertTrue(np.all(g.tau == g_loaded.tau))
+        self.assertTrue(np.all(g.rho == g_loaded.rho))
+        self.assertTrue(np.all(g.z == g_loaded.z))
+
+        os.remove("testing-galaxy-io-custom-params.h5")
+
     def test_getters(self):
         """Test getting attributes"""
         it_broke = False
