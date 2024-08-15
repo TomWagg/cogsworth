@@ -445,16 +445,18 @@ class BurstUniformDisc(StarFormationHistory):
         return np.repeat(self.t_burst.value, size) * self.t_burst.unit
 
     def draw_radii(self, size=None, component=None):
-        return np.random.uniform(0, self.R_max.value, size) * self.R_max.unit
+        return np.random.uniform(0, self.R_max.value**2, size)**(0.5) * self.R_max.unit
 
     def draw_heights(self, size=None, component=None):
         return np.random.uniform(-self.z_max.value, self.z_max.value, size) * self.z_max.unit
 
     def draw_phi(self, size=None):
+        # if no size is given then use the class value
+        size = self._size if size is None else size
         return np.random.uniform(0, 2 * np.pi, size) * u.rad
 
     def get_metallicity(self):
-        return np.repeat(self.Z_all, self.size)
+        return np.repeat(self.Z_all, self.size) * u.dimensionless_unscaled
 
 
 class Wagg2022(StarFormationHistory):
