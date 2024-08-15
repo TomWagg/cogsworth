@@ -2,6 +2,7 @@ import numpy as np
 import unittest
 import cogsworth.sfh as sfh
 import os
+import astropy.units as u
 
 
 class Test(unittest.TestCase):
@@ -44,6 +45,30 @@ class Test(unittest.TestCase):
         except NotImplementedError:
             it_broke = True
         self.assertTrue(it_broke)
+
+    def test_burst_uniform_disc(self):
+        """Ensure the burst uniform disc class works"""
+        g = sfh.BurstUniformDisc(size=10000,
+                                 t_burst=5 * u.Gyr,
+                                 R_max=20 * u.kpc,
+                                 z_max=1 * u.kpc,
+                                 Z=0.02)
+        self.assertTrue(np.all(g.tau == 5 * u.Gyr))
+        self.assertTrue(np.all(g.z <= 1 * u.kpc))
+        self.assertTrue(np.all(g.rho <= 20 * u.kpc))
+        self.assertTrue(np.all(g.Z == 0.02))
+
+    def test_constant_uniform_disc(self):
+        """Ensure the constant uniform disc class works"""
+        g = sfh.ConstantUniformDisc(size=10000,
+                                    t_burst=5 * u.Gyr,
+                                    R_max=20 * u.kpc,
+                                    z_max=1 * u.kpc,
+                                    Z=0.02)
+        self.assertTrue(np.all(g.tau <= 5 * u.Gyr))
+        self.assertTrue(np.all(g.z <= 1 * u.kpc))
+        self.assertTrue(np.all(g.rho <= 20 * u.kpc))
+        self.assertTrue(np.all(g.Z == 0.02))
 
     def test_bad_inputs(self):
         """Ensure the classes fail with bad input"""
