@@ -459,6 +459,17 @@ class BurstUniformDisc(StarFormationHistory):
         return np.repeat(self.Z_all, self.size) * u.dimensionless_unscaled
 
 
+class ConstantUniformDisc(BurstUniformDisc):
+    """A simple star formation history, with all stars formed at a constant rate between ``t_burst`` 
+    and the present day in a uniform disc with height ``z_max`` and radius ``R_max`` disc, all with
+    metallicity ``Z``.
+
+    Based on :class:`BurstUniformDisc`.
+    """
+    def draw_lookback_times(self, size=None, component=None):
+        return np.random.uniform(0, self.t_burst.value, size) * self.t_burst.unit
+
+
 class Wagg2022(StarFormationHistory):
     """A semi-empirical model defined in
     `Wagg+2022 <https://ui.adsabs.harvard.edu/abs/2021arXiv211113704W/abstract>`_

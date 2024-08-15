@@ -58,6 +58,18 @@ class Test(unittest.TestCase):
         self.assertTrue(np.all(g.rho <= 20 * u.kpc))
         self.assertTrue(np.all(g.Z == 0.02))
 
+    def test_constant_uniform_disc(self):
+        """Ensure the constant uniform disc class works"""
+        g = sfh.ConstantUniformDisc(size=10000,
+                                    t_burst=5 * u.Gyr,
+                                    R_max=20 * u.kpc,
+                                    z_max=1 * u.kpc,
+                                    Z=0.02)
+        self.assertTrue(np.all(g.tau <= 5 * u.Gyr))
+        self.assertTrue(np.all(g.z <= 1 * u.kpc))
+        self.assertTrue(np.all(g.rho <= 20 * u.kpc))
+        self.assertTrue(np.all(g.Z == 0.02))
+
     def test_bad_inputs(self):
         """Ensure the classes fail with bad input"""
         g = sfh.Wagg2022(size=None, immediately_sample=False)
