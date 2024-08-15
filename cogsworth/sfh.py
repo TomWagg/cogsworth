@@ -434,26 +434,27 @@ class BurstUniformDisc(StarFormationHistory):
     Z : `float`, optional
         Metallicity of the disc, by default 0.02
     """
-    def __init__(self, size, t_burst=12 * u.Gyr, z_max=2 * u.kpc, R_max=15 * u.kpc, Z=0.02, **kwargs):
+    def __init__(self, size, t_burst=12 * u.Gyr, z_max=2 * u.kpc, R_max=15 * u.kpc, Z_all=0.02, **kwargs):
         self.t_burst = t_burst
         self.z_max = z_max
         self.R_max = R_max
+        self.Z_all = Z_all
         super().__init__(size=size, components=["disc"], component_masses=[1], **kwargs)
 
     def draw_lookback_times(self, size=None, component=None):
-        return np.repeat(self.t_burst, size)
+        return np.repeat(self.t_burst.value, size) * self.t_burst.unit
 
     def draw_radii(self, size=None, component=None):
-        return np.random.uniform(0, self.R_max, size)
+        return np.random.uniform(0, self.R_max.value, size) * self.R_max.unit
 
     def draw_heights(self, size=None, component=None):
-        return np.random.uniform(-self.z_max, self.z_max, size)
+        return np.random.uniform(-self.z_max.value, self.z_max.value, size) * self.z_max.unit
 
     def draw_phi(self, size=None):
         return np.random.uniform(0, 2 * np.pi, size) * u.rad
 
     def get_metallicity(self):
-        return np.repeat(self.Z, self.size)
+        return np.repeat(self.Z_all, self.size)
 
 
 class Wagg2022(StarFormationHistory):
