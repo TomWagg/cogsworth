@@ -416,6 +416,46 @@ class StarFormationHistory():
             file[key].attrs["params"] = yaml.dump(params, default_flow_style=None)
 
 
+class BurstUniformDisc(StarFormationHistory):
+    """An extremely simple star formation history, with all stars formed at ``t_burst`` in a uniform disc with
+    height ``z_max`` and radius ``R_max`` disc, all with metallicity ``Z``.
+
+    Parameters
+    ----------
+
+    size : `int`
+        Number of points to sample from the model
+    t_burst : :class:`~astropy.units.Quantity` [time]
+        Lookback time at which all stars are formed
+    z_max : :class:`~astropy.units.Quantity` [length]
+        Maximum height of the disc
+    R_max : :class:`~astropy.units.Quantity` [length]
+        Maximum radius of the disc
+    Z : `float`, optional
+        Metallicity of the disc, by default 0.02
+    """
+    def __init__(self, size, t_burst=12 * u.Gyr, z_max=2 * u.kpc, R_max=15 * u.kpc, Z=0.02, **kwargs):
+        self.t_burst = t_burst
+        self.z_max = z_max
+        self.R_max = R_max
+        super().__init__(size=size, components=["disc"], component_masses=[1], **kwargs)
+
+    def draw_lookback_times(self, size=None, component=None):
+        return np.repeat(self.t_burst, size)
+
+    def draw_radii(self, size=None, component=None):
+        return np.random.uniform(0, self.R_max, size)
+
+    def draw_heights(self, size=None, component=None):
+        return np.random.uniform(-self.z_max, self.z_max, size)
+
+    def draw_phi(self, size=None):
+        return np.random.uniform(0, 2 * np.pi, size) * u.rad
+
+    def get_metallicity(self):
+        return np.repeat(self.Z, self.size)
+
+
 class Wagg2022(StarFormationHistory):
     """A semi-empirical model defined in
     `Wagg+2022 <https://ui.adsabs.harvard.edu/abs/2021arXiv211113704W/abstract>`_
