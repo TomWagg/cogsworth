@@ -7,3 +7,4 @@ Case Studies
    :titlesonly:
 
    ../case_studies/binaries_and_potentials
+   ../case_studies/sigma_plus_potentials
