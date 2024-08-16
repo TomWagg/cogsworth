@@ -49,7 +49,7 @@ for suffix, label in zip(["_1", "_2"], ["Primary stars", "Secondary stars"]):
     fig, ax = plt.subplots()
 
     scatter = ax.scatter(initC_rows[f"mass{suffix}"], end_ms_rows["tphys"], c=initC_rows["metallicity"],
-                         s=10, norm=LogNorm())
+                         s=10, norm=LogNorm(), rasterized=True)
     fig.colorbar(scatter, label="Metallicity")
 
     ax.set_xscale("log")
@@ -58,7 +58,10 @@ for suffix, label in zip(["_1", "_2"], ["Primary stars", "Secondary stars"]):
     ax.set_xlabel(r"Initial mass $[{\rm M_\odot}]$")
     ax.set_ylabel(r"Main sequence lifetime $[{\rm Myr}]$")
 
+    ax.set(xscale="log", yscale="log",
+           xlabel="Initial mass [M$_\odot$]", ylabel="Main sequence lifetime [Myr]",
+           xlim=(2e-1, 1e2), ylim=(3e0, 2e4))
+
     ax.annotate(label, xy=(0.95, 0.95), xycoords="axes fraction", ha="right", va="top", fontsize=fs)
 
     plt.show()
-    
