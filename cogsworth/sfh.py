@@ -439,7 +439,8 @@ class BurstUniformDisc(StarFormationHistory):
         self.z_max = z_max
         self.R_max = R_max
         self.Z_all = Z_all
-        super().__init__(size=size, components=["disc"], component_masses=[1], **kwargs)
+        super().__init__(size=size, components=kwargs.pop("components", ["disc"]),
+                         component_masses=kwargs.pop("component_masses", [1]), **kwargs)
 
     def draw_lookback_times(self, size=None, component=None):
         return np.repeat(self.t_burst.value, size) * self.t_burst.unit
