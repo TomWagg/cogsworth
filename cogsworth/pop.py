@@ -11,6 +11,7 @@ import pandas as pd
 from tqdm import tqdm
 import yaml
 import logging
+import matplotlib.pyplot as plt
 
 from cosmic.sample.initialbinarytable import InitialBinaryTable
 from cosmic.evolve import Evolve
@@ -1164,7 +1165,7 @@ class Population():
         """
         return plot_cartoon_evolution(self.bpp, bin_num, **kwargs)
 
-    def plot_orbit(self, bin_num, show_sn=True, sn_kwargs={}, **kwargs):
+    def plot_orbit(self, bin_num, show_sn=True, sn_kwargs={}, show=True, **kwargs):
         """Plot the Galactic orbit of a binary system
         
         Parameters
@@ -1203,7 +1204,7 @@ class Population():
         fig, axes = plot_galactic_orbit(primary_orbit, secondary_orbit, show=False, **kwargs)
 
         # extra bit if you want to show the SN locations
-        if show_sn:   
+        if show_sn:
             # set the colours
             colours = [None, None]
             if "primary_kwargs" in kwargs and "color" in kwargs["primary_kwargs"]:
@@ -1238,6 +1239,9 @@ class Population():
                 axes[0].scatter(sn_pos.x, sn_pos.y, **full_sn_kwargs)
                 axes[1].scatter(sn_pos.x, sn_pos.z, **full_sn_kwargs)
                 axes[2].scatter(sn_pos.y, sn_pos.z, **full_sn_kwargs)
+
+        if show:
+            plt.show()
 
         return fig, axes
 
