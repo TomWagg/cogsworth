@@ -400,7 +400,12 @@ def plot_galactic_orbit(primary_orbit, secondary_orbit=None,
     if secondary_orbit is not None:
         if "label" not in secondary_kwargs:
             secondary_kwargs["label"] = "Secondary orbit"
-        secondary_orbit[time_mask].plot(axes=fig.axes, **secondary_kwargs)
+        # find the first time at which the secondary orbit differs from the primary orbit
+        t_diff = np.where(np.any(secondary_orbit.xyz != primary_orbit.xyz, axis=0))[0][0]
+        t_diff = max(0, t_diff - 1)
+
+        # only plot the secondary orbit if it differs from the primary orbit
+        secondary_orbit[time_mask][t_diff:].plot(axes=fig.axes, **secondary_kwargs)
 
     # if we're showing the start position then plot a marker there
     if show_start:
