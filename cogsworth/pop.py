@@ -1167,7 +1167,7 @@ class Population():
 
     def plot_orbit(self, bin_num, show_sn=True, sn_kwargs={}, show=True, **kwargs):
         """Plot the Galactic orbit of a binary system
-        
+
         Parameters
         ----------
         bin_num : `int`
@@ -1219,7 +1219,7 @@ class Population():
                                             rows["evol_type"] == 16],
                                            [primary_orbit, secondary_orbit], colours):
                 # if there is no SN or no orbit then skip
-                if not np.any(mask) or orbit is None:
+                if not np.any(mask) or orbit is None:           # pragma: no cover
                     continue
 
                 # find the time of the SN the closest position before it occurs
