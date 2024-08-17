@@ -26,7 +26,7 @@ from cogsworth.events import identify_events
 from cogsworth.classify import determine_final_classes
 from cogsworth.observables import get_photometry
 from cogsworth.tests.optional_deps import check_dependencies
-from cogsworth.plot import plot_cartoon_evolution
+from cogsworth.plot import plot_cartoon_evolution, plot_galactic_orbit
 from cogsworth.utils import translate_COSMIC_tables
 
 from cogsworth.citations import CITATIONS
@@ -1163,6 +1163,83 @@ class Population():
             Figure and axis of the plot
         """
         return plot_cartoon_evolution(self.bpp, bin_num, **kwargs)
+
+    def plot_orbit(self, bin_num, show_sn=True, sn_kwargs={}, **kwargs):
+        """Plot the Galactic orbit of a binary system
+        
+        Parameters
+        ----------
+        bin_num : `int`
+            Which binary to plot
+        show_sn : `bool`, optional
+            Whether to show the position of the SN, by default True
+        sn_kwargs : `dict`, optional
+            Any additional arguments to pass to the SN scatter plot call, by default {}
+        **kwargs : `various`
+            Any additional arguments to pass to :func:`cogsworth.plot.plot_galactic_orbit`
+
+        Returns
+        -------
+        fig, axes : :class:`~matplotlib.pyplot.figure`, :class:`~numpy.ndarray`
+            Figure and axes of the plot
+
+        Raises
+        ------
+        ValueError
+            If the `bin_num` isn't in the population
+        """
+        # check that the bin_num is in the population
+        if bin_num not in self.bin_nums:
+            raise ValueError("bin_num not in population")
+        # find the index of the binary and whether it was disrupted
+        ind = np.where(self.bin_nums == bin_num)[0][0]
+        disrupted = self.disrupted[ind]
+
+        # set the orbits
+        primary_orbit = self.primary_orbits[ind]
+        secondary_orbit = self.secondary_orbits[ind] if disrupted else None
+
+        # create the orbit plot
+        fig, axes = plot_galactic_orbit(primary_orbit, secondary_orbit, show=False, **kwargs)
+
+        # extra bit if you want to show the SN locations
+        if show_sn:   
+            # set the colours
+            colours = [None, None]
+            if "primary_kwargs" in kwargs and "color" in kwargs["primary_kwargs"]:
+                colours[0] = kwargs["primary_kwargs"]["color"]
+            if "secondary_kwargs" in kwargs and "color" in kwargs["secondary_kwargs"]:
+                colours[1] = kwargs["secondary_kwargs"]["color"]
+
+            # loop over the primary and secondary
+            rows = self.bpp.loc[bin_num]
+            for mask, orbit, colour in zip([((rows["evol_type"] == 15)
+                                             | ((rows["evol_type"] == 16) & (rows["sep"] == 0.0))),
+                                            rows["evol_type"] == 16],
+                                           [primary_orbit, secondary_orbit], colours):
+                # if there is no SN or no orbit then skip
+                if not np.any(mask) or orbit is None:
+                    continue
+
+                # find the time of the SN the closest position before it occurs
+                sn_time = rows["tphys"][mask].iloc[0] * u.Myr
+                sn_pos = orbit[orbit.t - orbit.t[0] <= sn_time][-1]
+
+                # some default style settings
+                full_sn_kwargs = {
+                    "marker": (10, 2, 0),
+                    "color": colour,
+                    "s": 100,
+                    "label": "SN position"
+                }
+                full_sn_kwargs.update(sn_kwargs)
+
+                # plot individual SN positions
+                axes[0].scatter(sn_pos.x, sn_pos.y, **full_sn_kwargs)
+                axes[1].scatter(sn_pos.x, sn_pos.z, **full_sn_kwargs)
+                axes[2].scatter(sn_pos.y, sn_pos.z, **full_sn_kwargs)
+
+        return fig, axes
 
     def to_legwork_sources(self, distances=None, assume_mw_galactocentric=False):
         """Convert the final state of the population to a LEGWORK Source class (only including bound binaries)
