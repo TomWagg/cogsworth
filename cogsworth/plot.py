@@ -5,7 +5,7 @@ import astropy.units as u
 
 from .utils import kstar_translator, evol_type_translator
 
-__all__ = ["plot_cmd", "plot_cartoon_evolution"]
+__all__ = ["plot_cmd", "plot_cartoon_evolution", "plot_galactic_orbit"]
 
 
 plt.rc('font', family='serif')
