@@ -1218,9 +1218,10 @@ class Population():
                                              | ((rows["evol_type"] == 16) & (rows["sep"] == 0.0))),
                                             rows["evol_type"] == 16],
                                            [primary_orbit, secondary_orbit], colours):
-                # if there is no SN or no orbit then skip
-                if not np.any(mask) or orbit is None:           # pragma: no cover
+                # if there is no SN
+                if not np.any(mask):           # pragma: no cover
                     continue
+                orbit = primary_orbit if orbit is None else orbit
 
                 # find the time of the SN the closest position before it occurs
                 sn_time = rows["tphys"][mask].iloc[0] * u.Myr
@@ -1231,7 +1232,8 @@ class Population():
                     "marker": (10, 2, 0),
                     "color": colour,
                     "s": 100,
-                    "label": "SN position"
+                    "label": "SN position",
+                    "zorder": 10,
                 }
                 full_sn_kwargs.update(sn_kwargs)
 

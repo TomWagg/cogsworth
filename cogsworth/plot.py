@@ -166,7 +166,7 @@ def _rlof_path(centre, width, height, m=1.5, flip=False):
 
 
 def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon Binary Evolution",
-                           y_sep_mult=1.5, offset=0.2, s_base=1000, show=True):    # pragma: no cover
+                           y_sep_mult=1.5, offset=0.2, s_base=1000, fig=None, ax=None, show=True):    # pragma: no cover
     """Plot COSMIC bpp output as a cartoon evolution
 
     Parameters
@@ -185,6 +185,12 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
         Offset from the centre for each of the stars (larger=wider binaries)
     s_base : `float`, optional
         Base scatter point size for the stars
+    fig : :class:`~matplotlib.pyplot.figure`, optional
+        Figure on which to plot, by default will create a new one
+    ax : :class:`~matplotlib.pyplot.axis`, optional
+        Axis on which to plot, by default will create a new one
+    show : `bool`, optional
+        Whether to immediately show the plot, by default True
 
     Returns
     -------
@@ -192,20 +198,23 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
         Figure and axis of the plot
     """
     # extract the pertinent information from the bpp table
-    df = bpp.loc[bin_num][["tphys", "mass_1", "mass_2", "kstar_1", "kstar_2", "porb", "evol_type", "RRLO_1"]]
+    df = bpp.loc[bin_num][["tphys", "mass_1", "mass_2", "kstar_1", "kstar_2", "porb",
+                           "evol_type", "RRLO_1", "RRLO_2"]]
 
     # add some offset kstar columns to tell what type a star *previously* was
     df[["prev_kstar_1", "prev_kstar_2"]] = df.shift(1, fill_value=0)[["kstar_1", "kstar_2"]]
 
     # count the number of evolution steps and start figure with size based on that
     total = len(df)
-    fig, ax = plt.subplots(figsize=(12, total * y_sep_mult))
+    if fig is None or ax is None:
+        fig, ax = plt.subplots(figsize=(12, total * y_sep_mult))
 
     # instantiate some flags to track state of binary
     i = 0
     disrupted = False
     common_envelope = False
     rlof = False
+    contact = False
 
     # go through each row of the evolution
     for _, row in df.iterrows():
@@ -218,14 +227,23 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
         # set disrupted, rlof and common-envelope flags are necessary
         if et_ind == 11 or row["porb"] < 0.0:
             disrupted = True
-        if et_ind == 3:
+        if et_ind == 3 and (((row["RRLO_1"] >= 1.0) & (row["kstar_1"] < 13)) | (row["kstar_2"] < 13)):
             rlof = True
         if et_ind == 4:
             rlof = False
+            contact = False
+        if et_ind == 5:
+            rlof = False
+            contact = True
         if et_ind == 7:
             common_envelope = True
         if et_ind == 8:
             common_envelope = False
+
+        if row["RRLO_1"] < 1.0 and row["RRLO_2"] < 1.0:
+            rlof = False
+            common_envelope = False
+            contact = False
 
         # check if either star is now a massless remnant
         mr_1 = k1["short"] == "MR"
@@ -278,38 +296,42 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
 
         # otherwise we've got two stars
         else:
+            contact_adjust = 0.25 if contact else 1.0
+
             # plot stars offset from the centre
-            ax.scatter(0 - offset, total - i, color=k1["colour"], s=s_base, zorder=10)
-            ax.scatter(0 + offset, total - i, color=k2["colour"], s=s_base, zorder=10)
+            ax.scatter(0 - offset * contact_adjust, total - i, color=k1["colour"], s=s_base, zorder=10)
+            ax.scatter(0 + offset * contact_adjust, total - i, color=k2["colour"], s=s_base, zorder=10)
 
             # annotate the mass (with some extra padding if there's RLOF)
             mass_y_offset = 0.35 if not (rlof and not common_envelope) else 0.5
             ax.annotate(f'{row["mass_1"]:1.2f} ' + r'$\rm M_{\odot}$',
-                        xy=(0 - offset, total - i - mass_y_offset), ha="center", va="top", fontsize=0.3*fs)
+                        xy=(0 - offset * contact_adjust, total - i - mass_y_offset),
+                        ha="center", va="top", fontsize=0.3*fs, rotation=45 if contact else 0)
             ax.annotate(f'{row["mass_2"]:1.2f} ' + r'$\rm M_{\odot}$',
-                        xy=(0 + offset, total - i - mass_y_offset), ha="center", va="top", fontsize=0.3*fs)
+                        xy=(0 + offset * contact_adjust, total - i - mass_y_offset),
+                        ha="center", va="top", fontsize=0.3*fs, zorder=1000, rotation=45 if contact else 0)
 
             # if the primary type changed or we're at the start/end then label it
             if k1 != pk1 or et_ind in [1, 10]:
-                ax.annotate(k1["short"], xy=(0 - offset, total - i),
+                ax.annotate(k1["short"], xy=(0 - offset * contact_adjust, total - i),
                             ha="center", va="center",
                             color="white" if _use_white_text(k1["colour"]) else "black",
                             zorder=10, fontsize=ks_fontsize, fontweight="bold")
 
             # if the secondary type changed or we're at the start/end then label it
             if k2 != pk2 or et_ind in [1, 10]:
-                ax.annotate(k2["short"], xy=(0 + offset, total - i),
+                ax.annotate(k2["short"], xy=(0 + offset * contact_adjust, total - i),
                             ha="center", va="center",
                             color="white" if _use_white_text(k2["colour"]) else "black",
                             zorder=10, fontsize=ks_fontsize, fontweight="bold")
 
             # for bound binaries plot a line connecting them
             if not disrupted:
-                ax.plot([0 - offset, 0 + offset], [total - i, total - i],
+                ax.plot([0 - offset * contact_adjust, 0 + offset * contact_adjust], [total - i, total - i],
                         linestyle="--", zorder=-1, color="black")
 
                 # annotate the line with period, offset to one side if there's RLOF
-                x = 0 if not (rlof and not common_envelope) else (-offset / 4 if row["RRLO_1"] >= 1.0 else offset / 4)
+                x = 0 if not (rlof and not common_envelope) else (-offset * contact_adjust / 4 if row["RRLO_1"] >= 1.0 else offset * contact_adjust / 4)
                 p_lab = f'{row["porb"]:1.2e} days' if row["porb"] > 10000 or row["porb"] < 1\
                     else f'{row["porb"]:1.0f} days'
                 ax.annotate(p_lab, xy=(x, total - i + 0.05), ha="center", va="bottom",
@@ -327,9 +349,9 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
 
             # add supernova explosion markers as necessary
             if et_ind == 15:
-                _supernova_marker(ax, 0 - offset, total - i, s_base / 1.5)
+                _supernova_marker(ax, 0 - offset * contact_adjust, total - i, s_base / 1.5)
             if et_ind == 16:
-                _supernova_marker(ax, 0 + offset, total - i, s_base / 1.5)
+                _supernova_marker(ax, 0 + offset * contact_adjust, total - i, s_base / 1.5)
 
         # increment by multiplier
         i += y_sep_mult

@@ -153,7 +153,8 @@ html_sidebars = {
     "pages/cite": [],
     "pages/feedback": [],
     "auto_examples/*": [],
-    "tutorials/**": ["page-toc", "sidebar-nav-bs.html"]
+    "tutorials/**": ["page-toc", "sidebar-nav-bs.html"],
+    "case_studies/**": ["page-toc", "sidebar-nav-bs.html"]
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,

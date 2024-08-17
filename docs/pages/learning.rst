@@ -8,6 +8,7 @@ You've found the landing page for all tutorials, examples and case studies, foll
     :gutter: 3
 
     .. grid-item-card::
+        :link: tutorials.rst
 
         .. toctree::
             :maxdepth: 1
@@ -17,6 +18,7 @@ You've found the landing page for all tutorials, examples and case studies, foll
         Step-by-step guides to using ``cogsworth`` - these are meant to be a gentle introduction to using the code
 
     .. grid-item-card::
+        :link: ../auto_examples/index.rst
 
         .. toctree::
             :maxdepth: 1
@@ -26,6 +28,7 @@ You've found the landing page for all tutorials, examples and case studies, foll
         Short snippets of code that demonstrate a specific feature of ``cogsworth`` - often with a plot!
 
     .. grid-item-card::
+        :link: case_studies.rst
 
         .. toctree::
             :maxdepth: 1

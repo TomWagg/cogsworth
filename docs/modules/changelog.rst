@@ -9,6 +9,7 @@ This page tracks all of the changes that have been made to ``cogsworth``. We fol
 
 - New feature: Add galactic orbit plotting with ``pop.plot_orbit()``
 - New feature: Add a few new simple SFHs such as ``BurstUniformDisc``
+- Documentation: Added some new case studies to the documentation
 
 1.1.2
 =====
