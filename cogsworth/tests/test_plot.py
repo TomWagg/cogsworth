@@ -16,3 +16,12 @@ class Test(unittest.TestCase):
                                        "RP_app_2": np.ones(len(p)),
                                        "secondary_brighter": np.zeros(len(p)).astype(bool)})
         cogsworth.plot.plot_cmd(p, show=False)
+
+    def test_plot_orbit(self):
+        """Test you can plot a galactic orbit of a binary"""
+        p = cogsworth.pop.Population(10, final_kstar1=[13, 14])
+        p.create_population()
+        while not any(p.disrupted):
+            p.create_population()
+
+        p.plot_orbit(p.bin_nums[p.disrupted][0], show=False)
