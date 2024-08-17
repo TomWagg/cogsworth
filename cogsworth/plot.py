@@ -1,6 +1,7 @@
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+import astropy.units as u
 
 from .utils import kstar_translator, evol_type_translator
 
@@ -345,3 +346,77 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
         plt.show()
 
     return fig, ax
+
+
+def plot_galactic_orbit(primary_orbit, secondary_orbit=None,
+                        t_min=0 * u.Myr, t_max=np.inf * u.Myr, show_start=True,
+                        primary_kwargs={}, secondary_kwargs={}, start_kwargs={},
+                        fig=None, axes=None, show=True):
+    """Plot the galactic orbit of a binary system. This provides a wrapper around the gala
+    :class:`~gala.dynamics.Orbit` method :meth:`~gala.dynamics.Orbit.plot`.
+
+    Parameters
+    ----------
+    primary_orbit : :class:`~gala.dynamics.Orbit`
+        Orbit of the primary star (or bound binary)
+    secondary_orbit : :class:`~gala.dynamics.Orbit`, optional
+        Orbit of the secondary star, by default None (no disruption)
+    t_min : :class:`~astropy.units.Quantity` [time], optional
+        Minimum time since the start of the orbits to plot, by default 0*u.Myr
+    t_max : :class:`~astropy.units.Quantity` [time], optional
+        Maximum time since the start of the orbits to plot, by default np.inf*u
+    show_start : `bool`, optional
+        Whether to plot a marker at the start of the orbits, by default True
+    primary_kwargs : `dict`, optional
+        Keyword arguments to pass to the primary orbit plot, by default {}
+    secondary_kwargs : `dict`, optional
+        Keyword arguments to pass to the secondary orbit plot, by default {}
+    start_kwargs : `dict`, optional
+        Keyword arguments to pass to the start marker plot, by default {}
+    fig : :class:`~matplotlib.figure.Figure`, optional
+        Figure on which to plot, by default will create a new one
+    axes : :class:`~matplotlib.axes.Axes`, optional
+        Axes on which to plot, by default will create a new one
+    show : `bool`, optional
+        Whether to immediately show the plot, by default
+
+    Returns
+    -------
+    fig, axes : :class:`~matplotlib.figure.Figure`, :class:`~matplotlib.axes.Axes`
+        Figure and axes of the plot
+    """
+    # create a mask for the times
+    time_mask = ((primary_orbit.t - primary_orbit.t[0] >= t_min)
+                 & (primary_orbit.t - primary_orbit.t[0] < t_max))
+
+    # add a label to the primary orbit if not already present
+    if "label" not in primary_kwargs:
+        primary_kwargs["label"] = "Primary orbit"
+
+    # plot the primary orbit and save the resulting figure
+    fig = primary_orbit[time_mask].plot(axes=axes, **primary_kwargs)
+
+    # same thing for secondary orbit (if it exists)
+    if secondary_orbit is not None:
+        if "label" not in secondary_kwargs:
+            secondary_kwargs["label"] = "Secondary orbit"
+        secondary_orbit[time_mask].plot(axes=fig.axes, **secondary_kwargs)
+
+    # if we're showing the start position then plot a marker there
+    if show_start:
+        # use some default settings that the user can update
+        full_start_kwargs = {
+            "marker": 'o',
+            "color": 'black',
+            "s": 50,
+            "label": "Start position"
+        }
+        full_start_kwargs.update(start_kwargs)
+
+        primary_orbit[0].plot(axes=fig.axes, **full_start_kwargs)
+
+    # show the plot if desired
+    if show:
+        plt.show()
+
+    return fig, fig.axes
