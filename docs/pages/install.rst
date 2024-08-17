@@ -27,7 +27,7 @@ Package installation
 
                 pip install cogsworth[extras]
 
-        and you should be all set! Now it's time to learn about `Getting Started <getting_started>`_ with ``cogsworth``.
+        and you should be all set! Now it's time to learn about `Getting Started <getting_started.ipynb>`_ with ``cogsworth``.
 
     .. tab-item:: Stable (without conda)
 
@@ -40,7 +40,7 @@ Package installation
 
             pip install cogsworth[extras]
 
-        and you should be all set! Now it's time to learn about `Getting Started <getting_started>`_ with ``cogsworth``.
+        and you should be all set! Now it's time to learn about `Getting Started <getting_started.ipynb>`_ with ``cogsworth``.
 
     .. tab-item:: Development (from GitHub)
         
@@ -71,7 +71,7 @@ Package installation
 
             pip install .[extras]
 
-        and you should be all set! Now it's time to learn about `Getting Started <getting_started>`_ with ``cogsworth``.
+        and you should be all set! Now it's time to learn about `Getting Started <getting_started.ipynb>`_ with ``cogsworth``.
 
 .. tip::
     If you also want to work with Jupyter notebooks then you'll also need to install jupyter/ipython to this environment!
