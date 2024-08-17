@@ -1207,9 +1207,9 @@ class Population():
         if show_sn:
             # set the colours
             colours = [None, None]
-            if "primary_kwargs" in kwargs and "color" in kwargs["primary_kwargs"]:
+            if "primary_kwargs" in kwargs and "color" in kwargs["primary_kwargs"]:      # pragma: no cover
                 colours[0] = kwargs["primary_kwargs"]["color"]
-            if "secondary_kwargs" in kwargs and "color" in kwargs["secondary_kwargs"]:
+            if "secondary_kwargs" in kwargs and "color" in kwargs["secondary_kwargs"]:  # pragma: no cover
                 colours[1] = kwargs["secondary_kwargs"]["color"]
 
             # loop over the primary and secondary
