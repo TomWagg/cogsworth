@@ -12,3 +12,4 @@ Note that they also will take longer to run if you want to reproduce the results
 
    ../case_studies/binaries_and_potentials
    ../case_studies/sigma_plus_potentials
+   ../case_studies/fire
