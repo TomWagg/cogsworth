@@ -6,10 +6,44 @@ This section contains a collection of case studies that demonstrate some more de
 These are designed to be more in-depth than the tutorials and show how to use the package in a more complex way.
 Note that they also will take longer to run if you want to reproduce the results (on the order of 15 minutes each).
 
-.. toctree::
-   :maxdepth: 1
-   :titlesonly:
+.. grid:: 1 1 2 2
+    :gutter: 3
 
-   ../case_studies/binaries_and_potentials
-   ../case_studies/sigma_plus_potentials
-   ../case_studies/fire
+    .. grid-item-card::
+        :text-align: center
+        :link: ../case_studies/binaries_and_potentials.html
+
+        .. image:: ../case_studies/plots/bin_pot_effects.png
+            :align: center
+
+        .. toctree::
+            :titlesonly:
+
+            ../case_studies/binaries_and_potentials
+
+    .. grid-item-card::
+        :text-align: center
+        :link: ../case_studies/sigma_plus_potentials.html
+
+        .. image:: ../case_studies/plots/sigma_potential_compare.png
+            :align: center
+
+        .. toctree::
+            :titlesonly:
+
+            ../case_studies/sigma_plus_potentials
+
+    .. grid-item-card::
+        :text-align: center
+        :link: ../case_studies/fire.html
+
+        .. image:: ../case_studies/plots/cluster_plot.png
+            :align: center
+
+        .. toctree::
+            :titlesonly:
+
+            ../case_studies/fire
+
+   
+   
