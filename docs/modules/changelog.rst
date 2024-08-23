@@ -4,12 +4,17 @@ Full changelog
 
 This page tracks all of the changes that have been made to ``cogsworth``. We follow the standard versioning convention of A.B.C, where C is a patch/bugfix, B is a large bugfix or new feature and A is a major new breaking change. B/C are backwards compatible but A changes may be breaking.
 
+2.0.0
+=====
+
+Major release to go with the release paper submission! 🎉
+
 1.2.0
 =====
 
-- New feature: Add galactic orbit plotting with ``pop.plot_orbit()``
-- New feature: Add a few new simple SFHs such as ``BurstUniformDisc``
-- Documentation: Added some new case studies to the documentation
+* Add some new simple SFHs by @TomWagg in https://github.com/TomWagg/cogsworth/pull/120
+* Add new orbit plotting functionality by @TomWagg in https://github.com/TomWagg/cogsworth/pull/121
+* Add new case studies + minor fixes by @TomWagg in https://github.com/TomWagg/cogsworth/pull/122
 
 1.1.2
 =====
