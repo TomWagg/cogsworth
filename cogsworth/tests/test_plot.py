@@ -25,3 +25,8 @@ class Test(unittest.TestCase):
             p.create_population()
 
         p.plot_orbit(p.bin_nums[p.disrupted][0], show=False)
+
+        try:
+            p.plot_orbit(-1, show=False)
+        except ValueError:
+            pass
