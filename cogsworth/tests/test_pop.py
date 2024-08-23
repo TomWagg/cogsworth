@@ -208,9 +208,10 @@ class Test(unittest.TestCase):
         except ValueError:
             pass
 
+        p.mass_binaries
         p._mass_binaries = None
         try:
-            p._mass_binaries
+            p.mass_binaries
         except ValueError:
             pass
 
