@@ -1332,17 +1332,21 @@ class Population():
             else:
                 raise FileExistsError((f"{file_name} already exists. Set `overwrite=True` to overwrite "
                                        "the file."))
-        self.bpp.to_hdf(file_name, key="bpp")
 
+        if self._bpp is not None:
+            self._bpp.to_hdf(file_name, key="bpp")
         if self._bcm is not None:
             self._bcm.to_hdf(file_name, key="bcm")
-        self.initC.to_hdf(file_name, key="initC")
-        self.kick_info.to_hdf(file_name, key="kick_info")
+        if self._initC is not None:
+            self._initC.to_hdf(file_name, key="initC")
+        if self._kick_info is not None:
+            self._kick_info.to_hdf(file_name, key="kick_info")
 
         with h5.File(file_name, "a") as f:
             f.attrs["potential_dict"] = yaml.dump(potential_to_dict(self.galactic_potential),
                                                   default_flow_style=None)
-        self.initial_galaxy.save(file_name, key="initial_galaxy")
+        if self._initial_galaxy is not None:
+            self.initial_galaxy.save(file_name, key="initial_galaxy")
 
         # save the orbits if they have been calculated/loaded
         if self._orbits is not None:
