@@ -261,6 +261,8 @@ class Population():
                                  timestep_size=self.timestep_size, BSE_settings=self.BSE_settings,
                                  sampling_params=self.sampling_params,
                                  store_entire_orbits=self.store_entire_orbits)
+        new_pop.n_binaries_match = new_pop.n_binaries
+        new_pop._file = self._file
 
         # proxy for checking whether sampling has been done
         if self._mass_binaries is not None:
@@ -274,16 +276,10 @@ class Population():
         idx = np.searchsorted(list(bin_num_to_ind.keys()), bin_nums, sorter=sort_idx)
         inds = np.asarray(list(bin_num_to_ind.values()))[sort_idx][idx]
 
-        disrupted_bin_num_to_ind = {num: i for i, num in enumerate(self.bin_nums[self.disrupted])}
-        sort_idx = np.argsort(list(disrupted_bin_num_to_ind.keys()))
-        idx = np.searchsorted(list(disrupted_bin_num_to_ind.keys()),
-                              bin_nums[np.isin(bin_nums, self.bin_nums[self.disrupted])],
-                              sorter=sort_idx)
-        inds_with_disruptions = np.asarray(list(disrupted_bin_num_to_ind.values()))[sort_idx][idx] + len(self)
-        all_inds = np.concatenate((inds, inds_with_disruptions)).astype(int)
-
         if self._initial_galaxy is not None:
             new_pop._initial_galaxy = self._initial_galaxy[inds]
+        if self._initC is not None:
+            new_pop._initC = self._initC.loc[bin_nums]
 
         # checking whether stellar evolution has been done
         if self._bpp is not None:
@@ -291,8 +287,6 @@ class Population():
             new_pop._bpp = self._bpp.loc[bin_nums]
             if self._bcm is not None:
                 new_pop._bcm = self._bcm.loc[bin_nums]
-            if self._initC is not None:
-                new_pop._initC = self._initC.loc[bin_nums]
             if self._kick_info is not None:
                 new_pop._kick_info = self._kick_info.loc[bin_nums]
             if self._final_bpp is not None:
@@ -303,6 +297,16 @@ class Population():
                 new_pop._classes = self._classes.iloc[inds]
             if self._observables is not None:
                 new_pop._observables = self._observables.iloc[inds]
+
+            if self._orbits is not None or self._final_pos is not None or self._final_vel is not None:
+                disrupted_bin_num_to_ind = {num: i for i, num in enumerate(self.bin_nums[self.disrupted])}
+                sort_idx = np.argsort(list(disrupted_bin_num_to_ind.keys()))
+                idx = np.searchsorted(list(disrupted_bin_num_to_ind.keys()),
+                                      bin_nums[np.isin(bin_nums, self.bin_nums[self.disrupted])],
+                                      sorter=sort_idx)
+                inds_with_disruptions = np.asarray(list(disrupted_bin_num_to_ind.values()))[sort_idx][idx]\
+                      + len(self)
+                all_inds = np.concatenate((inds, inds_with_disruptions)).astype(int)
 
             # same thing but for arrays with appended disrupted secondaries
             if self._orbits is not None:
@@ -1218,10 +1222,9 @@ class Population():
                                              | ((rows["evol_type"] == 16) & (rows["sep"] == 0.0))),
                                             rows["evol_type"] == 16],
                                            [primary_orbit, secondary_orbit], colours):
-                # if there is no SN
-                if not np.any(mask):           # pragma: no cover
+                # if there is no SN or no orbit then skip
+                if not np.any(mask) or orbit is None:           # pragma: no cover
                     continue
-                orbit = primary_orbit if orbit is None else orbit
 
                 # find the time of the SN the closest position before it occurs
                 sn_time = rows["tphys"][mask].iloc[0] * u.Myr
@@ -1232,8 +1235,7 @@ class Population():
                     "marker": (10, 2, 0),
                     "color": colour,
                     "s": 100,
-                    "label": "SN position",
-                    "zorder": 10,
+                    "label": "SN position"
                 }
                 full_sn_kwargs.update(sn_kwargs)
 
