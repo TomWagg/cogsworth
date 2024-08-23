@@ -382,31 +382,31 @@ class Population():
             self._initial_galaxy = sfh.load(self._file, key="initial_galaxy")
             self.sfh_model = self._initial_galaxy.__class__
         elif self._initial_galaxy is None:
-            self.sample_initial_binaries()
+            raise ValueError("No galaxy sampled yet, run `sample_initial_galaxy` to generate one.")
         return self._initial_galaxy
 
     @property
     def mass_singles(self):
         if self._mass_singles is None:
-            self.sample_initial_binaries()
+            raise ValueError("No population sampled yet, run `sample_initial_binaries` to do so.")
         return self._mass_singles
 
     @property
     def mass_binaries(self):
         if self._mass_binaries is None:
-            self.sample_initial_binaries()
+            raise ValueError("No population sampled yet, run `sample_initial_binaries` to do so.")
         return self._mass_binaries
 
     @property
     def n_singles_req(self):
         if self._n_singles_req is None:
-            self.sample_initial_binaries()
+            raise ValueError("No population sampled yet, run `sample_initial_binaries` to do so.")
         return self._n_singles_req
 
     @property
     def n_bin_req(self):
         if self._n_bin_req is None:
-            self.sample_initial_binaries()
+            raise ValueError("No population sampled yet, run `sample_initial_binaries` to do so.")
         return self._n_bin_req
 
     @property
@@ -414,7 +414,7 @@ class Population():
         if self._bpp is None and self._file is not None:
             self._bpp = pd.read_hdf(self._file, key="bpp")
         elif self._bpp is None:
-            self.perform_stellar_evolution()
+            raise ValueError("No stellar evolution performed yet, run `perform_stellar_evolution` to do so.")
         return self._bpp
 
     @property
@@ -431,7 +431,7 @@ class Population():
                                                         "calculated. Set `bcm_timestep_conditions` to get a "
                                                         "BCM table."))
             else:
-                self.perform_stellar_evolution()
+                raise ValueError("No stellar evolution performed yet, run `perform_stellar_evolution` to do so.")
         return self._bcm
 
     @property
@@ -439,7 +439,7 @@ class Population():
         if self._initC is None and self._file is not None:
             self._initC = pd.read_hdf(self._file, key="initC")
         elif self._initC is None:
-            self.perform_stellar_evolution()
+            raise ValueError("No stellar evolution performed yet, run `perform_stellar_evolution` to do so.")
         return self._initC
 
     @property
@@ -447,14 +447,14 @@ class Population():
         if self._kick_info is None and self._file is not None:
             self._kick_info = pd.read_hdf(self._file, key="kick_info")
         if self._kick_info is None:
-            self.perform_stellar_evolution()
+            raise ValueError("No stellar evolution performed yet, run `perform_stellar_evolution` to do so.")
         return self._kick_info
 
     @property
     def orbits(self):
-        # if orbits are uncalculated and no file is provided then perform galactic orbit evolution
+        # if orbits are uncalculated and no file is provided then throw an error
         if self._orbits is None and self._file is None:
-            self.perform_galactic_evolution()
+            raise ValueError("No orbits calculated yet, run `perform_galactic_evolution` to do so")
         # otherwise if orbits are uncalculated but a file is provided then load the orbits from the file
         elif self._orbits is None:
             # load the entire file into memory
@@ -537,7 +537,7 @@ class Population():
     @property
     def observables(self):
         if self._observables is None:
-            print("Need to run `self.get_observables` before calling `self.observables`!")
+            raise ValueError("Observables not yet calculated, run `get_observables` to do so")
         else:
             return self._observables
 
@@ -695,7 +695,8 @@ class Population():
 
         # if no initial binaries have been sampled then we need to create some
         if self._initial_binaries is None and self._initC is None:
-            print("Warning: Initial binaries not yet sampled, performing sampling now.")
+            logging.getLogger("cogsworth").warning(("cogsworth warning: Initial binaries not yet sampled, "
+                                                    "performing sampling now."))
             self.sample_initial_binaries()
 
         # if initC exists then we can use that instead of initial binaries
