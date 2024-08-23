@@ -786,6 +786,21 @@ class Population():
         self._final_vel = None
         self._observables = None
 
+        if self._initial_galaxy is None:            # pragma: no cover
+            logging.getLogger("cogsworth").warning(("cogsworth warning: Initial galaxy not yet sampled, "
+                                                    "performing sampling now."))
+            self.sample_initial_galaxy()
+
+        if self._initC is None and self._initial_binaries is None:          # pragma: no cover
+            logging.getLogger("cogsworth").warning(("cogsworth warning: Initial binaries not yet sampled, "
+                                                    "performing sampling now."))
+            self.sample_initial_binaries()
+
+        if self._bpp is None:           # pragma: no cover
+            logging.getLogger("cogsworth").warning(("cogsworth warning: Stellar evolution not yet performed, "
+                                                    "performing evolution now."))
+            self.perform_stellar_evolution()
+
         v_phi = (self.initial_galaxy.v_T / self.initial_galaxy.rho)
         v_X = (self.initial_galaxy.v_R * np.cos(self.initial_galaxy.phi)
                - self.initial_galaxy.rho * np.sin(self.initial_galaxy.phi) * v_phi)
