@@ -258,3 +258,7 @@ html[data-theme="dark"] .bd-content .sd-card {
 #tutorials-examples-case-studies .sd-card-body a {
     font-size: var(--pst-font-size-h3);
 }
+
+.sd-card-body {
+    align-content: center;
+}
