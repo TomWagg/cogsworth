@@ -264,6 +264,8 @@ class Test(unittest.TestCase):
         except ValueError:
             pass
 
+        p.create_population()
+
         # test getters for galactic evolution
         p.orbits
         o = p.orbits.copy()
