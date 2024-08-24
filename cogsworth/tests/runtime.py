@@ -37,12 +37,11 @@ if __name__ == "__main__":
             print(f"Running with {nproc} processes")
             p_subset = p[:nbin]
             p_subset.processes = nproc
-            print(len(p_subset), p_subset.n_binaries_match, p_subset.n_binaries)
             start = time.time()
             p_subset.perform_stellar_evolution()
             p_subset.perform_galactic_evolution(progress_bar=False)
             end = time.time()
-
             runtimes[i, j] = end - start
+            print(f"It took {runtimes[i, j]:1.2f} seconds to run")
 
             np.save("runtimes.npy", runtimes)
