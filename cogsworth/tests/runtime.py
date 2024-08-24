@@ -39,8 +39,8 @@ if __name__ == "__main__":
             p_subset.processes = nproc
             print(len(p_subset), p_subset.n_binaries_match, p_subset.n_binaries)
             start = time.time()
-            p.perform_stellar_evolution()
-            p.perform_galactic_evolution(progress_bar=False)
+            p_subset.perform_stellar_evolution()
+            p_subset.perform_galactic_evolution(progress_bar=False)
             end = time.time()
 
             runtimes[i, j] = end - start
