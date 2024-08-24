@@ -410,6 +410,25 @@ class Population():
         return self._n_bin_req
 
     @property
+    def initial_binaries(self):
+        # use initC if available
+        if self._initial_binaries is None and self._initC is not None:
+            return self._initC
+
+        # if not, try to load them from the file
+        if self._initial_binaries is None and self._file is not None:
+            try:
+                self._initial_binaries = pd.read_hdf(self._file, key="initial_binaries")
+            except KeyError:
+                try:
+                    self._initial_binaries = pd.read_hdf(self._file, key="initC")
+                except KeyError:
+                    raise ValueError(f"No initial binaries found in population file ({self._file})")
+        elif self._initial_binaries is None:
+            raise ValueError("No binaries sampled yet, run `sample_initial_binaries` to do so.")
+        return self._initial_binaries
+
+    @property
     def bpp(self):
         if self._bpp is None and self._file is not None:
             self._bpp = pd.read_hdf(self._file, key="bpp")
@@ -699,10 +718,6 @@ class Population():
                                                     "performing sampling now."))
             self.sample_initial_binaries()
 
-        # if initC exists then we can use that instead of initial binaries
-        elif self._initial_binaries is None:
-            self._initial_binaries = self._initC
-
         no_pool_existed = self.pool is None and self.processes > 1
         if no_pool_existed:
             self.pool = Pool(self.processes)
@@ -714,7 +729,7 @@ class Population():
 
             # perform the evolution!
             self._bpp, bcm, self._initC, \
-                self._kick_info = Evolve.evolve(initialbinarytable=self._initial_binaries,
+                self._kick_info = Evolve.evolve(initialbinarytable=self.initial_binaries,
                                                 BSEDict=self.BSE_settings, pool=self.pool,
                                                 timestep_conditions=self.bcm_timestep_conditions)
 
@@ -1333,12 +1348,16 @@ class Population():
                 raise FileExistsError((f"{file_name} already exists. Set `overwrite=True` to overwrite "
                                        "the file."))
 
+        # save initial binaries, preferably the initC table
+        if self._initC is not None:
+            self._initC.to_hdf(file_name, key="initC")
+        elif self._initial_binaries is not None:
+            self._initial_binaries.to_hdf(file_name, key="initial_binaries")
+
         if self._bpp is not None:
             self._bpp.to_hdf(file_name, key="bpp")
         if self._bcm is not None:
             self._bcm.to_hdf(file_name, key="bcm")
-        if self._initC is not None:
-            self._initC.to_hdf(file_name, key="initC")
         if self._kick_info is not None:
             self._kick_info.to_hdf(file_name, key="kick_info")
 
@@ -1458,7 +1477,10 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
 
     # load parts as necessary
     if "initial_binaries" in parts:
-        p.initC
+        try:
+            p.initC
+        except KeyError:
+            p.initial_binaries
 
     if "initial_galaxy" in parts:
         p.initial_galaxy
