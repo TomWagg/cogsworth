@@ -280,6 +280,8 @@ class Population():
             new_pop._initial_galaxy = self._initial_galaxy[inds]
         if self._initC is not None:
             new_pop._initC = self._initC.loc[bin_nums]
+        if self._initial_binaries is not None:
+            new_pop._initial_binaries = self._initial_binaries.loc[bin_nums]
 
         # checking whether stellar evolution has been done
         if self._bpp is not None:
