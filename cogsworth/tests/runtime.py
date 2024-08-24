@@ -20,7 +20,7 @@ if __name__ == "__main__":
 
     if args.input is None:
         print("Creating a base population")
-        p = cogsworth.pop.Population(100)
+        p = cogsworth.pop.Population(max(args.nbin))
         p.sample_initial_binaries()
         p.sample_initial_galaxy()
         p.save("runtime_base.h5")
