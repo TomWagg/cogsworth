@@ -40,7 +40,7 @@ if __name__ == "__main__":
             print(len(p_subset), p_subset.n_binaries_match, p_subset.n_binaries)
             start = time.time()
             p.perform_stellar_evolution()
-            p.perform_galactic_evolution()
+            p.perform_galactic_evolution(progress_bar=False)
             end = time.time()
 
             runtimes[i, j] = end - start
