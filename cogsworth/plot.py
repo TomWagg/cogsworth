@@ -250,7 +250,7 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
         if len(inds) > 1:
             ax.annotate("", xy=(-offset - 0.4, total - inds[0] * y_sep_mult + 0.3),
                         xytext=(-offset - 0.4, total - inds[-1] * y_sep_mult - 0.3),
-                        arrowprops=dict(arrowstyle="<->", lw=2, color="black"), zorder=-2)
+                        arrowprops=dict(arrowstyle="<|-|>", lw=1, color="black"), zorder=-2)
 
     period_offset = 0.2
 
