@@ -361,9 +361,11 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
             if rlof and not common_envelope:
                 # flip the shape depending on the direction
                 if row["RRLO_1"] >= 1.0:
-                    x, y = _rlof_path((0 - offset / 2.6 - off_p, total - i), 2 * offset, 0.6, flip=False)
+                    x, y = _rlof_path((0 - offset / 2.6, total - i), 2 * (offset + off_p),
+                                      0.6 * (1 + off_p), flip=False)
                 else:
-                    x, y = _rlof_path((0 + offset / 2.6 + off_p, total - i), 2 * offset, 0.6, flip=True)
+                    x, y = _rlof_path((0 + offset / 2.6, total - i), 2 * (offset + off_p),
+                                      0.6 * (1 + off_p), flip=True)
                 ax.plot(x, y, color="darkorange", lw=2)
                 ax.fill_between(x, y, color="orange", alpha=0.5, edgecolor="none", zorder=-2)
 
