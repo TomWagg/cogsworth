@@ -418,7 +418,7 @@ class Population():
             return self._initC
 
         # if not, try to load them from the file
-        if self._initial_binaries is None and self._file is not None:
+        if self._initial_binaries is None and self._file is not None:       # pragma: no cover
             try:
                 self._initial_binaries = pd.read_hdf(self._file, key="initial_binaries")
             except KeyError:
@@ -426,7 +426,7 @@ class Population():
                     self._initial_binaries = pd.read_hdf(self._file, key="initC")
                 except KeyError:
                     raise ValueError(f"No initial binaries found in population file ({self._file})")
-        elif self._initial_binaries is None:
+        elif self._initial_binaries is None:        # pragma: no cover
             raise ValueError("No binaries sampled yet, run `sample_initial_binaries` to do so.")
         return self._initial_binaries
 

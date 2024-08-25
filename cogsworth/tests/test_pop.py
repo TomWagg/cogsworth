@@ -26,6 +26,18 @@ class Test(unittest.TestCase):
 
     def test_io(self):
         """Check that a population can be saved and re-loaded"""
+        # do one with just initial sampling
+        p = pop.Population(2, processes=1, sampling_params={"qmin": 0.5})
+        p.sample_initial_galaxy()
+        p.sample_initial_binaries()
+
+        p.save("testing-pop-io", overwrite=True)
+
+        p_loaded = pop.load("testing-pop-io", parts=["initial_binaries", "initial_galaxy"])
+
+        self.assertTrue(np.all(p.initial_binaries["mass_1"] == p_loaded.initial_binaries["mass_1"]))
+
+        # again with everything
         p = pop.Population(2, processes=1, bcm_timestep_conditions=[['dtp=100000.0']],
                            sampling_params={"qmin": 0.5})
         p.create_population()
