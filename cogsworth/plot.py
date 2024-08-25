@@ -223,27 +223,34 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
     min_log10_porb = np.log10(df["porb"][df["porb"] > 0.0].min())
     max_log10_porb = np.log10(df["porb"].max())
 
-    # label each timestep, using a single label for simultaneous events
+    # group timesteps and row indices by time
     times, row_inds = [], []
     prev_time, rows, j = -1.0, [], 0
     for _, row in df.iterrows():
-        if row["tphys"].round(3) == prev_time:
+        if row["tphys"].round(2) == prev_time:
             rows.append(j)
         else:
             if prev_time >= 0.0:
                 times.append(prev_time)
                 row_inds.append(rows)
             rows = [j]
-            prev_time = row["tphys"]
+            prev_time = row["tphys"].round(2)
         j += 1
+    # append the last set of rows
     times.append(prev_time)
     row_inds.append(rows)
 
+    # annotate the time on the left side of the binary
     for time, inds in zip(times, row_inds):
-        if len(inds) == 1:
-            ax.annotate(f'{time:1.2e} Myr' if time > 1e4 else f'{time:1.2f} Myr',
-                        xy=(-offset - 0.3, total - inds[0] * y_sep_mult), ha="right", va="center",
-                        fontsize=0.4*fs, fontweight="bold", zorder=1000)
+        ax.annotate(f'{time:1.2e} Myr' if time > 1e4 else f'{time:1.2f} Myr',
+                    xy=(-offset - 0.3, total - np.mean(inds) * y_sep_mult), ha="right", va="center",
+                    fontsize=0.4*fs, fontweight="bold", zorder=-1,
+                    bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="white") if len(inds) > 1 else None)
+        # if there's more than one ind then plot a double arrowed line connecting them
+        if len(inds) > 1:
+            ax.annotate("", xy=(-offset - 0.4, total - inds[0] * y_sep_mult + 0.3),
+                        xytext=(-offset - 0.4, total - inds[-1] * y_sep_mult - 0.3),
+                        arrowprops=dict(arrowstyle="<->", lw=2, color="black"), zorder=-2)
 
     period_offset = 0.2
 
