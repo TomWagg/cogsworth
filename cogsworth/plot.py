@@ -222,7 +222,28 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
 
     min_log10_porb = np.log10(df["porb"][df["porb"] > 0.0].min())
     max_log10_porb = np.log10(df["porb"].max())
-    print(min_log10_porb, max_log10_porb)
+
+    # label each timestep, using a single label for simultaneous events
+    times, row_inds = [], []
+    prev_time, rows, j = -1.0, [], 0
+    for _, row in df.iterrows():
+        if row["tphys"].round(3) == prev_time:
+            rows.append(j)
+        else:
+            if prev_time >= 0.0:
+                times.append(prev_time)
+                row_inds.append(rows)
+            rows = [j]
+            prev_time = row["tphys"]
+        j += 1
+    times.append(prev_time)
+    row_inds.append(rows)
+
+    for time, inds in zip(times, row_inds):
+        if len(inds) == 1:
+            ax.annotate(f'{time:1.2e} Myr' if time > 1e4 else f'{time:1.2f} Myr',
+                        xy=(-offset - 0.3, total - inds[0] * y_sep_mult), ha="right", va="center",
+                        fontsize=0.4*fs, fontweight="bold", zorder=1000)
 
     period_offset = 0.2
 
@@ -277,11 +298,8 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
             to_type = k1[label_type] if k1 != pk1 else k2[label_type]
             evol_label = f'{which_star} evolved to\n{to_type}'
 
-        # annotate the evolution label and time either side of the binary
+        # annotate the evolution label on the right side of the binary
         ax.annotate(evol_label, xy=(0.5, total - i), va="center")
-        ax.annotate(f'{row["tphys"]:1.2e} Myr' if row["tphys"] > 1e4 else f'{row["tphys"]:1.2f} Myr',
-                    xy=(-offset - 0.3, total - i), ha="right", va="center",
-                    fontsize=0.4*fs, fontweight="bold")
 
         # if we've got a common envelope then draw an ellipse behind the binary
         if common_envelope:
