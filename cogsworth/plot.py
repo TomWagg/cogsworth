@@ -333,7 +333,9 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
 
             # annotate the correct mass
             ax.annotate(f'{row["mass_1"] if mr_2 else row["mass_2"]:1.2f} ' + r'$\rm M_{\odot}$',
-                        xy=(0, total - i - 0.45), ha="center", va="top", fontsize=0.3*fs)
+                        xy=(0, total - i - 0.45), ha="center", va="top", fontsize=0.3*fs,
+                        bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.7)
+                        if et_ind in [15, 16] else None)
 
             # if a supernova just happened then add an explosion marker behind the star
             if et_ind in [15, 16]:
@@ -344,17 +346,25 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
             contact_adjust = 0.25 if contact else 1.0
 
             # plot stars offset from the centre
-            ax.scatter(0 - offset * contact_adjust - off_p, total - i, color=k1["colour"], s=s_base, zorder=10)
-            ax.scatter(0 + offset * contact_adjust + off_p, total - i, color=k2["colour"], s=s_base, zorder=10)
+            ax.scatter(0 - (offset + off_p) * contact_adjust, total - i,
+                       color=k1["colour"], s=s_base, zorder=10)
+            ax.scatter(0 + (offset + off_p) * contact_adjust, total - i,
+                       color=k2["colour"], s=s_base, zorder=10)
 
             # annotate the mass (with some extra padding if there's RLOF)
             mass_y_offset = 0.35 if not (rlof and not common_envelope) else 0.5
             ax.annotate(f'{row["mass_1"]:1.2f} ' + r'$\rm M_{\odot}$',
                         xy=(0 - offset * contact_adjust - off_p, total - i - mass_y_offset),
-                        ha="left" if common_envelope else "center", va="top", fontsize=0.3*fs, rotation=45 if contact else 0)
+                        ha="left" if common_envelope else "center", va="top", fontsize=0.3*fs,
+                        rotation=45 if contact else 0,
+                        bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.7)
+                        if et_ind in [15, 16] else None)
             ax.annotate(f'{row["mass_2"]:1.2f} ' + r'$\rm M_{\odot}$',
                         xy=(0 + offset * contact_adjust + off_p, total - i - mass_y_offset),
-                        ha="right" if common_envelope else "center", va="top", fontsize=0.3*fs, zorder=1000, rotation=45 if contact else 0)
+                        ha="right" if common_envelope else "center", va="top", fontsize=0.3*fs, zorder=1000,
+                        rotation=45 if contact else 0,
+                        bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.7)
+                        if et_ind in [15, 16] else None)
 
             # if the primary type changed or we're at the start/end then label it
             if k1 != pk1 or et_ind in [1, 10]:
