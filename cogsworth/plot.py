@@ -234,6 +234,7 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
             kstar_translator[int(row["prev_kstar_2"])]
         et = evol_type_translator[et_ind]
 
+        # convert the current period to an offset
         if row["porb"] > 0.0:
             period_modifier = (np.log10(row["porb"]) - min_log10_porb) / (max_log10_porb - min_log10_porb)
             off_p = period_offset * period_modifier
@@ -325,10 +326,10 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
             mass_y_offset = 0.35 if not (rlof and not common_envelope) else 0.5
             ax.annotate(f'{row["mass_1"]:1.2f} ' + r'$\rm M_{\odot}$',
                         xy=(0 - offset * contact_adjust - off_p, total - i - mass_y_offset),
-                        ha="center", va="top", fontsize=0.3*fs, rotation=45 if contact else 0)
+                        ha="left" if common_envelope else "center", va="top", fontsize=0.3*fs, rotation=45 if contact else 0)
             ax.annotate(f'{row["mass_2"]:1.2f} ' + r'$\rm M_{\odot}$',
                         xy=(0 + offset * contact_adjust + off_p, total - i - mass_y_offset),
-                        ha="center", va="top", fontsize=0.3*fs, zorder=1000, rotation=45 if contact else 0)
+                        ha="right" if common_envelope else "center", va="top", fontsize=0.3*fs, zorder=1000, rotation=45 if contact else 0)
 
             # if the primary type changed or we're at the start/end then label it
             if k1 != pk1 or et_ind in [1, 10]:
