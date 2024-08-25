@@ -286,10 +286,10 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
         # if we've got a common envelope then draw an ellipse behind the binary
         if common_envelope:
             envelope = mpl.patches.Ellipse(xy=(0, total - i),
-                                           width=4 * offset + off_p, height=1.5,
+                                           width=4 * offset + off_p, height=1.5 + off_p,
                                            facecolor="orange", edgecolor="none", zorder=-1, alpha=0.5)
             envelope_edge = mpl.patches.Ellipse(xy=(0, total - i),
-                                                width=4 * offset + off_p, height=1.5,
+                                                width=4 * offset + off_p, height=1.5 + off_p,
                                                 facecolor="none", edgecolor="darkorange", lw=2)
             ax.add_artist(envelope)
             ax.add_artist(envelope_edge)
