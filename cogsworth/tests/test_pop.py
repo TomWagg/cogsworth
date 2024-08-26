@@ -26,6 +26,18 @@ class Test(unittest.TestCase):
 
     def test_io(self):
         """Check that a population can be saved and re-loaded"""
+        # do one with just initial sampling
+        p = pop.Population(2, processes=1, sampling_params={"qmin": 0.5})
+        p.sample_initial_galaxy()
+        p.sample_initial_binaries()
+
+        p.save("testing-pop-io", overwrite=True)
+
+        p_loaded = pop.load("testing-pop-io", parts=["initial_binaries", "initial_galaxy"])
+
+        self.assertTrue(np.all(p.initial_binaries["mass_1"] == p_loaded.initial_binaries["mass_1"]))
+
+        # again with everything
         p = pop.Population(2, processes=1, bcm_timestep_conditions=[['dtp=100000.0']],
                            sampling_params={"qmin": 0.5})
         p.create_population()
@@ -170,7 +182,10 @@ class Test(unittest.TestCase):
         self.assertTrue(p.classes.shape[0] == p.n_binaries_match)
 
         # test that observable table is done right (with or without extinction)
-        p.observables
+        try:
+            p.observables
+        except ValueError:
+            pass
         p.get_observables(filters=["G", "BP", "RP", "J", "H", "K"],
                           assume_mw_galactocentric=True, ignore_extinction=True)
         obs.get_photometry(filters=["G", "BP", "RP", "J", "H", "K"], final_bpp=p.final_bpp,
@@ -194,35 +209,86 @@ class Test(unittest.TestCase):
 
     def test_getters(self):
         """Test the property getters"""
-        p = pop.Population(2, processes=1, store_entire_orbits=False)
+        p = pop.Population(2, processes=1, store_entire_orbits=False, bcm_timestep_conditions=[['dtp=1000.0']])
+        p.create_population()
 
         # test getters from sampling
         p.mass_singles
-        p._mass_binaries = None
+        p._mass_singles = None
+        try:
+            p.mass_singles
+        except ValueError:
+            pass
+
         p.mass_binaries
+        p._mass_binaries = None
+        try:
+            p.mass_binaries
+        except ValueError:
+            pass
 
-        p._n_singles_req = None
         p.n_singles_req
+        p._n_singles_req = None
+        try:
+            p.n_singles_req
+        except ValueError:
+            pass
 
-        p._n_bin_req = None
         p.n_bin_req
+        p._n_bin_req = None
+        try:
+            p.n_bin_req
+        except ValueError:
+            pass
 
-        p._initial_galaxy = None
         p.initial_galaxy
+        p._initial_galaxy = None
+        try:
+            p.initial_galaxy
+        except ValueError:
+            pass
 
         # test getters from stellar evolution
         p.bpp
-        p._bcm = None
+        p._bpp = None
+        try:
+            p.bpp
+        except ValueError:
+            pass
+
         p.bcm
+        p._bcm = None
+        try:
+            p.bcm
+        except ValueError:
+            pass
 
-        p._initC = None
         p.initC
+        p._initC = None
+        try:
+            p.initC
+        except ValueError:
+            pass
 
-        p._kick_info = None
         p.kick_info
+        p._kick_info = None
+        try:
+            p.kick_info
+        except ValueError:
+            pass
+
+        p.create_population()
 
         # test getters for galactic evolution
         p.orbits
+        o = p.orbits.copy()
+        p._orbits = None
+        try:
+            p.orbits
+        except ValueError:
+            pass
+        p._orbits = o
+
         p.primary_orbits
         p.secondary_orbits
 

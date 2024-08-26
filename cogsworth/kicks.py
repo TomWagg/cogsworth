@@ -156,13 +156,13 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential()
 
         except Exception:   # pragma: no cover
             dt /= 8.
-            if not quiet:
-                print("Orbit is causing problems, attempting reduced timestep size", t1, dt)
+            # if not quiet:
+            #     print("Orbit is causing problems, attempting reduced timestep size", t1, dt)
 
     # if the orbit failed event after resizing then just return None
     if not success:   # pragma: no cover
-        if not quiet:
-            print("ORBIT FAILED, returning None")
+        # if not quiet:
+        #     print("ORBIT FAILED, returning None")
         return None
 
     # jettison everything but the final timestep if user says so

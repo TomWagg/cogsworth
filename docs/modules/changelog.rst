@@ -7,14 +7,17 @@ This page tracks all of the changes that have been made to ``cogsworth``. We fol
 2.0.0
 =====
 
+Major release to go with the release paper submission! 🎉
 - New feature: ``plot_cartoon_binary`` will now adjust the width of the binary based on the orbital period and label simultaneous timesteps more clearly
+- Major change: calls like ``p.bpp`` will now raise an error if sampling is not yet done to avoid confusion
+- Bug fix: Can now save and load unevolved populations
 
 1.2.0
 =====
 
-- New feature: Add galactic orbit plotting with ``pop.plot_orbit()``
-- New feature: Add a few new simple SFHs such as ``BurstUniformDisc``
-- Documentation: Added some new case studies to the documentation
+* Add some new simple SFHs by @TomWagg in https://github.com/TomWagg/cogsworth/pull/120
+* Add new orbit plotting functionality by @TomWagg in https://github.com/TomWagg/cogsworth/pull/121
+* Add new case studies + minor fixes by @TomWagg in https://github.com/TomWagg/cogsworth/pull/122
 
 1.1.2
 =====
