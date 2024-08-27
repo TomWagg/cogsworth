@@ -3,6 +3,7 @@ import unittest
 import cogsworth.pop as pop
 import cogsworth.sfh as sfh
 import cogsworth.observables as obs
+import h5py as h5
 import os
 import pytest
 
@@ -420,6 +421,24 @@ class Test(unittest.TestCase):
         except AssertionError:
             it_worked = False
         self.assertFalse(it_worked)
+
+    def test_indexing_loaded_pop(self):
+        """Test indexing fails when trying to slice a half-loaded population"""
+        p = pop.Population(10)
+        p.perform_stellar_evolution()
+
+        with h5.File("DUMMY.h5", "w") as f:
+            f.create_dataset("orbits", data=[])
+        p._file = "DUMMY.h5"
+        p._orbits = None
+
+        it_worked = True
+        try:
+            p[:5]
+        except ValueError:
+            it_worked = False
+        self.assertFalse(it_worked)
+        os.remove("DUMMY.h5")
 
     def test_evolved_pop(self):
         """Check that the EvolvedPopulation class works as it should"""

@@ -216,6 +216,22 @@ class Population():
         # convert any Pandas Series to numpy arrays
         ind = ind.values if isinstance(ind, pd.Series) else ind
 
+        # if the population is associated with a file, make sure it's entirely loaded before slicing
+        if self._file is not None:
+            parts = ["initial_binaries", "bpp", "initial_galaxy", "orbits"]
+            vars = [self._initial_binaries, self._bpp, self._initial_galaxy, self._orbits]
+            masks = {f"has_{p}": False for p in parts}
+            with h5.File(self._file, "r") as f:
+                for p in parts:
+                    masks[f"has_{p}"] = p in f
+            missing_parts = [p for i, p in enumerate(parts) if (masks[f"has_{p}"] and vars[i] is None)]
+
+            if len(missing_parts) > 0:
+                raise ValueError(("This population was loaded from a file but you haven't loaded all parts "
+                                  "yet. You need to do this before indexing it. The missing parts are: "
+                                  f"{missing_parts}. You either need to access each of these variables or "
+                                  "reload the entire population using all parts."))
+
         # ensure indexing with the right type
         ALLOWED_TYPES = (int, slice, list, np.ndarray, tuple)
         if not isinstance(ind, ALLOWED_TYPES):
@@ -262,7 +278,6 @@ class Population():
                                  sampling_params=self.sampling_params,
                                  store_entire_orbits=self.store_entire_orbits)
         new_pop.n_binaries_match = new_pop.n_binaries
-        new_pop._file = self._file
 
         # proxy for checking whether sampling has been done
         if self._mass_binaries is not None:
