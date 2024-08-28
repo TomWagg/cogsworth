@@ -11,6 +11,7 @@ Major release to go with the release paper submission! 🎉
 - New feature: ``plot_cartoon_binary`` will now adjust the width of the binary based on the orbital period and label simultaneous timesteps more clearly
 - Major change: calls like ``p.bpp`` will now raise an error if sampling is not yet done to avoid confusion
 - Bug fix: Can now save and load unevolved populations
+- Bug fix: Saving ``sampling_params`` now works correctly when you have a ``sampling_params`` object that includes a dictionary (nested dictionaries were causing crashes before)
 
 1.2.0
 =====
