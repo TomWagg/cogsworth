@@ -1429,8 +1429,7 @@ class Population():
 
             # save sampling params
             d = file.create_dataset("sampling_params", data=[])
-            for key in self.sampling_params:
-                d.attrs[key] = self.sampling_params[key]
+            d.attrs["dict"] = yaml.dump(self.sampling_params, default_flow_style=None)
 
 
 def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolution"]):
@@ -1470,9 +1469,7 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
         for key in file["BSE_settings"].attrs:
             BSE_settings[key] = file["BSE_settings"].attrs[key]
 
-        # load in sampling params
-        for key in file["sampling_params"].attrs:
-            sampling_params[key] = file["sampling_params"].attrs[key]
+        sampling_params = yaml.load(file["sampling_params"].attrs["dict"], Loader=yaml.Loader)
 
     with h5.File(file_name, 'r') as f:
         galactic_potential = potential_from_dict(yaml.load(f.attrs["potential_dict"], Loader=yaml.Loader))
