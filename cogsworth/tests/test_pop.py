@@ -73,6 +73,22 @@ class Test(unittest.TestCase):
 
         os.remove("testing-pop-io.h5")
 
+    def test_save_complicated_sampling(self):
+        """Check that you can save a population with complicated sampling params"""
+        p = pop.Population(2, processes=1, 
+                           sampling_params={"qmin": 0.5, "porb_model": {
+            "min": 0.15,
+            "max": 5,
+            "slope": 0.0
+        }})
+        p.create_population()
+
+        p.save("testing-pop-io-sampling", overwrite=True)
+
+        p_loaded = pop.load("testing-pop-io-sampling", parts=["initial_binaries"])
+
+        self.assertTrue(np.all(p.initC == p_loaded.initC))
+
     def test_lazy_io(self):
         """Check that a population can be saved and re-loaded lazily"""
         p = pop.Population(2, processes=1, bcm_timestep_conditions=[['dtp=100000.0']],

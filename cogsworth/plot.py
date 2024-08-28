@@ -243,14 +243,18 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
     # annotate the time on the left side of the binary
     for time, inds in zip(times, row_inds):
         ax.annotate(f'{time:1.2e} Myr' if time > 1e4 else f'{time:1.2f} Myr',
-                    xy=(-offset - 0.3, total - np.mean(inds) * y_sep_mult), ha="right", va="center",
+                    xy=(-offset - 0.3 - (0.12 if len(inds) > 1 else 0),
+                        total - np.mean(inds) * y_sep_mult), ha="right", va="center",
                     fontsize=0.4*fs, fontweight="bold", zorder=-1,
                     bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="white") if len(inds) > 1 else None)
-        # if there's more than one ind then plot a double arrowed line connecting them
+        # if there's more than one ind then plot a bracketed line connecting them
         if len(inds) > 1:
-            ax.annotate("", xy=(-offset - 0.4, total - inds[0] * y_sep_mult + 0.3),
-                        xytext=(-offset - 0.4, total - inds[-1] * y_sep_mult - 0.3),
-                        arrowprops=dict(arrowstyle="<|-|>", lw=1, color="black"), zorder=-2)
+            ax.annotate('', xy=(-offset - 0.35, total - np.mean(inds) * y_sep_mult),
+                        xytext=(-offset - 0.4, total - np.mean(inds) * y_sep_mult),
+                        ha='center', va='center',
+                        # 2.5 is a magic number here to make the bracket the right size
+                        arrowprops=dict(arrowstyle=f'-[, widthB={y_sep_mult * len(inds) * 2.5}, lengthB=1',
+                                        lw=1.5, color='k'))
 
     period_offset = 0.2
 
