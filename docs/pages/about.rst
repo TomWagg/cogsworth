@@ -1,14 +1,7 @@
-.. figure:: ../_static/gala_invite_light.png
+.. figure:: ../_static/cogsworth_invite.png
    :figwidth: 40%
-   :alt: logo for package
+   :alt: Gala invitation to cogsworth
    :align: right
-   :class: only-light
-
-.. figure:: ../_static/gala_invite_dark.png
-   :figwidth: 40%
-   :alt: logo for package
-   :align: right
-   :class: only-dark
 
 *****
 About

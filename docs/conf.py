@@ -147,6 +147,7 @@ html_sidebars = {
     "index": [],
     "pages/install": ["page-toc"],
     "pages/getting_started": ["page-toc"],
+    "pages/about": [],
     "pages/learning": [],
     "pages/tutorials": [],
     "pages/case_studies": [],
