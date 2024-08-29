@@ -384,10 +384,15 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
                             zorder=10, fontsize=ks_fontsize, fontweight="bold")
 
             # for bound binaries plot a line connecting them
-            if not disrupted:
+            if not disrupted or et_ind == 11:
                 ax.plot([0 - offset * contact_adjust - off_s, 0 + offset * contact_adjust + off_s], [total - i, total - i],
                         linestyle="--", zorder=-1, color="black")
 
+            if et_ind == 11:
+                ax.scatter(0, total - i, marker=(10, 1, 360 / 10 / 2), s=s_base / 2, zorder=-1,
+                           facecolor="orange", edgecolor="none", linewidth=1)
+
+            if not disrupted:
                 # annotate the line with period, offset to one side if there's RLOF
                 x = 0 if not (rlof and not common_envelope) else (-offset * contact_adjust / 4 if row["RRLO_1"] >= 1.0 else offset * contact_adjust / 4)
                 p_lab = f'{row["porb"]:1.2e} days' if row["porb"] > 10000 or row["porb"] < 1\
