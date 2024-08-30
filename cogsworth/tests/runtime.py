@@ -30,8 +30,6 @@ if __name__ == "__main__":
         print("Loading in a base population")
         p = cogsworth.pop.load(args.input, parts=["initial_binaries", "initial_galaxy"])
 
-    runtimes = np.zeros((len(args.nbin), len(args.processes)))
-
     p.processes = args.processes
     start = time.time()
     p.perform_stellar_evolution()
