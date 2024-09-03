@@ -48,6 +48,6 @@ if __name__ == "__main__":
     total_time = gala_done - start
     print(f"{args.nbin} binaries, with {args.processes}, took {total_time:1.2f} seconds to run ({cosmic_time:1.2f} for cosmic, {gala_time:1.2f} for gala)")
 
-    p.save(f"runtime_{args.nbin}_{args.processes}_pop.h5", overwrite=True)
+    p.save(f"runtime_results/runtime_{args.nbin}_{args.processes}_pop.h5", overwrite=True)
 
-    np.save(f"runtimes_{args.nbin}_{args.processes}.npy", [cosmic_time, gala_time, total_time])
+    np.save(f"runtime_results/runtimes_{args.nbin}_{args.processes}.npy", [cosmic_time, gala_time, total_time])
