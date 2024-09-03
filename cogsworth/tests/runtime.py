@@ -34,7 +34,8 @@ if __name__ == "__main__":
 
     # if we're testing weak scaling, we need to copy the population for each process
     if args.weak_scaling:
-        p = cogsworth.pop.concat([p[:] for _ in range(args.processes)])
+        copies = [p[:] for _ in range(args.processes)]
+        p = cogsworth.pop.concat(*copies)
 
     p.processes = args.processes
     start = time.time()
@@ -46,7 +47,8 @@ if __name__ == "__main__":
     cosmic_time = cosmic_done - start
     gala_time = gala_done - cosmic_done
     total_time = gala_done - start
-    print(f"{args.nbin} binaries, with {args.processes}, took {total_time:1.2f} seconds to run ({cosmic_time:1.2f} for cosmic, {gala_time:1.2f} for gala)")
+
+    print(f"{len(p)} binaries, with {args.processes}, took {total_time:1.2f} seconds to run ({cosmic_time:1.2f} for cosmic, {gala_time:1.2f} for gala)")
 
     suffix = "_weak" if args.weak_scaling else ""
 
