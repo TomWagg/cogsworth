@@ -5,7 +5,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=128
 #SBATCH --time=0:30:00
-#SBATCH -o /mnt/home/twagg/runtime_%A.out
+#SBATCH -o /mnt/home/twagg/cogsworth/cogsworth/tests/runtime_%A.out
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=tomwagg@uw.edu
 #SBATCH --export=all
