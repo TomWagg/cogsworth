@@ -1554,15 +1554,8 @@ def concat(*pops):
 
             final_pop._initial_galaxy += pop._initial_galaxy
 
-        if final_pop._initial_binaries is not None:
-            if pop._initial_binaries is None:
-                raise ValueError(f"Population {pop} does not have initial binaries, but the first does")
-            new_initial_binaries = pop._initial_binaries.copy()
-            new_initial_binaries.index += bin_num_offset
-            final_pop._initial_binaries = pd.concat([final_pop._initial_binaries, pop._initial_binaries])
-
         # loop through pandas tables that may need to be copied
-        for table in ["_initC", "_bpp", "_bcm", "_kick_info"]:
+        for table in ["_initial_binaries", "_initC", "_bpp", "_bcm", "_kick_info", ]:
             # only copy if the table exists in the main population
             if getattr(final_pop, table) is not None:
                 # if the table doesn't exist in the new population then raise an error
@@ -1572,7 +1565,10 @@ def concat(*pops):
                 # otherwise copy the table and update the bin nums
                 new_table = getattr(pop, table).copy()
                 new_table.index += bin_num_offset
-                new_table["bin_num"] += bin_num_offset
+
+                # if the table has a "bin_num" column then update it
+                if "bin_num" in new_table.columns:
+                    new_table["bin_num"] += bin_num_offset
                 setattr(final_pop, table, pd.concat([getattr(final_pop, table), new_table]))
 
         # sum the sampling numbers
@@ -1585,7 +1581,8 @@ def concat(*pops):
         if final_pop._orbits is not None or pop._orbits is not None:
             raise NotImplementedError("Cannot concatenate populations with orbits for now")
 
-        bin_num_offset = max(final_pop._bpp["bin_num"]) + 1
+        bin_num_offset = max(final_pop.bin_nums) + 1
+        final_pop._bin_nums = None
 
     # reset auto-calculated class variables
     final_pop._bin_nums = None
