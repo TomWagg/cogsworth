@@ -1,0 +1,39 @@
+import cogsworth
+import gala.potential as gp
+import astropy.units as u
+
+# run the simulation
+p = cogsworth.pop.Population(
+    n_binaries=1000,
+    processes=6,
+    sfh_model=cogsworth.sfh.Wagg2022,
+    galactic_potential=gp.MilkyWayPotential2022(),
+    v_dispersion=5 * u.km / u.s,
+    max_ev_time=12 * u.Gyr,
+    BSE_settings={
+        # adjust binary stellar evolution settings here
+    },
+    sampling_params={
+        # adjust initial condition sampling settings here
+    }
+)
+p.create_population()
+
+# access DataFrames of initial conditions + evolution
+p.initC, p.bpp
+
+# explore Gala orbits, final positions/velocities
+p.orbits, p.final_pos, p.final_vel
+
+# convert to observables (e.g. flux, colour)
+p.get_observables(filters=["G", "BP", "RP"],
+                  assume_mw_galactocentric=True)
+
+# make some plots
+p.plot_cartoon_binary(bin_num=42)
+p.plot_orbit(bin_num=42)
+p.plot_sky_locations()
+cogsworth.plot.plot_cmd(p, "G", "BP", "RP")
+
+# save population for later
+p.save("population.h5")
