@@ -334,6 +334,10 @@ class Population():
                 new_pop._final_vel = self._final_vel[all_inds]
         return new_pop
 
+    def copy(self):
+        """Create a copy of the population"""
+        return self[:]
+
     def get_citations(self, filename=None):
         """Print the citations for the packages/papers used in the population"""
         # ask users for a filename to save the bibtex to
