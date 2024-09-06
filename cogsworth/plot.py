@@ -508,7 +508,7 @@ def plot_galactic_orbit(primary_orbit, secondary_orbit=None,
 
         primary_orbit[0].plot(axes=fig.axes, **full_start_kwargs)
 
-    if show_legend:
+    if show_legend:     # pragma: no cover
         handles, labels = axes[-1].get_legend_handles_labels()
         fig.legend(handles, labels, loc='upper center', ncol=5, fontsize=16)
         fig.subplots_adjust(top=0.9)
