@@ -334,6 +334,10 @@ class Population():
                 new_pop._final_vel = self._final_vel[all_inds]
         return new_pop
 
+    def copy(self):
+        """Create a copy of the population"""
+        return self[:]
+
     def get_citations(self, filename=None):
         """Print the citations for the packages/papers used in the population"""
         # ask users for a filename to save the bibtex to
@@ -1217,7 +1221,8 @@ class Population():
         """
         return plot_cartoon_evolution(self.bpp, bin_num, **kwargs)
 
-    def plot_orbit(self, bin_num, show_sn=True, sn_kwargs={}, show=True, **kwargs):
+    def plot_orbit(self, bin_num, show_sn=True, sn_kwargs={}, show=True,
+                   show_legend=True, **kwargs):
         """Plot the Galactic orbit of a binary system
 
         Parameters
@@ -1228,6 +1233,10 @@ class Population():
             Whether to show the position of the SN, by default True
         sn_kwargs : `dict`, optional
             Any additional arguments to pass to the SN scatter plot call, by default {}
+        show : `bool`, optional
+            Whether to immediately show the plot
+        show_legend : `bool`, optional
+            Whether to show the legend
         **kwargs : `various`
             Any additional arguments to pass to :func:`cogsworth.plot.plot_galactic_orbit`
 
@@ -1252,8 +1261,14 @@ class Population():
         primary_orbit = self.primary_orbits[ind]
         secondary_orbit = self.secondary_orbits[ind] if disrupted else None
 
+        fig, axes = kwargs.pop("fig", None), kwargs.pop("axes", None)
+        if fig is None or axes is None:
+            fig, axes = plt.subplots(1, 3, figsize=(25, 7))
+            fig.subplots_adjust(wspace=0.35)
+
         # create the orbit plot
-        fig, axes = plot_galactic_orbit(primary_orbit, secondary_orbit, show=False, **kwargs)
+        fig, axes = plot_galactic_orbit(primary_orbit, secondary_orbit, show=False,
+                                        show_legend=False, fig=fig, axes=axes, **kwargs)
 
         # extra bit if you want to show the SN locations
         if show_sn:
@@ -1266,10 +1281,11 @@ class Population():
 
             # loop over the primary and secondary
             rows = self.bpp.loc[bin_num]
-            for mask, orbit, colour in zip([((rows["evol_type"] == 15)
-                                             | ((rows["evol_type"] == 16) & (rows["sep"] == 0.0))),
-                                            rows["evol_type"] == 16],
-                                           [primary_orbit, secondary_orbit], colours):
+            for mask, orbit, colour, l in zip([((rows["evol_type"] == 15)
+                                               | ((rows["evol_type"] == 16) & (rows["sep"] == 0.0))),
+                                              rows["evol_type"] == 16],
+                                              [primary_orbit, secondary_orbit], colours,
+                                              ["Primary", "Secondary"]):
                 # if there is no SN or no orbit then skip
                 if not np.any(mask) or orbit is None:           # pragma: no cover
                     continue
@@ -1283,7 +1299,7 @@ class Population():
                     "marker": (10, 2, 0),
                     "color": colour,
                     "s": 100,
-                    "label": "SN position"
+                    "label": f"{l} supernova"
                 }
                 full_sn_kwargs.update(sn_kwargs)
 
@@ -1291,6 +1307,11 @@ class Population():
                 axes[0].scatter(sn_pos.x, sn_pos.y, **full_sn_kwargs)
                 axes[1].scatter(sn_pos.x, sn_pos.z, **full_sn_kwargs)
                 axes[2].scatter(sn_pos.y, sn_pos.z, **full_sn_kwargs)
+
+        if show_legend:
+            handles, labels = axes[-1].get_legend_handles_labels()
+            fig.legend(handles, labels, loc='upper center', ncol=5, fontsize=16)
+            fig.subplots_adjust(top=0.9)
 
         if show:
             plt.show()

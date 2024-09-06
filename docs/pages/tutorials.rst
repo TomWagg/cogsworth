@@ -73,3 +73,4 @@ If you're new to ``cogsworth`` I recommend going through the whole basics sectio
             :caption: Miscellaneous
 
             ../tutorials/misc/lisa.ipynb
+            ../tutorials/misc/runtime.ipynb

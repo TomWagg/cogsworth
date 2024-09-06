@@ -438,6 +438,7 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
 def plot_galactic_orbit(primary_orbit, secondary_orbit=None,
                         t_min=0 * u.Myr, t_max=np.inf * u.Myr, show_start=True,
                         primary_kwargs={}, secondary_kwargs={}, start_kwargs={},
+                        show_legend=True,
                         fig=None, axes=None, show=True):
     """Plot the galactic orbit of a binary system. This provides a wrapper around the gala
     :class:`~gala.dynamics.Orbit` method :meth:`~gala.dynamics.Orbit.plot`.
@@ -506,6 +507,11 @@ def plot_galactic_orbit(primary_orbit, secondary_orbit=None,
         full_start_kwargs.update(start_kwargs)
 
         primary_orbit[0].plot(axes=fig.axes, **full_start_kwargs)
+
+    if show_legend:     # pragma: no cover
+        handles, labels = axes[-1].get_legend_handles_labels()
+        fig.legend(handles, labels, loc='upper center', ncol=5, fontsize=16)
+        fig.subplots_adjust(top=0.9)
 
     # show the plot if desired
     if show:

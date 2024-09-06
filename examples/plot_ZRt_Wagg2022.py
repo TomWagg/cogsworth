@@ -79,7 +79,7 @@ axes[0, 1].axis("off")
 # fix the x and y lims
 xlims = (1e-1, 50)
 ylims = (3e-5, 1e-1)
-N_BINS = 500
+N_BINS = 120
 N_BINS_2D = 100
 rasterized = True
 
@@ -98,7 +98,7 @@ fig.colorbar(hexbin, cax=inset_ax, orientation="horizontal",
 
 # set the axes limits, scales and labels
 axes[0, 0].set(xlim=xlims, xscale="log")
-axes[1, 0].set(xlim=xlims, ylim=ylims, xlabel="Galactocentric radius [kpc]", ylabel="Metallicity")
+axes[1, 0].set(xlim=xlims, ylim=ylims, xlabel=r"Galactocentric radius, $R$ [kpc]", ylabel=r"Metallicity, $Z$")
 axes[1, 1].set(ylim=ylims, yscale="log")
 
 # for the marginals hide the ticks and spines
@@ -106,7 +106,7 @@ for ax in [axes[0, 0], axes[1, 1]]:
     ax.set(yticks=[], xticks=[])
     ax.spines[:].set_visible(False)
 
-# plt.savefig("ZR_counts.pdf", bbox_inches="tight", format="pdf", dpi=400)
+# plt.savefig("ZR_counts.pdf", bbox_inches="tight", format="pdf")
 
 plt.show()
 
@@ -157,7 +157,7 @@ fig.colorbar(hexbin, cax=inset_ax, orientation="horizontal",
 
 # set the axes limits, scales and labels
 axes[0, 0].set(xlim=xlims, xscale="log")
-axes[1, 0].set(xlim=xlims, ylim=ylims, xlabel="Galactocentric radius [kpc]", ylabel="Metallicity")
+axes[1, 0].set(xlim=xlims, ylim=ylims, xlabel=r"Galactocentric radius, $R$ [kpc]", ylabel=r"Metallicity, $Z$")
 axes[1, 1].set(ylim=ylims, yscale="log")
 
 # for the marginals hide the ticks and spines
@@ -165,6 +165,6 @@ for ax in [axes[0, 0], axes[1, 1]]:
     ax.set(yticks=[], xticks=[])
     ax.spines[:].set_visible(False)
 
-# plt.savefig("ZRt.pdf", bbox_inches="tight", format="pdf", dpi=400)
+# plt.savefig("ZRt.pdf", bbox_inches="tight", format="pdf")
 
 plt.show()

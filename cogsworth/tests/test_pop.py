@@ -368,6 +368,8 @@ class Test(unittest.TestCase):
         p._final_pos = np.zeros(len(p._orbits))
         p._final_vel = np.zeros(len(p._orbits))
 
+        p.copy()
+
         for ind in inds:
             p_ind = p[ind]
             if isinstance(ind, slice):
