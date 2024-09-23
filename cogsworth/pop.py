@@ -748,9 +748,11 @@ class Population():
             warnings.filterwarnings("ignore", message=".*initial binary table is being overwritten.*")
             warnings.filterwarnings("ignore", message=".*to a different value than assumed in the mlwind.*")
 
+            ibt = self.initial_binaries if self._initC is None else self._initC
+
             # perform the evolution!
             self._bpp, bcm, self._initC, \
-                self._kick_info = Evolve.evolve(initialbinarytable=self.initial_binaries,
+                self._kick_info = Evolve.evolve(initialbinarytable=ibt,
                                                 BSEDict=self.BSE_settings, pool=self.pool,
                                                 timestep_conditions=self.bcm_timestep_conditions)
 
