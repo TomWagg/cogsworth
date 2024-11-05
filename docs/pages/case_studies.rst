@@ -4,8 +4,7 @@ Case Studies
 
 This section contains a collection of case studies that demonstrate some more detailed uses of ``cogsworth``.
 These are designed to be more in-depth than the tutorials and show how to use the package in a more complex way.
-Note that they also will take longer to run if you want to reproduce the results (on the order of 15 minutes each)
-and some require downloading some additional data.
+Note that they also will take a lot longer to run if you want to reproduce the results and some require downloading some additional data.
 
 .. grid:: 1 1 2 2
     :gutter: 3
@@ -24,15 +23,15 @@ and some require downloading some additional data.
 
     .. grid-item-card::
         :text-align: center
-        :link: ../case_studies/sigma_plus_potentials.html
+        :link: ../case_studies/ce_plus_potentials.html
 
-        .. image:: ../case_studies/plots/sigma_potential_compare.png
+        .. image:: ../case_studies/plots/ce_potential_compare.png
             :align: center
 
         .. toctree::
             :titlesonly:
 
-            ../case_studies/sigma_plus_potentials
+            ../case_studies/ce_plus_potentials
 
     .. grid-item-card::
         :text-align: center

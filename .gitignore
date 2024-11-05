@@ -142,3 +142,13 @@ how_much_code.sh
 *.h5
 *.out
 *.npy
+
+paper/ApJS/*
+!paper/ApJS/*.tex
+!paper/ApJS/*.cls
+!paper/ApJS/*.bst
+!paper/ApJS/*.pdf
+!paper/ApJS/figures
+!paper/ApJS/styles
+
+scratch/
