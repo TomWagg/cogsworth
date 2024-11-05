@@ -4,6 +4,11 @@ Full changelog
 
 This page tracks all of the changes that have been made to ``cogsworth``. We follow the standard versioning convention of A.B.C, where C is a patch/bugfix, B is a large bugfix or new feature and A is a major new breaking change. B/C are backwards compatible but A changes may be breaking.
 
+2.0.1
+=====
+
+- Add clearer warning when pynbodyrc is not set up for FIRE (https://github.com/TomWagg/cogsworth/issues/137) 
+
 2.0.0
 =====
 
