@@ -24,15 +24,15 @@ and some require downloading some additional data.
 
     .. grid-item-card::
         :text-align: center
-        :link: ../case_studies/sigma_plus_potentials.html
+        :link: ../case_studies/ce_plus_potentials.html
 
-        .. image:: ../case_studies/plots/sigma_potential_compare.png
+        .. image:: ../case_studies/plots/ce_potential_compare.png
             :align: center
 
         .. toctree::
             :titlesonly:
 
-            ../case_studies/sigma_plus_potentials
+            ../case_studies/ce_plus_potentials
 
     .. grid-item-card::
         :text-align: center
