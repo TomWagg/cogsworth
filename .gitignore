@@ -150,3 +150,5 @@ paper/ApJS/*
 !paper/ApJS/*.pdf
 !paper/ApJS/figures
 !paper/ApJS/styles
+
+scratch/
