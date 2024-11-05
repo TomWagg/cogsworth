@@ -3,6 +3,7 @@ import astropy.units as u
 import astropy.constants as const
 import warnings
 import logging
+import os.path
 
 from ..tests.optional_deps import check_dependencies
 
@@ -52,7 +53,30 @@ def prepare_snapshot(path, halo_params={"mode": "ssc"}):
         logging.getLogger("cogsworth").warning(f"{BOLD}cogsworth warning:{RESET} I couldn't find a halo catalogue, so I'll use pynbody's built-in halo finder to centre the snapshot")
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", message=".*units.*")
-            pynbody.analysis.halo.center(snap, **halo_params)
+
+            try:
+                pynbody.analysis.halo.center(snap, **halo_params)
+            except ValueError as e:
+                if str(e).startswith("Insufficient particles"):
+                    logging.getLogger("cogsworth").error((f"{BOLD}cogsworth error:{RESET} pynbody returned this error: {e}. But this often happens when your pynbody installation is not configured correctly to work with FIRE snapshots."))
+                    answer = input("Would you like me to try to fix this for you? (This will overwrite the .pynbodyrc in your home directory if it already exists) [Y/n] ")
+                    if answer.lower() == "y":
+                        home_dir = os.path.expanduser("~")
+                        home_answer = input(f"Is your home directory {home_dir}? [Y/n] ")
+                        if home_answer.lower() == "n":
+                            home_dir = input("Please enter your home directory: ")
+                        with open(os.path.join(home_dir, ".pynbodyrc"), "w") as f:
+                            f.writelines([
+                                "[gadget-units]\n",
+                                "pos: kpc a h^-1\n",
+                                "\n",
+                                "[gadgethdf-type-mapping]\n",
+                                "dm: PartType1\n",
+                            ])
+                        logging.getLogger("cogsworth").info(f"{BOLD}cogsworth info:{RESET} I've written a .pynbodyrc file to your home directory, try running this again.")
+                        return
+                else:
+                    raise e
 
     # orient the snapshot face-on and side-on
     side_on = pynbody.analysis.angmom.sideon(snap, cen=(0, 0, 0))
