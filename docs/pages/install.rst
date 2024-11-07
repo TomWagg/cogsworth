@@ -23,7 +23,7 @@ Package installation
 
                 pip install cogsworth
 
-        #. **OPTIONAL:** If you want to install some of the ``cogsworth`` extras (necessary for features such as observables predictions, action-based galactic potentials and more) then you can do so by running::
+        #. **OPTIONAL:** If you want to install some of the ``cogsworth`` extras (**this is necessary for some tutorials and examples**, particularly those on observables predictions and postprocessing hydrodynamical simulations) then you can do so by running::
 
                 pip install cogsworth[extras]
 
@@ -36,7 +36,7 @@ Package installation
 
             pip install cogsworth
 
-        **OPTIONALLY** if you want to install some of the ``cogsworth`` extras (necessary for features such as observables predictions, action-based galactic potentials and more) then you can do so by instead running::
+        **OPTIONALLY** if you want to install some of the ``cogsworth`` extras (**this is necessary for some tutorials and examples**, particularly those on observables predictions and postprocessing hydrodynamical simulations) then you can do so by instead running::
 
             pip install cogsworth[extras]
 
@@ -67,7 +67,7 @@ Package installation
 
             pip install .
 
-        **OPTIONALLY** if you want to install some of the ``cogsworth`` extras (necessary for features such as observables predictions, action-based galactic potentials and more) then you can do so by instead running::
+        **OPTIONALLY** if you want to install some of the ``cogsworth`` extras (**this is necessary for some tutorials and examples**, particularly those on observables predictions and postprocessing hydrodynamical simulations) then you can do so by instead running::
 
             pip install .[extras]
 
@@ -75,6 +75,86 @@ Package installation
 
 .. tip::
     If you also want to work with Jupyter notebooks then you'll also need to install jupyter/ipython to this environment!
+
+
+Dependencies
+============
+
+.. grid:: 1 1 2 2
+
+    .. grid-item::
+
+        .. card::
+            
+            .. div:: sd-text-center sd-fs-4 sd-text-primary sd-font-weight-bolder
+
+                Core Dependencies
+            
+            .. div:: sd-text-center sd-fs-6 sd-font-italic
+
+                Install via 'pip install cogsworth'
+
+            ^^^^^^^^^^^^^^^^^
+
+            The core dependencies for a basic ``cogsworth`` installation are listed below.
+
+            - :mod:`cosmic` for binary population synthesis
+            - :mod:`gala` for galactic dynamics
+            - :mod:`numpy` for vectorised operations
+            - :mod:`pandas` for handling ``COSMIC`` dataframes
+            - :mod:`matplotlib` for plotting
+            - :mod:`scipy` for statistical distrubtions and integration
+            - :mod:`astropy` for coordinate transformations
+
+        .. card::
+            
+            .. div:: sd-text-center sd-fs-4 sd-text-primary sd-font-weight-bolder
+
+                Development Dependencies
+            
+            .. div:: sd-text-center sd-fs-6 sd-font-italic
+
+                Install via 'pip install cogsworth[all]'
+
+            ^^^^^^^^^^^^^^^^^^^^^^^^
+
+            For developers of ``cogsworth`` there are also additional dependencies for testing (``pytest``, ``coverage``, etc.) and documentation building (``sphinx``, ``nbspinx``, etc.).
+            
+            Most users do **not** need these dependencies.
+
+    .. grid-item::
+
+        .. card::
+            
+            .. div:: sd-text-center sd-fs-4 sd-text-primary sd-font-weight-bolder
+
+                Optional Dependencies
+            
+            .. div:: sd-text-center sd-fs-6 sd-font-italic
+
+                Install via 'pip install cogsworth[extras]'
+
+            ^^^^^^^^^^^^^^^^^^^^^^^^
+
+            In addition to the core dependencies, there are a number of optional dependencies that are required for some of the tutorials and examples in the documentation.
+
+            **Observables predictions**:
+
+            - :mod:`isochrones` for applying bolometric corrections using stellar isochrones
+            - :mod:`dustmaps` for accounting for dust extinction
+            - :mod:`gaiaunlimited` for applying the empirical Gaia selection function
+
+            **Postprocessing hydrodynamical simulations**:
+
+            - :mod:`pynbody` for reading and manipulating hydrodynamical simulations
+
+            **LISA gravitational wave sources**:
+
+            - :mod:`legwork` for calculating LISA gravitational wave signals
+            
+            **Action-based galactic potentials**:
+
+            - :mod:`agama` for action-based galactic potentials
 
 
 Data downloads for observables

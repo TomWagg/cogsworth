@@ -80,7 +80,11 @@ intersphinx_mapping = {'python': ('https://docs.python.org/3', None),
                        'gala': ('http://gala.adrian.pw/en/latest/', None),
                        'cosmic': ('https://cosmic-popsynth.github.io/docs/stable/', None),
                        'pynbody': ('https://pynbody.github.io/pynbody/', None),
-                       'legwork': ('https://legwork.readthedocs.io/en/latest/', None),}
+                       'legwork': ('https://legwork.readthedocs.io/en/latest/', None),
+                       'isochrones': ('https://isochrones.readthedocs.io/en/latest/', None),
+                       'dustmaps': ('https://dustmaps.readthedocs.io/en/latest/', None),
+                       'healpy': ('https://healpy.readthedocs.io/en/latest/', None),
+                       'gaiaunlimited': ('https://gaiaunlimited.readthedocs.io/en/latest/', None),}
 
 bibtex_bibfiles = ['tutorials/refs.bib']
 
