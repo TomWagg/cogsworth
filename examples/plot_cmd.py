@@ -2,6 +2,11 @@
 Gaia colour-magnitude diagram
 =============================
 
+.. admonition:: Beware - extra dependencies required here!
+    :class: warning
+
+    You'll need to have installed the extra dependencies of ``cogsworth`` to estimate source photometry. Check out the `installation page <../../pages/install.rst>`_ for more details on how to do this!
+
 A colour-magnitude diagram using simulated photometry for Gaia.
 
 Each point represents a star in the population, coloured by its stellar type. Circles are used for bound
@@ -32,7 +37,7 @@ params = {'figure.figsize': (12, 8),
 plt.rcParams.update(params)
 # sphinx_gallery_end_ignore
 
-p = cogsworth.pop.Population(2000, processes=1, BSE_settings={"binfrac": 1.0})
+p = cogsworth.pop.Population(2000, processes=1, BSE_settings={"binfrac": 1.0, "kickflag": 1})
 p.create_population()
 
 p.get_observables(filters=["G", "BP", "RP"],
