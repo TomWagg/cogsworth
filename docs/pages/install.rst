@@ -27,7 +27,7 @@ Package installation
 
         #. **OPTIONAL:** If you want to install some of the ``cogsworth`` extras (**this is necessary for some tutorials and examples**, particularly those on observables predictions and postprocessing hydrodynamical simulations) then you can do so by running::
 
-                pip install cogsworth[extras]
+                pip install 'cogsworth[extras]'
 
         and you should be all set! Now it's time to learn about `Getting Started <getting_started.ipynb>`_ with ``cogsworth``.
 
@@ -40,7 +40,7 @@ Package installation
 
         **OPTIONALLY** if you want to install some of the ``cogsworth`` extras (**this is necessary for some tutorials and examples**, particularly those on observables predictions and postprocessing hydrodynamical simulations) then you can do so by instead running::
 
-            pip install cogsworth[extras]
+            pip install 'cogsworth[extras]'
 
         and you should be all set! Now it's time to learn about `Getting Started <getting_started.ipynb>`_ with ``cogsworth``.
 
@@ -71,7 +71,7 @@ Package installation
 
         **OPTIONALLY** if you want to install some of the ``cogsworth`` extras (**this is necessary for some tutorials and examples**, particularly those on observables predictions and postprocessing hydrodynamical simulations) then you can do so by instead running::
 
-            pip install .[extras]
+            pip install '.[extras]'
 
         and you should be all set! Now it's time to learn about `Getting Started <getting_started.ipynb>`_ with ``cogsworth``.
 
@@ -94,7 +94,7 @@ Dependencies
             
             .. div:: sd-text-center sd-fs-6 sd-font-italic
 
-                Install via 'pip install cogsworth'
+                Install via: pip install cogsworth
 
             ^^^^^^^^^^^^^^^^^
 
@@ -116,7 +116,7 @@ Dependencies
             
             .. div:: sd-text-center sd-fs-6 sd-font-italic
 
-                Install via 'pip install cogsworth[all]'
+                Install via: pip install 'cogsworth[all]'
 
             ^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -134,7 +134,7 @@ Dependencies
             
             .. div:: sd-text-center sd-fs-6 sd-font-italic
 
-                Install via 'pip install cogsworth[extras]'
+                Install via: pip install 'cogsworth[extras]'
 
             ^^^^^^^^^^^^^^^^^^^^^^^^
 
