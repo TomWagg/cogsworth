@@ -2,6 +2,11 @@
 Gaia colour-magnitude diagram
 =============================
 
+.. admonition:: Beware - extra dependencies required here!
+    :class: warning
+
+    You'll need to have installed the extra dependencies of ``cogsworth`` to estimate source photometry. Check out the `installation page <../../pages/install.rst>`_ for more details on how to do this!
+
 A colour-magnitude diagram using simulated photometry for Gaia.
 
 Each point represents a star in the population, coloured by its stellar type. Circles are used for bound
