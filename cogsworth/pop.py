@@ -680,7 +680,20 @@ class Population():
 
     @property
     def classes(self):
+        """A table of classes that apply to each binary.
+
+        Each row corresponds to a binary and the columns are a boolean of whether they meet the criteria for
+        a class. For a full description of classes and their criteria,
+        run :func:`~cogsworth.classify.list_classes`.
+
+        Returns
+        -------
+        classes : :class:`~pandas.DataFrame`
+            The classes that apply to each binary.
+        """
         if self._classes is None:
+            BOLD, RESET = "\033[1m", "\033[0m"
+            logging.getLogger("cogswoth").info(f"{BOLD}cogsworth info:{RESET} No classes calculated yet, running now")
             self._classes = determine_final_classes(population=self)
         return self._classes
 
