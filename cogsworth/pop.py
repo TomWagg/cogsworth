@@ -79,47 +79,6 @@ class Population():
         Whether to store the entire orbit for each binary, by default True. If not then only the final
         PhaseSpacePosition will be stored. This cuts down on both memory usage and disk space used if you
         save the Population (as well as how long it takes to reload the data).
-
-    Attributes
-    ----------
-    mass_singles : `float`
-        Total mass in single stars needed to generate population
-    mass_binaries : `float`
-        Total mass in binaries needed to generate population
-    n_singles_req : `int`
-        Number of single stars needed to generate population
-    n_bin_req : `int`
-        Number of binaries needed to generate population
-    bpp : :class:`~pandas.DataFrame`
-        Evolutionary history of each binary
-    bcm : :class:`~pandas.DataFrame`
-        Final state of each binary
-    initC : :class:`~pandas.DataFrame`
-        Initial conditions for each binary
-    kick_info : :class:`~pandas.DataFrame`
-        Information about the kicks that occur for each binary
-    orbits : `list` of :class:`~gala.dynamics.Orbit`
-        The orbits of each system within the galaxy from its birth until :attr:`max_ev_time` with timesteps of
-        :attr:`timestep_size`. This list will have length = `len(self) + self.disrupted.sum()`, where the
-        first section are for bound binaries and disrupted primaries and the last section are for disrupted
-        secondaries
-    classes : `list`
-        The classes associated with each produced binary (see :meth:`~cogsworth.classify.list_classes` for a
-        list of available classes and their meanings)
-    final_pos, final_vel : :class:`~astropy.quantity.Quantity`
-        Final positions and velocities of each system in the galactocentric frame.
-        The first `len(self)` entries of each are for bound binaries or primaries, then the final
-        `self.disrupted.sum()` entries are for disrupted secondaries. Any missing orbits (where orbit=None
-        will be set to `np.inf` for ease of masking.
-    final_bpp : :class:`~pandas.DataFrame`
-        The final state of each binary (taken from the final entry in :attr:`bpp`)
-    disrupted : :class:`~numpy.ndarray` of `bool`
-        A mask on the binaries of whether they were disrupted
-    observables : :class:`~pandas.DataFrame`
-        Observables associated with the final binaries. See `get_photometry` for more details on the columns
-    bin_nums : :class:`~numpy.ndarray`
-        An array containing the unique COSMIC `bin_nums` of each binary in the population - these can be
-        used an indices for the population
     """
     def __init__(self, n_binaries, processes=8, m1_cutoff=0, final_kstar1=list(range(16)),
                  final_kstar2=list(range(16)), sfh_model=sfh.Wagg2022, sfh_params={},
@@ -386,6 +345,22 @@ class Population():
 
     @property
     def bin_nums(self):
+        """An array of the unique identifiers for each binary in a population.
+
+        This is a helper function which pulls from the bin_nums available in :attr:`final_bpp`,
+        or :attr:`initC`, or :attr:`initial_binaries` if available. If none of these are available, an
+        error is raised.
+
+        Returns
+        -------
+        bin_nums : :class:`~numpy.ndarray`
+            An array of the unique identifiers for each binary in the population.
+
+        Raises
+        ------
+        ValueError
+            If no binaries have been sampled or evolved yet.
+        """
         if self._bin_nums is None:
             if self._final_bpp is not None:
                 self._bin_nums = self._final_bpp["bin_num"].unique()
@@ -399,6 +374,21 @@ class Population():
 
     @property
     def initial_galaxy(self):
+        """The initial sampled galactic star formation history.
+
+        This contains the initial conditions for the galaxy that was sampled to generate the population. This
+        includes the birth times, positions, velocities, and metallicities of the stars in the galaxy.
+
+        Returns
+        -------
+        initial_galaxy : :class:`~cogsworth.sfh.StarFormationHistory`
+            The initial galaxy that was sampled to generate the population.
+
+        Raises
+        ------
+        ValueError
+            If no galaxy has been sampled yet.
+        """
         if self._initial_galaxy is None and self._file is not None:
             self._initial_galaxy = sfh.load(self._file, key="initial_galaxy")
             self.sfh_model = self._initial_galaxy.__class__
@@ -408,30 +398,94 @@ class Population():
 
     @property
     def mass_singles(self):
+        """The total mass in single stars needed to generate the population.
+
+        Returns
+        -------
+        mass_singles : `float`
+            The total mass in single stars needed to generate the population (in solar masses).
+
+        Raises
+        ------
+        ValueError
+            If no population sampled yet.
+        """
         if self._mass_singles is None:
             raise ValueError("No population sampled yet, run `sample_initial_binaries` to do so.")
         return self._mass_singles
 
     @property
     def mass_binaries(self):
+        """The total mass in binaries needed to generate the population.
+
+        Returns
+        -------
+        mass_binaries : `float`
+            The total mass in binaries
+
+        Raises
+        ------
+        ValueError
+            If no population sampled yet.
+        """
         if self._mass_binaries is None:
             raise ValueError("No population sampled yet, run `sample_initial_binaries` to do so.")
         return self._mass_binaries
 
     @property
     def n_singles_req(self):
+        """The number of single stars needed to generate the population.
+
+        Returns
+        -------
+        n_singles_req : `int`
+            The number of single stars needed to generate the population.
+
+        Raises
+        ------
+        ValueError
+            If no population sampled yet.
+        """
         if self._n_singles_req is None:
             raise ValueError("No population sampled yet, run `sample_initial_binaries` to do so.")
         return self._n_singles_req
 
     @property
     def n_bin_req(self):
+        """The number of binary stars needed to generate the population.
+
+        Returns
+        -------
+        n_bin_req : `int`
+            The number of binary stars needed to generate the population.
+
+        Raises
+        ------
+        ValueError
+            If no population sampled yet.
+        """
         if self._n_bin_req is None:
             raise ValueError("No population sampled yet, run `sample_initial_binaries` to do so.")
         return self._n_bin_req
 
     @property
     def initial_binaries(self):
+        """The initial binaries that were sampled to generate the population.
+
+        This is only used when evolution has not been performed yet. If evolution has been performed, the
+        initial binaries are stored in the :attr:`initC` table instead (since this also includes information
+        on the assumed binary physics).
+
+        Returns
+        -------
+        initial_binaries : :class:`~pandas.DataFrame`
+            The initial binaries that were sampled to generate the population.
+
+        Raises
+        ------
+        ValueError
+            If no binaries have been sampled yet.
+        """
         # use initC if available
         if self._initial_binaries is None and self._initC is not None:
             return self._initC
@@ -451,6 +505,23 @@ class Population():
 
     @property
     def bpp(self):
+        """A table of the evolutionary history of each binary.
+
+        Each row of this table corresponds to an important timestep in the evolution of a binary. Events that
+        log a timestep include: stellar type of a star changing, mass transfer, a supernova, a common envelope
+        event, a binary merger, or a disruption. The columns of the table are described in detail `in the
+        COSMIC documentation <https://cosmic-popsynth.github.io/docs/stable/output_info/index.html#bpp>`__.
+
+        Returns
+        -------
+        bpp : :class:`~pandas.DataFrame`
+            The evolutionary history of each binary.
+
+        Raises
+        ------
+        ValueError
+            If no stellar evolution has been performed yet.
+        """
         if self._bpp is None and self._file is not None:
             self._bpp = pd.read_hdf(self._file, key="bpp")
         elif self._bpp is None:
@@ -459,6 +530,27 @@ class Population():
 
     @property
     def bcm(self):
+        """A table of the evolutionary history of each binary at dynamically chosen timesteps.
+
+        Each row of this table corresponds to a timestep in the evolution of a binary. Timesteps are set
+        based on user-defined ``bcm_timestep_conditions``. The columns of the table are described in
+        detail
+        `in the COSMIC documentation <https://cosmic-popsynth.github.io/docs/stable/output_info/index.html#bcm>`__.
+
+        Returns
+        -------
+        bcm : :class:`~pandas.DataFrame`
+            The evolutionary history of each binary at dynamically chosen timesteps. Note this will be
+            ``None`` if no timestep conditions have been set (in ``bcm_timestep_conditions``).
+
+        Raises
+        ------
+        Warning
+            If no timestep conditions (``bcm_timestep_condition``) have been set for the BCM table.
+
+        ValueError
+            If no stellar evolution has been performed yet.
+        """
         if self._bcm is None and self._file is not None:
             has_bcm = None
             with h5.File(self._file, "r") as f:
@@ -476,6 +568,21 @@ class Population():
 
     @property
     def initC(self):
+        """A table of initial conditions for each binary.
+
+        This table contains the initial conditions for each binary that was sampled. Each row corresponds to
+        a binary and the columns are described in detail in the COSMIC documentation.
+
+        Returns
+        -------
+        initC : :class:`~pandas.DataFrame`
+            The initial conditions for each binary.
+
+        Raises
+        ------
+        ValueError
+            If no stellar evolution has been performed yet.
+        """
         if self._initC is None and self._file is not None:
             self._initC = pd.read_hdf(self._file, key="initC")
         elif self._initC is None:
@@ -484,6 +591,22 @@ class Population():
 
     @property
     def kick_info(self):
+        """A table of the kicks that occur for each binary.
+
+        Each row of this table corresponds to a potential supernova kick, such that there are two rows for
+        each binary in the population. The columns of the table are described in detail
+        `in the COSMIC documentation <https://cosmic-popsynth.github.io/docs/stable/output_info/index.html#kick-info>`__.
+
+        Returns
+        -------
+        kick_info : :class:`~pandas.DataFrame`
+            Information about the kicks that occur for each binary.
+
+        Raises
+        ------
+        ValueError
+            If no stellar evolution has been performed yet.
+        """
         if self._kick_info is None and self._file is not None:
             self._kick_info = pd.read_hdf(self._file, key="kick_info")
         if self._kick_info is None:
@@ -492,6 +615,21 @@ class Population():
 
     @property
     def orbits(self):
+        """The orbits of each system within the galaxy from its birth until :attr:`max_ev_time`.
+
+        This list will have length = `len(self) + self.disrupted.sum()`, where the first section are for
+        bound binaries and disrupted primaries and the last section are for disrupted secondaries.
+
+        Returns
+        -------
+        orbits : `list` of :class:`~gala.dynamics.Orbit`, shape (len(self) + self.disrupted.sum(),)
+            The orbits of each system within the galaxy from its birth until :attr:`max_ev_time`.
+
+        Raises
+        ------
+        ValueError
+            If no orbits have been calculated yet.
+        """
         # if orbits are uncalculated and no file is provided then throw an error
         if self._orbits is None and self._file is None:
             raise ValueError("No orbits calculated yet, run `perform_galactic_evolution` to do so")
@@ -519,33 +657,83 @@ class Population():
 
     @property
     def primary_orbits(self):
+        """The orbits of primary stars
+
+        Returns
+        -------
+        primary_orbits : :class:`~gala.dynamics.Orbit`, shape (len(self),)
+            The orbits of the primary stars in the population
+        """
         return self.orbits[:len(self)]
 
     @property
     def secondary_orbits(self):
+        """The orbits of secondary stars
+
+        Returns
+        -------
+        secondary_orbits : :class:`~gala.dynamics.Orbit`, shape (len(self),)
+            The orbits of the secondary stars in the population
+        """
         order = np.argsort(np.concatenate((self.bin_nums[~self.disrupted], self.bin_nums[self.disrupted])))
         return np.concatenate((self.primary_orbits[~self.disrupted], self.orbits[len(self):]))[order] 
 
     @property
     def classes(self):
+        """A table of classes that apply to each binary.
+
+        Each row corresponds to a binary and the columns are a boolean of whether they meet the criteria for
+        a class. For a full description of classes and their criteria,
+        run :func:`~cogsworth.classify.list_classes`.
+
+        Returns
+        -------
+        classes : :class:`~pandas.DataFrame`
+            The classes that apply to each binary.
+        """
         if self._classes is None:
+            BOLD, RESET = "\033[1m", "\033[0m"
+            logging.getLogger("cogswoth").info(f"{BOLD}cogsworth info:{RESET} No classes calculated yet, running now")
             self._classes = determine_final_classes(population=self)
         return self._classes
 
     @property
     def final_pos(self):
+        """The final position of each binary (or star from a disrupted binary) in the galaxy.
+
+        Returns
+        -------
+        final_pos : :class:`~numpy.ndarray`, shape (len(self) + self.disrupted.sum(), 3)
+            The final position of each binary (or star from a disrupted binary) in the galaxy.
+        """
         if self._final_pos is None:
             self._final_pos, self._final_vel = self._get_final_coords()
         return self._final_pos
 
     @property
     def final_vel(self):
+        """The final velocity of each binary (or star from a disrupted binary) in the galaxy.
+
+        Returns
+        -------
+        final_vel : :class:`~numpy.ndarray`, shape (len(self) + self.disrupted.sum(), 3)
+            The final velocity of each binary (or star from a disrupted binary) in the galaxy.
+        """
         if self._final_vel is None:
             self._final_pos, self._final_vel = self._get_final_coords()
         return self._final_vel
 
     @property
     def final_bpp(self):
+        """The final state of each binary in the population.
+
+        This is simply the final row from the :attr:`bpp` table for each binary.
+
+        Returns
+        -------
+        final_bpp : :class:`~pandas.DataFrame`
+            The final state of each binary in the population.
+        """
         if self._final_bpp is None:
             self._final_bpp = self.bpp.drop_duplicates(subset="bin_num", keep="last")
             self._final_bpp.insert(len(self._final_bpp.columns), "metallicity",
@@ -554,6 +742,13 @@ class Population():
 
     @property
     def disrupted(self):
+        """A mask of whether a binary was disrupted during its evolution.
+
+        Returns
+        -------
+        disrupted : :class:`~numpy.ndarray`, shape (len(self),)
+            A mask of whether a binary was disrupted during its evolution.
+        """
         if self._disrupted is None:
             # check for disruptions in THREE different ways because COSMIC isn't always consistent (:
             self._disrupted = (self.final_bpp["bin_num"].isin(self.kick_info[self.kick_info["disrupted"] == 1.0]["bin_num"].unique())
@@ -563,6 +758,16 @@ class Population():
 
     @property
     def escaped(self):
+        """A mask of whether a binary escaped the galaxy during its evolution.
+
+        This is calculated by comparing the final velocity of the binary to the escape velocity at its
+        final position.
+
+        Returns
+        -------
+        escaped : :class:`~numpy.ndarray`, shape (len(self),)
+            A mask of whether a binary escaped the galaxy during its evolution.
+        """
         if self._escaped is None:
             self._escaped = np.repeat(False, len(self))
 
@@ -576,6 +781,19 @@ class Population():
 
     @property
     def observables(self):
+        """A table of the observable properties of each binary.
+
+        Returns
+        -------
+        observables : :class:`~pandas.DataFrame`
+            The observable properties of each binary. Columns are defined in
+            :func:`~cogsworth.observables.get_observables`.
+
+        Raises
+        ------
+        ValueError
+            If no observables have been calculated yet.
+        """
         if self._observables is None:
             raise ValueError("Observables not yet calculated, run `get_observables` to do so")
         else:

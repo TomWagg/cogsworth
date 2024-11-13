@@ -21,7 +21,8 @@ from cogsworth.tests.optional_deps import check_dependencies
 from cogsworth.citations import CITATIONS
 
 
-__all__ = ["StarFormationHistory", "Wagg2022", "QuasiIsothermalDisk", "load", "concat"]
+__all__ = ["StarFormationHistory", "Wagg2022", "BurstUniformDisc", "ConstantUniformDisc",
+           "QuasiIsothermalDisk", "SpheroidalDwarf", "load", "concat"]
 
 
 class StarFormationHistory():
@@ -45,20 +46,6 @@ class StarFormationHistory():
         by default None
     immediately_sample : `bool`, optional
         Whether to immediately sample the points, by default True
-
-
-    Attributes
-    ----------
-    tau : :class:`~astropy.units.Quantity` [time]
-        Lookback time
-    Z : :class:`~astropy.units.Quantity` [dimensionless]
-        Metallicity
-    x : :class:`~astropy.units.Quantity` [length]
-        Galactocentric x position
-    y : :class:`~astropy.units.Quantity` [length]
-        Galactocentric y position
-    z : :class:`~astropy.units.Quantity` [length]
-        Galactocentric z position
 
     """
     def __init__(self, size, components=None, component_masses=None,
@@ -131,6 +118,7 @@ class StarFormationHistory():
 
     @property
     def size(self):
+        """The number of points in the star formation history model"""
         return self._size
 
     @size.setter
@@ -143,56 +131,137 @@ class StarFormationHistory():
 
     @property
     def components(self):
+        """A list of the components in the star formation history model
+
+        Returns
+        -------
+        components : ``list`` of ``str``
+            The list of the components in the star formation history model
+        """
         return self._components
 
     @property
     def component_masses(self):
+        """The masses of the components in the star formation history model
+
+        Returns
+        -------
+        component_masses : ``list`` of ``float``, [Msun]
+            The masses of the components in the star formation history model
+        """
         return self._component_masses
 
     @property
     def tau(self):
+        """The lookback times of the sampled points
+
+        Returns
+        -------
+        tau : :class:`~astropy.units.Quantity` [time]
+            The lookback times of the sampled points
+        """
         if self._tau is None:
             self.sample()
         return self._tau
 
     @property
     def Z(self):
+        """The metallicities of the sampled points
+
+        Returns
+        -------
+        Z : :class:`~astropy.units.Quantity` [dimensionless]
+            The metallicities of the sampled points (absolute metallicity **not** solar metallicity)
+        """
         if self._Z is None:
             self.sample()
         return self._Z
 
     @property
     def x(self):
+        """The galactocentric x positions of the sampled points
+
+        Returns
+        -------
+        x : :class:`~astropy.units.Quantity` [length]
+            The galactocentric x positions of the sampled points
+        """
         if self._x is None:
             self.sample()
         return self._x
 
     @property
     def y(self):
+        """The galactocentric y positions of the sampled points
+
+        Returns
+        -------
+        y : :class:`~astropy.units.Quantity` [length]
+            The galactocentric y positions of the sampled points
+        """
         if self._y is None:
             self.sample()
         return self._y
 
     @property
     def z(self):
+        """The galactocentric z positions of the sampled points
+
+        Returns
+        -------
+        z : :class:`~astropy.units.Quantity` [length]
+            The galactocentric z positions of the sampled points
+        """
         if self._z is None:
             self.sample()
         return self._z
 
     @property
     def rho(self):
+        """The galactocentric cylindrical radius of the sampled points
+
+        A shortcut for the radius in the x-y plane, :math:`\\sqrt{x^2 + y^2}`
+
+        Returns
+        -------
+        rho : :class:`~astropy.units.Quantity` [length]
+            The galactocentric cylindrical radius of the sampled points
+        """
         return (self.x**2 + self.y**2)**(0.5)
 
     @property
     def phi(self):
+        """The galactocentric azimuthal angle of the sampled points
+
+        A shortcut for :math:`\\arctan(y / x)`
+
+        Returns
+        -------
+        phi : :class:`~astropy.units.Quantity` [angle]
+            The galactocentric azimuthal angle of the sampled points
+        """
         return np.arctan2(self.y, self.x)
 
     @property
     def positions(self):
+        """The galactocentric positions of the sampled points
+
+        Returns
+        -------
+        positions : :class:`~astropy.units.Quantity` [length], shape=(3, :attr:`~size`)
+            The galactocentric positions of the sampled points
+        """
         return [self.x.to(u.kpc).value, self.y.to(u.kpc).value, self.z.to(u.kpc).value] * u.kpc
 
     @property
     def which_comp(self):
+        """The component each point belongs to
+
+        Returns
+        -------
+        which_comp : ``numpy.ndarray`` of ``str``
+            The component each point belongs to
+        """
         if self._which_comp is None:
             self.sample()
         return self._which_comp

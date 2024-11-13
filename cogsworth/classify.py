@@ -33,7 +33,8 @@ def determine_final_classes(population=None, bpp=None, kick_info=None, orbits=No
     Returns
     -------
     classes : :class:`~pandas.DataFrame`
-        A DataFrame with a boolean column for each class (see :meth:`list_classes`) and a row for each binary
+        A DataFrame with a boolean column for each class and a row for each binary.
+        Run :func:`~cogsworth.classify.list_classes` to see the available classes and their criteria.
 
     Raises
     ------

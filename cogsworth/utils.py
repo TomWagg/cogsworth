@@ -68,6 +68,8 @@ evol_type_translator = [
 def translate_COSMIC_tables(tab, kstars=True, evol_type=True, label_type="short", replace_columns=True):
     """Translate COSMIC BSE tables to human-readable labels
 
+    For a full description of the translations, see the tables in the :mod:`~cogsworth.utils` module page.
+
     Parameters
     ----------
     tab : :class:`~pandas.DataFrame`
