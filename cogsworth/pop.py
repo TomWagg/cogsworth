@@ -386,6 +386,17 @@ class Population():
 
     @property
     def bin_nums(self):
+        """An array of the unique identifiers for each binary in a population.
+
+        This is a helper function which pulls from the bin_nums available in :attr:`final_bpp`,
+        or :attr:`initC`, or :attr:`initial_binaries` if available. If none of these are available, an
+        error is raised.
+
+        Raises
+        ------
+        ValueError
+            If no binaries have been sampled or evolved yet.
+        """
         if self._bin_nums is None:
             if self._final_bpp is not None:
                 self._bin_nums = self._final_bpp["bin_num"].unique()
@@ -451,6 +462,18 @@ class Population():
 
     @property
     def bpp(self):
+        """A table of the evolutionary history of each binary.
+
+        Each row of this table corresponds to an important timestep in the evolution of a binary. Events that
+        log a timestep include: stellar type of a star changing, mass transfer, a supernova, a common envelope
+        event, a binary merger, or a disruption. The columns of the table are described in detail `in the
+        COSMIC documentation <https://cosmic-popsynth.github.io/docs/stable/output_info/index.html#bpp>`__.
+
+        Raises
+        ------
+        ValueError
+            If no stellar evolution has been performed yet.
+        """
         if self._bpp is None and self._file is not None:
             self._bpp = pd.read_hdf(self._file, key="bpp")
         elif self._bpp is None:
@@ -459,6 +482,21 @@ class Population():
 
     @property
     def bcm(self):
+        """A table of the evolutionary history of each binary at dynamically chosen timesteps.
+
+        Each row of this table corresponds to a timestep in the evolution of a binary. Timesteps are set
+        based on user-defined ``bcm_timestep_conditions``. The columns of the table are described in
+        detail
+        `in the COSMIC documentation <https://cosmic-popsynth.github.io/docs/stable/output_info/index.html#bcm>`__.
+
+        Raises
+        ------
+        Warning
+            If no timestep conditions (``bcm_timestep_condition``) have been set for the BCM table.
+
+        ValueError
+            If no stellar evolution has been performed yet.
+        """
         if self._bcm is None and self._file is not None:
             has_bcm = None
             with h5.File(self._file, "r") as f:
@@ -476,6 +514,16 @@ class Population():
 
     @property
     def initC(self):
+        """A table of initial conditions for each binary.
+
+        This table contains the initial conditions for each binary that was sampled. Each row corresponds to
+        a binary and the columns are described in detail in the COSMIC documentation.
+
+        Raises
+        ------
+        ValueError
+            If no stellar evolution has been performed yet.
+        """
         if self._initC is None and self._file is not None:
             self._initC = pd.read_hdf(self._file, key="initC")
         elif self._initC is None:
@@ -484,6 +532,17 @@ class Population():
 
     @property
     def kick_info(self):
+        """A table of the kicks that occur for each binary.
+
+        Each row of this table corresponds to a potential supernova kick, such that there are two rows for
+        each binary in the population. The columns of the table are described in detail
+        `in the COSMIC documentation <https://cosmic-popsynth.github.io/docs/stable/output_info/index.html#kick-info>`__.
+
+        Raises
+        ------
+        ValueError
+            If no stellar evolution has been performed yet.
+        """
         if self._kick_info is None and self._file is not None:
             self._kick_info = pd.read_hdf(self._file, key="kick_info")
         if self._kick_info is None:
