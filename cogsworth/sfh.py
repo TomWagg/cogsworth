@@ -21,7 +21,8 @@ from cogsworth.tests.optional_deps import check_dependencies
 from cogsworth.citations import CITATIONS
 
 
-__all__ = ["StarFormationHistory", "Wagg2022", "QuasiIsothermalDisk", "load", "concat"]
+__all__ = ["StarFormationHistory", "Wagg2022", "BurstUniformDisc", "ConstantUniformDisc",
+           "QuasiIsothermalDisk", "SpheroidalDwarf", "load", "concat"]
 
 
 class StarFormationHistory():
