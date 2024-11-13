@@ -422,7 +422,7 @@ class Population():
         -------
         mass_binaries : `float`
             The total mass in binaries
-        
+
         Raises
         ------
         ValueError
@@ -440,7 +440,7 @@ class Population():
         -------
         n_singles_req : `int`
             The number of single stars needed to generate the population.
-        
+
         Raises
         ------
         ValueError
@@ -458,7 +458,7 @@ class Population():
         -------
         n_bin_req : `int`
             The number of binary stars needed to generate the population.
-        
+
         Raises
         ------
         ValueError
@@ -686,18 +686,41 @@ class Population():
 
     @property
     def final_pos(self):
+        """The final position of each binary (or star from a disrupted binary) in the galaxy.
+
+        Returns
+        -------
+        final_pos : :class:`~numpy.ndarray`, shape (len(self) + self.disrupted.sum(), 3)
+            The final position of each binary (or star from a disrupted binary) in the galaxy.
+        """
         if self._final_pos is None:
             self._final_pos, self._final_vel = self._get_final_coords()
         return self._final_pos
 
     @property
     def final_vel(self):
+        """The final velocity of each binary (or star from a disrupted binary) in the galaxy.
+
+        Returns
+        -------
+        final_vel : :class:`~numpy.ndarray`, shape (len(self) + self.disrupted.sum(), 3)
+            The final velocity of each binary (or star from a disrupted binary) in the galaxy.
+        """
         if self._final_vel is None:
             self._final_pos, self._final_vel = self._get_final_coords()
         return self._final_vel
 
     @property
     def final_bpp(self):
+        """The final state of each binary in the population.
+
+        This is simply the final row from the :attr:`bpp` table for each binary.
+
+        Returns
+        -------
+        final_bpp : :class:`~pandas.DataFrame`
+            The final state of each binary in the population.
+        """
         if self._final_bpp is None:
             self._final_bpp = self.bpp.drop_duplicates(subset="bin_num", keep="last")
             self._final_bpp.insert(len(self._final_bpp.columns), "metallicity",
@@ -706,6 +729,13 @@ class Population():
 
     @property
     def disrupted(self):
+        """A mask of whether a binary was disrupted during its evolution.
+
+        Returns
+        -------
+        disrupted : :class:`~numpy.ndarray`, shape (len(self),)
+            A mask of whether a binary was disrupted during its evolution.
+        """
         if self._disrupted is None:
             # check for disruptions in THREE different ways because COSMIC isn't always consistent (:
             self._disrupted = (self.final_bpp["bin_num"].isin(self.kick_info[self.kick_info["disrupted"] == 1.0]["bin_num"].unique())
@@ -715,6 +745,16 @@ class Population():
 
     @property
     def escaped(self):
+        """A mask of whether a binary escaped the galaxy during its evolution.
+
+        This is calculated by comparing the final velocity of the binary to the escape velocity at its
+        final position.
+
+        Returns
+        -------
+        escaped : :class:`~numpy.ndarray`, shape (len(self),)
+            A mask of whether a binary escaped the galaxy during its evolution.
+        """
         if self._escaped is None:
             self._escaped = np.repeat(False, len(self))
 
@@ -728,6 +768,19 @@ class Population():
 
     @property
     def observables(self):
+        """A table of the observable properties of each binary.
+
+        Returns
+        -------
+        observables : :class:`~pandas.DataFrame`
+            The observable properties of each binary. Columns are defined in
+            :func:`~cogsworth.observables.get_observables`.
+
+        Raises
+        ------
+        ValueError
+            If no observables have been calculated yet.
+        """
         if self._observables is None:
             raise ValueError("Observables not yet calculated, run `get_observables` to do so")
         else:
