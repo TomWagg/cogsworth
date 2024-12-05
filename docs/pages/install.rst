@@ -79,6 +79,12 @@ Package installation
     If you also want to work with Jupyter notebooks then you'll also need to install jupyter/ipython to this environment!
 
 
+.. admonition:: Windows Installation
+    :class: warning
+
+    Installation of ``cogsworth`` on Windows without Windows Subsystem for Linux (WSL) is **not** supported. This is because some of the dependencies of ``cogsworth`` are not available on Windows. If you are using Windows, we recommend using WSL to install ``cogsworth``. You can learn more about installing it `here <https://docs.microsoft.com/en-us/windows/wsl/install>`_.
+
+
 Dependencies
 ============
 
