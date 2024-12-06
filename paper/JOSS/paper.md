@@ -14,10 +14,10 @@ authors:
     affiliation: "3"
   - name: Mathieu Renzo
     orcid: 0000-0002-6718-9472
-    affiliation: "2"
+    affiliation: "4"
   - name: Adrian M. Price-Whelan
     orcid: 0000-0003-0872-7098
-    affiliation: "4"
+    affiliation: "2"
 affiliations:
  - name: Department of Astronomy, University of Washington, Seattle, WA, 98195
    index: 1
