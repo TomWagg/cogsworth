@@ -1889,3 +1889,32 @@ class EvolvedPopulation(Population):
 
         if with_timing:
             print(f"Overall: {time.time() - start:1.1f}s")
+
+
+class GalacticTidePopulation(Population):
+    """A population of objects that are evolved under the influence of the Milky Way's galactic tides
+
+    Assumptions:
+        - No star is massive enough to have a supernova
+        - No stellar tides are in effect
+        - No strong mass loss
+    """
+    def __init__(self, galactic_tides_timestep=1 * u.yr, **pop_kwargs):
+        if "BSE_settings" in pop_kwargs:
+            if "ST_tide" in pop_kwargs["BSE_settings"] and pop_kwargs["BSE_settings"]["ST_tide"] == 1:
+                raise ValueError("Cannot run a GalacticTidePopulation with stellar tides turned on")
+            else:
+                pop_kwargs["BSE_settings"]["ST_tide"] = 0
+            if "tflag" in pop_kwargs["BSE_settings"] and pop_kwargs["BSE_settings"]["tflag"] == 1:
+                raise ValueError("Cannot run a GalacticTidePopulation with stellar tides turned on")
+            else:
+                pop_kwargs["BSE_settings"]["tflag"] = 0
+        else:
+            pop_kwargs["BSE_settings"] = {
+                "ST_tide": 1,
+                "tflag": 1
+            }
+        super().__init__(**pop_kwargs)
+        self.galactic_tides_timestep = galactic_tides_timestep
+
+    
