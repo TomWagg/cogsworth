@@ -1,5 +1,5 @@
 ---
-title: 'cogsworth: A gala of COSMIC proportions combining binary stellar evolution and galactic dynamics'
+title: 'cogsworth: A Gala of COSMIC proportions combining binary stellar evolution and galactic dynamics'
 tags:
   - Python
   - astronomy
