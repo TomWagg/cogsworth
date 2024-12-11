@@ -22,7 +22,7 @@ import gala.dynamics as gd
 from gala.potential.potential.io import to_dict as potential_to_dict, from_dict as potential_from_dict
 
 from cogsworth import sfh
-from cogsworth.kicks import integrate_orbit_with_events
+from cogsworth.kicks import integrate_orbit_with_events, integrate_orbit
 from cogsworth.events import identify_events
 from cogsworth.classify import determine_final_classes
 from cogsworth.observables import get_photometry
@@ -1917,4 +1917,144 @@ class GalacticTidePopulation(Population):
         super().__init__(**pop_kwargs)
         self.galactic_tides_timestep = galactic_tides_timestep
 
+    def perform_stellar_evolution(self):
+        raise NotImplementedError("Independent stellar evolution not supported for GalacticTidesPopulations")
+
+    def perform_galactic_evolution(self, progress_bar=True):
+        """Use :py:mod:`gala` to perform the orbital integration for each binary
+
+        Parameters
+        ----------
+        quiet : `bool`, optional
+            Whether to silence any warnings about failing orbits, by default False
+        """
+        # delete any cached variables that are based on orbits
+        self._final_pos = None
+        self._final_vel = None
+        self._observables = None
+
+        if self._initial_galaxy is None:            # pragma: no cover
+            logging.getLogger("cogsworth").warning(("cogsworth warning: Initial galaxy not yet sampled, "
+                                                    "performing sampling now."))
+            self.sample_initial_galaxy()
+
+        if self._initC is None and self._initial_binaries is None:          # pragma: no cover
+            logging.getLogger("cogsworth").warning(("cogsworth warning: Initial binaries not yet sampled, "
+                                                    "performing sampling now."))
+            self.sample_initial_binaries()
+
+        v_phi = (self.initial_galaxy.v_T / self.initial_galaxy.rho)
+        v_X = (self.initial_galaxy.v_R * np.cos(self.initial_galaxy.phi)
+               - self.initial_galaxy.rho * np.sin(self.initial_galaxy.phi) * v_phi)
+        v_Y = (self.initial_galaxy.v_R * np.sin(self.initial_galaxy.phi)
+               + self.initial_galaxy.rho * np.cos(self.initial_galaxy.phi) * v_phi)
+
+        # combine the representation and differentials into a Gala PhaseSpacePosition
+        w0s = gd.PhaseSpacePosition(pos=[a.to(u.kpc).value for a in [self.initial_galaxy.x,
+                                                                     self.initial_galaxy.y,
+                                                                     self.initial_galaxy.z]] * u.kpc,
+                                    vel=[a.to(u.km/u.s).value for a in [v_X, v_Y,
+                                                                        self.initial_galaxy.v_z]] * u.km/u.s)
+
+        # if we want to use multiprocessing
+        if self.pool is not None or self.processes > 1:
+            # track whether a pool already existed
+            pool_existed = self.pool is not None
+
+            # if not, create one
+            if not pool_existed:
+                self.pool = Pool(self.processes)
+
+            # setup arguments to combine primary and secondaries into a single list
+            args = [(w0s[i], self.max_ev_time - self.initial_galaxy.tau[i], self.max_ev_time,
+                    copy(self.timestep_size), self.galactic_potential,
+                    self.store_entire_orbits)
+                    for i in range(self.n_binaries_match)]
+
+            # evolve the orbits from birth until present day
+            if progress_bar:
+                orbits = self.pool.starmap(integrate_orbit,
+                                           tqdm(args, total=self.n_binaries_match))
+            else:
+                orbits = self.pool.starmap(integrate_orbit, args)
+
+            # if a pool didn't exist before then close the one just created
+            if not pool_existed:
+                self.pool.close()
+                self.pool.join()
+                self.pool = None
+        else:
+            # otherwise just use a for loop to evolve the orbits from birth until present day
+            orbits = []
+            for i in range(self.n_binaries_match):
+                orbits.append(integrate_orbit(w0=w0s[i], potential=self.galactic_potential,
+                                              t1=self.max_ev_time - self.initial_galaxy.tau[i],
+                                              t2=self.max_ev_time, dt=copy(self.timestep_size),
+                                              store_all=self.store_entire_orbits))
+
+        self._orbits = np.array(orbits, dtype="object")
+
+    def create_population(self):
+        raise NotImplementedError("Use evolve_binaries")
+
+    def evolve_binaries(self):
+        self.perform_galactic_evolution()
+        for bin_num in self.bin_nums:
+            print(bin_num)
+
+
+
+# def evolve_dynamics(a,m12,R_x,R_y,R_z,V_X,V_Y,V_Z,y0,tmax,t_eval=None):
+#     if(tmax>14e9):
+#         print("The maximum time for the integration is 14 Gyr.")
+#         return None
+
+#     a = a*u.au
+#     m12 = m12*u.Msun
+#     pos = [R_x,R_y,R_z]*u.kpc
+#     vel = [V_X,V_Y,V_Z]*u.km/u.s
+
+#     ics = gd.PhaseSpacePosition(pos=pos,vel=vel)
+
+#     t_orb = np.arange(0,14.1e9,1e4)
+
+#     orbit = gp.Hamiltonian(pot).integrate_orbit(ics, t=t_orb/1e6, Integrator=DOPRI853Integrator, cython_if_possible=True) # divide by 1e6 to make time in gala units of Myr
+
+#     x_orb = interp1d(t_orb,orbit.pos.x,kind="cubic")
+#     y_orb = interp1d(t_orb,orbit.pos.y,kind="cubic")
+#     z_orb = interp1d(t_orb,orbit.pos.z,kind="cubic")
+
+#     print("Integrated the centre of mass orbit.")
+
+#     def evolve(t,y,t_unit=u.yr):
+#         yp = np.zeros_like(y)
+
+#         ev = y[0:3]
+#         jv = y[3:6]
+
+#         n = np.array([[1,0,0],[0,1,0],[0,0,1]])
+
+#         # Current postion of the binary COM
+#         x_pos = x_orb(t)
+#         y_pos = y_orb(t)
+#         z_pos = z_orb(t)
+
+#         # Hessian matrix of the potential at the postion of the binary COM         
+#         CapitalPhi = pot.hessian(np.array([x_pos,y_pos,z_pos])*u.kpc).to(1/t_unit**2)
+
+#         for i in range(3):
+#             for j in range(3):
+#                 # Quadrupole
+#                 yp[0:3] += (a**(3/2)/2/np.sqrt(G*m12)*CapitalPhi[i,j]*(np.dot(n[j],jv)*np.cross(ev,n[i])-5*np.dot(n[j],ev)*np.cross(jv,n[i])+kronecker(i,j)*np.cross(jv,ev))).to(1/t_unit).value
+#                 yp[3:6] += (a**(3/2)/2/np.sqrt(G*m12)*CapitalPhi[i,j]*(np.dot(n[j],jv)*np.cross(jv,n[i])-5*np.dot(n[j],ev)*np.cross(ev,n[i]))).to(1/t_unit).value
+        
+#         return yp
     
+#     result = solve_ivp(evolve,[0,tmax],y0,rtol=1e-10,atol=1e-10,t_eval=t_eval)
+
+#     print("Integrated the perturbed binary orbit.")
+
+#     t = result.t
+#     e = np.sqrt(result.y[0]**2+result.y[1]**2+result.y[2]**2)
+
+#     return t,e,x_orb,y_orb,z_orb

@@ -6,7 +6,7 @@ import gala.potential as gp
 import astropy.coordinates as coords
 import astropy.units as u
 
-__all__ = ["get_kick_differential", "integrate_orbit_with_events"]
+__all__ = ["get_kick_differential", "integrate_orbit_with_events", "integrate_orbit"]
 
 
 def get_kick_differential(delta_v_sys_xyz, phase=None, inclination=None):
@@ -169,4 +169,38 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential()
     if not store_all:
         full_orbit = full_orbit[-1:]
 
+    return full_orbit
+
+
+def integrate_orbit(w0, t1, t2, dt, potential=gp.MilkyWayPotential(), store_all=True):
+    """Integrate :class:`~gala.dynamics.PhaseSpacePosition` in a 
+    :class:`Potential <gala.potential.potential.PotentialBase>`
+
+    Parameters
+    ----------
+    w0 : :class:`~gala.dynamics.PhaseSpacePosition`
+        Initial phase space position
+    t1 : :class:`~astropy.units.Quantity` [time]
+        Integration start time
+    t2 : :class:`~astropy.units.Quantity` [time]
+        Integration end time
+    dt : :class:`~astropy.units.Quantity` [time]
+        Integration initial timestep size (integrator may adapt timesteps)
+    potential : :class:`Potential <gala.potential.potential.PotentialBase>`, optional
+        Potential in which you which to integrate the orbits, by default the
+        :class:`~gala.potential.potential.MilkyWayPotential`
+    store_all : `bool`, optional
+        Whether to store the entire orbit, by default True. If not then only the final
+        PhaseSpacePosition will be stored - this cuts down on memory usage.
+
+    Returns
+    -------
+    full_orbit : :class:`~gala.dynamics.Orbit`
+        Integrated orbit. If a disrupted binary with two event lists was supplied then two orbit classes will
+        be returned. If the orbit integration failed for any reason then None is returned.
+    """
+    full_orbit = potential.integrate_orbit(w0, t1=t1, t2=t2, dt=dt, Integrator=gi.DOPRI853Integrator)
+    # jettison everything but the final timestep if user says so
+    if not store_all:
+        full_orbit = full_orbit[-1:]
     return full_orbit
