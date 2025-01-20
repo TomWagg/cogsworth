@@ -5,6 +5,7 @@ from multiprocessing import Pool
 import warnings
 import numpy as np
 import astropy.units as u
+from astropy.constants import G
 import astropy.coordinates as coords
 import h5py as h5
 import pandas as pd
@@ -12,6 +13,8 @@ from tqdm import tqdm
 import yaml
 import logging
 import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+from scipy.interpolate import interp1d
 
 from cosmic.sample.initialbinarytable import InitialBinaryTable
 from cosmic.evolve import Evolve
@@ -145,7 +148,7 @@ class Population():
                                                                2.0/21.0, 2.0/21.0, 2.0/21.0, 2.0/21.0,
                                                                2.0/21.0, 2.0/21.0, 2.0/21.0, 2.0/21.0],
                              'bhspinflag': 0, 'bhspinmag': 0.0, 'rejuv_fac': 1.0, 'rejuvflag': 0, 'htpmb': 1,
-                             'ST_cr': 1, 'ST_tide': 1, 'bdecayfac': 1, 'rembar_massloss': 0.5, 'kickflag': 0,
+                             'ST_cr': 1, 'ST_tide': 1, 'bdecayfac': 1, 'rembar_massloss': 0.5, 'kickflag': 1,
                              'zsun': 0.014, 'bhms_coll_flag': 0, 'don_lim': -1, 'acc_lim': -1, 'binfrac': 0.5,
                              'rtmsflag': 0, 'wd_mass_lim': 1}
         self.BSE_settings.update(BSE_settings if ini_file is None else parse_inifile(ini_file)[0])
@@ -1998,63 +2001,138 @@ class GalacticTidePopulation(Population):
         raise NotImplementedError("Use evolve_binaries")
 
     def evolve_binaries(self):
+        # if no initial binaries have been sampled then we need to create some
+        if self._initial_binaries is None and self._initC is None:
+            logging.getLogger("cogsworth").warning(("cogsworth warning: Initial binaries not yet sampled, "
+                                                    "performing sampling now."))
+            self.sample_initial_binaries()
+
+        # start a pool if we're using multiple processes
+        if self.processes > 1:
+            self.pool = Pool(self.processes)
+
+        # do the galactic orbit integration
         self.perform_galactic_evolution()
-        for bin_num in self.bin_nums:
-            print(bin_num)
 
+        # evolve each binary separately
+        # TODO: can we do this in batches?
+        for i, bin_num in enumerate(self.bin_nums):
 
+            # interpolate the galactic orbit
+            orbit = self.orbits[i]
+            orbit_t = (orbit.t - orbit.t[0]).to(u.Myr).value
+            x_orb = interp1d(orbit_t, orbit.pos.x, kind="cubic")
+            y_orb = interp1d(orbit_t, orbit.pos.y, kind="cubic")
+            z_orb = interp1d(orbit_t, orbit.pos.z, kind="cubic")
 
-# def evolve_dynamics(a,m12,R_x,R_y,R_z,V_X,V_Y,V_Z,y0,tmax,t_eval=None):
-#     if(tmax>14e9):
-#         print("The maximum time for the integration is 14 Gyr.")
-#         return None
+            # convert all times to Myr
+            actual_end_time = self.initial_binaries.loc[bin_num]["tphysf"]
+            timestep = self.galactic_tides_timestep.to(u.Myr).value
+            self.initial_binaries.loc[bin_num, "tphysf"] = timestep
 
-#     a = a*u.au
-#     m12 = m12*u.Msun
-#     pos = [R_x,R_y,R_z]*u.kpc
-#     vel = [V_X,V_Y,V_Z]*u.km/u.s
+            initC = None
 
-#     ics = gd.PhaseSpacePosition(pos=pos,vel=vel)
+            # evolve a single timestep to initialise
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message=".*initial binary table is being overwritten.*")
+                warnings.filterwarnings("ignore", message=".*to a different value than assumed in the mlwind.*")
+                bpp, _, initC, _ = Evolve.evolve(initialbinarytable=self.initial_binaries.loc[[bin_num]],
+                                                 BSEDict=self.BSE_settings)
 
-#     t_orb = np.arange(0,14.1e9,1e4)
+            # track the overall evolution table and current state/time
+            full_bpp = pd.DataFrame()
+            state = bpp.iloc[[-1]].copy()
+            current_time = timestep
 
-#     orbit = gp.Hamiltonian(pot).integrate_orbit(ics, t=t_orb/1e6, Integrator=DOPRI853Integrator, cython_if_possible=True) # divide by 1e6 to make time in gala units of Myr
+            # set the eccentricity and angular momentum vectors
+            new_ecc = state["ecc"].values[0]
+            # TODO: make these inputs
+            om = 0.0 # Argument of pericenter
+            Om = 0.0 # Longitude of ascending node
+            i = np.deg2rad(89.5) # Inclination
+            e_vec = new_ecc * np.array([np.cos(om) * np.cos(Om) - np.cos(i) * np.sin(om) * np.sin(Om),
+                                        np.cos(om) * np.sin(Om) + np.cos(i) * np.sin(om) * np.cos(Om),
+                                        np.sin(om) * np.sin(i)])
+            j_vec = np.sqrt(1-new_ecc**2) * np.array([np.sin(i)*np.sin(Om),
+                                                      -np.sin(i)*np.cos(Om),
+                                                      np.cos(i)])
 
-#     x_orb = interp1d(t_orb,orbit.pos.x,kind="cubic")
-#     y_orb = interp1d(t_orb,orbit.pos.y,kind="cubic")
-#     z_orb = interp1d(t_orb,orbit.pos.z,kind="cubic")
+            eccentricities = np.zeros(1_000_000)
+            eccentricities[0] = new_ecc
+            ind = 1
 
-#     print("Integrated the centre of mass orbit.")
+            # evolve the binary until the end time
+            while current_time < actual_end_time:
+                # update the eccentricity and angular momentum vectors based on galactic tides
+                e_vec, j_vec, t = self.get_new_ecc(t1=current_time, t2=current_time + timestep,
+                                                   x_orb=x_orb, y_orb=y_orb, z_orb=z_orb,
+                                                   a=state["sep"].values[0] * u.Rsun,
+                                                   m12=(state["mass_1"] + state["mass_2"]).values[0] * u.Msun,
+                                                   e_vec=e_vec, j_vec=j_vec)
+                new_ecc = np.linalg.norm(e_vec)
 
-#     def evolve(t,y,t_unit=u.yr):
-#         yp = np.zeros_like(y)
+                eccentricities[ind] = new_ecc
+                ind += 1
 
-#         ev = y[0:3]
-#         jv = y[3:6]
+                # print(new_ecc)
 
-#         n = np.array([[1,0,0],[0,1,0],[0,0,1]])
+                # update the eccentricity, time and save the metallicity
+                current_time += timestep
+                state["ecc"] = new_ecc
+                state["tphys"] = current_time
+                state["tphysf"] = current_time + timestep
+                state["metallicity"] = initC["metallicity"].values[0]
 
-#         # Current postion of the binary COM
-#         x_pos = x_orb(t)
-#         y_pos = y_orb(t)
-#         z_pos = z_orb(t)
+                if (ind % 1000) == 0:
+                    print(f"Time: {current_time}")
+                if ind == 1_000_000:
+                    break
+            return eccentricities
 
-#         # Hessian matrix of the potential at the postion of the binary COM         
-#         CapitalPhi = pot.hessian(np.array([x_pos,y_pos,z_pos])*u.kpc).to(1/t_unit**2)
+                # with warnings.catch_warnings():
+                #     warnings.filterwarnings("ignore", message=".*initial binary table is being overwritten.*")
+                #     warnings.filterwarnings("ignore", message=".*to a different value than assumed in the mlwind.*")
+                #     bpp, _, _, _ = Evolve.evolve(initialbinarytable=state, BSEDict=self.BSE_settings)
 
-#         for i in range(3):
-#             for j in range(3):
-#                 # Quadrupole
-#                 yp[0:3] += (a**(3/2)/2/np.sqrt(G*m12)*CapitalPhi[i,j]*(np.dot(n[j],jv)*np.cross(ev,n[i])-5*np.dot(n[j],ev)*np.cross(jv,n[i])+kronecker(i,j)*np.cross(jv,ev))).to(1/t_unit).value
-#                 yp[3:6] += (a**(3/2)/2/np.sqrt(G*m12)*CapitalPhi[i,j]*(np.dot(n[j],jv)*np.cross(jv,n[i])-5*np.dot(n[j],ev)*np.cross(ev,n[i]))).to(1/t_unit).value
-        
-#         return yp
-    
-#     result = solve_ivp(evolve,[0,tmax],y0,rtol=1e-10,atol=1e-10,t_eval=t_eval)
+                # state = bpp.iloc[[-1]].copy()
 
-#     print("Integrated the perturbed binary orbit.")
+                # print(state[["tphys", "ecc", "sep"]])
 
-#     t = result.t
-#     e = np.sqrt(result.y[0]**2+result.y[1]**2+result.y[2]**2)
+        if self.pool is not None:
+            self.pool.close()
+            self.pool.join()
+            self.pool = None
 
-#     return t,e,x_orb,y_orb,z_orb
+    def get_new_ecc(self, t1, t2, x_orb, y_orb, z_orb, a, m12, e_vec, j_vec):
+        y0 = np.concatenate((e_vec, j_vec))
+
+        def evolve(t, y, t_unit=u.Myr):
+            yp = np.zeros_like(y)
+
+            ev = y[0:3]
+            jv = y[3:6]
+
+            n = np.array([[1,0,0], [0,1,0], [0,0,1]])
+
+            # Current position of the binary COM
+            x_pos = x_orb(t)
+            y_pos = y_orb(t)
+            z_pos = z_orb(t)
+
+            # Hessian matrix of the potential at the position of the binary COM         
+            CapitalPhi = self.galactic_potential.hessian(np.array([x_pos,y_pos,z_pos])*u.kpc).to(1/t_unit**2)
+
+            for i in range(3):
+                for j in range(3):
+                    # Quadrupole
+                    yp[0:3] += (a**(3/2)/ 2 / np.sqrt(G*m12) * CapitalPhi[i,j] *(np.dot(n[j],jv)*np.cross(ev,n[i])-5*np.dot(n[j],ev)*np.cross(jv,n[i])+int(i==j)*np.cross(jv,ev))).to(1/t_unit).value
+                    yp[3:6] += (a**(3/2)/2/np.sqrt(G*m12)*CapitalPhi[i,j]*(np.dot(n[j],jv)*np.cross(jv,n[i])-5*np.dot(n[j],ev)*np.cross(ev,n[i]))).to(1/t_unit).value
+
+            return yp
+
+        result = solve_ivp(evolve,[t1, t2], y0,rtol=1e-10,atol=1e-10,t_eval=[t2])
+
+        # t = result.t
+        # e = np.sqrt(result.y[0]**2+result.y[1]**2+result.y[2]**2)
+
+        return result.y[:3, -1], result.y[3:, -1], result.t[-1]
