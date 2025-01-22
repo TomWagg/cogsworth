@@ -1921,7 +1921,7 @@ class GalacticTidePopulation(Population):
         self.galactic_tides_timestep = galactic_tides_timestep
 
     def perform_stellar_evolution(self):
-        raise NotImplementedError("Independent stellar evolution not supported for GalacticTidesPopulations")
+        raise NotImplementedError("Independent stellar evolution not supported for GalacticTidePopulations")
 
     def perform_galactic_evolution(self, progress_bar=True):
         """Use :py:mod:`gala` to perform the orbital integration for each binary
@@ -2039,8 +2039,7 @@ class GalacticTidePopulation(Population):
                 bpp, _, initC, _ = Evolve.evolve(initialbinarytable=self.initial_binaries.loc[[bin_num]],
                                                  BSEDict=self.BSE_settings)
 
-            # track the overall evolution table and current state/time
-            full_bpp = pd.DataFrame()
+            # track the current state/time
             state = bpp.iloc[[-1]].copy()
             current_time = timestep
 
@@ -2074,29 +2073,16 @@ class GalacticTidePopulation(Population):
                 eccentricities[ind] = new_ecc
                 ind += 1
 
-                # print(new_ecc)
-
                 # update the eccentricity, time and save the metallicity
                 current_time += timestep
                 state["ecc"] = new_ecc
                 state["tphys"] = current_time
-                state["tphysf"] = current_time + timestep
                 state["metallicity"] = initC["metallicity"].values[0]
 
-                if (ind % 1000) == 0:
-                    print(f"Time: {current_time}")
-                if ind == 1_000_000:
-                    break
-            return eccentricities
-
-                # with warnings.catch_warnings():
-                #     warnings.filterwarnings("ignore", message=".*initial binary table is being overwritten.*")
-                #     warnings.filterwarnings("ignore", message=".*to a different value than assumed in the mlwind.*")
-                #     bpp, _, _, _ = Evolve.evolve(initialbinarytable=state, BSEDict=self.BSE_settings)
-
-                # state = bpp.iloc[[-1]].copy()
-
-                # print(state[["tphys", "ecc", "sep"]])
+            # TODO: Remaining steps:
+            # - Combine each `state` into a full evolution table to save in self.bpp
+            # - Repeat over each binary
+            # - Speed it up!!!
 
         if self.pool is not None:
             self.pool.close()
@@ -2107,6 +2093,7 @@ class GalacticTidePopulation(Population):
         y0 = np.concatenate((e_vec, j_vec))
 
         def evolve(t, y, t_unit=u.Myr):
+            # Jakob's function for evolving the eccentricity and angular momentum vectors
             yp = np.zeros_like(y)
 
             ev = y[0:3]
@@ -2131,8 +2118,5 @@ class GalacticTidePopulation(Population):
             return yp
 
         result = solve_ivp(evolve,[t1, t2], y0,rtol=1e-10,atol=1e-10,t_eval=[t2])
-
-        # t = result.t
-        # e = np.sqrt(result.y[0]**2+result.y[1]**2+result.y[2]**2)
 
         return result.y[:3, -1], result.y[3:, -1], result.t[-1]
