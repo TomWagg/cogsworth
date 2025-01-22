@@ -7,6 +7,7 @@ This page tracks all of the changes that have been made to ``cogsworth``. We fol
 2.0.2
 =====
 - Add some more flexbility to the ``plot_cartoon_binary`` function in terms of fontsize
+- Allow use of pynbody 2.0 with cogsworth
 
 2.0.1
 =====
