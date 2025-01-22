@@ -48,7 +48,7 @@ def get_snapshot_potential(snap, components=[{"label": "star", "attr": "s", "r_s
                                                     nmax=nmax, lmax=lmax, r_s=comp["r_s"], skip_m=True)
 
         # add the SCF potential to the composite potential
-        pot[comp["label"]] = gp.scf.SCFPotential(m=subsnap["mass"].sum(), r_s=comp["r_s"],
+        pot[comp["label"]] = gp.scf.SCFPotential(m=subsnap["mass"].sum().tolist(), r_s=comp["r_s"],
                                                  Snlm=Snlm, Tnlm=Tnlm, units=galactic)
 
     # save the potential to a file if requested

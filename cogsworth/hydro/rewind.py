@@ -43,10 +43,10 @@ def rewind_to_formation(subsnap, pot, dt=-1 * u.Myr, processes=1):
     final_time = subsnap.properties["time"].in_units("Myr") * u.Myr
 
     # convert the final particles to a phase-space position
-    wf = gd.PhaseSpacePosition(pos=np.transpose(subsnap["pos"].in_units("kpc")) * u.kpc,
-                               vel=np.transpose(subsnap["vel"].in_units("km s**-1")) * u.km / u.s)
+    wf = gd.PhaseSpacePosition(pos=np.transpose(subsnap["pos"].in_units("kpc").tolist()) * u.kpc,
+                               vel=np.transpose(subsnap["vel"].in_units("km s**-1").tolist()) * u.km / u.s)
     # store their formation times in Myr
-    tforms = subsnap["tform"].in_units("Myr") * u.Myr
+    tforms = subsnap["tform"].in_units("Myr").tolist() * u.Myr
 
     def args(wf, tforms):       # pragma: no cover
         for w, t in zip(wf, tforms):
@@ -64,16 +64,16 @@ def rewind_to_formation(subsnap, pot, dt=-1 * u.Myr, processes=1):
 
     # check if the formation masses are available, warn if not
     if "massform" not in subsnap.all_keys():
-        mass = subsnap["mass"].in_units("Msol")
+        mass = subsnap["mass"].in_units("Msol").tolist()
         logging.getLogger("cogsworth").info("Formation masses (`massform`) not found, using present day masses instead")
     else:
-        mass = subsnap["massform"].in_units("Msol")
+        mass = subsnap["massform"].in_units("Msol").tolist()
 
     # create a df of the initial particles and return
     init_particles = np.zeros((len(subsnap), 10))
     init_particles[:, 0] = mass
     init_particles[:, 1] = subsnap["metals"] if np.ndim(subsnap["metals"]) == 1 else subsnap["metals"][:, 0]
-    init_particles[:, 2] = subsnap["tform"].in_units("Gyr")
+    init_particles[:, 2] = subsnap["tform"].in_units("Gyr").tolist()
     init_particles[:, 3] = subsnap["iord"]
 
     for i in range(len(w0)):

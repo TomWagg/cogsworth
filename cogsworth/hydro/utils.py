@@ -79,8 +79,8 @@ def prepare_snapshot(path, halo_params={"mode": "ssc"}):
                     raise e
 
     # orient the snapshot face-on and side-on
-    side_on = pynbody.analysis.angmom.sideon(snap, cen=(0, 0, 0))
-    face_on = pynbody.analysis.angmom.faceon(snap, cen=(0, 0, 0))
+    side_on = pynbody.analysis.angmom.sideon(snap, already_centered=True)
+    face_on = pynbody.analysis.angmom.faceon(snap, already_centered=True)
 
     return snap
 

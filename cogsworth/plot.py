@@ -166,7 +166,10 @@ def _rlof_path(centre, width, height, m=1.5, flip=False):
 
 
 def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon Binary Evolution",
-                           y_sep_mult=1.5, offset=0.2, s_base=1000, fig=None, ax=None, show=True):    # pragma: no cover
+                           y_sep_mult=1.5, offset=0.2, s_base=1000,
+                           time_fs_mult=1.0, mass_fs_mult=1.0, kstar_fs_mult=1.0,
+                           porb_fs_mult=1.0, label_fs_mult=1.0,
+                           fig=None, ax=None, show=True):    # pragma: no cover
     """Plot COSMIC bpp output as a cartoon evolution
 
     Parameters
@@ -185,6 +188,16 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
         Offset from the centre for each of the stars (larger=wider binaries)
     s_base : `float`, optional
         Base scatter point size for the stars
+    time_fs_mult : `float`, optional
+        Multiplier for the time annotation fontsize
+    mass_fs_mult : `float`, optional
+        Multiplier for the mass annotation fontsize
+    kstar_fs_mult : `float`, optional
+        Multiplier for the kstar annotation fontsize
+    porb_fs_mult : `float`, optional
+        Multiplier for the porb annotation fontsize
+    label_fs_mult : `float`, optional
+        Multiplier for the evolution label fontsize
     fig : :class:`~matplotlib.pyplot.figure`, optional
         Figure on which to plot, by default will create a new one
     ax : :class:`~matplotlib.pyplot.axis`, optional
@@ -245,7 +258,7 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
         ax.annotate(f'{time:1.2e} Myr' if time > 1e4 else f'{time:1.2f} Myr',
                     xy=(-offset - 0.3 - (0.12 if len(inds) > 1 else 0),
                         total - np.mean(inds) * y_sep_mult), ha="right", va="center",
-                    fontsize=0.4*fs, fontweight="bold", zorder=-1,
+                    fontsize=0.4*fs*time_fs_mult, fontweight="bold", zorder=-1,
                     bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="white") if len(inds) > 1 else None)
         # if there's more than one ind then plot a bracketed line connecting them
         if len(inds) > 1:
@@ -297,7 +310,7 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
         # check if either star is now a massless remnant
         mr_1 = k1["short"] == "MR"
         mr_2 = k2["short"] == "MR"
-        ks_fontsize = 0.3 * fs
+        ks_fontsize = 0.3 * fs * kstar_fs_mult
 
         # start an evolution label variable
         evol_label = et[label_type]
@@ -309,7 +322,7 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
             evol_label = f'{which_star} evolved to\n{to_type}'
 
         # annotate the evolution label on the right side of the binary
-        ax.annotate(evol_label, xy=(0.5, total - i), va="center")
+        ax.annotate(evol_label, xy=(0.5, total - i), va="center", fontsize=0.4*fs*label_fs_mult)
 
         # if we've got a common envelope then draw an ellipse behind the binary
         if common_envelope:
@@ -336,7 +349,7 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
 
             # annotate the correct mass
             ax.annotate(f'{row["mass_1"] if mr_2 else row["mass_2"]:1.2f} ' + r'$\rm M_{\odot}$',
-                        xy=(0, total - i - 0.45), ha="center", va="top", fontsize=0.3*fs,
+                        xy=(0, total - i - 0.45), ha="center", va="top", fontsize=0.3*fs*mass_fs_mult,
                         bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.7)
                         if et_ind in [15, 16] else None)
 
@@ -358,13 +371,14 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
             mass_y_offset = 0.35 if not (rlof and not common_envelope) else 0.5
             ax.annotate(f'{row["mass_1"]:1.2f} ' + r'$\rm M_{\odot}$',
                         xy=(0 - offset * contact_adjust - off_s, total - i - mass_y_offset),
-                        ha="left" if common_envelope else "center", va="top", fontsize=0.3*fs,
+                        ha="left" if common_envelope else "center", va="top", fontsize=0.3*fs*mass_fs_mult,
                         rotation=45 if contact else 0,
                         bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.7)
                         if et_ind in [15, 16] else None)
             ax.annotate(f'{row["mass_2"]:1.2f} ' + r'$\rm M_{\odot}$',
                         xy=(0 + offset * contact_adjust + off_s, total - i - mass_y_offset),
-                        ha="right" if common_envelope else "center", va="top", fontsize=0.3*fs, zorder=1000,
+                        ha="right" if common_envelope else "center", va="top", fontsize=0.3*fs*mass_fs_mult,
+                        zorder=1000,
                         rotation=45 if contact else 0,
                         bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.7)
                         if et_ind in [15, 16] else None)
@@ -398,7 +412,7 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
                 p_lab = f'{row["porb"]:1.2e} days' if row["porb"] > 10000 or row["porb"] < 1\
                     else f'{row["porb"]:1.0f} days'
                 ax.annotate(p_lab, xy=(x, total - i + 0.05), ha="center", va="bottom",
-                            fontsize=0.2*fs if row["porb"] > 10000 or row["porb"] < 1 else 0.3*fs)
+                            fontsize=0.2*fs*porb_fs_mult if row["porb"] > 10000 or row["porb"] < 1 else 0.3*fs*porb_fs_mult)
 
             # for non-common-envelope RLOF, plot a RLOF teardrop in the background
             if rlof and not common_envelope:
