@@ -1902,7 +1902,8 @@ class GalacticTidePopulation(Population):
         - No stellar tides are in effect
         - No strong mass loss
     """
-    def __init__(self, galactic_tides_timestep=1 * u.yr, **pop_kwargs):
+    def __init__(self, galactic_tides_timestep=1 * u.yr, bcm_timestep_conditions=[['mass_1<1000', 'dtp=1.0']],
+                 **pop_kwargs):
         if "BSE_settings" in pop_kwargs:
             if "ST_tide" in pop_kwargs["BSE_settings"] and pop_kwargs["BSE_settings"]["ST_tide"] == 1:
                 raise ValueError("Cannot run a GalacticTidePopulation with stellar tides turned on")
@@ -1920,11 +1921,79 @@ class GalacticTidePopulation(Population):
         super().__init__(**pop_kwargs)
         self.galactic_tides_timestep = galactic_tides_timestep
 
-    def perform_stellar_evolution(self):
-        raise NotImplementedError("Independent stellar evolution not supported for GalacticTidePopulations")
-
     def perform_galactic_evolution(self, progress_bar=True):
-        raise NotImplementedError("Independent galactic evolution not supported for GalacticTidePopulations")
+        """Use :py:mod:`gala` to perform the orbital integration for each binary
+
+        Parameters
+        ----------
+        quiet : `bool`, optional
+            Whether to silence any warnings about failing orbits, by default False
+        """
+        # delete any cached variables that are based on orbits
+        self._final_pos = None
+        self._final_vel = None
+        self._observables = None
+
+        if self._initial_galaxy is None:            # pragma: no cover
+            logging.getLogger("cogsworth").warning(("cogsworth warning: Initial galaxy not yet sampled, "
+                                                    "performing sampling now."))
+            self.sample_initial_galaxy()
+
+        if self._initC is None and self._initial_binaries is None:          # pragma: no cover
+            logging.getLogger("cogsworth").warning(("cogsworth warning: Initial binaries not yet sampled, "
+                                                    "performing sampling now."))
+            self.sample_initial_binaries()
+
+        v_phi = (self.initial_galaxy.v_T / self.initial_galaxy.rho)
+        v_X = (self.initial_galaxy.v_R * np.cos(self.initial_galaxy.phi)
+               - self.initial_galaxy.rho * np.sin(self.initial_galaxy.phi) * v_phi)
+        v_Y = (self.initial_galaxy.v_R * np.sin(self.initial_galaxy.phi)
+               + self.initial_galaxy.rho * np.cos(self.initial_galaxy.phi) * v_phi)
+
+        # combine the representation and differentials into a Gala PhaseSpacePosition
+        w0s = gd.PhaseSpacePosition(pos=[a.to(u.kpc).value for a in [self.initial_galaxy.x,
+                                                                     self.initial_galaxy.y,
+                                                                     self.initial_galaxy.z]] * u.kpc,
+                                    vel=[a.to(u.km/u.s).value for a in [v_X, v_Y,
+                                                                        self.initial_galaxy.v_z]] * u.km/u.s)
+
+        # if we want to use multiprocessing
+        if self.pool is not None or self.processes > 1:
+            # track whether a pool already existed
+            pool_existed = self.pool is not None
+
+            # if not, create one
+            if not pool_existed:
+                self.pool = Pool(self.processes)
+
+            # setup arguments to combine primary and secondaries into a single list
+            args = [(w0s[i], self.max_ev_time - self.initial_galaxy.tau[i], self.max_ev_time,
+                    copy(self.timestep_size), self.galactic_potential,
+                    self.store_entire_orbits)
+                    for i in range(self.n_binaries_match)]
+
+            # evolve the orbits from birth until present day
+            if progress_bar:
+                orbits = self.pool.starmap(integrate_orbit,
+                                           tqdm(args, total=self.n_binaries_match))
+            else:
+                orbits = self.pool.starmap(integrate_orbit, args)
+
+            # if a pool didn't exist before then close the one just created
+            if not pool_existed:
+                self.pool.close()
+                self.pool.join()
+                self.pool = None
+        else:
+            # otherwise just use a for loop to evolve the orbits from birth until present day
+            orbits = []
+            for i in range(self.n_binaries_match):
+                orbits.append(integrate_orbit(w0=w0s[i], potential=self.galactic_potential,
+                                              t1=self.max_ev_time - self.initial_galaxy.tau[i],
+                                              t2=self.max_ev_time, dt=copy(self.timestep_size),
+                                              store_all=self.store_entire_orbits))
+
+        self._orbits = np.array(orbits, dtype="object")
 
     def create_population(self):
         # if no initial binaries have been sampled then we need to create some
@@ -1936,6 +2005,9 @@ class GalacticTidePopulation(Population):
         # start a pool if we're using multiple processes
         if self.processes > 1:
             self.pool = Pool(self.processes)
+
+        # do the basic stellar evolution as if tides had no effect
+        self.perform_stellar_evolution()
 
         # do the galactic orbit integration
         self.perform_galactic_evolution()
