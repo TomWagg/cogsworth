@@ -1902,7 +1902,9 @@ class GalacticTidePopulation(Population):
         - No stellar tides are in effect
         - No strong mass loss
     """
-    def __init__(self, galactic_tides_timestep=1 * u.yr,
+    def __init__(self,
+                 arg_peri, long_asc_node, inclination,
+                 galactic_tides_timestep=1 * u.yr,
                  bcm_timestep_conditions=[['mass_1<1000', 'dtp=1.0']],
                  **pop_kwargs):
         if "BSE_settings" in pop_kwargs:
@@ -1919,6 +1921,11 @@ class GalacticTidePopulation(Population):
                 "ST_tide": 1,
                 "tflag": 1
             }
+
+        self.arg_peri = arg_peri
+        self.long_asc_node = long_asc_node
+        self.inclination = inclination
+
         super().__init__(bcm_timestep_conditions=bcm_timestep_conditions, **pop_kwargs)
         self.galactic_tides_timestep = galactic_tides_timestep
 
@@ -2037,19 +2044,25 @@ class GalacticTidePopulation(Population):
             current_time = timestep
 
             # set the eccentricity and angular momentum vectors
-            # TODO: make these inputs
-            om = 0.0 # Argument of pericenter
-            Om = 0.0 # Longitude of ascending node
-            i = np.deg2rad(89.5) # Inclination
-            e_vec = new_ecc * np.array([np.cos(om) * np.cos(Om) - np.cos(i) * np.sin(om) * np.sin(Om),
-                                        np.cos(om) * np.sin(Om) + np.cos(i) * np.sin(om) * np.cos(Om),
-                                        np.sin(om) * np.sin(i)])
-            j_vec = np.sqrt(1-new_ecc**2) * np.array([np.sin(i)*np.sin(Om),
-                                                      -np.sin(i)*np.cos(Om),
-                                                      np.cos(i)])
+            # om = 0.0 # Argument of pericenter
+            # Om = 0.0 # Longitude of ascending node
+            # i = np.deg2rad(89.5) # Inclination
 
+            # set the initial eccentricity and angular momentum vectors
+            e0 = self.bcm.loc[bin_num]["ecc"].values[0]
             eccentricities = np.zeros(1_000_000)
-            eccentricities[0] = self.bcm.loc[bin_num]["ecc"].values[0]
+            eccentricities[0] = e0
+            e_vec = e0 * np.array(
+                [np.cos(self.arg_peri) * np.cos(self.long_asc_node)
+                 - np.cos(self.inclination) * np.sin(self.arg_peri) * np.sin(self.long_asc_node),
+                 np.cos(self.arg_peri) * np.sin(self.long_asc_node)
+                 + np.cos(self.inclination) * np.sin(self.arg_peri) * np.cos(self.long_asc_node),
+                 np.sin(self.arg_peri) * np.sin(self.inclination)]
+            )
+            j_vec = np.sqrt(1 - e0**2) * np.array([np.sin(self.inclination) * np.sin(self.long_asc_node),
+                                                   -np.sin(self.inclination) * np.cos(self.long_asc_node),
+                                                   np.cos(self.inclination)])
+
             ind = 1
 
             # evolve the binary until the end time
