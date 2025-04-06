@@ -1902,7 +1902,8 @@ class GalacticTidePopulation(Population):
         - No stellar tides are in effect
         - No strong mass loss
     """
-    def __init__(self, galactic_tides_timestep=1 * u.yr, bcm_timestep_conditions=[['mass_1<1000', 'dtp=1.0']],
+    def __init__(self, galactic_tides_timestep=1 * u.yr,
+                 bcm_timestep_conditions=[['mass_1<1000', 'dtp=1.0']],
                  **pop_kwargs):
         if "BSE_settings" in pop_kwargs:
             if "ST_tide" in pop_kwargs["BSE_settings"] and pop_kwargs["BSE_settings"]["ST_tide"] == 1:
@@ -1918,7 +1919,7 @@ class GalacticTidePopulation(Population):
                 "ST_tide": 1,
                 "tflag": 1
             }
-        super().__init__(**pop_kwargs)
+        super().__init__(bcm_timestep_conditions=bcm_timestep_conditions, **pop_kwargs)
         self.galactic_tides_timestep = galactic_tides_timestep
 
     def perform_galactic_evolution(self, progress_bar=True):
@@ -2023,26 +2024,19 @@ class GalacticTidePopulation(Population):
             y_orb = interp1d(orbit_t, orbit.pos.y, kind="cubic")
             z_orb = interp1d(orbit_t, orbit.pos.z, kind="cubic")
 
+            ecc_lookup = interp1d(self.bcm.loc[bin_num]["tphys"], self.bcm.loc[bin_num]["ecc"])
+            mass_1_lookup = interp1d(self.bcm.loc[bin_num]["tphys"], self.bcm.loc[bin_num]["mass_1"])
+            mass_2_lookup = interp1d(self.bcm.loc[bin_num]["tphys"], self.bcm.loc[bin_num]["mass_2"])
+            sep_lookup = interp1d(self.bcm.loc[bin_num]["tphys"], self.bcm.loc[bin_num]["sep"])
+
             # convert all times to Myr
             actual_end_time = self.initial_binaries.loc[bin_num]["tphysf"]
             timestep = self.galactic_tides_timestep.to(u.Myr).value
-            self.initial_binaries.loc[bin_num, "tphysf"] = timestep
-
-            initC = None
-
-            # evolve a single timestep to initialise
-            with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", message=".*initial binary table is being overwritten.*")
-                warnings.filterwarnings("ignore", message=".*to a different value than assumed in the mlwind.*")
-                bpp, _, initC, _ = Evolve.evolve(initialbinarytable=self.initial_binaries.loc[[bin_num]],
-                                                 BSEDict=self.BSE_settings)
 
             # track the current state/time
-            state = bpp.iloc[[-1]].copy()
             current_time = timestep
 
             # set the eccentricity and angular momentum vectors
-            new_ecc = state["ecc"].values[0]
             # TODO: make these inputs
             om = 0.0 # Argument of pericenter
             Om = 0.0 # Longitude of ascending node
@@ -2055,7 +2049,7 @@ class GalacticTidePopulation(Population):
                                                       np.cos(i)])
 
             eccentricities = np.zeros(1_000_000)
-            eccentricities[0] = new_ecc
+            eccentricities[0] = self.bcm.loc[bin_num]["ecc"].values[0]
             ind = 1
 
             # evolve the binary until the end time
