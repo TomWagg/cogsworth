@@ -1,9 +1,6 @@
-import matplotlib.pyplot as plt
-import matplotlib as mpl
 import numpy as np
 
-
-__all__ = ["kstar_translator", "evol_type_translator", "translate_COSMIC_tables"]
+__all__ = ["kstar_translator", "evol_type_translator", "translate_COSMIC_tables", "get_roche_lobe"]
 
 fs = 24
 
@@ -115,3 +112,9 @@ def translate_COSMIC_tables(tab, kstars=True, evol_type=True, label_type="short"
             tab.loc[:, "evol_type_str"] = evol_type_str
 
     return tab
+
+
+def get_roche_lobe(mass_1, mass_2, sep):
+    """Calculate the Roche lobe radius for a given star based on Eggleton 1983"""
+    q = mass_1 / mass_2
+    return sep * 0.49 * q**(2/3) / (0.6 * q**(2/3) + np.log(1 + q**(1/3)))

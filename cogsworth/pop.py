@@ -31,7 +31,7 @@ from cogsworth.classify import determine_final_classes
 from cogsworth.observables import get_photometry
 from cogsworth.tests.optional_deps import check_dependencies
 from cogsworth.plot import plot_cartoon_evolution, plot_galactic_orbit
-from cogsworth.utils import translate_COSMIC_tables
+from cogsworth.utils import translate_COSMIC_tables, get_roche_lobe
 
 from cogsworth.citations import CITATIONS
 
@@ -1929,6 +1929,16 @@ class GalacticTidePopulation(Population):
         super().__init__(bcm_timestep_conditions=bcm_timestep_conditions, **pop_kwargs)
         self.galactic_tides_timestep = galactic_tides_timestep
 
+    def sample_initial_binaries(self, initC=None, overwrite_initC_settings=True, reset_sampled_kicks=True):
+        super().sample_initial_binaries(initC, overwrite_initC_settings, reset_sampled_kicks)
+
+
+        # HACK: Hard code some values for the initial binaries
+        self.initial_binaries["porb"] = 1e6
+        self.initial_binaries["mass_1"] = 1
+        self.initial_binaries["mass_2"] = 1
+        self.initial_binaries["ecc"] = 0.95
+
     def perform_galactic_evolution(self, progress_bar=True):
         """Use :py:mod:`gala` to perform the orbital integration for each binary
 
@@ -2024,6 +2034,9 @@ class GalacticTidePopulation(Population):
         # TODO: can we do this in batches?
         for i, bin_num in enumerate(self.bin_nums):
 
+            self.plot_orbit(bin_num)
+            self.plot_cartoon_binary(bin_num)
+
             # interpolate the galactic orbit
             orbit = self.orbits[i]
             orbit_t = (orbit.t - orbit.t[0]).to(u.Myr).value
@@ -2031,9 +2044,11 @@ class GalacticTidePopulation(Population):
             y_orb = interp1d(orbit_t, orbit.pos.y, kind="cubic")
             z_orb = interp1d(orbit_t, orbit.pos.z, kind="cubic")
 
-            ecc_lookup = interp1d(self.bcm.loc[bin_num]["tphys"], self.bcm.loc[bin_num]["ecc"])
-            mass_1_lookup = interp1d(self.bcm.loc[bin_num]["tphys"], self.bcm.loc[bin_num]["mass_1"])
-            mass_2_lookup = interp1d(self.bcm.loc[bin_num]["tphys"], self.bcm.loc[bin_num]["mass_2"])
+            # interpolate radii, masses, and separation
+            r1_lookup = interp1d(self.bcm.loc[bin_num]["tphys"], self.bcm.loc[bin_num]["rad_1"])
+            r2_lookup = interp1d(self.bcm.loc[bin_num]["tphys"], self.bcm.loc[bin_num]["rad_2"])
+            m1_lookup = interp1d(self.bcm.loc[bin_num]["tphys"], self.bcm.loc[bin_num]["mass_1"])
+            m2_lookup = interp1d(self.bcm.loc[bin_num]["tphys"], self.bcm.loc[bin_num]["mass_2"])
             sep_lookup = interp1d(self.bcm.loc[bin_num]["tphys"], self.bcm.loc[bin_num]["sep"])
 
             # convert all times to Myr
@@ -2067,27 +2082,32 @@ class GalacticTidePopulation(Population):
 
             # evolve the binary until the end time
             while current_time < actual_end_time:
+                m1 = m1_lookup(current_time) * u.Msun
+                m2 = m2_lookup(current_time) * u.Msun
+                sep = sep_lookup(current_time) * u.Rsun
+
                 # update the eccentricity and angular momentum vectors based on galactic tides
                 e_vec, j_vec, t = self.get_new_ecc(t1=current_time, t2=current_time + timestep,
                                                    x_orb=x_orb, y_orb=y_orb, z_orb=z_orb,
-                                                   a=state["sep"].values[0] * u.Rsun,
-                                                   m12=(state["mass_1"] + state["mass_2"]).values[0] * u.Msun,
-                                                   e_vec=e_vec, j_vec=j_vec)
+                                                   a=sep, m12=m1 + m2, e_vec=e_vec, j_vec=j_vec)
                 new_ecc = np.linalg.norm(e_vec)
 
+                print(new_ecc, current_time)
+
+                # update the eccentricity, time
                 eccentricities[ind] = new_ecc
+
+                # check for Roche Lobe overflow
+                r_peri = sep * (1 - new_ecc)
+                rl1 = get_roche_lobe(m1, m2, r_peri)
+                rl2 = get_roche_lobe(m2, m1, r_peri)
+                if r1_lookup(current_time) * u.Rsun > rl1 or r2_lookup(current_time) * u.Rsun > rl2:
+                    # roche lobe overflow is occurring
+                    print("RLOF!", current_time, m1, m2, sep, new_ecc, r_peri)
+                    break
+
                 ind += 1
-
-                # update the eccentricity, time and save the metallicity
                 current_time += timestep
-                state["ecc"] = new_ecc
-                state["tphys"] = current_time
-                state["metallicity"] = initC["metallicity"].values[0]
-
-            # TODO: Remaining steps:
-            # - Combine each `state` into a full evolution table to save in self.bpp
-            # - Repeat over each binary
-            # - Speed it up!!!
 
         if self.pool is not None:
             self.pool.close()
