@@ -532,11 +532,11 @@ class Test(unittest.TestCase):
         p.perform_stellar_evolution()
         p.translate_tables(replace_columns=False, label_type="short")
 
-        self.assertTrue(p.bpp["kstar_1"].dtype == np.float64)
+        self.assertTrue(p.bpp["kstar_1"].dtype == np.int64)
         self.assertTrue((p.bpp["kstar_1_str"][p.bpp["kstar_1"] == 1] == "MS").all())
 
         p.translate_tables(replace_columns=True)
-        self.assertFalse(p.bpp["kstar_1"].dtype == np.float64)
+        self.assertFalse(p.bpp["kstar_1"].dtype == np.int64)
 
     def test_cartoon(self):
         """Ensure that the cartoon plot works"""
