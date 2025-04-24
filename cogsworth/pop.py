@@ -311,6 +311,7 @@ class Population():
             "gaia": "Observability of systems with Gaia was predicted using an empirical selection function",
             "legwork": "Calculation of LISA gravitational wave signatures was performed using LEGWORK",
             "FIRE": "The initial conditions for the population were sampled from the FIRE simulations",
+            "hydro": "Hydrodynamical simulations used to inform the star formation history and galactic potential were processed using pynbody",
         }
 
         acknowledgement = r"This research made use of \texttt{cogsworth} and its dependencies"

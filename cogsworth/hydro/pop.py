@@ -68,6 +68,7 @@ class HydroPopulation(Population):
         if snapshot_type is not None:
             if snapshot_type.lower() == "fire":
                 self.__citations__.append("FIRE")
+        self.__citations__.append("pynbody")
 
     def __repr__(self):
         if self._orbits is None:

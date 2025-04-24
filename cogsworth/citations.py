@@ -435,5 +435,16 @@ archivePrefix = {arXiv},
  primaryClass = {astro-ph.GA},
        adsurl = {https://ui.adsabs.harvard.edu/abs/2023MNRAS.519.3154H},
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}}"""},
+    },
+    "hydro": {
+        "pynbody": {
+            "tags": ["pynbody"],
+            "bibtex": r"""@misc{pynbody,
+  author = {{Pontzen}, A. and {Ro{\v s}kar}, R. and {Stinson}, G.~S. and {Woods},
+     R. and {Reed}, D.~M. and {Coles}, J. and {Quinn}, T.~R.},
+  title = "{pynbody: Astrophysics Simulation Analysis for Python}",
+  note = {Astrophysics Source Code Library, ascl:1305.002},
+  year = 2013}"""
+        }
     }
 }
