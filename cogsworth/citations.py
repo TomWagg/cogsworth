@@ -3,8 +3,39 @@
 CITATIONS = {
     "general": {
         "cogsworth": {
-            "tags": ["cogsworth:joss"],
-            "bibtex": "TODO - cogsworth citation will go here"
+            "tags": ["cogsworth:joss", "cogsworth:apjs"],
+            "bibtex": r"""@ARTICLE{cogsworth:joss,
+       author = {{Wagg}, Tom and {Breivik}, Katelyn and {Renzo}, Mathieu and {Price-Whelan}, Adrian},
+        title = "{cogsworth: A Gala of COSMIC proportions combining binary stellar evolution and galactic dynamics}",
+      journal = {The Journal of Open Source Software},
+     keywords = {astronomy, binary stellar evolution, galactic dynamics, Python},
+         year = 2025,
+        month = jan,
+       volume = {10},
+       number = {105},
+          eid = {7400},
+        pages = {7400},
+          doi = {10.21105/joss.07400},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2025JOSS...10.7400W},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}}
+      
+@ARTICLE{cogsworth:apjs,
+       author = {{Wagg}, Tom and {Breivik}, Katelyn and {Renzo}, Mathieu and {Price-Whelan}, Adrian M.},
+        title = "{cogsworth: A Gala of COSMIC Proportions Combining Binary Stellar Evolution and Galactic Dynamics}",
+      journal = {\apjs},
+     keywords = {Binary stars, Stellar evolution, Galaxy dynamics, Open source software, 154, 1599, 591, 1866, Astrophysics - Astrophysics of Galaxies, Astrophysics - Instrumentation and Methods for Astrophysics, Astrophysics - Solar and Stellar Astrophysics},
+         year = 2025,
+        month = jan,
+       volume = {276},
+       number = {1},
+          eid = {16},
+        pages = {16},
+          doi = {10.3847/1538-4365/ad8b1f},
+archivePrefix = {arXiv},
+       eprint = {2409.04543},
+ primaryClass = {astro-ph.GA},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2025ApJS..276...16W},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}}"""
         },
         "cosmic": {
             "tags": ["cosmic:apj"],
@@ -404,5 +435,16 @@ archivePrefix = {arXiv},
  primaryClass = {astro-ph.GA},
        adsurl = {https://ui.adsabs.harvard.edu/abs/2023MNRAS.519.3154H},
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}}"""},
+    },
+    "hydro": {
+        "pynbody": {
+            "tags": ["pynbody"],
+            "bibtex": r"""@misc{pynbody,
+  author = {{Pontzen}, A. and {Ro{\v s}kar}, R. and {Stinson}, G.~S. and {Woods},
+     R. and {Reed}, D.~M. and {Coles}, J. and {Quinn}, T.~R.},
+  title = "{pynbody: Astrophysics Simulation Analysis for Python}",
+  note = {Astrophysics Source Code Library, ascl:1305.002},
+  year = 2013}"""
+        }
     }
 }
