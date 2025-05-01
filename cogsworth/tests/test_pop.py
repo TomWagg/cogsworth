@@ -6,6 +6,7 @@ import cogsworth.observables as obs
 import h5py as h5
 import os
 import pytest
+import astropy.units as u
 
 
 class Test(unittest.TestCase):
@@ -223,6 +224,9 @@ class Test(unittest.TestCase):
         p.plot_map(ra="auto", dec="auto", coord="C", show=False)
         p.plot_map(ra="auto", dec="auto", coord="G", show=False)
         p.plot_sky_locations(show=False)
+        p.plot_orbit(0, show=False)
+        p.plot_orbit(0, t_max=0.1 * u.Myr, show=False)
+
 
     def test_getters(self):
         """Test the property getters"""
