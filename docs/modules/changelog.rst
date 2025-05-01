@@ -4,6 +4,13 @@ Full changelog
 
 This page tracks all of the changes that have been made to ``cogsworth``. We follow the standard versioning convention of A.B.C, where C is a patch/bugfix, B is a large bugfix or new feature and A is a major new breaking change. B/C are backwards compatible but A changes may be breaking.
 
+2.1.0
+=====
+
+- New feature: `plot_orbit` now shows the location of mergers (either stellar or GW), this can be turned off with the `show_merger` argument
+- Bug fix: `plot_orbit` hides the SN/merger locations if they occur after `t_max` (previously they were shown even though the orbit might not reach them)
+- Bug fix ([#154](https://github.com/TomWagg/cogsworth/issues/154)): Ensure secondary SNe are still shown for bound binaries in `plot_orbit`
+
 2.0.4
 =====
 - `cogsworth` is now published 🎉 Citations are updated to match

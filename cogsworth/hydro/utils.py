@@ -56,7 +56,7 @@ def prepare_snapshot(path, halo_params={"mode": "ssc"}):
 
             try:
                 pynbody.analysis.halo.center(snap, **halo_params)
-            except ValueError as e:
+            except ValueError as e:             # pragma: no cover
                 if str(e).startswith("Insufficient particles"):
                     logging.getLogger("cogsworth").error((f"{BOLD}cogsworth error:{RESET} pynbody returned this error: {e}. But this often happens when your pynbody installation is not configured correctly to work with FIRE snapshots."))
                     answer = input("Would you like me to try to fix this for you? (This will overwrite the .pynbodyrc in your home directory if it already exists) [Y/n] ")

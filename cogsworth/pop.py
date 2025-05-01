@@ -1442,7 +1442,7 @@ class Population():
         """
         return plot_cartoon_evolution(self.bpp, bin_num, **kwargs)
 
-    def plot_orbit(self, bin_num, show_sn=True, sn_kwargs={}, show=True,
+    def plot_orbit(self, bin_num, show_sn=True, show_merger=True, sn_kwargs={}, show=True,
                    show_legend=True, **kwargs):
         """Plot the Galactic orbit of a binary system
 
@@ -1451,7 +1451,9 @@ class Population():
         bin_num : `int`
             Which binary to plot
         show_sn : `bool`, optional
-            Whether to show the position of the SN, by default True
+            Whether to show the position of the SNe, by default True
+        show_merger : `bool`, optional
+            Whether to show the position of a merger, by default True
         sn_kwargs : `dict`, optional
             Any additional arguments to pass to the SN scatter plot call, by default {}
         show : `bool`, optional
@@ -1492,35 +1494,43 @@ class Population():
                                         show_legend=False, fig=fig, axes=axes, **kwargs)
 
         # extra bit if you want to show the SN locations
-        if show_sn:
+        if show_sn or show_merger:
             # set the colours
-            colours = [None, None]
+            colours = [None, None, "black"]
             if "primary_kwargs" in kwargs and "color" in kwargs["primary_kwargs"]:      # pragma: no cover
                 colours[0] = kwargs["primary_kwargs"]["color"]
             if "secondary_kwargs" in kwargs and "color" in kwargs["secondary_kwargs"]:  # pragma: no cover
                 colours[1] = kwargs["secondary_kwargs"]["color"]
 
-            # loop over the primary and secondary
+            # loop over the primary and secondary supernova + merger
             rows = self.bpp.loc[bin_num]
-            for mask, orbit, colour, l in zip([((rows["evol_type"] == 15)
-                                               | ((rows["evol_type"] == 16) & (rows["sep"] == 0.0))),
-                                              rows["evol_type"] == 16],
-                                              [primary_orbit, secondary_orbit], colours,
-                                              ["Primary", "Secondary"]):
+            for loop in zip([((rows["evol_type"] == 15) | ((rows["evol_type"] == 16) & (rows["sep"] == 0.0))),
+                             (rows["evol_type"] == 16) & (rows["sep"] > 0.0),
+                             rows["sep"] == 0.0],
+                            [primary_orbit, (secondary_orbit if disrupted else primary_orbit), primary_orbit],
+                            colours,
+                            ["Primary supernova", "Secondary supernova", "Merger"],
+                            [show_sn, show_sn, show_merger]):
+                mask, orbit, colour, l, show_obj = loop
                 # if there is no SN or no orbit then skip
-                if not np.any(mask) or orbit is None:           # pragma: no cover
+                if not np.any(mask) or orbit is None or not show_obj:           # pragma: no cover
                     continue
 
                 # find the time of the SN the closest position before it occurs
                 sn_time = rows["tphys"][mask].iloc[0] * u.Myr
                 sn_pos = orbit[orbit.t - orbit.t[0] <= sn_time][-1]
 
+                # don't plot the SN if it is outside the time range
+                if "t_max" in kwargs and kwargs["t_max"] is not None and sn_time > kwargs["t_max"]:
+                    continue
+
                 # some default style settings
                 full_sn_kwargs = {
-                    "marker": (10, 2, 0),
+                    "marker": (10, 2, 0) if "supernova" in l else "P",
                     "color": colour,
                     "s": 100,
-                    "label": f"{l} supernova"
+                    "label": l,
+                    "zorder": 10,
                 }
                 full_sn_kwargs.update(sn_kwargs)
 

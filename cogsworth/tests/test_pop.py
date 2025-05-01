@@ -6,6 +6,7 @@ import cogsworth.observables as obs
 import h5py as h5
 import os
 import pytest
+import astropy.units as u
 
 
 class Test(unittest.TestCase):
@@ -75,12 +76,15 @@ class Test(unittest.TestCase):
 
     def test_save_complicated_sampling(self):
         """Check that you can save a population with complicated sampling params"""
-        p = pop.Population(2, processes=1, 
-                           sampling_params={"qmin": 0.5, "porb_model": {
-            "min": 0.15,
-            "max": 5,
-            "slope": 0.0
-        }})
+        p = pop.Population(2, processes=1,
+                           sampling_params={
+                               "qmin": 0.5,
+                               "porb_model": {
+                                    "min": 0.15,
+                                    "max": 5,
+                                    "slope": 0.0
+                                }
+                           })
         p.create_population()
 
         p.save("testing-pop-io-sampling", overwrite=True)
@@ -223,6 +227,22 @@ class Test(unittest.TestCase):
         p.plot_map(ra="auto", dec="auto", coord="C", show=False)
         p.plot_map(ra="auto", dec="auto", coord="G", show=False)
         p.plot_sky_locations(show=False)
+
+        # find a binary that disrupted
+        bn = p.bin_nums[p.disrupted][0]
+        p.plot_orbit(bn, show=False)
+        p.plot_orbit(bn, t_max=0.1 * u.Myr, show=False)
+
+    def test_initial_binaries_replace_initC(self):
+        """Test that initial binaries returns initC if present and initial_binaries is not"""
+
+        p = pop.Population(2, processes=1)
+        p.sample_initial_binaries()
+        p.sample_initial_galaxy()
+        p.perform_stellar_evolution()
+
+        p._initial_binaries = None
+        self.assertTrue(p.initial_binaries is p.initC)
 
     def test_getters(self):
         """Test the property getters"""
