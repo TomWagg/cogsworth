@@ -227,8 +227,11 @@ class Test(unittest.TestCase):
         p.plot_map(ra="auto", dec="auto", coord="C", show=False)
         p.plot_map(ra="auto", dec="auto", coord="G", show=False)
         p.plot_sky_locations(show=False)
-        p.plot_orbit(0, show=False)
-        p.plot_orbit(0, t_max=0.1 * u.Myr, show=False)
+
+        # find a binary that disrupted
+        bn = p.bin_nums[p.disrupted][0]
+        p.plot_orbit(bn, show=False)
+        p.plot_orbit(bn, t_max=0.1 * u.Myr, show=False)
 
     def test_initial_binaries_replace_initC(self):
         """Test that initial binaries returns initC if present and initial_binaries is not"""
