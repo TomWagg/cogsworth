@@ -1517,7 +1517,7 @@ class Population():
                     continue
 
                 # find the time of the SN the closest position before it occurs
-                sn_time = rows["tphys"][mask].iloc[0] * u.Myr
+                sn_time = rows["tphys"][mask].iloc[0] * u.Myr                   # pragma: no cover
                 sn_pos = orbit[orbit.t - orbit.t[0] <= sn_time][-1]
 
                 # don't plot the SN if it is outside the time range
