@@ -76,12 +76,15 @@ class Test(unittest.TestCase):
 
     def test_save_complicated_sampling(self):
         """Check that you can save a population with complicated sampling params"""
-        p = pop.Population(2, processes=1, 
-                           sampling_params={"qmin": 0.5, "porb_model": {
-            "min": 0.15,
-            "max": 5,
-            "slope": 0.0
-        }})
+        p = pop.Population(2, processes=1,
+                           sampling_params={
+                               "qmin": 0.5,
+                               "porb_model": {
+                                    "min": 0.15,
+                                    "max": 5,
+                                    "slope": 0.0
+                                }
+                           })
         p.create_population()
 
         p.save("testing-pop-io-sampling", overwrite=True)
@@ -227,6 +230,16 @@ class Test(unittest.TestCase):
         p.plot_orbit(0, show=False)
         p.plot_orbit(0, t_max=0.1 * u.Myr, show=False)
 
+    def test_initial_binaries_replace_initC(self):
+        """Test that initial binaries returns initC if present and initial_binaries is not"""
+
+        p = pop.Population(2, processes=1)
+        p.sample_initial_binaries()
+        p.sample_initial_galaxy()
+        p.perform_stellar_evolution()
+
+        p._initial_binaries = None
+        self.assertTrue(p.initial_binaries is p.initC)
 
     def test_getters(self):
         """Test the property getters"""
