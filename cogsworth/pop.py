@@ -1505,7 +1505,7 @@ class Population():
             # loop over the primary and secondary supernova + merger
             rows = self.bpp.loc[bin_num]
             for loop in zip([((rows["evol_type"] == 15) | ((rows["evol_type"] == 16) & (rows["sep"] == 0.0))),
-                             (rows["evol_type"] == 16) & (rows["sep"] > 0.0),
+                             (rows["evol_type"] == 16) & (rows["sep"] != 0.0),
                              rows["sep"] == 0.0],
                             [primary_orbit, (secondary_orbit if disrupted else primary_orbit), primary_orbit],
                             colours,
