@@ -17,8 +17,12 @@ from cosmic.sample.initialbinarytable import InitialBinaryTable
 from cosmic.evolve import Evolve
 from cosmic.checkstate import set_checkstates
 from cosmic.utils import parse_inifile
-import gala.potential as gp
-import gala.dynamics as gd
+import galax.potential as gp
+import galax.dynamics as gd
+import galax.coordinates as gc
+import unxt as ux
+import coordinax as cx
+import jax.numpy as jnp
 from gala.potential.potential.io import to_dict as potential_to_dict, from_dict as potential_from_dict
 
 from cogsworth import sfh
@@ -29,6 +33,20 @@ from cogsworth.observables import get_photometry
 from cogsworth.tests.optional_deps import check_dependencies
 from cogsworth.plot import plot_cartoon_evolution, plot_galactic_orbit
 from cogsworth.utils import translate_COSMIC_tables
+
+import os
+import traceback
+
+_real_fork = os.fork
+
+def tracing_fork():
+    print("os.fork() called!")
+    traceback.print_stack()
+    return _real_fork()
+
+os.fork = tracing_fork
+
+
 
 from cogsworth.citations import CITATIONS
 
@@ -82,7 +100,7 @@ class Population():
     """
     def __init__(self, n_binaries, processes=8, m1_cutoff=0, final_kstar1=list(range(16)),
                  final_kstar2=list(range(16)), sfh_model=sfh.Wagg2022, sfh_params={},
-                 galactic_potential=gp.MilkyWayPotential(), v_dispersion=5 * u.km / u.s,
+                 galactic_potential=gp.MilkyWayPotential2022(), v_dispersion=5 * u.km / u.s,
                  max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, ini_file=None,
                  sampling_params={}, bcm_timestep_conditions=[], store_entire_orbits=True):
 
@@ -858,12 +876,29 @@ class Population():
         vel_units = u.km / u.s
 
         # calculate the Galactic circular velocity at the initial positions
-        v_circ = self.galactic_potential.circular_velocity(q=[self._initial_galaxy.x,
-                                                              self._initial_galaxy.y,
-                                                              self._initial_galaxy.z]).to(vel_units)
+        v_circ = self.galactic_potential.local_circular_velocity(
+            gc.PhaseSpaceCoordinate(
+                q=cx.CartesianPos3D(
+                    x=self._initial_galaxy.x.to(u.kpc).value * ux.unit("kpc"),
+                    y=self._initial_galaxy.y.to(u.kpc).value * ux.unit("kpc"),
+                    z=self._initial_galaxy.z.to(u.kpc).value * ux.unit("kpc")
+                ),
+                p=cx.CartesianVel3D(
+                    x=np.zeros_like(self._initial_galaxy.x.to(u.kpc).value) * ux.unit("kpc / Myr"),
+                    y=np.zeros_like(self._initial_galaxy.y.to(u.kpc).value) * ux.unit("kpc / Myr"),
+                    z=np.zeros_like(self._initial_galaxy.z.to(u.kpc).value) * ux.unit("kpc / Myr")
+                ),
+                t=(self._initial_galaxy.galaxy_age - self._initial_galaxy.tau).to(u.Myr).value * ux.unit("Myr")
+            )
+        ).to(vel_units)
+
+        v_circ = np.array(v_circ.value)
+
+        print(v_circ)
+        print([np.zeros(len(v_circ)), v_circ, np.zeros(len(v_circ))])
 
         # add some velocity dispersion
-        v_R, v_T, v_z = np.random.normal([np.zeros_like(v_circ), v_circ, np.zeros_like(v_circ)],
+        v_R, v_T, v_z = np.random.normal([np.zeros(len(v_circ)), v_circ, np.zeros(len(v_circ))],
                                          self.v_dispersion.to(vel_units) / np.sqrt(3),
                                          size=(3, self.n_binaries_match))
         v_R, v_T, v_z = v_R * vel_units, v_T * vel_units, v_z * vel_units
@@ -1065,11 +1100,29 @@ class Population():
                + self.initial_galaxy.rho * np.cos(self.initial_galaxy.phi) * v_phi)
 
         # combine the representation and differentials into a Gala PhaseSpacePosition
-        w0s = gd.PhaseSpacePosition(pos=[a.to(u.kpc).value for a in [self.initial_galaxy.x,
-                                                                     self.initial_galaxy.y,
-                                                                     self.initial_galaxy.z]] * u.kpc,
-                                    vel=[a.to(u.km/u.s).value for a in [v_X, v_Y,
-                                                                        self.initial_galaxy.v_z]] * u.km/u.s)
+        # w0s = gd.PhaseSpacePosition(pos=[a.to(u.kpc).value for a in [self.initial_galaxy.x,
+        #                                                              self.initial_galaxy.y,
+        #                                                              self.initial_galaxy.z]] * u.kpc,
+        #                             vel=[a.to(u.km/u.s).value for a in [v_X, v_Y,
+        #                                                                 self.initial_galaxy.v_z]] * u.km/u.s)
+
+        w0s = gc.PhaseSpaceCoordinate(
+            q=jnp.array(
+                [
+                    self.initial_galaxy.x.to(u.kpc).value,
+                    self.initial_galaxy.y.to(u.kpc).value,
+                    self.initial_galaxy.z.to(u.kpc).value
+                ]
+            ).T * ux.unit("kpc"),
+            p=jnp.array(
+                [
+                    v_X.to(u.km/u.s).value,
+                    v_Y.to(u.km/u.s).value,
+                    self.initial_galaxy.v_z.to(u.km/u.s).value
+                ]
+            ).T * ux.unit("km/s"),
+            t=jnp.array(self.initial_galaxy.tau.to(u.Myr).value) * ux.unit("Myr")
+        )
 
         # randomly drawn phase and inclination angles as necessary
         for col in ["phase_sn_1", "phase_sn_2", "inc_sn_1", "inc_sn_2"]:
@@ -1128,6 +1181,8 @@ class Population():
                                                           t2=self.max_ev_time, dt=copy(self.timestep_size),
                                                           events=secondary_events[i], quiet=quiet,
                                                           store_all=self.store_entire_orbits))
+
+        print(orbits)
 
         # check for bad orbits
         bad_orbits = np.array([orbit is None for orbit in orbits])

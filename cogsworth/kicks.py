@@ -1,10 +1,14 @@
 import numpy as np
-import gala.integrate as gi
-import gala.dynamics as gd
-import gala.potential as gp
+# import galax.integrate as gi
+import galax.dynamics as gd
+import galax.potential as gp
+import galax.coordinates as gc
+import jax.numpy as jnp
 
 import astropy.coordinates as coords
 import astropy.units as u
+import unxt as ux
+import coordinax as cx
 
 __all__ = ["get_kick_differential", "integrate_orbit_with_events"]
 
@@ -39,12 +43,10 @@ def get_kick_differential(delta_v_sys_xyz, phase=None, inclination=None):
         - delta_v_sys_xyz[2] * np.cos(theta) * np.sin(phi)
     v_Z = delta_v_sys_xyz[1] * np.sin(phi) + delta_v_sys_xyz[2] * np.cos(phi)
 
-    kick_differential = coords.CartesianDifferential(v_X, v_Y, v_Z)
-
-    return kick_differential
+    return v_X, v_Y, v_Z
 
 
-def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential(), events=None,
+def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential2022(), events=None,
                                 store_all=True, quiet=False):
     """Integrate :class:`~gala.dynamics.PhaseSpacePosition` in a 
     :class:`Potential <gala.potential.potential.PotentialBase>` with events that occur at certain times
@@ -82,11 +84,16 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential()
     """
     # if there are no events then just integrate the whole thing
     if events is None:
-        full_orbit = potential.integrate_orbit(w0, t1=t1, t2=t2, dt=dt, Integrator=gi.DOPRI853Integrator)
+        full_orbit = gd.evaluate_orbit(potential, w0,
+                                       ux.Quantity(jnp.arange(t1.value,
+                                                              t2.value + dt.value, dt.value), "Myr"))
+        # full_orbit = potential.integrate_orbit(w0, t1=t1, t2=t2, dt=dt, Integrator=gi.DOPRI853Integrator)
         # jettison everything but the final timestep if user says so
         if not store_all:
             full_orbit = full_orbit[-1:]
         return full_orbit
+
+    usys = u.unitsystem("kpc", "Msun", "Myr", "rad")
 
     # allow two retries with smaller timesteps
     MAX_DT_RESIZE = 2
@@ -95,7 +102,10 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential()
             success = False
 
             # work out what the timesteps would be without kicks
-            timesteps = gi.parse_time_specification(units=[u.s], t1=t1, t2=t2, dt=dt) * u.s
+            # timesteps = gi.parse_time_specification(units=[u.s], t1=t1, t2=t2, dt=dt) * u.s
+            timesteps = jnp.arange(t1.to(u.Myr).value,
+                                   t2.to(u.Myr).value + dt.to(u.Myr).value,
+                                   dt.to(u.Myr).value) * ux.unit("Myr")
 
             # start the cursor at the first timestep
             time_cursor = timesteps[0]
@@ -114,8 +124,9 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential()
                     matching_timesteps = timesteps[timestep_mask]
 
                     # integrate the orbit over these timesteps
-                    orbit = potential.integrate_orbit(current_w0, t=matching_timesteps,
-                                                      Integrator=gi.DOPRI853Integrator)
+                    orbit = gd.evaluate_orbit(potential, current_w0, matching_timesteps)
+                    # orbit = potential.integrate_orbit(current_w0, t=matching_timesteps,
+                    #                                   Integrator=gi.DOPRI853Integrator)
 
                     # save the orbit data (minus the last timestep to avoid duplicates)
                     orbit_data.append(orbit.data[:-1])
@@ -133,10 +144,17 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential()
                 kick_differential = get_kick_differential(delta_v_sys_xyz=event["delta_v_sys_xyz"],
                                                           phase=event["phase"], inclination=event["inc"])
 
+                applied_kick = cx.CartesianVel3D(
+                    x=kick_differential[0].to(u.km / u.s).value * ux.unit("km / s"),
+                    y=kick_differential[1].to(u.km / u.s).value * ux.unit("km / s"),
+                    z=kick_differential[2].to(u.km / u.s).value * ux.unit("km / s")
+                )
+
                 # update the velocity of the current PhaseSpacePosition
-                current_w0 = gd.PhaseSpacePosition(pos=current_w0.pos,
-                                                   vel=current_w0.vel + kick_differential,
-                                                   frame=current_w0.frame)
+                current_w0 = gc.PhaseSpaceCoordinate(q=current_w0.q,
+                                                     p=current_w0.p + applied_kick.uconvert(usys),
+                                                     t=time_cursor,
+                                                     frame=current_w0.frame)
 
             # if we still have time left after the last event (very likely)
             if time_cursor < timesteps[-1]:
@@ -146,11 +164,31 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential()
                                                   Integrator=gi.DOPRI853Integrator)
                 orbit_data.append(orbit.data)
 
-            data = coords.concatenate_representations(orbit_data) if len(orbit_data) > 1 else orbit_data[0]
-
-            full_orbit = gd.orbit.Orbit(pos=data.without_differentials(),
-                                        vel=data.differentials["s"],
-                                        t=timesteps.to(u.Myr))
+            data = None
+            if len(orbit_data) == 1:
+                full_orbit = gd.orbit.Orbit(q=orbit_data[0]["length"],
+                                            p=orbit_data[0]["speed"],
+                                            t=timesteps,
+                                            frame=orbit_data[0].frame)
+            else:
+                # concatenate all the orbit data together
+                # this is necessary because the timesteps may not be uniform
+                # and so we need to concatenate the representations together
+                # to get a single Orbit
+                full_orbit = gd.orbit.Orbit(
+                    q=cx.CartesianPos3D(
+                        x=jnp.concatenate([od["length"].x.value for od in orbit_data]) * orbit_data[0]["length"].x.unit,
+                        y=jnp.concatenate([od["length"].y.value for od in orbit_data]) * orbit_data[0]["length"].y.unit,
+                        z=jnp.concatenate([od["length"].z.value for od in orbit_data]) * orbit_data[0]["length"].z.unit
+                    ),
+                    p= cx.CartesianVel3D(
+                        x=jnp.concatenate([od["speed"].x.value for od in orbit_data]) * orbit_data[0]["speed"].x.unit,
+                        y=jnp.concatenate([od["speed"].y.value for od in orbit_data]) * orbit_data[0]["speed"].y.unit,
+                        z=jnp.concatenate([od["speed"].z.value for od in orbit_data]) * orbit_data[0]["speed"].z.unit
+                    ),
+                    t=timesteps,
+                    frame=orbit_data[0].frame,
+                )
             success = True
             break
 
