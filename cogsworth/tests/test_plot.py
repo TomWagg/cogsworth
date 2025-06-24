@@ -19,7 +19,7 @@ class Test(unittest.TestCase):
 
     def test_plot_orbit(self):
         """Test you can plot a galactic orbit of a binary"""
-        p = cogsworth.pop.Population(10, final_kstar1=[13, 14])
+        p = cogsworth.pop.Population(50, final_kstar1=[13, 14])
         p.create_population()
         while not any(p.disrupted):
             p.create_population()
