@@ -4,6 +4,10 @@ Full changelog
 
 This page tracks all of the changes that have been made to ``cogsworth``. We follow the standard versioning convention of A.B.C, where C is a patch/bugfix, B is a large bugfix or new feature and A is a major new breaking change. B/C are backwards compatible but A changes may be breaking.
 
+2.1.1
+=====
+- Allow choice of `bpp` and `bcm` columns as I implemented in COSMIC (see [#86](https://github.com/TomWagg/cogsworth/issues/86))
+
 2.1.0
 =====
 
