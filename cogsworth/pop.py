@@ -982,7 +982,8 @@ class Population():
             self._bpp, bcm, self._initC, \
                 self._kick_info = Evolve.evolve(initialbinarytable=ibt,
                                                 BSEDict=self.BSE_settings, pool=self.pool,
-                                                timestep_conditions=self.bcm_timestep_conditions)
+                                                timestep_conditions=self.bcm_timestep_conditions,
+                                                bpp_columns=self.bpp_columns, bcm_columns=self.bcm_columns)
 
             # only save BCM when it has interesting timesteps
             if self.bcm_timestep_conditions != []:
