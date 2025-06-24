@@ -79,12 +79,19 @@ class Population():
         Whether to store the entire orbit for each binary, by default True. If not then only the final
         PhaseSpacePosition will be stored. This cuts down on both memory usage and disk space used if you
         save the Population (as well as how long it takes to reload the data).
+    bpp_columns : `list`, optional
+        Which columns COSMIC should store in the `bpp` table. If None, default columns are used.
+        See https://cosmic-popsynth.github.io/COSMIC/pages/output_info.html for a list of columns.
+    bcm_columns : `list`, optional
+        Which columns COSMIC should store in the `bcm` table. If None, default columns are used.
+        See https://cosmic-popsynth.github.io/COSMIC/pages/output_info.html for a list of columns.
     """
     def __init__(self, n_binaries, processes=8, m1_cutoff=0, final_kstar1=list(range(16)),
                  final_kstar2=list(range(16)), sfh_model=sfh.Wagg2022, sfh_params={},
                  galactic_potential=gp.MilkyWayPotential(), v_dispersion=5 * u.km / u.s,
                  max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, ini_file=None,
-                 sampling_params={}, bcm_timestep_conditions=[], store_entire_orbits=True):
+                 sampling_params={}, bcm_timestep_conditions=[], store_entire_orbits=True,
+                 bpp_columns=None, bcm_columns=None):
 
         # require a sensible number of binaries if you are not targetting total mass
         if not ("sampling_target" in sampling_params and sampling_params["sampling_target"] == "total_mass"):
@@ -105,6 +112,8 @@ class Population():
         self.timestep_size = timestep_size
         self.pool = None
         self.store_entire_orbits = store_entire_orbits
+        self.bpp_columns = bpp_columns
+        self.bcm_columns = bcm_columns
 
         self._file = None
         self._initial_binaries = None
@@ -887,6 +896,9 @@ class Population():
             Whether to reset any sampled kicks in the population to ensure new ones are drawn, by default True
         """
         self._bin_nums = None
+        self._final_bpp = None
+        self._initC = None
+        self._initial_binaries = None
 
         # if an initC table is provided then use that instead of sampling
         if initC is not None:
@@ -973,7 +985,8 @@ class Population():
             self._bpp, bcm, self._initC, \
                 self._kick_info = Evolve.evolve(initialbinarytable=ibt,
                                                 BSEDict=self.BSE_settings, pool=self.pool,
-                                                timestep_conditions=self.bcm_timestep_conditions)
+                                                timestep_conditions=self.bcm_timestep_conditions,
+                                                bpp_columns=self.bpp_columns, bcm_columns=self.bcm_columns)
 
             # only save BCM when it has interesting timesteps
             if self.bcm_timestep_conditions != []:
@@ -1089,6 +1102,7 @@ class Population():
                 self.pool = Pool(self.processes)
 
             # setup arguments to combine primary and secondaries into a single list
+            print(len(self.initial_galaxy.tau), len(primary_events), len(self.bin_nums))
             primary_args = [(w0s[i], self.max_ev_time - self.initial_galaxy.tau[i], self.max_ev_time,
                              copy(self.timestep_size), self.galactic_potential,
                              primary_events[i], self.store_entire_orbits, quiet)
@@ -1673,6 +1687,8 @@ class Population():
             num_par.attrs["final_kstar1"] = self.final_kstar1
             num_par.attrs["final_kstar2"] = self.final_kstar2
             num_par.attrs["timestep_conditions"] = self.bcm_timestep_conditions
+            num_par.attrs["bpp_columns"] = np.array(self.bpp_columns, dtype="S")
+            num_par.attrs["bcm_columns"] = np.array(self.bcm_columns, dtype="S")
 
             # save BSE settings
             d = file.create_dataset("BSE_settings", data=[])
@@ -1716,6 +1732,8 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
         final_kstars = [file["numeric_params"].attrs["final_kstar1"],
                         file["numeric_params"].attrs["final_kstar2"]]
         bcm_tc = file["numeric_params"].attrs["timestep_conditions"]
+        bpp_columns = file["numeric_params"].attrs["bpp_columns"]
+        bcm_columns = file["numeric_params"].attrs["bcm_columns"]
 
         # load in BSE settings
         for key in file["BSE_settings"].attrs:
@@ -1732,7 +1750,7 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
                    v_dispersion=numeric_params[4] * u.km / u.s, max_ev_time=numeric_params[5] * u.Gyr,
                    timestep_size=numeric_params[6] * u.Myr, BSE_settings=BSE_settings,
                    sampling_params=sampling_params, store_entire_orbits=store_entire_orbits,
-                   bcm_timestep_conditions=bcm_tc)
+                   bcm_timestep_conditions=bcm_tc, bpp_columns=bpp_columns, bcm_columns=bcm_columns)
 
     p._file = file_name
     p.n_binaries_match = int(numeric_params[1])
