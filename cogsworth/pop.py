@@ -896,6 +896,9 @@ class Population():
             Whether to reset any sampled kicks in the population to ensure new ones are drawn, by default True
         """
         self._bin_nums = None
+        self._final_bpp = None
+        self._initC = None
+        self._initial_binaries = None
 
         # if an initC table is provided then use that instead of sampling
         if initC is not None:
@@ -1099,6 +1102,7 @@ class Population():
                 self.pool = Pool(self.processes)
 
             # setup arguments to combine primary and secondaries into a single list
+            print(len(self.initial_galaxy.tau), len(primary_events), len(self.bin_nums))
             primary_args = [(w0s[i], self.max_ev_time - self.initial_galaxy.tau[i], self.max_ev_time,
                              copy(self.timestep_size), self.galactic_potential,
                              primary_events[i], self.store_entire_orbits, quiet)
