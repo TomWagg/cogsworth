@@ -682,3 +682,15 @@ class Test(unittest.TestCase):
         except NotImplementedError:
             it_failed = True
         self.assertTrue(it_failed)
+
+    def test_changing_columns(self):
+        """Check that a different choice of bpp and bcm columns works"""
+        TEST_COLS = ["mass_1", "mass_2", "tphys", "porb", "sep", "ecc", "evol_type"]
+        p = pop.Population(10, processes=1, bpp_columns=TEST_COLS, bcm_columns=TEST_COLS,
+                           bcm_timestep_conditions=[["mass_1 < 100", 'dtp=100000.0']])
+        p.create_population()
+
+        # bin_num is always added
+        TEST_COLS += ["bin_num"]
+        self.assertTrue(set(p.bpp.columns) == set(TEST_COLS))
+        self.assertTrue(set(p.bcm.columns) == set(TEST_COLS))
