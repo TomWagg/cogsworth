@@ -19,6 +19,7 @@ from cosmic.checkstate import set_checkstates
 from cosmic.utils import parse_inifile
 import gala.potential as gp
 import gala.dynamics as gd
+import gala.integrate as gi
 from gala.potential.potential.io import to_dict as potential_to_dict, from_dict as potential_from_dict
 
 from cogsworth import sfh
@@ -79,12 +80,18 @@ class Population():
         Whether to store the entire orbit for each binary, by default True. If not then only the final
         PhaseSpacePosition will be stored. This cuts down on both memory usage and disk space used if you
         save the Population (as well as how long it takes to reload the data).
+    integrator : :class:`~gala.integrate.Integrator`, optional
+        The integrator used by gala for evolving the orbits of binaries in the galactic potential
+        (default is :class:`~gala.integrate.DOPRI853Integrator`).
+    integrator_kwargs : `dict`, optional
+        Any additional keyword arguments to pass to the gala integrator, by default an empty dict
     """
     def __init__(self, n_binaries, processes=8, m1_cutoff=0, final_kstar1=list(range(16)),
                  final_kstar2=list(range(16)), sfh_model=sfh.Wagg2022, sfh_params={},
                  galactic_potential=gp.MilkyWayPotential(), v_dispersion=5 * u.km / u.s,
                  max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, ini_file=None,
-                 sampling_params={}, bcm_timestep_conditions=[], store_entire_orbits=True):
+                 sampling_params={}, bcm_timestep_conditions=[], store_entire_orbits=True, 
+                 integrator=gi.DOPRI853Integrator, integrator_kwargs={"a_tol": 1e-10, "r_tol": 1e-10}):
 
         # require a sensible number of binaries if you are not targetting total mass
         if not ("sampling_target" in sampling_params and sampling_params["sampling_target"] == "total_mass"):
@@ -105,6 +112,8 @@ class Population():
         self.timestep_size = timestep_size
         self.pool = None
         self.store_entire_orbits = store_entire_orbits
+        self.integrator = integrator
+        self.integrator_kwargs = integrator_kwargs
 
         self._file = None
         self._initial_binaries = None
@@ -235,7 +244,8 @@ class Population():
                                  v_dispersion=self.v_dispersion, max_ev_time=self.max_ev_time,
                                  timestep_size=self.timestep_size, BSE_settings=self.BSE_settings,
                                  sampling_params=self.sampling_params,
-                                 store_entire_orbits=self.store_entire_orbits)
+                                 store_entire_orbits=self.store_entire_orbits,
+                                 integrator=self.integrator)
         new_pop.n_binaries_match = new_pop.n_binaries
 
         # proxy for checking whether sampling has been done
@@ -1091,11 +1101,13 @@ class Population():
             # setup arguments to combine primary and secondaries into a single list
             primary_args = [(w0s[i], self.max_ev_time - self.initial_galaxy.tau[i], self.max_ev_time,
                              copy(self.timestep_size), self.galactic_potential,
-                             primary_events[i], self.store_entire_orbits, quiet)
+                             primary_events[i], self.store_entire_orbits, quiet, 
+                             self.integrator, self.integrator_kwargs)
                             for i in range(self.n_binaries_match)]
             secondary_args = [(w0s[i], self.max_ev_time - self.initial_galaxy.tau[i], self.max_ev_time,
                                copy(self.timestep_size), self.galactic_potential,
-                               secondary_events[i], self.store_entire_orbits, quiet)
+                               secondary_events[i], self.store_entire_orbits, quiet, 
+                               self.integrator, self.integrator_kwargs)
                               for i in range(self.n_binaries_match) if secondary_events[i] is not None]
             args = primary_args + secondary_args
 
@@ -1119,7 +1131,9 @@ class Population():
                                                           t1=self.max_ev_time - self.initial_galaxy.tau[i],
                                                           t2=self.max_ev_time, dt=copy(self.timestep_size),
                                                           events=primary_events[i], quiet=quiet,
-                                                          store_all=self.store_entire_orbits))
+                                                          store_all=self.store_entire_orbits),
+                                                          integrator=self.integrator,
+                                                          integrator_kwargs=self.integrator_kwargs)
             for i in range(self.n_binaries_match):
                 if secondary_events[i] is None:
                     continue
@@ -1127,7 +1141,9 @@ class Population():
                                                           t1=self.max_ev_time - self.initial_galaxy.tau[i],
                                                           t2=self.max_ev_time, dt=copy(self.timestep_size),
                                                           events=secondary_events[i], quiet=quiet,
-                                                          store_all=self.store_entire_orbits))
+                                                          store_all=self.store_entire_orbits),
+                                                          integrator=self.integrator,
+                                                          integrator_kwargs=self.integrator_kwargs)
 
         # check for bad orbits
         bad_orbits = np.array([orbit is None for orbit in orbits])
