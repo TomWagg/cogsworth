@@ -135,7 +135,10 @@ class Population():
         self._bcm = None
         self._initC = None
         self._kick_info = None
-        self._orbits = None
+        self._orbit_pos = None
+        self._orbit_vel = None
+        self._orbit_offsets = None
+        self._orbit_times = None
         self._classes = None
         self._final_pos = None
         self._final_vel = None
@@ -174,7 +177,7 @@ class Population():
         self.bcm_timestep_conditions = bcm_timestep_conditions
 
     def __repr__(self):
-        if self._orbits is None:
+        if self._orbit_pos is None:
             return (f"<{self.__class__.__name__} - {self.n_binaries} systems - "
                     f"galactic_potential={self.galactic_potential.__class__.__name__}, "
                     f"SFH={self.sfh_model.__name__}>")
@@ -196,7 +199,7 @@ class Population():
         # if the population is associated with a file, make sure it's entirely loaded before slicing
         if self._file is not None:
             parts = ["initial_binaries", "bpp", "initial_galaxy", "orbits"]
-            vars = [self._initial_binaries, self._bpp, self._initial_galaxy, self._orbits]
+            vars = [self._initial_binaries, self._bpp, self._initial_galaxy, self._orbit_pos]
             masks = {f"has_{p}": False for p in parts}
             with h5.File(self._file, "r") as f:
                 for p in parts:
@@ -292,7 +295,7 @@ class Population():
             if self._observables is not None:
                 new_pop._observables = self._observables.iloc[inds]
 
-            if self._orbits is not None or self._final_pos is not None or self._final_vel is not None:
+            if self._orbit_pos is not None or self._final_pos is not None or self._final_vel is not None:
                 disrupted_bin_num_to_ind = {num: i for i, num in enumerate(self.bin_nums[self.disrupted])}
                 sort_idx = np.argsort(list(disrupted_bin_num_to_ind.keys()))
                 idx = np.searchsorted(list(disrupted_bin_num_to_ind.keys()),
@@ -303,8 +306,8 @@ class Population():
                 all_inds = np.concatenate((inds, inds_with_disruptions)).astype(int)
 
             # same thing but for arrays with appended disrupted secondaries
-            if self._orbits is not None:
-                new_pop._orbits = self.orbits[all_inds]
+            if self._orbit_offsets is not None:
+                new_pop._orbit_offsets = self._orbit_offsets[all_inds]
             if self._final_pos is not None:
                 new_pop._final_pos = self._final_pos[all_inds]
             if self._final_vel is not None:
@@ -633,71 +636,6 @@ class Population():
         return self._kick_info
 
     @property
-    def orbits(self):
-        """The orbits of each system within the galaxy from its birth until :attr:`max_ev_time`.
-
-        This list will have length = `len(self) + self.disrupted.sum()`, where the first section are for
-        bound binaries and disrupted primaries and the last section are for disrupted secondaries.
-
-        Returns
-        -------
-        orbits : `list` of :class:`~gala.dynamics.Orbit`, shape (len(self) + self.disrupted.sum(),)
-            The orbits of each system within the galaxy from its birth until :attr:`max_ev_time`.
-
-        Raises
-        ------
-        ValueError
-            If no orbits have been calculated yet.
-        """
-        # if orbits are uncalculated and no file is provided then throw an error
-        if self._orbits is None and self._file is None:
-            raise ValueError("No orbits calculated yet, run `perform_galactic_evolution` to do so")
-        # otherwise if orbits are uncalculated but a file is provided then load the orbits from the file
-        elif self._orbits is None:
-            # load the entire file into memory
-            with h5.File(self._file, "r") as f:
-                if "orbits" not in f:
-                    raise ValueError(f"No orbits found in population file ({self._file})")
-
-                offsets = f["orbits"]["offsets"][...]
-                pos, vel = f["orbits"]["pos"][...] * u.kpc, f["orbits"]["vel"][...] * u.km / u.s
-                t = f["orbits"]["t"][...] * u.Myr
-
-            # convert positions, velocities and times into a list of orbits
-            self._orbits = np.array([gd.Orbit(pos[:, offsets[i]:offsets[i + 1]],
-                                              vel[:, offsets[i]:offsets[i + 1]],
-                                              t[offsets[i]:offsets[i + 1]]) for i in range(len(offsets) - 1)])
-
-            # also calculate the final positions and velocities while you're at it
-            final_inds = offsets[1:] - 1
-            self._final_pos = pos[:, final_inds].T
-            self._final_vel = vel[:, final_inds].T
-        return self._orbits
-
-    @property
-    def primary_orbits(self):
-        """The orbits of primary stars
-
-        Returns
-        -------
-        primary_orbits : :class:`~gala.dynamics.Orbit`, shape (len(self),)
-            The orbits of the primary stars in the population
-        """
-        return self.orbits[:len(self)]
-
-    @property
-    def secondary_orbits(self):
-        """The orbits of secondary stars
-
-        Returns
-        -------
-        secondary_orbits : :class:`~gala.dynamics.Orbit`, shape (len(self),)
-            The orbits of the secondary stars in the population
-        """
-        order = np.argsort(np.concatenate((self.bin_nums[~self.disrupted], self.bin_nums[self.disrupted])))
-        return np.concatenate((self.primary_orbits[~self.disrupted], self.orbits[len(self):]))[order] 
-
-    @property
     def classes(self):
         """A table of classes that apply to each binary.
 
@@ -715,32 +653,6 @@ class Population():
             logging.getLogger("cogswoth").info(f"{BOLD}cogsworth info:{RESET} No classes calculated yet, running now")
             self._classes = determine_final_classes(population=self)
         return self._classes
-
-    @property
-    def final_pos(self):
-        """The final position of each binary (or star from a disrupted binary) in the galaxy.
-
-        Returns
-        -------
-        final_pos : :class:`~numpy.ndarray`, shape (len(self) + self.disrupted.sum(), 3)
-            The final position of each binary (or star from a disrupted binary) in the galaxy.
-        """
-        if self._final_pos is None:
-            self._final_pos, self._final_vel = self._get_final_coords()
-        return self._final_pos
-
-    @property
-    def final_vel(self):
-        """The final velocity of each binary (or star from a disrupted binary) in the galaxy.
-
-        Returns
-        -------
-        final_vel : :class:`~numpy.ndarray`, shape (len(self) + self.disrupted.sum(), 3)
-            The final velocity of each binary (or star from a disrupted binary) in the galaxy.
-        """
-        if self._final_vel is None:
-            self._final_pos, self._final_vel = self._get_final_coords()
-        return self._final_vel
 
     @property
     def final_bpp(self):
@@ -893,9 +805,6 @@ class Population():
         ).to(vel_units)
 
         v_circ = np.array(v_circ.value)
-
-        print(v_circ)
-        print([np.zeros(len(v_circ)), v_circ, np.zeros(len(v_circ))])
 
         # add some velocity dispersion
         v_R, v_T, v_z = np.random.normal([np.zeros(len(v_circ)), v_circ, np.zeros(len(v_circ))],
@@ -1074,6 +983,10 @@ class Population():
             Whether to silence any warnings about failing orbits, by default False
         """
         # delete any cached variables that are based on orbits
+        self._orbit_offsets = None
+        self._orbit_pos = None
+        self._orbit_vel = None
+        self._orbit_times = None
         self._final_pos = None
         self._final_vel = None
         self._observables = None
@@ -1182,14 +1095,12 @@ class Population():
                                                           events=secondary_events[i], quiet=quiet,
                                                           store_all=self.store_entire_orbits))
 
-        print(orbits)
-
         # check for bad orbits
-        bad_orbits = np.array([orbit is None for orbit in orbits])
+        bad_orbits = [orbit is None for orbit in orbits]
 
         # if there are any bad orbits then warn the user and remove them from the population
         if any(bad_orbits):             # pragma: no cover
-            warnings.warn(f"{bad_orbits.sum()} bad orbit(s) detected, removing them from the population" +
+            warnings.warn(f"{sum(bad_orbits)} bad orbit(s) detected, removing them from the population" +
                           " (initial conditions for these systems were saved to `bad_orbits.h5` file)")
             bad_bin_nums = np.concatenate((self.bin_nums, self.bin_nums[self.disrupted]))[bad_orbits]
 
@@ -1203,45 +1114,22 @@ class Population():
             new_self = self[~np.isin(self.bin_nums, bad_bin_nums)]
             self.__dict__.update(new_self.__dict__)
 
-            orbits = np.array(orbits, dtype="object")[~bad_orbits]
+            orbits = [orbit for orbit in orbits if orbit is not None]
 
-        self._orbits = np.array(orbits, dtype="object")
+        orbit_lengths = [len(orbit) for orbit in orbits]
+        orbit_lengths_total = sum(orbit_lengths)
+        off = np.insert(np.cumsum(orbit_lengths), 0, 0)
+        self._orbit_pos = np.zeros((orbit_lengths_total, 3)) * ux.unit("kpc")
+        self._orbit_vel = np.zeros((orbit_lengths_total, 3)) * ux.unit("km / s")
+        self._orbit_times = np.zeros(orbit_lengths_total) * ux.unit("Myr")
 
-    def _get_final_coords(self):
-        """Get the final coordinates of each binary (or each component in disrupted binaries)
+        # save each orbit to the arrays with the same units
+        for i, orbit in enumerate(orbits):
+            self._orbit_pos[off[i]:off[i + 1]] = np.vstack([orbit.q.x, orbit.q.y, orbit.q.z]).T
+            self._orbit_vel[off[i]:off[i + 1]] = np.vstack([orbit.p.x, orbit.p.y, orbit.p.z]).T
+            self._orbit_times[off[i]:off[i + 1]] = orbit.t
 
-        Returns
-        -------
-        final_pos, final_vel : :class:`~astropy.quantity.Quantity`
-            Final positions and velocities of each system in the galactocentric frame.
-            The first `len(self)` entries of each are for bound binaries or primaries, then the final
-            `self.disrupted.sum()` entries are for disrupted secondaries. Any missing orbits (where orbit=None
-            will be set to `np.inf` for ease of masking.
-        """
-        if self._file is not None:
-            with h5.File(self._file, "r") as f:
-                offsets = f["orbits"]["offsets"][...]
-                pos, vel = f["orbits"]["pos"][...] * u.kpc, f["orbits"]["vel"][...] * u.km / u.s
-
-            final_inds = offsets[1:] - 1
-
-            self._final_pos = pos[:, final_inds].T
-            self._final_vel = vel[:, final_inds].T
-            del pos, vel
-        else:
-            # pool all of the orbits into a single numpy array
-            self._final_pos = np.ones((len(self.orbits), 3)) * np.inf
-            self._final_vel = np.ones((len(self.orbits), 3)) * np.inf
-            for i, orbit in enumerate(self.orbits):
-                # check if the orbit is missing
-                if orbit is None:
-                    print("Warning: Detected `None` orbit, entering coordinates as `np.inf`")
-                else:
-                    self._final_pos[i] = orbit[-1].pos.xyz.to(u.kpc).value
-                    self._final_vel[i] = orbit[-1].vel.d_xyz.to(u.km / u.s).value
-            self._final_pos *= u.kpc
-            self._final_vel *= u.km / u.s
-        return self._final_pos, self._final_vel
+        self._orbit_offsets = off
 
     def get_observables(self, **kwargs):
         """Get observables associated with the binaries at present day.
