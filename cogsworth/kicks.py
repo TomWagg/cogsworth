@@ -93,7 +93,7 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential20
             full_orbit = full_orbit[-1:]
         return full_orbit
 
-    usys = u.unitsystem("kpc", "Msun", "Myr", "rad")
+    usys = ux.unitsystem("kpc", "Msun", "Myr", "rad")
 
     # allow two retries with smaller timesteps
     MAX_DT_RESIZE = 2
@@ -129,7 +129,7 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential20
                     #                                   Integrator=gi.DOPRI853Integrator)
 
                     # save the orbit data (minus the last timestep to avoid duplicates)
-                    orbit_data.append(orbit.data[:-1])
+                    orbit_data.append(orbit[:-1].data)
 
                     # set new PhaseSpacePosition from the last timestep
                     current_w0 = orbit[-1]
@@ -160,16 +160,16 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential20
             if time_cursor < timesteps[-1]:
                 # evolve the rest of the orbit out
                 matching_timesteps = timesteps[timesteps >= time_cursor]
-                orbit = potential.integrate_orbit(current_w0, t=matching_timesteps,
-                                                  Integrator=gi.DOPRI853Integrator)
+                orbit = gd.evaluate_orbit(potential, current_w0, matching_timesteps)
+                # orbit = potential.integrate_orbit(current_w0, t=matching_timesteps,
+                #                                   Integrator=gi.DOPRI853Integrator)
                 orbit_data.append(orbit.data)
 
-            data = None
             if len(orbit_data) == 1:
                 full_orbit = gd.orbit.Orbit(q=orbit_data[0]["length"],
                                             p=orbit_data[0]["speed"],
                                             t=timesteps,
-                                            frame=orbit_data[0].frame)
+                                            frame=current_w0.frame)
             else:
                 # concatenate all the orbit data together
                 # this is necessary because the timesteps may not be uniform
@@ -187,7 +187,7 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential20
                         z=jnp.concatenate([od["speed"].z.value for od in orbit_data]) * orbit_data[0]["speed"].z.unit
                     ),
                     t=timesteps,
-                    frame=orbit_data[0].frame,
+                    frame=current_w0.frame,
                 )
             success = True
             break
