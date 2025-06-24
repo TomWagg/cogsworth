@@ -1683,8 +1683,8 @@ class Population():
             num_par.attrs["final_kstar1"] = self.final_kstar1
             num_par.attrs["final_kstar2"] = self.final_kstar2
             num_par.attrs["timestep_conditions"] = self.bcm_timestep_conditions
-            num_par.attrs["bpp_columns"] = self.bpp_columns
-            num_par.attrs["bcm_columns"] = self.bcm_columns
+            num_par.attrs["bpp_columns"] = np.array(self.bpp_columns, dtype="S")
+            num_par.attrs["bcm_columns"] = np.array(self.bcm_columns, dtype="S")
 
             # save BSE settings
             d = file.create_dataset("BSE_settings", data=[])
