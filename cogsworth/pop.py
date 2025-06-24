@@ -1682,6 +1682,8 @@ class Population():
             num_par.attrs["final_kstar1"] = self.final_kstar1
             num_par.attrs["final_kstar2"] = self.final_kstar2
             num_par.attrs["timestep_conditions"] = self.bcm_timestep_conditions
+            num_par.attrs["bpp_columns"] = self.bpp_columns
+            num_par.attrs["bcm_columns"] = self.bcm_columns
 
             # save BSE settings
             d = file.create_dataset("BSE_settings", data=[])
@@ -1725,6 +1727,8 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
         final_kstars = [file["numeric_params"].attrs["final_kstar1"],
                         file["numeric_params"].attrs["final_kstar2"]]
         bcm_tc = file["numeric_params"].attrs["timestep_conditions"]
+        bpp_columns = file["numeric_params"].attrs["bpp_columns"]
+        bcm_columns = file["numeric_params"].attrs["bcm_columns"]
 
         # load in BSE settings
         for key in file["BSE_settings"].attrs:
@@ -1741,7 +1745,7 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
                    v_dispersion=numeric_params[4] * u.km / u.s, max_ev_time=numeric_params[5] * u.Gyr,
                    timestep_size=numeric_params[6] * u.Myr, BSE_settings=BSE_settings,
                    sampling_params=sampling_params, store_entire_orbits=store_entire_orbits,
-                   bcm_timestep_conditions=bcm_tc)
+                   bcm_timestep_conditions=bcm_tc, bpp_columns=bpp_columns, bcm_columns=bcm_columns)
 
     p._file = file_name
     p.n_binaries_match = int(numeric_params[1])
