@@ -4,6 +4,10 @@ Full changelog
 
 This page tracks all of the changes that have been made to ``cogsworth``. We follow the standard versioning convention of A.B.C, where C is a patch/bugfix, B is a large bugfix or new feature and A is a major new breaking change. B/C are backwards compatible but A changes may be breaking.
 
+2.1.2
+=====
+- New feature: added optional key word arguments `integrator` and `integrator_kwargs` to `Population` class to allow users to specify the integrator settings for `gala`
+
 2.1.0
 =====
 
