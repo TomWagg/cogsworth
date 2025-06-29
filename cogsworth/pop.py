@@ -245,7 +245,8 @@ class Population():
                                  timestep_size=self.timestep_size, BSE_settings=self.BSE_settings,
                                  sampling_params=self.sampling_params,
                                  store_entire_orbits=self.store_entire_orbits,
-                                 integrator=self.integrator)
+                                 integrator=self.integrator,
+                                 integrator_kwargs=self.integrator_kwargs)
         new_pop.n_binaries_match = new_pop.n_binaries
 
         # proxy for checking whether sampling has been done
@@ -1649,6 +1650,7 @@ class Population():
         with h5.File(file_name, "a") as f:
             f.attrs["potential_dict"] = yaml.dump(potential_to_dict(self.galactic_potential),
                                                   default_flow_style=None)
+            
         if self._initial_galaxy is not None:
             self.initial_galaxy.save(file_name, key="initial_galaxy")
 
@@ -1698,6 +1700,11 @@ class Population():
             # save sampling params
             d = file.create_dataset("sampling_params", data=[])
             d.attrs["dict"] = yaml.dump(self.sampling_params, default_flow_style=None)
+            
+            # save integrator settings
+            d = file.create_dataset("integrator_settings", data=[])
+            d.attrs["integrator"] = self.integrator.__name__
+            d.attrs["integrator_kwargs"] = yaml.dump(self.integrator_kwargs, default_flow_style=None)
 
 
 def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolution"]):
@@ -1739,6 +1746,13 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
 
         sampling_params = yaml.load(file["sampling_params"].attrs["dict"], Loader=yaml.Loader)
 
+        integrator_name = file.get("integrator", None)
+        integrator_kwargs = file.get("integrator_kwargs", {"a_tol": 1e-10, "r_tol": 1e-10})
+        if integrator_name is None:
+            integrator = gi.DOPRI853Integrator
+        else:
+            integrator = getattr(gi, integrator_name)
+
     with h5.File(file_name, 'r') as f:
         galactic_potential = potential_from_dict(yaml.load(f.attrs["potential_dict"], Loader=yaml.Loader))
 
@@ -1748,7 +1762,8 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
                    v_dispersion=numeric_params[4] * u.km / u.s, max_ev_time=numeric_params[5] * u.Gyr,
                    timestep_size=numeric_params[6] * u.Myr, BSE_settings=BSE_settings,
                    sampling_params=sampling_params, store_entire_orbits=store_entire_orbits,
-                   bcm_timestep_conditions=bcm_tc)
+                   bcm_timestep_conditions=bcm_tc,
+                   integrator=integrator, integrator_kwargs=integrator_kwargs)
 
     p._file = file_name
     p.n_binaries_match = int(numeric_params[1])
