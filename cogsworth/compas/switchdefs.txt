@@ -1,0 +1,60 @@
+
+# sample standard log file specifications file
+
+# the '%' character and anything following it on a single line is considered a comment
+# (so, lines starting with '%' are comment lines)
+
+# case is not significant
+# specifications can span several lines
+# specifications for the same log file are cumulative
+# if a log file is not specified in this file, the default specification is used
+
+
+bse_sysparms_rec += {
+    STAR_1_PROPERTY::MASS,
+    STAR_2_PROPERTY::MASS,
+    STAR_1_PROPERTY::RADIUS,
+    STAR_2_PROPERTY::RADIUS,
+    BINARY_PROPERTY::ECCENTRICITY,
+    BINARY_PROPERTY::SEMI_MAJOR_AXIS_RSOL,
+    BINARY_PROPERTY::TIME
+}
+
+BSE_Switch_Rec += {
+    STAR_1_PROPERTY::MASS,
+    STAR_2_PROPERTY::MASS,
+    STAR_1_PROPERTY::STELLAR_TYPE,
+    STAR_2_PROPERTY::STELLAR_TYPE,
+    STAR_1_PROPERTY::LUMINOSITY,
+    STAR_2_PROPERTY::LUMINOSITY,
+    STAR_1_PROPERTY::RADIUS,
+    STAR_2_PROPERTY::RADIUS,
+    STAR_1_PROPERTY::TEMPERATURE,
+    STAR_2_PROPERTY::TEMPERATURE,
+    STAR_1_PROPERTY::IS_RLOF,
+    STAR_2_PROPERTY::IS_RLOF,
+    BINARY_PROPERTY::ECCENTRICITY,
+    BINARY_PROPERTY::SEMI_MAJOR_AXIS_RSOL,
+}
+
+BSE_RLOF_Rec += {
+    STAR_1_PROPERTY::TEMPERATURE,
+    STAR_2_PROPERTY::TEMPERATURE,
+}
+
+BSE_SNE_Rec += {
+    STAR_1_PROPERTY::MASS,
+    STAR_2_PROPERTY::MASS,
+    STAR_1_PROPERTY::STELLAR_TYPE,
+    STAR_2_PROPERTY::STELLAR_TYPE,
+    STAR_1_PROPERTY::RADIUS,
+    STAR_2_PROPERTY::RADIUS,
+    BINARY_PROPERTY::SEMI_MAJOR_AXIS_RSOL,
+    BINARY_PROPERTY::SYSTEMIC_VELOCITY_X,
+    BINARY_PROPERTY::SYSTEMIC_VELOCITY_Y,
+    BINARY_PROPERTY::SYSTEMIC_VELOCITY_Z,
+}
+
+BSE_SNE_Rec -= {
+    BINARY_PROPERTY::SEMI_MAJOR_AXIS
+}

@@ -221,6 +221,8 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
     # delete rows where RLOF ends immediately after a CE ends
     df = df[~((df["evol_type"] == 4) & (df["prev_evol_type"] == 8))]
 
+    print(df)
+
     # count the number of evolution steps and start figure with size based on that
     total = len(df)
     if fig is None or ax is None:
@@ -307,6 +309,8 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
             common_envelope = False
             contact = False
 
+        print(et_ind, rlof, common_envelope)
+
         # check if either star is now a massless remnant
         mr_1 = k1["short"] == "MR"
         mr_2 = k2["short"] == "MR"
@@ -359,6 +363,7 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
 
         # otherwise we've got two stars
         else:
+            print("two stars")
             contact_adjust = 0.25 if contact else 1.0
 
             # plot stars offset from the centre
@@ -416,6 +421,7 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
 
             # for non-common-envelope RLOF, plot a RLOF teardrop in the background
             if rlof and not common_envelope:
+                print("Starting rlof")
                 # flip the shape depending on the direction
                 if row["RRLO_1"] >= 1.0:
                     x, y = _rlof_path((0 - offset / 2.6, total - i), 2 * (offset + off_s),
