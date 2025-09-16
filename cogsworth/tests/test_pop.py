@@ -14,14 +14,14 @@ class Test(unittest.TestCase):
         """Ensure the class fails with bad input"""
         it_broke = False
         try:
-            pop.Population(n_binaries=-100)
+            pop.Population(n_binaries=-100, use_default_BSE_settings=True)
         except ValueError:
             it_broke = True
         self.assertTrue(it_broke)
 
         it_broke = False
         try:
-            pop.Population(n_binaries=0)
+            pop.Population(n_binaries=0, use_default_BSE_settings=True)
         except ValueError:
             it_broke = True
         self.assertTrue(it_broke)
@@ -29,7 +29,7 @@ class Test(unittest.TestCase):
     def test_io(self):
         """Check that a population can be saved and re-loaded"""
         # do one with just initial sampling
-        p = pop.Population(2, processes=1, sampling_params={"qmin": 0.5})
+        p = pop.Population(2, processes=1, sampling_params={"qmin": 0.5}, use_default_BSE_settings=True)
         p.sample_initial_galaxy()
         p.sample_initial_binaries()
 
@@ -41,7 +41,7 @@ class Test(unittest.TestCase):
 
         # again with everything
         p = pop.Population(2, processes=1, bcm_timestep_conditions=[['dtp=100000.0']],
-                           sampling_params={"qmin": 0.5})
+                           sampling_params={"qmin": 0.5}, use_default_BSE_settings=True)
         p.create_population()
 
         p.save("testing-pop-io", overwrite=True)
@@ -84,7 +84,7 @@ class Test(unittest.TestCase):
                                     "max": 5,
                                     "slope": 0.0
                                 }
-                           })
+                           }, use_default_BSE_settings=True)
         p.create_population()
 
         p.save("testing-pop-io-sampling", overwrite=True)
@@ -96,7 +96,7 @@ class Test(unittest.TestCase):
     def test_lazy_io(self):
         """Check that a population can be saved and re-loaded lazily"""
         p = pop.Population(2, processes=1, bcm_timestep_conditions=[['dtp=100000.0']],
-                           sampling_params={"qmin": 0.5})
+                           sampling_params={"qmin": 0.5}, use_default_BSE_settings=True)
         p.create_population()
 
         p.save("testing-lazy-io", overwrite=True)
@@ -115,7 +115,7 @@ class Test(unittest.TestCase):
     def test_load_no_orbits(self):
         """Check that a population can be saved without orbits, and raises an error if trying to load them"""
         p = pop.Population(2, processes=1, bcm_timestep_conditions=[['dtp=100000.0']],
-                           sampling_params={"qmin": 0.5})
+                           sampling_params={"qmin": 0.5}, use_default_BSE_settings=True)
         p.sample_initial_galaxy()
         p.sample_initial_binaries()
         p.perform_stellar_evolution()
@@ -146,7 +146,7 @@ class Test(unittest.TestCase):
         os.remove("test-sfh-for-load.h5")
         self.assertTrue(it_broke)
 
-        p = pop.Population(2, processes=1)
+        p = pop.Population(2, processes=1, use_default_BSE_settings=True)
         p.create_population()
         p.save("test-pop-for-load", overwrite=True)
         it_broke = False
@@ -159,13 +159,15 @@ class Test(unittest.TestCase):
 
     def test_orbit_storage(self):
         """Test that we can control how orbits are stored"""
-        p = pop.Population(20, final_kstar1=[13, 14], processes=1, store_entire_orbits=True)
+        p = pop.Population(20, final_kstar1=[13, 14], processes=1, store_entire_orbits=True,
+                           use_default_BSE_settings=True)
         p.create_population()
 
         first_orbit = p.orbits[0][0] if isinstance(p.orbits[0], list) else p.orbits[0]
         self.assertTrue(first_orbit.shape[0] >= 1)
 
-        p = pop.Population(20, final_kstar1=[13, 14], processes=1, store_entire_orbits=False)
+        p = pop.Population(20, final_kstar1=[13, 14], processes=1, store_entire_orbits=False,
+                           use_default_BSE_settings=True)
         p.create_population()
 
         first_orbit = p.orbits[0][0] if isinstance(p.orbits[0], list) else p.orbits[0]
@@ -174,7 +176,8 @@ class Test(unittest.TestCase):
 
     def test_overly_stringent_cutoff(self):
         """Make sure that it crashes if the m1_cutoff is too large to create anything"""
-        p = pop.Population(10, processes=1, m1_cutoff=10000)
+        p = pop.Population(10, processes=1, m1_cutoff=10000,
+                           use_default_BSE_settings=True)
 
         it_broke = False
         try:
@@ -186,14 +189,15 @@ class Test(unittest.TestCase):
 
     def test_interface(self):
         """Test the interface of this class with the other modules"""
-        p = pop.Population(10, processes=1, final_kstar1=[13, 14], store_entire_orbits=False)
+        p = pop.Population(10, processes=1, final_kstar1=[13, 14], store_entire_orbits=False,
+                           use_default_BSE_settings=True)
         p.create_population()
 
         # ensure we get something that disrupts to ensure coverage
         MAX_REPS = 5
         i = 0
         while not p.disrupted.any() and i < MAX_REPS:
-            p = pop.Population(10, processes=1, final_kstar1=[13, 14])
+            p = pop.Population(10, processes=1, final_kstar1=[13, 14], use_default_BSE_settings=True)
             p.create_population()
             i += 1
         if i == MAX_REPS:
@@ -236,7 +240,7 @@ class Test(unittest.TestCase):
     def test_initial_binaries_replace_initC(self):
         """Test that initial binaries returns initC if present and initial_binaries is not"""
 
-        p = pop.Population(2, processes=1)
+        p = pop.Population(2, processes=1, use_default_BSE_settings=True)
         p.sample_initial_binaries()
         p.sample_initial_galaxy()
         p.perform_stellar_evolution()
@@ -246,7 +250,8 @@ class Test(unittest.TestCase):
 
     def test_getters(self):
         """Test the property getters"""
-        p = pop.Population(2, processes=1, store_entire_orbits=False, bcm_timestep_conditions=[['dtp=1000.0']])
+        p = pop.Population(2, processes=1, store_entire_orbits=False,
+                           bcm_timestep_conditions=[['dtp=1000.0']], use_default_BSE_settings=True)
         p.create_population()
 
         # test getters from sampling
@@ -340,7 +345,7 @@ class Test(unittest.TestCase):
         """Check everything works well when evolving singles"""
         p = pop.Population(2, processes=1, BSE_settings={"binfrac": 0.0},
                            sampling_params={'keep_singles': True, 'total_mass': 100,
-                                            'sampling_target': 'total_mass'})
+                                            'sampling_target': 'total_mass'}, use_default_BSE_settings=True)
         p.create_population(with_timing=False)
 
         self.assertTrue((p.final_bpp["sep"] == 0.0).all())
@@ -349,7 +354,8 @@ class Test(unittest.TestCase):
         """Test what happens when you mess up single stars"""
         it_failed = True
         p = pop.Population(1, processes=1, BSE_settings={"binfrac": 0.0},
-                           sampling_params={'total_mass': 1000, 'sampling_target': 'total_mass'})
+                           sampling_params={'total_mass': 1000, 'sampling_target': 'total_mass'},
+                           use_default_BSE_settings=True)
         try:
             p.sample_initial_binaries()
         except ValueError:
@@ -358,7 +364,7 @@ class Test(unittest.TestCase):
 
     def test_from_initC(self):
         """Check it can handle only having an initC rather than initial_binaries"""
-        p = pop.Population(2)
+        p = pop.Population(2, use_default_BSE_settings=True)
         p.sample_initial_binaries()
         p.perform_stellar_evolution()
         p._initial_binaries = None
@@ -366,7 +372,7 @@ class Test(unittest.TestCase):
 
     def test_none_orbits(self):
         """Ensure final_pos/vel still works when there is an Orbit with None"""
-        p = pop.Population(2)
+        p = pop.Population(2, use_default_BSE_settings=True)
         p._orbits = [None, None]
         self.assertTrue(p.final_pos[0][0].value == np.inf)
         self.assertTrue(p.final_vel[0][0].value == np.inf)
@@ -374,7 +380,7 @@ class Test(unittest.TestCase):
     @pytest.mark.filterwarnings("ignore:.*duplicate")
     def test_indexing(self):
         """Ensure that indexing works as expected for proper types"""
-        p = pop.Population(10, bcm_timestep_conditions=[['dtp=100000.0']])
+        p = pop.Population(10, bcm_timestep_conditions=[['dtp=100000.0']], use_default_BSE_settings=True)
         p.create_population()
         inds = [int(np.random.choice(p.bin_nums, replace=False)),
                 np.random.choice(p.bin_nums, size=4, replace=False),
@@ -401,7 +407,7 @@ class Test(unittest.TestCase):
 
     def test_indexing_bad_type(self):
         """Ensure that indexing breaks on bad types (reprs too)"""
-        p = pop.Population(10)
+        p = pop.Population(10, use_default_BSE_settings=True)
         print(p)
         p.create_population()
         print(p)
@@ -416,7 +422,7 @@ class Test(unittest.TestCase):
 
     def test_indexing_bad_bin_num(self):
         """Ensure that indexing breaks on non-existent bin nums"""
-        p = pop.Population(10)
+        p = pop.Population(10, use_default_BSE_settings=True)
         p.create_population()
 
         # make sure it fails for bin_nums that don't exist
@@ -429,7 +435,7 @@ class Test(unittest.TestCase):
 
     def test_indexing_booleans(self):
         """Ensure that indexing allows a boolean mask, but breaks on a dodgy version"""
-        p = pop.Population(10)
+        p = pop.Population(10, use_default_BSE_settings=True)
         p.create_population()
 
         # make sure it fails for a list of bools of the wrong length
@@ -450,7 +456,7 @@ class Test(unittest.TestCase):
 
     def test_indexing_mixed_types(self):
         """Don't allow indexing with mixed types"""
-        p = pop.Population(10)
+        p = pop.Population(10, use_default_BSE_settings=True)
         p.create_population()
 
         it_worked = True
@@ -462,7 +468,7 @@ class Test(unittest.TestCase):
 
     def test_indexing_loaded_pop(self):
         """Test indexing fails when trying to slice a half-loaded population"""
-        p = pop.Population(10)
+        p = pop.Population(10, use_default_BSE_settings=True)
         p.perform_stellar_evolution()
 
         with h5.File("DUMMY.h5", "w") as f:
@@ -480,7 +486,7 @@ class Test(unittest.TestCase):
 
     def test_evolved_pop(self):
         """Check that the EvolvedPopulation class works as it should"""
-        p = pop.Population(10)
+        p = pop.Population(10, use_default_BSE_settings=True)
         p.create_population()
 
         ep = pop.EvolvedPopulation(n_binaries=p.n_binaries_match, mass_singles=p.mass_singles,
@@ -506,7 +512,7 @@ class Test(unittest.TestCase):
 
     def test_bin_nums(self):
         """Check that we are creating the correct bin_nums"""
-        p = pop.Population(10)
+        p = pop.Population(10, use_default_BSE_settings=True)
 
         # can't get bin_nums before evolution
         it_failed = False
@@ -541,14 +547,14 @@ class Test(unittest.TestCase):
         """Ensure that changing sampling parameters actually has an effect"""
         # choose some random q's, ensure samples actually obey changes
         for qmin in np.random.uniform(0, 1, size=10):
-            p = pop.Population(1000, sampling_params={"qmin": qmin})
+            p = pop.Population(1000, sampling_params={"qmin": qmin}, use_default_BSE_settings=True)
             p.sample_initial_binaries()
             q = p._initial_binaries["mass_2"] / p._initial_binaries["mass_1"]
             self.assertTrue(min(q) >= qmin)
 
     def test_translation(self):
         """Ensure that COSMIC tables are being translated properly"""
-        p = pop.Population(10, bcm_timestep_conditions=[['dtp=100000.0']])
+        p = pop.Population(10, bcm_timestep_conditions=[['dtp=100000.0']], use_default_BSE_settings=True)
         p.perform_stellar_evolution()
         p.translate_tables(replace_columns=False, label_type="short")
 
@@ -560,7 +566,7 @@ class Test(unittest.TestCase):
 
     def test_cartoon(self):
         """Ensure that the cartoon plot works"""
-        p = pop.Population(10, final_kstar1=[14])
+        p = pop.Population(10, final_kstar1=[14], use_default_BSE_settings=True)
         p.perform_stellar_evolution()
 
         for bin_num in p.bin_nums:
@@ -568,7 +574,7 @@ class Test(unittest.TestCase):
 
     def test_sampling_with_initC(self):
         """Check we can sample from an initC table"""
-        p = pop.Population(10)
+        p = pop.Population(10, use_default_BSE_settings=True)
         p.perform_stellar_evolution()
 
         p.sample_initial_binaries(initC=p.initC,
@@ -577,7 +583,7 @@ class Test(unittest.TestCase):
 
     def test_legwork_conversion(self):
         """Check construction of LEGWORK sources"""
-        p = pop.Population(100, processes=1)
+        p = pop.Population(100, processes=1, use_default_BSE_settings=True)
         p.create_population()
 
         it_failed = False
@@ -592,7 +598,7 @@ class Test(unittest.TestCase):
 
     def test_galactic_pool(self):
         """Check that you can create a pool on the fly for galactic evolution"""
-        p = pop.Population(10, processes=2)
+        p = pop.Population(10, processes=2, use_default_BSE_settings=True)
         p.sample_initial_binaries()
         p.sample_initial_galaxy()
         p.perform_stellar_evolution()
@@ -601,8 +607,8 @@ class Test(unittest.TestCase):
 
     def test_concat(self):
         """Check that we can concatenate populations"""
-        p = pop.Population(10)
-        q = pop.Population(10)
+        p = pop.Population(10, use_default_BSE_settings=True)
+        q = pop.Population(10, use_default_BSE_settings=True)
         p.perform_stellar_evolution()
         q.perform_stellar_evolution()
 
@@ -616,7 +622,7 @@ class Test(unittest.TestCase):
 
     def test_concat_wrong_type(self):
         """Check that we can't concatenate with the wrong type"""
-        p = pop.Population(10)
+        p = pop.Population(10, use_default_BSE_settings=True)
         it_failed = False
         try:
             p + 1
@@ -641,8 +647,8 @@ class Test(unittest.TestCase):
 
     def test_concat_mismatch(self):
         """Check that we can't concatenate populations with different stuff"""
-        p = pop.Population(10)
-        q = pop.Population(10)
+        p = pop.Population(10, use_default_BSE_settings=True)
+        q = pop.Population(10, use_default_BSE_settings=True)
         p.perform_stellar_evolution()
 
         it_failed = False
@@ -671,8 +677,8 @@ class Test(unittest.TestCase):
 
     def test_concat_no_orbits(self):
         """Check that we can't concatenate populations without orbits"""
-        p = pop.Population(10)
-        q = pop.Population(10)
+        p = pop.Population(10, use_default_BSE_settings=True)
+        q = pop.Population(10, use_default_BSE_settings=True)
         p.create_population()
         q.create_population()
 
@@ -687,7 +693,8 @@ class Test(unittest.TestCase):
         """Check that a different choice of bpp and bcm columns works"""
         TEST_COLS = ["mass_1", "mass_2", "tphys", "porb", "sep", "ecc", "evol_type"]
         p = pop.Population(10, processes=1, bpp_columns=TEST_COLS, bcm_columns=TEST_COLS,
-                           bcm_timestep_conditions=[["mass_1 < 100", 'dtp=100000.0']])
+                           bcm_timestep_conditions=[["mass_1 < 100", 'dtp=100000.0']],
+                           use_default_BSE_settings=True)
         p.create_population()
 
         # bin_num is always added

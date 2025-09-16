@@ -52,7 +52,8 @@ class Test(unittest.TestCase):
 
         for subset, length in [(None, len(init_particles)), (10, 10), ([0, 1, 2], 3)]:
             pop = cogsworth.hydro.pop.HydroPopulation(init_particles, galactic_potential=pot,
-                                                      subset=subset, snapshot_type="FIRE")
+                                                      subset=subset, snapshot_type="FIRE",
+                                                      use_default_BSE_settings=True)
             self.assertEqual(len(pop._subset_inds), length)
         self.assertTrue("star particles" in pop.__repr__())
 
@@ -75,7 +76,8 @@ class Test(unittest.TestCase):
         init_particles["mass"] = np.random.uniform(10, 20, size=len(init_particles))
 
         p = cogsworth.hydro.pop.HydroPopulation(init_particles, galactic_potential=pot,
-                                                max_ev_time=100 * u.Myr, snapshot_type="FIRE", processes=1)
+                                                max_ev_time=100 * u.Myr, snapshot_type="FIRE", processes=1,
+                                                use_default_BSE_settings=True)
         p.create_population()
 
         self.assertTrue("star particles" in p.__repr__() and "evolved systems" in p.__repr__())
