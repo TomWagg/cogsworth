@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
+from copy import copy
 
 
 __all__ = ["kstar_translator", "evol_type_translator", "default_BSE_settings",
@@ -87,6 +88,10 @@ default_BSE_settings = {'xi': 1.0, 'bhflag': 1, 'neta': 0.5, 'windflag': 3, 'wdf
                         'rtmsflag': 0, 'wd_mass_lim': 1}
 
 
+def get_default_BSE_settings():
+    return copy(default_BSE_settings)
+
+
 def translate_COSMIC_tables(tab, kstars=True, evol_type=True, label_type="short", replace_columns=True):
     """Translate COSMIC BSE tables to human-readable labels
 
@@ -139,7 +144,7 @@ def translate_COSMIC_tables(tab, kstars=True, evol_type=True, label_type="short"
     return tab
 
 
-def list_BSE_defaults():
+def list_BSE_defaults():            # pragma: no cover
     """Print the default BSE settings cogsworth assumes for running COSMIC."""
     for k, v in default_BSE_settings.items():
         print(f"{k}: {v}")

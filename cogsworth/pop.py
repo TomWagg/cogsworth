@@ -28,7 +28,7 @@ from cogsworth.classify import determine_final_classes
 from cogsworth.observables import get_photometry
 from cogsworth.tests.optional_deps import check_dependencies
 from cogsworth.plot import plot_cartoon_evolution, plot_galactic_orbit
-from cogsworth.utils import translate_COSMIC_tables, default_BSE_settings
+from cogsworth.utils import translate_COSMIC_tables, get_default_BSE_settings
 
 from cogsworth.citations import CITATIONS
 
@@ -153,7 +153,7 @@ class Population():
 
         self.__citations__ = ["cogsworth", "cosmic", "gala"]
 
-        self.BSE_settings = default_BSE_settings if use_default_BSE_settings else {}
+        self.BSE_settings = get_default_BSE_settings() if use_default_BSE_settings else {}
         self.BSE_settings.update(BSE_settings if ini_file is None else parse_inifile(ini_file)[0])
 
         self.sampling_params = {'primary_model': 'kroupa01', 'ecc_model': 'sana12', 'porb_model': 'sana12',
