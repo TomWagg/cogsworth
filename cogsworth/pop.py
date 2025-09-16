@@ -101,12 +101,17 @@ class Population():
             if n_binaries <= 0:
                 raise ValueError("You need to input a *nonnegative* number of binaries")
 
+        # warn users that everything will soon explode without settings
         if not use_default_BSE_settings and ini_file is None and BSE_settings == {}:
-            raise ValueError("You must provide either `BSE_settings` or an `ini_file` in order to perform "
-                             "stellar evolution with COSMIC. Alternatively, you may set "
-                             "`use_default_BSE_settings=True` to use the default COSMIC settings listed in "
-                             "cogsworth, but do so at your own risk and be sure to understand the choices "
-                             "that you have made.\nRun `cogsworth.utils.list_BSE_defaults()` to see these.")
+            logging.getLogger("cogsworth").warning(("cogsworth warning: You have not provided any binary "
+                                                    "stellar evolution (BSE) settings. You must provide "
+                                                    "either `BSE_settings` or an `ini_file` in order to "
+                                                    "perform stellar evolution with COSMIC. You may set "
+                                                    "`use_default_BSE_settings=True` to use the default "
+                                                    "settings listed in cogsworth, but do so at your own "
+                                                    "risk and be sure to understand the choices that you "
+                                                    "have made.\nRun `cogsworth.utils.list_BSE_defaults()` "
+                                                    "to see these."))
 
         self.n_binaries = n_binaries
         self.n_binaries_match = n_binaries
@@ -908,6 +913,9 @@ class Population():
                 for col in cols:
                     self._initial_binaries[col] = -100.0
         else:
+            if "binfrac" not in self.BSE_settings:
+                raise ValueError("You must specify a binary fraction (e.g. `binfrac: 0.5`) in "
+                                 "`Population.BSE_settings` to sample binaries")
             if self.BSE_settings["binfrac"] == 0.0 and not self.sampling_params["keep_singles"]:
                 raise ValueError(("You've chosen a binary fraction of 0.0 but set `keep_singles=False` (in "
                                   "self.sampling_params), so you'll draw 0 samples...I don't think you "
@@ -972,7 +980,13 @@ class Population():
             warnings.filterwarnings("ignore", message=".*to a different value than assumed in the mlwind.*")
 
             ibt = self.initial_binaries if self._initC is None else self._initC
-            BSEDict = self.BSE_settings if "kickflag" not in ibt.columns else None
+            BSEDict = self.BSE_settings
+            if "kickflag" in ibt.columns and BSEDict != {}:
+                BSEDict = {}
+                logging.getLogger("cogsworth").warning("cogsworth warning: You passed settings for BSE (in `Population.BSE_settings`) but "
+                                                       "your initial binary table already has settings saved "
+                                                       "in its columns. cogsworth will use the settings "
+                                                       "found in the table.")
 
             # perform the evolution!
             self._bpp, bcm, self._initC, \
