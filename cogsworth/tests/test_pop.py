@@ -701,3 +701,13 @@ class Test(unittest.TestCase):
         TEST_COLS += ["bin_num"]
         self.assertTrue(set(p.bpp.columns) == set(TEST_COLS))
         self.assertTrue(set(p.bcm.columns) == set(TEST_COLS))
+
+    def test_bad_settings(self):
+        """Check that passing settings incorrectly raises errors"""
+        it_worked = True
+        try:
+            p = pop.Population(10, use_default_BSE_settings=False, BSE_settings={})
+            p.create_population()
+        except ValueError:
+            it_worked = False
+        self.assertFalse(it_worked)
