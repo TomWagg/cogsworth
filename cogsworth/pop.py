@@ -106,7 +106,7 @@ class Population():
                              "stellar evolution with COSMIC. Alternatively, you may set "
                              "`use_default_BSE_settings=True` to use the default COSMIC settings listed in "
                              "cogsworth, but do so at your own risk and be sure to understand the choices "
-                             "that you have made.")
+                             "that you have made.\nRun `cogsworth.utils.list_BSE_defaults()` to see these.")
 
         self.n_binaries = n_binaries
         self.n_binaries_match = n_binaries
