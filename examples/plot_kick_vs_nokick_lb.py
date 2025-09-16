@@ -42,7 +42,8 @@ seed = 53480
 np.random.seed(seed)
 
 # sample a full population
-p_full = cogsworth.pop.Population(70, final_kstar1=[13, 14], processes=4, BSE_settings={"binfrac": 1.0})
+p_full = cogsworth.pop.Population(70, final_kstar1=[13, 14], processes=4, BSE_settings={"binfrac": 1.0},
+                                  use_default_BSE_settings=True)
 p_full.create_population(with_timing=True)
 
 # subselect 5 disrupted binaries
