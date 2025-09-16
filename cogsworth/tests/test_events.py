@@ -40,7 +40,7 @@ class Test(unittest.TestCase):
         kick_info = pd.DataFrame(data=kick_info_dict)
         kick_info.set_index("bin_num", drop=False, inplace=True)
 
-        p = cogsworth.pop.Population(4)
+        p = cogsworth.pop.Population(4, use_default_BSE_settings=True)
         p._bpp = bpp
         p._kick_info = kick_info
         p._initC = pd.DataFrame(data={"metallicity": [1e-2, 1e-2, 1e-2, 1e-2]})

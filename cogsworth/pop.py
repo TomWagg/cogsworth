@@ -28,7 +28,7 @@ from cogsworth.classify import determine_final_classes
 from cogsworth.observables import get_photometry
 from cogsworth.tests.optional_deps import check_dependencies
 from cogsworth.plot import plot_cartoon_evolution, plot_galactic_orbit
-from cogsworth.utils import translate_COSMIC_tables
+from cogsworth.utils import translate_COSMIC_tables, get_default_BSE_settings
 
 from cogsworth.citations import CITATIONS
 
@@ -68,6 +68,9 @@ class Population():
         Any BSE settings to pass to COSMIC, superseded by `ini_file` if provided
     ini_file : `str`, optional
         Path to an ini file to use for the COSMIC stellar evolution, supersedes `BSE_settings` by default None
+    use_default_BSE_settings : `bool`, optional
+        Whether to use the default COSMIC BSE settings, by default False. If False then at least one of
+        `BSE_settings` or `ini_file` must be provided.
     bcm_timestep_conditions : List of lists, optional
         Any timestep conditions to pass to COSMIC evolution. This will affect the rows that are output in the
         the BCM table, by default only the first and last timesteps are output. For more details check out the
@@ -90,13 +93,25 @@ class Population():
                  final_kstar2=list(range(16)), sfh_model=sfh.Wagg2022, sfh_params={},
                  galactic_potential=gp.MilkyWayPotential(), v_dispersion=5 * u.km / u.s,
                  max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, ini_file=None,
-                 sampling_params={}, bcm_timestep_conditions=[], store_entire_orbits=True,
-                 bpp_columns=None, bcm_columns=None):
+                 use_default_BSE_settings=False, sampling_params={}, bcm_timestep_conditions=[],
+                 store_entire_orbits=True, bpp_columns=None, bcm_columns=None):
 
         # require a sensible number of binaries if you are not targetting total mass
         if not ("sampling_target" in sampling_params and sampling_params["sampling_target"] == "total_mass"):
             if n_binaries <= 0:
                 raise ValueError("You need to input a *nonnegative* number of binaries")
+
+        # warn users that everything will soon explode without settings
+        if not use_default_BSE_settings and ini_file is None and BSE_settings == {}:
+            logging.getLogger("cogsworth").warning(("cogsworth warning: You have not provided any binary "
+                                                    "stellar evolution (BSE) settings. You must provide "
+                                                    "either `BSE_settings` or an `ini_file` in order to "
+                                                    "perform stellar evolution with COSMIC. You may set "
+                                                    "`use_default_BSE_settings=True` to use the default "
+                                                    "settings listed in cogsworth, but do so at your own "
+                                                    "risk and be sure to understand the choices that you "
+                                                    "have made.\nRun `cogsworth.utils.list_BSE_defaults()` "
+                                                    "to see these."))
 
         self.n_binaries = n_binaries
         self.n_binaries_match = n_binaries
@@ -138,25 +153,7 @@ class Population():
 
         self.__citations__ = ["cogsworth", "cosmic", "gala"]
 
-        self.BSE_settings = {'xi': 1.0, 'bhflag': 1, 'neta': 0.5, 'windflag': 3, 'wdflag': 1, 'alpha1': 1.0,
-                             'pts1': 0.001, 'pts3': 0.02, 'pts2': 0.01, 'epsnov': 0.001, 'hewind': 0.5,
-                             'ck': 1000, 'bwind': 0.0, 'lambdaf': 0.0, 'mxns': 3.0, 'beta': -1.0, 'tflag': 1,
-                             'acc2': 1.5, 'grflag': 1, 'remnantflag': 4, 'ceflag': 0, 'eddfac': 1.0,
-                             'ifflag': 0, 'bconst': 3000, 'sigma': 265.0, 'gamma': -2.0, 'pisn': 45.0,
-                             'natal_kick_array': [[-100.0, -100.0, -100.0, -100.0, 0.0],
-                                                  [-100.0, -100.0, -100.0, -100.0, 0.0]], 'bhsigmafrac': 1.0,
-                             'polar_kick_angle': 90, 'qcrit_array': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                                                                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-                             'cekickflag': 2, 'cehestarflag': 0, 'cemergeflag': 0, 'ecsn': 2.25,
-                             'ecsn_mlow': 1.6, 'aic': 1, 'ussn': 0, 'sigmadiv': -20.0, 'qcflag': 5,
-                             'eddlimflag': 0, 'fprimc_array': [2.0/21.0, 2.0/21.0, 2.0/21.0, 2.0/21.0,
-                                                               2.0/21.0, 2.0/21.0, 2.0/21.0, 2.0/21.0,
-                                                               2.0/21.0, 2.0/21.0, 2.0/21.0, 2.0/21.0,
-                                                               2.0/21.0, 2.0/21.0, 2.0/21.0, 2.0/21.0],
-                             'bhspinflag': 0, 'bhspinmag': 0.0, 'rejuv_fac': 1.0, 'rejuvflag': 0, 'htpmb': 1,
-                             'ST_cr': 1, 'ST_tide': 1, 'bdecayfac': 1, 'rembar_massloss': 0.5, 'kickflag': 1,
-                             'zsun': 0.014, 'bhms_coll_flag': 0, 'don_lim': -1, 'acc_lim': -1, 'binfrac': 0.5,
-                             'rtmsflag': 0, 'wd_mass_lim': 1}
+        self.BSE_settings = get_default_BSE_settings() if use_default_BSE_settings else {}
         self.BSE_settings.update(BSE_settings if ini_file is None else parse_inifile(ini_file)[0])
 
         self.sampling_params = {'primary_model': 'kroupa01', 'ecc_model': 'sana12', 'porb_model': 'sana12',
@@ -916,6 +913,9 @@ class Population():
                 for col in cols:
                     self._initial_binaries[col] = -100.0
         else:
+            if "binfrac" not in self.BSE_settings:
+                raise ValueError("You must specify a binary fraction (e.g. `binfrac: 0.5`) in "
+                                 "`Population.BSE_settings` to sample binaries")
             if self.BSE_settings["binfrac"] == 0.0 and not self.sampling_params["keep_singles"]:
                 raise ValueError(("You've chosen a binary fraction of 0.0 but set `keep_singles=False` (in "
                                   "self.sampling_params), so you'll draw 0 samples...I don't think you "
@@ -980,11 +980,18 @@ class Population():
             warnings.filterwarnings("ignore", message=".*to a different value than assumed in the mlwind.*")
 
             ibt = self.initial_binaries if self._initC is None else self._initC
+            BSEDict = self.BSE_settings
+            if "kickflag" in ibt.columns and BSEDict != {}:
+                BSEDict = {}
+                logging.getLogger("cogsworth").warning("cogsworth warning: You passed settings for BSE (in `Population.BSE_settings`) but "
+                                                       "your initial binary table already has settings saved "
+                                                       "in its columns. cogsworth will use the settings "
+                                                       "found in the table.")
 
             # perform the evolution!
             self._bpp, bcm, self._initC, \
                 self._kick_info = Evolve.evolve(initialbinarytable=ibt,
-                                                BSEDict=self.BSE_settings, pool=self.pool,
+                                                BSEDict=BSEDict, pool=self.pool,
                                                 timestep_conditions=self.bcm_timestep_conditions,
                                                 bpp_columns=self.bpp_columns, bcm_columns=self.bcm_columns)
 

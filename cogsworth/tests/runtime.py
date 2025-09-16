@@ -22,7 +22,7 @@ if __name__ == "__main__":
 
     if args.input is None:
         print("Creating a base population")
-        p = cogsworth.pop.Population(args.nbin)
+        p = cogsworth.pop.Population(args.nbin, use_default_BSE_settings=True)
         p.sample_initial_binaries()
         p.sample_initial_galaxy()
         p = p[:args.nbin]
