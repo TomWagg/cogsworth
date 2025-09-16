@@ -4,6 +4,14 @@ Full changelog
 
 This page tracks all of the changes that have been made to ``cogsworth``. We follow the standard versioning convention of A.B.C, where C is a patch/bugfix, B is a large bugfix or new feature and A is a major new breaking change. B/C are backwards compatible but A changes may be breaking.
 
+3.0.0
+=====
+- Major breaking change: `cogsworth` no longer allows you to use the default BSE settings unless you explicitly
+set `use_default_BSE_settings=True` when creating a Population. This is to avoid users passing settings without
+acknowledging that they are making choices about the binary physics.
+    - This also fixes an issue where the settings in an initC table were being overwritten by BSE_settings
+- Update default `kickflag` to match COSMIC `v3.6.1` with the Disberg distribution instead of Hobbs
+
 2.1.1
 =====
 - Allow choice of `bpp` and `bcm` columns as I implemented in COSMIC (see [#86](https://github.com/TomWagg/cogsworth/issues/86))
