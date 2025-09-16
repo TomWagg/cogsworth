@@ -68,6 +68,9 @@ class Population():
         Any BSE settings to pass to COSMIC, superseded by `ini_file` if provided
     ini_file : `str`, optional
         Path to an ini file to use for the COSMIC stellar evolution, supersedes `BSE_settings` by default None
+    use_default_BSE_settings : `bool`, optional
+        Whether to use the default COSMIC BSE settings, by default False. If False then at least one of
+        `BSE_settings` or `ini_file` must be provided.
     bcm_timestep_conditions : List of lists, optional
         Any timestep conditions to pass to COSMIC evolution. This will affect the rows that are output in the
         the BCM table, by default only the first and last timesteps are output. For more details check out the
@@ -90,13 +93,20 @@ class Population():
                  final_kstar2=list(range(16)), sfh_model=sfh.Wagg2022, sfh_params={},
                  galactic_potential=gp.MilkyWayPotential(), v_dispersion=5 * u.km / u.s,
                  max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, ini_file=None,
-                 sampling_params={}, bcm_timestep_conditions=[], store_entire_orbits=True,
-                 bpp_columns=None, bcm_columns=None):
+                 use_default_BSE_settings=False, sampling_params={}, bcm_timestep_conditions=[],
+                 store_entire_orbits=True, bpp_columns=None, bcm_columns=None):
 
         # require a sensible number of binaries if you are not targetting total mass
         if not ("sampling_target" in sampling_params and sampling_params["sampling_target"] == "total_mass"):
             if n_binaries <= 0:
                 raise ValueError("You need to input a *nonnegative* number of binaries")
+
+        if not use_default_BSE_settings and ini_file is None and BSE_settings == {}:
+            raise ValueError("You must provide either `BSE_settings` or an `ini_file` in order to perform "
+                             "stellar evolution with COSMIC. Alternatively, you may set "
+                             "`use_default_BSE_settings=True` to use the default COSMIC settings listed in "
+                             "cogsworth, but do so at your own risk and be sure to understand the choices "
+                             "that you have made.")
 
         self.n_binaries = n_binaries
         self.n_binaries_match = n_binaries
