@@ -30,7 +30,7 @@ def get_kick_differential(delta_v_sys_xyz, phase=None, inclination=None):
     """
     # orbital phase angle and inclination to Galactic plane
     theta = np.random.uniform(0, 2 * np.pi) if phase is None else phase
-    phi = np.random.uniform(0, 2 * np.pi) if inclination is None else inclination
+    phi = np.arccos(2 * np.random.rand() - 1.0) if inclination is None else inclination
 
     # rotate BSE (v_x, v_y, v_z) into Galactocentric (v_X, v_Y, v_Z)
     v_X = delta_v_sys_xyz[0] * np.cos(theta) - delta_v_sys_xyz[1] * np.sin(theta) * np.cos(phi)\
