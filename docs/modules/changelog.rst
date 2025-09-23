@@ -4,6 +4,10 @@ Full changelog
 
 This page tracks all of the changes that have been made to ``cogsworth``. We follow the standard versioning convention of A.B.C, where C is a patch/bugfix, B is a large bugfix or new feature and A is a major new breaking change. B/C are backwards compatible but A changes may be breaking.
 
+3.1.0
+=====
+- Bug fix: Inclinations of binaries relative to the galactic plane are now drawn from a uniform in cos(i) distribution rather than uniform in i
+
 3.0.0
 =====
 - Major breaking change: `cogsworth` no longer allows you to use the default BSE settings unless you explicitly
