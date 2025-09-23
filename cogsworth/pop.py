@@ -1097,7 +1097,7 @@ class Population():
                 self.initC[col] = np.random.uniform(0, 2 * np.pi, len(self.initC))
         for col in ["inc_sn_1", "inc_sn_2"]:
             if col not in self.initC:
-                self.initC[col] = np.arccos(np.random.uniform(0, 1, len(self.initC)))
+                self.initC[col] = np.arccos(2 * np.random.rand(len(self.initC)) - 1.0)
 
         # identify the pertinent events in the evolution
         primary_events, secondary_events = identify_events(p=self)
