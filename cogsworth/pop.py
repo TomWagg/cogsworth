@@ -1053,101 +1053,11 @@ class Population():
 
         # identify the pertinent events in the evolution
         events = identify_events(p=self)
-        print(events)
-        print(x0)
-        print(v0)
 
         self.xf, self.vf = integrate_pop_with_events(
             gd.HamiltonianField(self.galactic_potential), x0, v0, t0, events,
             ux.Quantity(self.max_ev_time.to(u.Myr).value, "Myr")
         )
-
-        # if we want to use multiprocessing
-        # if self.pool is not None or self.processes > 1:
-        #     # track whether a pool already existed
-        #     pool_existed = self.pool is not None
-
-        #     # if not, create one
-        #     if not pool_existed:
-        #         self.pool = Pool(self.processes)
-
-        #     # setup arguments to combine primary and secondaries into a single list
-        #     print(len(self.initial_galaxy.tau), len(primary_events), len(self.bin_nums))
-        #     primary_args = [(w0s[i], self.max_ev_time - self.initial_galaxy.tau[i], self.max_ev_time,
-        #                      copy(self.timestep_size), self.galactic_potential,
-        #                      primary_events[i], self.store_entire_orbits, quiet)
-        #                     for i in range(self.n_binaries_match)]
-        #     secondary_args = [(w0s[i], self.max_ev_time - self.initial_galaxy.tau[i], self.max_ev_time,
-        #                        copy(self.timestep_size), self.galactic_potential,
-        #                        secondary_events[i], self.store_entire_orbits, quiet)
-        #                       for i in range(self.n_binaries_match) if secondary_events[i] is not None]
-        #     args = primary_args + secondary_args
-
-        #     # evolve the orbits from birth until present day
-        #     if progress_bar:
-        #         orbits = self.pool.starmap(integrate_orbit_with_events,
-        #                                    tqdm(args, total=self.n_binaries_match))
-        #     else:
-        #         orbits = self.pool.starmap(integrate_orbit_with_events, args)
-
-        #     # if a pool didn't exist before then close the one just created
-        #     if not pool_existed:
-        #         self.pool.close()
-        #         self.pool.join()
-        #         self.pool = None
-        # else:
-        #     # otherwise just use a for loop to evolve the orbits from birth until present day
-        #     orbits = []
-        #     for i in range(self.n_binaries_match):
-        #         orbits.append(integrate_orbit_with_events(w0=w0s[i], potential=self.galactic_potential,
-        #                                                   t1=self.max_ev_time - self.initial_galaxy.tau[i],
-        #                                                   t2=self.max_ev_time, dt=copy(self.timestep_size),
-        #                                                   events=primary_events[i], quiet=quiet,
-        #                                                   store_all=self.store_entire_orbits))
-        #     for i in range(self.n_binaries_match):
-        #         if secondary_events[i] is None:
-        #             continue
-        #         orbits.append(integrate_orbit_with_events(w0=w0s[i], potential=self.galactic_potential,
-        #                                                   t1=self.max_ev_time - self.initial_galaxy.tau[i],
-        #                                                   t2=self.max_ev_time, dt=copy(self.timestep_size),
-        #                                                   events=secondary_events[i], quiet=quiet,
-        #                                                   store_all=self.store_entire_orbits))
-
-        # check for bad orbits
-        # bad_orbits = [orbit is None for orbit in orbits]
-
-        # # if there are any bad orbits then warn the user and remove them from the population
-        # if any(bad_orbits):             # pragma: no cover
-        #     warnings.warn(f"{sum(bad_orbits)} bad orbit(s) detected, removing them from the population" +
-        #                   " (initial conditions for these systems were saved to `bad_orbits.h5` file)")
-        #     bad_bin_nums = np.concatenate((self.bin_nums, self.bin_nums[self.disrupted]))[bad_orbits]
-
-        #     # save the bad orbits population
-        #     self.initC.loc[bad_bin_nums].to_hdf("bad_orbits.h5", key="initC")
-        #     self.bpp.loc[bad_bin_nums].to_hdf("bad_orbits.h5", key="bpp")
-        #     self.kick_info.loc[bad_bin_nums].to_hdf("bad_orbits.h5", key="kick_info")
-        #     self.initial_galaxy[np.isin(self.bin_nums, bad_bin_nums)].save("bad_orbits.h5", key="sfh")
-
-        #     # mask them out from the main population
-        #     new_self = self[~np.isin(self.bin_nums, bad_bin_nums)]
-        #     self.__dict__.update(new_self.__dict__)
-
-        #     orbits = [orbit for orbit in orbits if orbit is not None]
-
-        # orbit_lengths = [len(orbit) for orbit in orbits]
-        # orbit_lengths_total = sum(orbit_lengths)
-        # off = np.insert(np.cumsum(orbit_lengths), 0, 0)
-        # self._orbit_pos = np.zeros((orbit_lengths_total, 3)) * ux.unit("kpc")
-        # self._orbit_vel = np.zeros((orbit_lengths_total, 3)) * ux.unit("km / s")
-        # self._orbit_times = np.zeros(orbit_lengths_total) * ux.unit("Myr")
-
-        # # save each orbit to the arrays with the same units
-        # for i, orbit in enumerate(orbits):
-        #     self._orbit_pos[off[i]:off[i + 1]] = np.vstack([orbit.q.x, orbit.q.y, orbit.q.z]).T
-        #     self._orbit_vel[off[i]:off[i + 1]] = np.vstack([orbit.p.x, orbit.p.y, orbit.p.z]).T
-        #     self._orbit_times[off[i]:off[i + 1]] = orbit.t
-
-        # self._orbit_offsets = off
 
     def get_observables(self, **kwargs):
         """Get observables associated with the binaries at present day.
