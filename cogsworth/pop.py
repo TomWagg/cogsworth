@@ -97,10 +97,6 @@ class Population():
     sampling_params : `dict`, optional
         Any additional parameters to pass to the COSMIC sampling (see
         :meth:`~cosmic.sample.sampler.independent.get_independent_sampler`)
-    store_entire_orbits : `bool`, optional
-        Whether to store the entire orbit for each binary, by default True. If not then only the final
-        PhaseSpacePosition will be stored. This cuts down on both memory usage and disk space used if you
-        save the Population (as well as how long it takes to reload the data).
     bpp_columns : `list`, optional
         Which columns COSMIC should store in the `bpp` table. If None, default columns are used.
         See https://cosmic-popsynth.github.io/COSMIC/pages/output_info.html for a list of columns.
@@ -113,7 +109,7 @@ class Population():
                  galactic_potential=gp.MilkyWayPotential2022(), v_dispersion=5 * u.km / u.s,
                  max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, ini_file=None,
                  use_default_BSE_settings=False, sampling_params={}, bcm_timestep_conditions=[],
-                 store_entire_orbits=True, bpp_columns=None, bcm_columns=None):
+                 bpp_columns=None, bcm_columns=None):
 
         # require a sensible number of binaries if you are not targetting total mass
         if not ("sampling_target" in sampling_params and sampling_params["sampling_target"] == "total_mass"):
@@ -145,7 +141,6 @@ class Population():
         self.max_ev_time = max_ev_time
         self.timestep_size = timestep_size
         self.pool = None
-        self.store_entire_orbits = store_entire_orbits
         self.bpp_columns = bpp_columns
         self.bcm_columns = bcm_columns
 
@@ -160,13 +155,9 @@ class Population():
         self._bcm = None
         self._initC = None
         self._kick_info = None
-        self._orbit_pos = None
-        self._orbit_vel = None
-        self._orbit_offsets = None
-        self._orbit_times = None
         self._classes = None
-        self._final_pos = None
-        self._final_vel = None
+        self._xf = None
+        self._vf = None
         self._final_bpp = None
         self._disrupted = None
         self._escaped = None
@@ -184,7 +175,7 @@ class Population():
         self.bcm_timestep_conditions = bcm_timestep_conditions
 
     def __repr__(self):
-        if self._orbit_pos is None:
+        if self._xf is None:
             return (f"<{self.__class__.__name__} - {self.n_binaries} systems - "
                     f"galactic_potential={self.galactic_potential.__class__.__name__}, "
                     f"SFH={self.sfh_model.__name__}>")
@@ -206,7 +197,7 @@ class Population():
         # if the population is associated with a file, make sure it's entirely loaded before slicing
         if self._file is not None:
             parts = ["initial_binaries", "bpp", "initial_galaxy", "orbits"]
-            vars = [self._initial_binaries, self._bpp, self._initial_galaxy, self._orbit_pos]
+            vars = [self._initial_binaries, self._bpp, self._initial_galaxy, self._xf]
             masks = {f"has_{p}": False for p in parts}
             with h5.File(self._file, "r") as f:
                 for p in parts:
@@ -262,8 +253,7 @@ class Population():
                                  sfh_params=self.sfh_params, galactic_potential=self.galactic_potential,
                                  v_dispersion=self.v_dispersion, max_ev_time=self.max_ev_time,
                                  timestep_size=self.timestep_size, BSE_settings=self.BSE_settings,
-                                 sampling_params=self.sampling_params,
-                                 store_entire_orbits=self.store_entire_orbits)
+                                 sampling_params=self.sampling_params)
         new_pop.n_binaries_match = new_pop.n_binaries
 
         # proxy for checking whether sampling has been done
@@ -807,7 +797,7 @@ class Population():
                     y=np.zeros_like(self._initial_galaxy.y.to(u.kpc).value) * ux.unit("kpc / Myr"),
                     z=np.zeros_like(self._initial_galaxy.z.to(u.kpc).value) * ux.unit("kpc / Myr")
                 ),
-                t=(self._initial_galaxy.galaxy_age - self._initial_galaxy.tau).to(u.Myr).value * ux.unit("Myr")
+                t=ux.Quantity((self._initial_galaxy.galaxy_age - self._initial_galaxy.tau).to(u.Myr).value, "Myr")
             )
         ).to(vel_units)
 
@@ -1004,12 +994,8 @@ class Population():
             Whether to silence any warnings about failing orbits, by default False
         """
         # delete any cached variables that are based on orbits
-        self._orbit_offsets = None
-        self._orbit_pos = None
-        self._orbit_vel = None
-        self._orbit_times = None
-        self._final_pos = None
-        self._final_vel = None
+        self._xf = None
+        self._vf = None
         self._observables = None
 
         if self._initial_galaxy is None:            # pragma: no cover
@@ -1507,31 +1493,6 @@ class Population():
         if self._initial_galaxy is not None:
             self.initial_galaxy.save(file_name, key="initial_galaxy")
 
-        # save the orbits if they have been calculated/loaded
-        if self._orbits is not None:
-            # go through the orbits calculate their lengths (and therefore offsets in the file)
-            orbit_lengths = [len(orbit.pos) for orbit in self.orbits]
-            orbit_lengths_total = sum(orbit_lengths)
-            offsets = np.insert(np.cumsum(orbit_lengths), 0, 0)
-
-            # start some empty arrays to store the data
-            orbits_data = {"offsets": offsets,
-                           "pos": np.zeros((3, orbit_lengths_total)),
-                           "vel": np.zeros((3, orbit_lengths_total)),
-                           "t": np.zeros(orbit_lengths_total)}
-
-            # save each orbit to the arrays with the same units
-            for i, orbit in enumerate(self.orbits):
-                orbits_data["pos"][:, offsets[i]:offsets[i + 1]] = orbit.pos.xyz.to(u.kpc).value
-                orbits_data["vel"][:, offsets[i]:offsets[i + 1]] = orbit.vel.d_xyz.to(u.km / u.s).value
-                orbits_data["t"][offsets[i]:offsets[i + 1]] = orbit.t.to(u.Myr).value
-
-            # save the orbits arrays to the file
-            with h5.File(file_name, "a") as file:
-                orbits = file.create_group("orbits")
-                for key in orbits_data:
-                    orbits[key] = orbits_data[key]
-
         with h5.File(file_name, "a") as file:
             numeric_params = np.array([self.n_binaries, self.n_binaries_match, self.processes, self.m1_cutoff,
                                        self.v_dispersion.to(u.km / u.s).value,
@@ -1539,7 +1500,6 @@ class Population():
                                        self.mass_singles, self.mass_binaries, self.n_singles_req,
                                        self.n_bin_req])
             num_par = file.create_dataset("numeric_params", data=numeric_params)
-            num_par.attrs["store_entire_orbits"] = self.store_entire_orbits
 
             num_par.attrs["final_kstar1"] = self.final_kstar1
             num_par.attrs["final_kstar2"] = self.final_kstar2
@@ -1585,7 +1545,6 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
                              "perhaps you meant to use `cogsworth.sfh.load`?"))
         numeric_params = file["numeric_params"][...]
 
-        store_entire_orbits = file["numeric_params"].attrs["store_entire_orbits"]
         final_kstars = [file["numeric_params"].attrs["final_kstar1"],
                         file["numeric_params"].attrs["final_kstar2"]]
         bcm_tc = file["numeric_params"].attrs["timestep_conditions"]
@@ -1630,9 +1589,6 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
         p.kick_info
         p.bcm
         p.bpp
-
-    if "galactic_orbits" in parts:
-        p.orbits
 
     return p
 
@@ -1704,9 +1660,6 @@ def concat(*pops):
         final_pop._mass_singles += pop._mass_singles
         final_pop._mass_binaries += pop._mass_binaries
         final_pop.n_binaries_match += pop.n_binaries_match
-
-        if final_pop._orbits is not None or pop._orbits is not None:
-            raise NotImplementedError("Cannot concatenate populations with orbits for now")
 
         bin_num_offset = max(final_pop.bin_nums) + 1
         final_pop._bin_nums = None
