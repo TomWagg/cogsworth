@@ -712,6 +712,38 @@ class Wagg2022(StarFormationHistory):
         return np.power(10, FeH + np.log10(self.zsun))
 
 
+class DistributionFunctionBasedSFH(StarFormationHistory):      # pragma: no cover
+    """A star formation history based on a distribution function. This is an abstract base class and should not
+    be instantiated directly.
+
+    Parameters
+    ----------
+    Parameters are the same as :class:`StarFormationHistory` but additionally with the following:
+
+    potential : :class:`~agama.Potential` or :class:`Potential <gala.potential.potential.PotentialBase>`
+        The gravitational potential in which to sample the distribution function
+    df : :class:`~agama.DistributionFunction`
+        The distribution function from which to sample positions and velocities
+    """
+    def __init__(self, size, potential, df, **kwargs):
+        assert check_dependencies("agama")
+        import agama
+        agama.setUnits(**{k: galactic[k] for k in ['length', 'mass', 'time']})
+
+        self._agama_pot = potential if isinstance(potential, agama.Potential) else potential.to_agama()
+        self._df = df
+
+        super().__init__(size=size, **kwargs)
+
+    @property
+    def agama_pot(self):
+        return self._agama_pot
+    
+    @property
+    def df(self):
+        return self._df
+
+
 class QuasiIsothermalDisk(StarFormationHistory):      # pragma: no cover
     """A quasi-isothermal distribution function with parameters from
     `Sanders & Binney 2015 <https://ui.adsabs.harvard.edu/abs/2015MNRAS.449.3479S/abstract>`_.
@@ -828,36 +860,8 @@ class QuasiIsothermalDisk(StarFormationHistory):      # pragma: no cover
         # create Gala potential
         gala_pot = gp.MilkyWayPotential2022()
 
-        # convert gala potential components into agama components (TODO: check if this is in Gala yet)
-        agama_components = []
-        for p in gala_pot["disk"].get_three_potentials().values():
-            agama_components.append(
-                dict(
-                    type="miyamotonagai",
-                    mass=p.parameters["m"].value,
-                    scaleradius=p.parameters["a"].value,
-                    scaleheight=p.parameters["b"].value,
-                )
-            )
-        for k in ["bulge", "nucleus"]:
-            p = gala_pot[k]
-            agama_components.append(
-                dict(
-                    type="dehnen",
-                    mass=p.parameters["m"].value,
-                    scaleradius=p.parameters["c"].value,
-                    gamma=1.0,
-                )
-            )
-        p = gala_pot["halo"]
-        agama_components.append(
-            dict(
-                type="nfw", mass=p.parameters["m"].value, scaleradius=p.parameters["r_s"].value
-            )
-        )
-
-        # use the components to create an agama potential
-        self._agama_pot = agama.Potential(*agama_components)
+        # convert gala potential components into agama components
+        self._agama_pot = gala_pot.as_interop("agama")
 
         # additionally work out the distribution function
         self._df = agama.DistributionFunction(
