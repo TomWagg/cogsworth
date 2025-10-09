@@ -762,23 +762,15 @@ class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
         - Use times and positions to get metallicities
     """
     def __init__(self, size, potential, **kwargs):
-        super().__init__(size=size, potential=potential, df_kwargs=dict(
-            type='QuasiIsothermal',
-            Rdisk=3.45,
-            Rsigmar=7.8,
-            Rsigmaz=7.8,
-            sigmar0=(48.3*u.km/u.s).decompose(galactic).value,
-            sigmaz0=(30.7*u.km/u.s).decompose(galactic).value,
-            Sigma0=1.
-        ), **kwargs)
-
         self._size = size
-        self.F_M = None
         self.tau_m = 12 * u.Gyr
         self.tau_S = 0.43 * u.Gyr
+        self.tau_T = 10 * u.Gyr
         self.tau_F = 8 * u.Gyr
         self.F_R = -0.064 / u.kpc
+        self.F_m = -0.99
         self.r_F = 7.37 * u.kpc
+        self.zsun = 0.0142
 
         # interpolate the inverse CDF for lookback time distribution
         # pdf taken from Sanders & Binney 2015 Eq. 10
@@ -786,6 +778,28 @@ class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
         tau_pdf = np.exp(tau_range / self.tau_F - self.tau_S / (self.tau_m - tau_range))
         tau_cdf = cumulative_trapezoid(tau_pdf, tau_range, initial=0)
         self._inv_cdf = interp1d(tau_cdf / tau_cdf[-1], tau_range, bounds_error=True)
+
+        super().__init__(size=size, potential=potential, components=["thin_disc", "thick_disc"],
+                         df_kwargs=[
+                            {
+                                'type': 'QuasiIsothermal',
+                                'Rdisk': 3.45,
+                                'Rsigmar': 7.8,
+                                'Rsigmaz': 7.8,
+                                'sigmar0': (48.3*u.km/u.s).decompose(galactic).value,
+                                'sigmaz0': (30.7*u.km/u.s).decompose(galactic).value,
+                                'Sigma0': 1.
+                            },
+                            {
+                                'type': 'QuasiIsothermal',
+                                'Rdisk': 2.31,
+                                'Rsigmar': 6.2,
+                                'Rsigmaz': 6.2,
+                                'sigmar0': (50.5*u.km/u.s).decompose(galactic).value,
+                                'sigmaz0': (51.3*u.km/u.s).decompose(galactic).value,
+                                'Sigma0': 1.
+                            }
+                        ], **kwargs)
 
     def draw_lookback_times(self):
         U = np.random.rand(self._size)
@@ -796,8 +810,61 @@ class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
         """Calculate the metallicity based on the radius and lookback time using
         `Sanders & Binney 2015 <https://ui.adsabs.harvard.edu/abs/2015MNRAS.449.3479S/abstract>`_ Eq. 1 & 2.
         """
-        F = lambda r: self.F_M * (1 - np.exp(-self.F_R(r - self.r_F)))
-        self.Z = (F(self.rho) - self.F_M) * np.tanh((self.tau_m - self.tau) / self.tau_F) + self.F_M
+        F_of_R = self.F_m * (1 - np.exp(-self.F_R * (self.rho - self.r_F) / self.F_m))
+        tanh_arg = ((self.tau_m - self.tau) / self.tau_F).decompose().value
+        FeH = (F_of_R - self.F_m) * np.tanh(tanh_arg) + self.F_m
+        self._Z = np.power(10, FeH + np.log10(self.zsun))
+        return self._Z
+
+    def sample(self):
+        """Sample from the distributions for each component, combine and save in class attributes"""
+        assert check_dependencies("agama")
+        import agama
+        agama.setUnits(**{k: galactic[k] for k in ['length', 'mass', 'time']})
+
+        self.draw_lookback_times()
+
+        is_thin_disc = self.tau < self.tau_T
+        sizes = [np.sum(is_thin_disc), np.sum(~is_thin_disc)]
+
+        self._which_comp = np.where(self.tau < self.tau_T, "thin_disc", "thick_disc")
+
+        self._x = np.zeros(self._size) * u.kpc
+        self._y = np.zeros(self._size) * u.kpc
+        self._z = np.zeros(self._size) * u.kpc
+        self.v_R = np.zeros(self._size) * u.km / u.s
+        self.v_T = np.zeros(self._size) * u.km / u.s
+        self.v_z = np.zeros(self._size) * u.km / u.s
+
+        for size, com, df in zip(sizes, self.components, self.df):
+            if size == 0:
+                continue
+            com_mask = self._which_comp == com
+            xv, _ = agama.GalaxyModel(self._agama_pot, df).sample(size)
+
+            # convert units for velocity
+            xv[:, 3:] *= (u.kpc / u.Myr).to(u.km / u.s)
+
+            # save the positions
+            self._x[com_mask] = xv[:, 0] * u.kpc
+            self._y[com_mask] = xv[:, 1] * u.kpc
+            self._z[com_mask] = xv[:, 2] * u.kpc
+
+            # work out the velocities by rotating using SkyCoord
+            full_coord = SkyCoord(x=self._x[com_mask], y=self._y[com_mask], z=self._z[com_mask],
+                                  v_x=xv[:, 3] * u.km / u.s,
+                                  v_y=xv[:, 4] * u.km / u.s,
+                                  v_z=xv[:, 5] * u.km / u.s,
+                                  frame="galactocentric").represent_as("cylindrical")
+
+            with u.set_enabled_equivalencies(u.dimensionless_angles()):
+                self.v_R[com_mask] = full_coord.differentials['s'].d_rho
+                self.v_T[com_mask] = (full_coord.differentials['s'].d_phi * full_coord.rho).to(u.km / u.s)
+                self.v_z[com_mask] = full_coord.differentials['s'].d_z
+
+        # compute the metallicity given the other values
+        self.get_metallicity()
+
 
 class QuasiIsothermalDisk(StarFormationHistory):      # pragma: no cover
     """A quasi-isothermal distribution function with parameters from
