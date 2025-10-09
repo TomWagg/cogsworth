@@ -3,7 +3,8 @@ import yaml
 import h5py as h5
 import numpy as np
 import astropy.units as u
-from scipy.integrate import quad
+from scipy.interpolate import interp1d
+from scipy.integrate import quad, cumulative_trapezoid
 from scipy.special import lambertw
 from scipy.stats import beta
 import matplotlib.pyplot as plt
@@ -22,7 +23,7 @@ from cogsworth.citations import CITATIONS
 
 
 __all__ = ["StarFormationHistory", "Wagg2022", "BurstUniformDisc", "ConstantUniformDisc",
-           "QuasiIsothermalDisk", "SpheroidalDwarf", "load", "concat"]
+           "SandersBinney2015", "QuasiIsothermalDisk", "SpheroidalDwarf", "load", "concat"]
 
 
 class StarFormationHistory():
@@ -722,16 +723,23 @@ class DistributionFunctionBasedSFH(StarFormationHistory):      # pragma: no cove
 
     potential : :class:`~agama.Potential` or :class:`Potential <gala.potential.potential.PotentialBase>`
         The gravitational potential in which to sample the distribution function
-    df : :class:`~agama.DistributionFunction`
-        The distribution function from which to sample positions and velocities
+    df_kwargs : `dict` or ``list`` of `dict`
+        The keyword arguments to pass to the distribution function(s) using
+        :class:`agama.DistributionFunction`. If a `dict` is given then the same
+        distribution function will be used for all components. If a ``list`` of `dict` is
+        given then each component will use the corresponding distribution function.
     """
-    def __init__(self, size, potential, df, **kwargs):
+    def __init__(self, size, potential, df_kwargs, **kwargs):
         assert check_dependencies("agama")
         import agama
         agama.setUnits(**{k: galactic[k] for k in ['length', 'mass', 'time']})
 
-        self._agama_pot = potential if isinstance(potential, agama.Potential) else potential.to_agama()
-        self._df = df
+        self._agama_pot = potential if isinstance(potential, agama.Potential) else potential.as_interop("agama")
+
+        if isinstance(df_kwargs, dict):
+            self._df = agama.DistributionFunction(potential=self._agama_pot, **df_kwargs)
+        elif isinstance(df_kwargs, list):
+            self._df = [agama.DistributionFunction(potential=self._agama_pot, **df_kw) for df_kw in df_kwargs]
 
         super().__init__(size=size, **kwargs)
 
@@ -747,31 +755,49 @@ class DistributionFunctionBasedSFH(StarFormationHistory):      # pragma: no cove
 class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
     """A distribution function based on
     `Sanders & Binney 2015 <https://ui.adsabs.harvard.edu/abs/2015MNRAS.449.3479S/abstract>`_.
-    """
-    def __init__(self, size, potential, df, **kwargs):
-        assert check_dependencies("agama")
-        import agama
-        agama.setUnits(**{k: galactic[k] for k in ['length', 'mass', 'time']})
 
-        super().__init__(size=size, df=agama.DistributionFunction(
+    TODO:
+        - Based on times select the component they were born in
+        - Use DF and agama to sample positions and velocities
+        - Use times and positions to get metallicities
+    """
+    def __init__(self, size, potential, **kwargs):
+        super().__init__(size=size, potential=potential, df_kwargs=dict(
             type='QuasiIsothermal',
             Rdisk=3.45,
             Rsigmar=7.8,
             Rsigmaz=7.8,
             sigmar0=(48.3*u.km/u.s).decompose(galactic).value,
             sigmaz0=(30.7*u.km/u.s).decompose(galactic).value,
-            potential=self._agama_pot,
             Sigma0=1.
-        ) **kwargs)
+        ), **kwargs)
+
+        self._size = size
+        self.F_M = None
+        self.tau_m = 12 * u.Gyr
+        self.tau_S = 0.43 * u.Gyr
+        self.tau_F = 8 * u.Gyr
+        self.F_R = -0.064 / u.kpc
+        self.r_F = 7.37 * u.kpc
+
+        # interpolate the inverse CDF for lookback time distribution
+        # pdf taken from Sanders & Binney 2015 Eq. 10
+        tau_range = np.linspace(0, self.tau_m * (1 - 1e-10), 100000)
+        tau_pdf = np.exp(tau_range / self.tau_F - self.tau_S / (self.tau_m - tau_range))
+        tau_cdf = cumulative_trapezoid(tau_pdf, tau_range, initial=0)
+        self._inv_cdf = interp1d(tau_cdf / tau_cdf[-1], tau_range, bounds_error=True)
+
+    def draw_lookback_times(self):
+        U = np.random.rand(self._size)
+        self._tau = self._inv_cdf(U) * u.Gyr
+        return self._tau
 
     def get_metallicity(self):
-        F_M = None
-        tau_m = 12 * u.Gyr
-        tau_F = 8 * u.Gyr
-        F_R = -0.064 / u.kpc
-        r_F = 7.37 * u.kpc
-        F = lambda r: F_M * (1 - np.exp(-F_R(r - r_F)))
-        self.Z = (F(self.rho) - F_M) * np.tanh((tau_m - self.tau) / tau_F) + F_M
+        """Calculate the metallicity based on the radius and lookback time using
+        `Sanders & Binney 2015 <https://ui.adsabs.harvard.edu/abs/2015MNRAS.449.3479S/abstract>`_ Eq. 1 & 2.
+        """
+        F = lambda r: self.F_M * (1 - np.exp(-self.F_R(r - self.r_F)))
+        self.Z = (F(self.rho) - self.F_M) * np.tanh((self.tau_m - self.tau) / self.tau_F) + self.F_M
 
 class QuasiIsothermalDisk(StarFormationHistory):      # pragma: no cover
     """A quasi-isothermal distribution function with parameters from
