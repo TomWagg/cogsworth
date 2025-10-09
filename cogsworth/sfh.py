@@ -744,6 +744,35 @@ class DistributionFunctionBasedSFH(StarFormationHistory):      # pragma: no cove
         return self._df
 
 
+class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
+    """A distribution function based on
+    `Sanders & Binney 2015 <https://ui.adsabs.harvard.edu/abs/2015MNRAS.449.3479S/abstract>`_.
+    """
+    def __init__(self, size, potential, df, **kwargs):
+        assert check_dependencies("agama")
+        import agama
+        agama.setUnits(**{k: galactic[k] for k in ['length', 'mass', 'time']})
+
+        super().__init__(size=size, df=agama.DistributionFunction(
+            type='QuasiIsothermal',
+            Rdisk=3.45,
+            Rsigmar=7.8,
+            Rsigmaz=7.8,
+            sigmar0=(48.3*u.km/u.s).decompose(galactic).value,
+            sigmaz0=(30.7*u.km/u.s).decompose(galactic).value,
+            potential=self._agama_pot,
+            Sigma0=1.
+        ) **kwargs)
+
+    def get_metallicity(self):
+        F_M = None
+        tau_m = 12 * u.Gyr
+        tau_F = 8 * u.Gyr
+        F_R = -0.064 / u.kpc
+        r_F = 7.37 * u.kpc
+        F = lambda r: F_M * (1 - np.exp(-F_R(r - r_F)))
+        self.Z = (F(self.rho) - F_M) * np.tanh((tau_m - self.tau) / tau_F) + F_M
+
 class QuasiIsothermalDisk(StarFormationHistory):      # pragma: no cover
     """A quasi-isothermal distribution function with parameters from
     `Sanders & Binney 2015 <https://ui.adsabs.harvard.edu/abs/2015MNRAS.449.3479S/abstract>`_.
@@ -777,29 +806,7 @@ class QuasiIsothermalDisk(StarFormationHistory):      # pragma: no cover
         self.zsun = zsun
         self.galaxy_age = galaxy_age
 
-        self._agama_pot = None
-        self._df = None
-
-        # ensure we don't pass components twice
-        for var in ["components", "component_masses"]:
-            if var in kwargs:
-                kwargs.pop(var)
-
-        # TODO: Perhaps create a "action-based-potential" subclass, there's a lot repeated here
-
-        super().__init__(size=size, components=None, component_masses=None, **kwargs)
-
-    @property
-    def agama_pot(self):
-        if self._agama_pot is None:
-            self.get_DF()
-        return self._agama_pot
-
-    @property
-    def df(self):
-        if self._df is None:
-            self.get_DF()
-        return self._df
+        super().__init__(size=size, **kwargs)
 
     def draw_lookback_times(self, size=None, component="low_alpha_disc"):
         """Inverse CDF sampling of lookback times. low_alpha and high_alpha discs uses
