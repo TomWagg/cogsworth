@@ -816,6 +816,35 @@ class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
               for J in J_phi]
         return Rg * u.kpc
 
+    def _get_omega(self, R_g):
+        """Get the circular frequency at a given guiding radius
+        
+        .. math::
+            \\Omega(R_g) = \\frac{v_c(R_g)}{R_g}
+        """
+        R_g = np.atleast_1d(R_g)
+        return (self.potential.circular_velocity(q=[R_g, 0 * R_g, 0 * R_g]) / R_g).to(1 / u.Myr)
+    
+    def _get_kappa(self, R_g, omega):
+        """Get the radial epicyclic frequency at a given guiding radius
+
+        .. math::
+            \\kappa(R_g) = \\sqrt{4 \\Omega^2 + R_g \\frac{{\\rm d}\\Omega^2}{{\\rm d}R}}
+        """
+        omega = np.atleast_1d(omega)
+        R_g = np.atleast_1d(R_g)
+        d_omega_2_dR = np.gradient(omega**2, R_g)
+        return np.sqrt(4 * omega**2 + R_g * d_omega_2_dR).to(1 / u.Myr)
+    
+    def _get_nu(self, R_g):
+        """Get the vertical epicyclic frequency at a given guiding radius
+        
+        .. math::
+            \\nu(R_g) = \\sqrt{\\frac{\\partial^2 \\Phi}{\\partial z^2}}
+        """
+        R_g = np.atleast_1d(R_g)
+        return (self.potential.hessian(q=[R_g, 0 * R_g, 0 * R_g])[2, 2]**0.5).to(1 / u.Myr)
+
     def draw_lookback_times(self):
         U = np.random.rand(self._size)
         self._tau = self._inv_cdf(U) * u.Gyr
