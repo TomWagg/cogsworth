@@ -1112,7 +1112,6 @@ class Population():
                 self.pool = Pool(self.processes)
 
             # setup arguments to combine primary and secondaries into a single list
-            print(len(self.initial_galaxy.tau), len(primary_events), len(self.bin_nums))
             primary_args = [(w0s[i], self.max_ev_time - self.initial_galaxy.tau[i], self.max_ev_time,
                              copy(self.timestep_size), self.galactic_potential,
                              primary_events[i], self.store_entire_orbits, quiet)
@@ -1204,7 +1203,7 @@ class Population():
             for i, orbit in enumerate(self.orbits):
                 # check if the orbit is missing
                 if orbit is None:
-                    print("Warning: Detected `None` orbit, entering coordinates as `np.inf`")
+                    warnings.warn("Warning: Detected `None` orbit, entering coordinates as `np.inf`")
                 else:
                     self._final_pos[i] = orbit[-1].pos.xyz.to(u.kpc).value
                     self._final_vel[i] = orbit[-1].vel.d_xyz.to(u.km / u.s).value
