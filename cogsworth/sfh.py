@@ -7,6 +7,7 @@ from scipy.interpolate import interp1d
 from scipy.integrate import quad, cumulative_trapezoid
 from scipy.special import lambertw
 from scipy.stats import beta
+from scipy.optimize import brentq
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import pandas as pd
@@ -725,13 +726,14 @@ class DistributionFunctionBasedSFH(StarFormationHistory):      # pragma: no cove
 
     potential : :class:`~agama.Potential` or :class:`Potential <gala.potential.potential.PotentialBase>`
         The gravitational potential in which to sample the distribution function
-    df_kwargs : `dict` or ``list`` of `dict`
-        The keyword arguments to pass to the distribution function(s) using
+    df : `function` or `dict` or ``list`` of either
+        Either a function that represents the distribution function, taking J as an argument,
+        or the keyword arguments to pass to the distribution function(s) using
         :class:`agama.DistributionFunction`. If a `dict` is given then the same
         distribution function will be used for all components. If a ``list`` of `dict` is
         given then each component will use the corresponding distribution function.
     """
-    def __init__(self, size, potential, df_kwargs, **kwargs):
+    def __init__(self, size, potential, df, **kwargs):
         assert check_dependencies("agama")
         import agama
         agama.setUnits(**{k: galactic[k] for k in ['length', 'mass', 'time']})
@@ -739,10 +741,13 @@ class DistributionFunctionBasedSFH(StarFormationHistory):      # pragma: no cove
         self.potential = potential
         self._agama_pot = potential if isinstance(potential, agama.Potential) else potential.as_interop("agama")
 
-        if isinstance(df_kwargs, dict):
-            self._df = agama.DistributionFunction(potential=self._agama_pot, **df_kwargs)
-        elif isinstance(df_kwargs, list):
-            self._df = [agama.DistributionFunction(potential=self._agama_pot, **df_kw) for df_kw in df_kwargs]
+        if isinstance(df, dict):
+            self._df = agama.DistributionFunction(potential=self._agama_pot, **df)
+        elif isinstance(df, function):
+            self._df = df
+        elif isinstance(df, list):
+            self._df = [agama.DistributionFunction(potential=self._agama_pot, **df_kw)
+                        if isinstance(df_kw, dict) else df_kw for df_kw in df]
 
         super().__init__(size=size, **kwargs)
 
@@ -758,11 +763,6 @@ class DistributionFunctionBasedSFH(StarFormationHistory):      # pragma: no cove
 class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
     """A distribution function based on
     `Sanders & Binney 2015 <https://ui.adsabs.harvard.edu/abs/2015MNRAS.449.3479S/abstract>`_.
-
-    TODO:
-        - Based on times select the component they were born in
-        - Use DF and agama to sample positions and velocities
-        - Use times and positions to get metallicities
     """
     def __init__(self, size, potential, **kwargs):
         self._size = size
@@ -808,6 +808,13 @@ class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
                                 'Sigma0': 1.
                             }
                         ], **kwargs)
+
+    def _get_guiding_radii(self, J_phi, low=1e-5, high=1000):
+        """Get the guiding radius for a given angular momentum by finding the root of Lz - R * v_c(R)"""
+        J_phi = np.atleast_1d(J_phi.to(u.kpc * u.km / u.s))
+        Rg = [brentq(lambda R: R * self.potential.circular_velocity(q=[R, 0, 0]).value - J.value, low, high)
+              for J in J_phi]
+        return Rg * u.kpc
 
     def draw_lookback_times(self):
         U = np.random.rand(self._size)
