@@ -717,8 +717,8 @@ class Wagg2022(StarFormationHistory):
 
 
 class DistributionFunctionBasedSFH(StarFormationHistory):      # pragma: no cover
-    """A star formation history based on a distribution function. This is an abstract base class and should not
-    be instantiated directly.
+    """A star formation history based on a distribution function.
+    This is an abstract base class and should not be instantiated directly.
 
     Parameters
     ----------
@@ -770,6 +770,7 @@ class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
         self.tau_S = 0.43 * u.Gyr
         self.tau_T = 10 * u.Gyr
         self.tau_F = 8 * u.Gyr
+        self.tau_1 = 110 * u.Myr
         self.F_R = -0.064 / u.kpc
         self.F_m = -0.99
         self.r_F = 7.37 * u.kpc
@@ -857,6 +858,43 @@ class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
         """
         R_g = np.atleast_1d(R_g)
         return (self.potential.hessian(q=[R_g, 0 * R_g, 0 * R_g])[2, 2]**0.5).to(1 / u.s)
+
+    def _get_sigma_i(self, i, R_g, tau, component):
+        """Get the radial or vertical velocity dispersion at a given guiding radius and lookback time"""
+        assert component in ["thin_disc", "thick_disc"], "Component must be 'thin_disc' or 'thick_disc'"
+        assert i in ["R", "z"], "i must be 'R' or 'z'"
+        sigma_R0 = (48.3 if component == "thin_disc" else 50.5)
+        sigma_z0 = (30.7 if component == "thin_disc" else 51.3)
+        R_sigma = (7.8 if component == "thin_disc" else 6.2)
+
+        beta = (0.33 if i == 'R' else 0.4) if component == "thin_disc" else 0
+        return (sigma_R0 if i == "R" else sigma_z0) * np.exp((8 - R_g) / R_sigma) * ((tau + self.tau_1) / (self.tau_T + self.tau_1))**beta
+
+    def _generate_df(self, J, component, tau):
+        """Generate a distribution function for a given component and lookback time"""
+        assert component in ["thin_disc", "thick_disc"], "Component must be 'thin_disc' or 'thick_disc'"
+        
+        J_r, J_phi, J_z = J.T
+        R_d = 3.45 if component == "thin_disc" else 2.31
+
+        # potential dependent features
+        R_g = self._guiding_radius_interp(J_phi.value)
+        omega = self._omega_interp(R_g.value)
+        kappa = self._kappa_interp(R_g.value)
+        nu = self._nu_interp(R_g.value)
+
+        # time dependent features
+        sigma_R = self._get_sigma_i("R", R_g, tau, component)
+        sigma_Z = self._get_sigma_i("z", R_g, tau, component)
+
+        # construct DF
+        prefactor = 1 / (8 * np.pi**3) * (1 + np.tanh(J_phi / 10))
+        exp_terms = [
+            omega / (R_d**2 * kappa**2) * np.exp(-R_g / R_d),
+            (kappa / sigma_R**2) * np.exp(-kappa * J_r / sigma_R**2),
+            (nu / sigma_Z**2) * np.exp(-nu * J_z / sigma_Z**2)
+        ]
+        return prefactor * np.prod(exp_terms, axis=0)
 
     def draw_lookback_times(self):
         U = np.random.rand(self._size)
