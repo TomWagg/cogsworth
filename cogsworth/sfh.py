@@ -782,6 +782,19 @@ class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
         tau_cdf = cumulative_trapezoid(tau_pdf, tau_range, initial=0)
         self._inv_cdf = interp1d(tau_cdf / tau_cdf[-1], tau_range, bounds_error=True)
 
+        J_phi_range = np.linspace(1e-2, 10000, 200) * u.kpc * u.km / u.s
+        R_g = self._get_guiding_radius(J_phi_range, high=10000)
+        self._guiding_radius_interp = interp1d(J_phi_range.value, R_g.value)
+
+        # pre-compute frequencies at a range of guiding radii
+        R_g_range = np.linspace(1e-2, 100, 10000) * u.kpc
+        omega = self._get_omega(R_g_range)
+        kappa = self._get_kappa(R_g_range, omega)
+        nu = self._get_nu(R_g_range)
+        self._omega_interp = interp1d(R_g_range.value, omega.value)
+        self._kappa_interp = interp1d(R_g_range.value, kappa.value)
+        self._nu_interp = interp1d(R_g_range.value, nu.value)
+
         # ensure we don't pass components twice
         for var in ["components", "component_masses"]:
             if var in kwargs:
@@ -823,7 +836,7 @@ class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
             \\Omega(R_g) = \\frac{v_c(R_g)}{R_g}
         """
         R_g = np.atleast_1d(R_g)
-        return (self.potential.circular_velocity(q=[R_g, 0 * R_g, 0 * R_g]) / R_g).to(1 / u.Myr)
+        return (self.potential.circular_velocity(q=[R_g, 0 * R_g, 0 * R_g]) / R_g).to(1 / u.s)
     
     def _get_kappa(self, R_g, omega):
         """Get the radial epicyclic frequency at a given guiding radius
@@ -834,7 +847,7 @@ class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
         omega = np.atleast_1d(omega)
         R_g = np.atleast_1d(R_g)
         d_omega_2_dR = np.gradient(omega**2, R_g)
-        return np.sqrt(4 * omega**2 + R_g * d_omega_2_dR).to(1 / u.Myr)
+        return np.sqrt(4 * omega**2 + R_g * d_omega_2_dR).to(1 / u.s)
     
     def _get_nu(self, R_g):
         """Get the vertical epicyclic frequency at a given guiding radius
@@ -843,7 +856,7 @@ class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
             \\nu(R_g) = \\sqrt{\\frac{\\partial^2 \\Phi}{\\partial z^2}}
         """
         R_g = np.atleast_1d(R_g)
-        return (self.potential.hessian(q=[R_g, 0 * R_g, 0 * R_g])[2, 2]**0.5).to(1 / u.Myr)
+        return (self.potential.hessian(q=[R_g, 0 * R_g, 0 * R_g])[2, 2]**0.5).to(1 / u.s)
 
     def draw_lookback_times(self):
         U = np.random.rand(self._size)
