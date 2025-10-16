@@ -1156,7 +1156,7 @@ class SpheroidalDwarf(DistributionFunctionBasedSFH):      # pragma: no cover
         elif "potential" not in kwargs and self.mass is not None:
             kwargs["potential"] = gp.NFWPotential(m=mass, r_s=1.0, units=galactic)
 
-        kwargs["df"] = self._generate_df
+        kwargs["df"] = lambda J: self._generate_df(J)
         self.J_0_star = J_0_star
         self.alpha = alpha
         self.eta = eta
