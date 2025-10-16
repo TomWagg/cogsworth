@@ -25,7 +25,7 @@ from cogsworth.citations import CITATIONS
 
 
 __all__ = ["StarFormationHistory", "Wagg2022", "BurstUniformDisc", "ConstantUniformDisc",
-           "SandersBinney2015", "QuasiIsothermalDisk", "SpheroidalDwarf", "load", "concat"]
+           "SandersBinney2015", "SpheroidalDwarf", "load", "concat"]
 
 
 class StarFormationHistory():
@@ -762,10 +762,27 @@ class DistributionFunctionBasedSFH(StarFormationHistory):      # pragma: no cove
 
 
 class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
-    """A distribution function based on
+    """Star formation history model based on a Quasi-Isothermal Disc distribution function from
     `Sanders & Binney 2015 <https://ui.adsabs.harvard.edu/abs/2015MNRAS.449.3479S/abstract>`_.
+    
+    This class doesn't account for the extended distribution function described in SB15, instead following
+    the quasi-isothermal DF described in Section 2.2 of that paper. We follow their prescription for the
+    time evolution of the velocity dispersions and the metallicity distribution, but do not include radial
+    migration.
+
+    Parameters are inherited from :class:`DistributionFunctionBasedSFH` and :class:`StarFormationHistory`
+    but additionally with the following:
+
+    Parameters
+    ----------
+    time_bins : `int`, optional
+        Number of time bins to use when computing different radial and vertical velocity dispersions, which
+        accounts for how these parameters evolve with time. More bins means a more accurate representation
+        of the SFH but takes longer to compute. By default 5.
+    verbose : `bool`, optional
+        Whether to print out information about the setup and sampling of the model, by default False
     """
-    def __init__(self, size, potential, time_bins=100, verbose=False, **kwargs):
+    def __init__(self, size, time_bins=5, verbose=False, **kwargs):
         self._size = size
         self.tau_m = 12 * u.Gyr
         self.tau_S = 0.43 * u.Gyr
@@ -790,7 +807,7 @@ class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
         if self.verbose:
             print("Setting up Sanders & Binney 2015 star formation history model to work with Agama")
 
-        super().__init__(size=size, potential=potential, components=["thin_disc", "thick_disc"],
+        super().__init__(size=size, components=["thin_disc", "thick_disc"],
                          df=None, immediately_sample=False, **kwargs)
         self.__citations__.append("Sanders&Binney2015")
         
@@ -817,7 +834,7 @@ class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
         self._kappa_interp = interp1d(R_g_range.value, kappa.value)
         self._nu_interp = interp1d(R_g_range.value, nu.value)
 
-        if immediately_sample:
+        if immediately_sample: 
             self.sample()
 
     def _get_omega(self, R_g):
