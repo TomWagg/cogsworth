@@ -1209,7 +1209,11 @@ class SpheroidalDwarf(DistributionFunctionBasedSFH):      # pragma: no cover
         return self._Z
 
     def _generate_df(self, J):
-        """Get the distribution function for a dwarf galaxy disk"""
+        """Get the distribution function for a dwarf galaxy disk
+        
+        This assumes spherical symmetry and follows Eq. 7 (instead of the more general Eq. 5) of
+        `Pascale+2019 <https://ui.adsabs.harvard.edu/abs/2019MNRAS.488.2423P/abstract>`_.
+        """
         J0_no_units = (self.J_0_star).decompose(galactic).value
         Jr, Jz, Jphi = J.T
         kJ = Jr + self.eta * (np.abs(Jphi) + Jz)
