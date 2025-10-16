@@ -80,9 +80,17 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential()
         Integrated orbit. If a disrupted binary with two event lists was supplied then two orbit classes will
         be returned. If the orbit integration failed for any reason then None is returned.
     """
+    # ensure timestep isn't larger than integration time
+    dt = min(dt, t2 - t1)
+
     # if there are no events then just integrate the whole thing
     if events is None:
-        full_orbit = potential.integrate_orbit(w0, t1=t1, t2=t2, dt=dt, Integrator=gi.DOPRI853Integrator)
+        try:
+            success = False
+            full_orbit = potential.integrate_orbit(w0, t1=t1, t2=t2, dt=dt, Integrator=gi.DOPRI853Integrator)
+            success = True
+        except RuntimeError:
+            return None
         # jettison everything but the final timestep if user says so
         if not store_all:
             full_orbit = full_orbit[-1:]
