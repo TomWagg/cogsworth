@@ -25,7 +25,7 @@ from cogsworth.citations import CITATIONS
 
 
 __all__ = ["StarFormationHistory", "DistributionFunctionBasedSFH", "Wagg2022", "BurstUniformDisc", "ConstantUniformDisc",
-           "SandersBinney2015", "SpheroidalDwarf", "load", "concat"]
+           "SandersBinney2015", "SpheroidalDwarf", "CarinaDwarf", "load", "concat"]
 
 
 class StarFormationHistory():
@@ -759,6 +759,57 @@ class DistributionFunctionBasedSFH(StarFormationHistory):      # pragma: no cove
     @property
     def df(self):
         return self._df
+    
+    def sample(self):
+        """Sample from the distributions for each component, combine and save in class attributes"""
+        assert check_dependencies("agama")
+        import agama
+        agama.setUnits(**{k: galactic[k] for k in ['length', 'mass', 'time']})
+
+        self.draw_lookback_times()
+
+        self._x = np.zeros(self._size) * u.kpc
+        self._y = np.zeros(self._size) * u.kpc
+        self._z = np.zeros(self._size) * u.kpc
+
+        self.v_x = np.zeros(self._size) * u.km / u.s
+        self.v_y = np.zeros(self._size) * u.km / u.s
+        self.v_z = np.zeros(self._size) * u.km / u.s
+
+        self.v_R = np.zeros(self._size) * u.km / u.s
+        self.v_T = np.zeros(self._size) * u.km / u.s
+
+        if self._which_comp is None and self.components is None:
+            self._which_comp = np.array(["main"] * self._size)
+
+        for i, com in enumerate(self.components if self.components is not None else ["main"]):
+            com_mask = self._which_comp == com
+
+            df = self._df[i] if isinstance(self._df, list) else self._df
+            xv, _ = agama.GalaxyModel(self._agama_pot, df).sample(com_mask.sum())
+
+            # convert units for velocity
+            xv[:, 3:] *= (u.kpc / u.Myr).to(u.km / u.s)
+
+            # save the positions/velocities
+            self._x[com_mask] = xv[:, 0] * u.kpc
+            self._y[com_mask] = xv[:, 1] * u.kpc
+            self._z[com_mask] = xv[:, 2] * u.kpc
+            self.v_x[com_mask] = xv[:, 3] * u.km / u.s
+            self.v_y[com_mask] = xv[:, 4] * u.km / u.s
+            self.v_z[com_mask] = xv[:, 5] * u.km / u.s
+
+        # work out the velocities by rotating using SkyCoord
+        full_coord = SkyCoord(x=self._x, y=self._y, z=self._z, v_x=self.v_x, v_y=self.v_y, v_z=self.v_z,
+                              frame="galactocentric").represent_as("cylindrical")
+
+        with u.set_enabled_equivalencies(u.dimensionless_angles()):
+            self.v_R = full_coord.differentials['s'].d_rho
+            self.v_T = (full_coord.differentials['s'].d_phi * full_coord.rho).to(u.km / u.s)
+            self.v_z = full_coord.differentials['s'].d_z
+
+        # compute the metallicity given the other values
+        self.get_metallicity()
 
 
 class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
@@ -1071,50 +1122,46 @@ class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
         self.get_metallicity()
 
 
-class SpheroidalDwarf(StarFormationHistory):      # pragma: no cover
+class SpheroidalDwarf(DistributionFunctionBasedSFH):      # pragma: no cover
     """An action-based model for dwarf spheroidal galaxies and globular clusters
     `Pascale+2019 <https://ui.adsabs.harvard.edu/abs/2019MNRAS.488.2423P/abstract>`_.
 
-    Parameters are the same as :class:`StarFormationHistory` but additionally with the following:
+    Parameters are the same as :class:`DistributionFunctionBasedSFH` and
+    :class:`StarFormationHistory` but additionally with the following:
 
     Parameters
     ----------
-    mass : `float`
-        Total mass of the galactic potential
     J_0_star : `float`
         The action scale that naturally defines the length- and velocity-scale
     alpha : `float`
-        A non-negative, dimensionless parameter that mainly regulates the models density profile
+        A non-negative, dimensionless parameter that mainly regulates the model's density profile
     eta : `float`
         A non-negative, dimensionless parameter that mainly controls the radial or tangential bias of the
         model velocity distribution; models sharing the parameters $(\\alpha, \\eta)$ are homologous.
-    galaxy_age : :class:`~astropy.units.Quantity` [time], optional
-        Maximum lookback time, by default 12*u.Gyr
-    tsfr : :class:`~astropy.units.Quantity` [time], optional
-        Star formation timescale, by default 6.8*u.Gyr
-    Fm : `int`, optional
-        Metallicity at centre of disc at tm, by default -1
-    gradient : :class:`~astropy.units.Quantity` [1/length], optional
-        Metallicity gradient, by default -0.075/u.kpc
-    Rnow : :class:`~astropy.units.Quantity` [length], optional
-        Radius at which present day metallicity is solar, by default 8.7*u.kpc
-    gamma : `float`, optional
-        Time dependence of chemical enrichment, by default 0.3
-    zsun : `float`, optional
-        Solar metallicity, by default 0.0142
+    fixed_Z : `float`
+        Fixed metallicity for all stars in the dwarf galaxy
+    tau_min : :class:`~astropy.units.Quantity` [time]
+        Minimum lookback time for star formation, by default 10 Gyr
+    galaxy_age : :class:`~astropy.units.Quantity` [time]
+        Maximum lookback time for star formation, by default 12 Gyr
+    mass : `float`, optional
+        Total mass of the galactic potential. If not given, a potential must be provided. If given, this will
+        be used to create a NFW potential with scale radius 1 kpc and concentration 1. By default None.
     """
-    def __init__(self, size, mass, J_0_star, alpha, eta, tsfr=6.8 * u.Gyr, Fm=-1, gradient=-0.075 / u.kpc,
-                 Rnow=8.7 * u.kpc, gamma=0.3, zsun=0.0142, galaxy_age=12 * u.Gyr, **kwargs):
+    def __init__(self, size, J_0_star, alpha, eta, fixed_Z, tau_min, galaxy_age, mass=None, **kwargs):
+        # set mass and, potentially (...hehe), the potential
         self.mass = mass
+        if "potential" not in kwargs and self.mass is None:
+            raise ValueError("You must provide either a potential or a mass for the SpheroidalDwarf model")
+        elif "potential" not in kwargs and self.mass is not None:
+            kwargs["potential"] = gp.NFWPotential(m=mass, r_s=1.0, units=galactic)
+
+        kwargs["df"] = self._generate_df
         self.J_0_star = J_0_star
         self.alpha = alpha
         self.eta = eta
-        self.tsfr = tsfr
-        self.Fm = Fm
-        self.gradient = gradient
-        self.Rnow = Rnow
-        self.gamma = gamma
-        self.zsun = zsun
+        self.fixed_Z = fixed_Z
+        self.tau_min = tau_min
         self.galaxy_age = galaxy_age
 
         self._agama_pot = None
@@ -1126,25 +1173,10 @@ class SpheroidalDwarf(StarFormationHistory):      # pragma: no cover
                 kwargs.pop(var)
 
         super().__init__(size=size, components=None, component_masses=None, **kwargs)
+        self.__citations__.append("Pascale+2019")
 
-    @property
-    def agama_pot(self):
-        if self._agama_pot is None:
-            self.get_DF()
-        return self._agama_pot
-
-    @property
-    def df(self):
-        if self._df is None:
-            self.get_DF()
-        return self._df
-
-    def draw_lookback_times(self, size=None, component="low_alpha_disc"):
-        """Inverse CDF sampling of lookback times. low_alpha and high_alpha discs uses
-        `Frankel+2018 <https://ui.adsabs.harvard.edu/abs/2018ApJ...865...96F/abstract>`_ Eq. 4,
-        separated and normalised at 8 Gyr. The bulge matches the distribution in Fig. 7 of
-        `Bovy+19 <https://ui.adsabs.harvard.edu/abs/2019MNRAS.490.4740B/abstract>`_ but accounts
-        for sample's bias.
+    def draw_lookback_times(self, size=None):
+        """Uniform sampling of lookback times between tau_min and tau_max
 
         Parameters
         ----------
@@ -1160,18 +1192,7 @@ class SpheroidalDwarf(StarFormationHistory):      # pragma: no cover
         """
         # if no size is given then use the class value
         size = self._size if size is None else size
-        if component == "low_alpha_disc":
-            U = np.random.rand(size)
-            norm = 1 / quad(lambda x: np.exp(-(self.galaxy_age.value - x) / self.tsfr.value), 0, 8)[0]
-            tau = self.tsfr * np.log((U * np.exp(self.galaxy_age / self.tsfr)) / (norm * self.tsfr.value) + 1)
-        elif component == "high_alpha_disc":
-            U = np.random.rand(size)
-            norm = 1 / quad(lambda x: np.exp(-(self.galaxy_age.value - x) / self.tsfr.value), 8, 12)[0]
-            tau = self.tsfr * np.log((U * np.exp(self.galaxy_age / self.tsfr)) / (norm * self.tsfr.value)
-                                     + np.exp(8 * u.Gyr / self.tsfr))
-        elif component == "bulge":
-            tau = beta.rvs(a=2, b=3, loc=6, scale=6, size=size) * u.Gyr
-        return tau
+        return np.random.uniform(self.tau_min.to(u.Gyr).value, self.galaxy_age.to(u.Gyr).value, size) * u.Gyr
 
     def get_metallicity(self):
         """Convert radius and time to metallicity using
@@ -1184,68 +1205,31 @@ class SpheroidalDwarf(StarFormationHistory):      # pragma: no cover
         Z : :class:`~astropy.units.Quantity` [dimensionless]
             Metallicities corresponding to radii and times
         """
-        rho = (self.x**2 + self.y**2)**(0.5)
-        FeH = self.Fm + self.gradient * rho - (self.Fm + self.gradient * self.Rnow)\
-            * (1 - (self._tau / self.galaxy_age))**self.gamma
-        return np.power(10, FeH + np.log10(self.zsun))
+        self._Z = np.repeat(self.fixed_Z, self._size)
+        return self._Z
 
-    def get_DF(self):
-        """Get the distribution function for a dwarf galaxy disk based on an NFW profile"""
-        assert check_dependencies("agama")
-        import agama
-        agama.setUnits(**{k: galactic[k] for k in ['length', 'mass', 'time']})
-
-        gala_pot = gp.NFWPotential(m=self.mass, r_s=1.0, units=galactic)
-        self._agama_pot = agama.Potential(
-            type="nfw",
-            mass=gala_pot.parameters["m"].decompose(galactic).value,
-            scaleradius=gala_pot.parameters["r_s"].decompose(galactic).value,
-        )
-
+    def _generate_df(self, J):
+        """Get the distribution function for a dwarf galaxy disk"""
         J0_no_units = (self.J_0_star).decompose(galactic).value
+        Jr, Jz, Jphi = J.T
+        kJ = Jr + self.eta * (np.abs(Jphi) + Jz)
+        return np.exp(-(kJ / J0_no_units)**self.alpha)
 
-        def dwarf_df(J):
-            Jr, Jz, Jphi = J.T
-            kJ = Jr + self.eta * (np.abs(Jphi) + Jz)
-            return np.exp(-(kJ / J0_no_units)**self.alpha)
-        self._df = dwarf_df
-        return self._df, self._agama_pot
 
-    def sample(self):
-        """Sample from the Galaxy distribution and save in class attributes"""
-        assert check_dependencies("agama")
-        import agama
-        agama.setUnits(**{k: galactic[k] for k in ['length', 'mass', 'time']})
+class CarinaDwarf(SpheroidalDwarf):
+    """A model for the Carina dwarf spheroidal galaxy based on
+    `Pascale+2019 <https://ui.adsabs.harvard.edu/abs/2019MNRAS.488.2423P/abstract>`_.
 
-        # create an array of which component each point belongs to
-        self._which_comp = np.repeat("low_alpha_disc", self.size)
-        self._tau = self.draw_lookback_times(size=self.size, component="low_alpha_disc")
+    Parameters are the same as :class:`SpheroidalDwarf` but with the following defaults:
 
-        # get cartesian coordinates from agama
-        xv, _ = agama.GalaxyModel(self.agama_pot, self.df).sample(self.size)
-
-        # convert units for velocity
-        xv[:, 3:] *= (u.kpc / u.Myr).to(u.km / u.s)
-
-        # save the positions
-        self._x = xv[:, 0] * u.kpc
-        self._y = xv[:, 1] * u.kpc
-        self._z = xv[:, 2] * u.kpc
-
-        # work out the velocities by rotating using SkyCoord
-        full_coord = SkyCoord(x=self._x, y=self._y, z=self._z,
-                              v_x=xv[:, 3] * u.km / u.s, v_y=xv[:, 4] * u.km / u.s, v_z=xv[:, 5] * u.km / u.s,
-                              frame="galactocentric").represent_as("cylindrical")
-
-        with u.set_enabled_equivalencies(u.dimensionless_angles()):
-            self.v_R = full_coord.differentials['s'].d_rho
-            self.v_T = (full_coord.differentials['s'].d_phi * full_coord.rho).to(u.km / u.s)
-            self.v_z = full_coord.differentials['s'].d_z
-
-        # compute the metallicity given the other values
-        self._Z = self.get_metallicity()
-
-        return self._tau, self.positions, self.Z
+    Parameters
+    ----------
+    size : `int`
+        How many stars to simulate
+    """
+    def __init__(self, size, **kwargs):
+        super().__init__(size=size, mass=8.69e8 * u.Msun, J_0_star=0.677 * u.kpc*u.km/u.s,
+                         alpha=0.946, eta=0.5, **kwargs)
 
 
 def load(file_name, key="sfh"):
