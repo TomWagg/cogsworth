@@ -793,6 +793,7 @@ class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
 
         super().__init__(size=size, potential=potential, components=["thin_disc", "thick_disc"],
                          df=None, immediately_sample=False, **kwargs)
+        self.__citations__.append("Sanders&Binney2015")
         
         if self.verbose:
             print("Pre-computing lookback time, guiding radius and frequency interpolations")
