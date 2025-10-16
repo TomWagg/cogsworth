@@ -772,7 +772,7 @@ class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
         self.tau_S = 0.43 * u.Gyr
         self.tau_T = 10 * u.Gyr
         self.tau_F = 8 * u.Gyr
-        self.tau_1 = 110 * u.Myr
+        self.tau_1 = 0.11 * u.Gyr
         self.F_R = -0.064 / u.kpc
         self.F_m = -0.99
         self.r_F = 7.37 * u.kpc
@@ -804,12 +804,12 @@ class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
         tau_cdf = cumulative_trapezoid(tau_pdf, tau_range, initial=0)
         self._inv_cdf = interp1d(tau_cdf / tau_cdf[-1], tau_range, bounds_error=True)
 
-        J_phi_range = np.linspace(1e-2, 100_000, 200) * u.kpc * u.km / u.s
-        R_g = self._get_guiding_radius(J_phi_range, high=100_000)
-        self._guiding_radius_interp = interp1d(J_phi_range.value, R_g.value)
-
         # pre-compute frequencies at a range of guiding radii
         R_g_range = np.linspace(1e-2, 100, 10000) * u.kpc
+        J_phi = R_g_range * self.potential.circular_velocity(q=[R_g_range, 0 * R_g_range, 0 * R_g_range])
+        self._guiding_radius_interp = interp1d(J_phi.to(u.kpc**2 / u.Myr).value, R_g_range.value,
+                                               bounds_error=False, fill_value="extrapolate")
+
         omega = self._get_omega(R_g_range)
         kappa = self._get_kappa(R_g_range, omega)
         nu = self._get_nu(R_g_range)
@@ -875,6 +875,9 @@ class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
 
     def _get_sigma_i(self, i, R_g, tau, component):
         """Get the radial or vertical velocity dispersion at a given guiding radius and lookback time
+
+        Follows `Sanders & Binney 2015 <https://ui.adsabs.harvard.edu/abs/2015MNRAS.449.3479S/abstract>`_
+        Eq. 4 and 10.
         
         Parameters
         ----------
@@ -903,11 +906,14 @@ class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
 
     def _generate_df(self, J, component, tau):
         """Generate a distribution function for a given component and lookback time
+
+        Follows `Sanders & Binney 2015 <https://ui.adsabs.harvard.edu/abs/2015MNRAS.449.3479S/abstract>`_
+        Eq. 3.1.
         
         Parameters
         ----------
         J : `array-like`, shape (N, 3)
-            Actions in (J_r, J_phi, J_z) in units of kpc km/s
+            Actions in (J_r, J_phi, J_z) in units of kpc^2 / Myr
         component : `str`
             Either "thin_disc" or "thick_disc"
         tau : :class:`~astropy.units.Quantity` [time]
@@ -924,10 +930,10 @@ class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
 
         # only compute the DF where the prior interpolations are valid
         df_val = np.full_like(J_r, np.nan)
-        valid = (J_phi >= 1e-2) & (J_phi <= 100_000)
+        valid = (J_phi >= 1e-5) & (J_phi <= 100)
 
         R_d = 3.45 if component == "thin_disc" else 2.31
-        L_0 = 10
+        L_0 = 0.1
 
         # get guiding radii
         R_g = np.zeros_like(J_r)
@@ -941,18 +947,19 @@ class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
         nu = self._nu_interp(R_g)
 
         # time dependent velocity dispersions
-        sigma_R = self._get_sigma_i("R", R_g, tau, component)
-        sigma_z = self._get_sigma_i("z", R_g, tau, component)
+        kms_to_kpcMyr = (u.km / u.s).to(u.kpc / u.Myr)
+        sigma_R = self._get_sigma_i("R", R_g, tau, component) * kms_to_kpcMyr
+        sigma_z = self._get_sigma_i("z", R_g, tau, component) * kms_to_kpcMyr
 
         # construct DF
         prefactor = 1 / (8 * np.pi**3) * (1 + np.tanh(J_phi[valid] / L_0))          # no units
         exp_terms = [
             omega / (R_d**2 * kappa**2) * np.exp(-R_g / R_d),                       # units of Myr/kpc^2
-            (kappa / sigma_R**2) * np.exp(-kappa * J_r[valid] / sigma_R**2),        # units of Myr/km^2
-            (nu / sigma_z**2) * np.exp(-nu * J_z[valid] / sigma_z**2)               # units of Myr/km^2
+            (kappa / sigma_R**2) * np.exp(-kappa * J_r[valid] / sigma_R**2),        # units of Myr/kpc^2
+            (nu / sigma_z**2) * np.exp(-nu * J_z[valid] / sigma_z**2)               # units of Myr/kpc^2
         ]
-        df_val[valid] = prefactor * np.prod(exp_terms, axis=0)                      # units of Myr^3/kpc^2/km^4
-        return df_val * (u.Myr**3 / u.kpc**2 / u.km**4).to(u.Myr**3 / u.kpc**6)
+        df_val[valid] = prefactor * np.prod(exp_terms, axis=0)                      # units of Myr^3/kpc^6
+        return df_val
 
     def draw_lookback_times(self):
         """Draw lookback times for all stars using inverse CDF sampling
@@ -1002,7 +1009,6 @@ class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
 
         self.v_R = np.zeros(self._size) * u.km / u.s
         self.v_T = np.zeros(self._size) * u.km / u.s
-        self.v_z = np.zeros(self._size) * u.km / u.s
 
         for size, com in zip(sizes, self.components):
             if size == 0:
@@ -1050,160 +1056,6 @@ class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
             self.v_R = full_coord.differentials['s'].d_rho
             self.v_T = (full_coord.differentials['s'].d_phi * full_coord.rho).to(u.km / u.s)
             self.v_z = full_coord.differentials['s'].d_z
-
-        # compute the metallicity given the other values
-        self.get_metallicity()
-
-
-class SB15_NoTimeDependenceCustomDF(SandersBinney2015):      # pragma: no cover
-    def sample(self):
-        """Sample from the distributions for each component, combine and save in class attributes"""
-        assert check_dependencies("agama")
-        import agama
-        agama.setUnits(**{k: galactic[k] for k in ['length', 'mass', 'time']})
-
-        if self.verbose:
-            print("Initiating sampling procedure")
-
-        self.draw_lookback_times()
-
-        is_thin_disc = self.tau < self.tau_T
-        sizes = [np.sum(is_thin_disc), np.sum(~is_thin_disc)]
-
-        self._which_comp = np.where(self.tau < self.tau_T, "thin_disc", "thick_disc")
-
-        self._x = np.zeros(self._size) * u.kpc
-        self._y = np.zeros(self._size) * u.kpc
-        self._z = np.zeros(self._size) * u.kpc
-
-        self.v_x = np.zeros(self._size) * u.km / u.s
-        self.v_y = np.zeros(self._size) * u.km / u.s
-        self.v_z = np.zeros(self._size) * u.km / u.s
-
-        self.v_R = np.zeros(self._size) * u.km / u.s
-        self.v_T = np.zeros(self._size) * u.km / u.s
-        self.v_z = np.zeros(self._size) * u.km / u.s
-
-        self._df = {
-            "thin_disc": agama.DistributionFunction(lambda J: self._generate_df(J, "thin_disc", 10 * u.Gyr)),
-            "thick_disc": agama.DistributionFunction(lambda J: self._generate_df(J, "thick_disc", 10 * u.Gyr))
-        }
-
-        for size, com in zip(sizes, self.components):
-            if size == 0:
-                continue
-            com_mask = self._which_comp == com
-
-            if self.verbose:
-                print(f"  Sampling {size} stars from the {com}")
-
-            xv, _ = agama.GalaxyModel(self._agama_pot, self._df[com]).sample(size)
-
-            # convert units for velocity
-            xv[:, 3:] *= (u.kpc / u.Myr).to(u.km / u.s)
-
-            # save the positions
-            self._x[com_mask] = xv[:, 0] * u.kpc
-            self._y[com_mask] = xv[:, 1] * u.kpc
-            self._z[com_mask] = xv[:, 2] * u.kpc
-
-            # work out the velocities by rotating using SkyCoord
-            full_coord = SkyCoord(x=self._x[com_mask], y=self._y[com_mask], z=self._z[com_mask],
-                                  v_x=xv[:, 3] * u.km / u.s,
-                                  v_y=xv[:, 4] * u.km / u.s,
-                                  v_z=xv[:, 5] * u.km / u.s,
-                                  frame="galactocentric").represent_as("cylindrical")
-
-            with u.set_enabled_equivalencies(u.dimensionless_angles()):
-                self.v_R[com_mask] = full_coord.differentials['s'].d_rho
-                self.v_T[com_mask] = (full_coord.differentials['s'].d_phi * full_coord.rho).to(u.km / u.s)
-                self.v_z[com_mask] = full_coord.differentials['s'].d_z
-
-        # compute the metallicity given the other values
-        self.get_metallicity()
-
-
-class SB15_NoTimeDependence(SandersBinney2015):      # pragma: no cover
-    def sample(self):
-        """Sample from the distributions for each component, combine and save in class attributes"""
-        assert check_dependencies("agama")
-        import agama
-        agama.setUnits(**{k: galactic[k] for k in ['length', 'mass', 'time']})
-
-        if self.verbose:
-            print("Initiating sampling procedure")
-
-        self.draw_lookback_times()
-
-        is_thin_disc = self.tau < self.tau_T
-        sizes = [np.sum(is_thin_disc), np.sum(~is_thin_disc)]
-
-        self._which_comp = np.where(self.tau < self.tau_T, "thin_disc", "thick_disc")
-
-        self._x = np.zeros(self._size) * u.kpc
-        self._y = np.zeros(self._size) * u.kpc
-        self._z = np.zeros(self._size) * u.kpc
-
-        self.v_x = np.zeros(self._size) * u.km / u.s
-        self.v_y = np.zeros(self._size) * u.km / u.s
-        self.v_z = np.zeros(self._size) * u.km / u.s
-
-        self.v_R = np.zeros(self._size) * u.km / u.s
-        self.v_T = np.zeros(self._size) * u.km / u.s
-        self.v_z = np.zeros(self._size) * u.km / u.s
-
-        df_kwargs = {
-            "thin_disc": {
-                                'type': 'QuasiIsothermal',
-                                'Rdisk': 3.45,
-                                'Rsigmar': 7.8,
-                                'Rsigmaz': 7.8,
-                                'sigmar0': (48.3*u.km/u.s).decompose(galactic).value,
-                                'sigmaz0': (30.7*u.km/u.s).decompose(galactic).value,
-                                'Sigma0': 1.
-                            },
-            "thick_disc":
-                            {
-                                'type': 'QuasiIsothermal',
-                                'Rdisk': 2.31,
-                                'Rsigmar': 6.2,
-                                'Rsigmaz': 6.2,
-                                'sigmar0': (50.5*u.km/u.s).decompose(galactic).value,
-                                'sigmaz0': (51.3*u.km/u.s).decompose(galactic).value,
-                                'Sigma0': 1.
-                            }}
-
-        self._df = {com: agama.DistributionFunction(potential=self._agama_pot, **df_kw) for com, df_kw in df_kwargs.items()}
-
-        for size, com in zip(sizes, self.components):
-            if size == 0:
-                continue
-            com_mask = self._which_comp == com
-
-            if self.verbose:
-                print(f"  Sampling {size} stars from the {com}")
-
-            xv, _ = agama.GalaxyModel(self._agama_pot, self._df[com]).sample(size)
-
-            # convert units for velocity
-            xv[:, 3:] *= (u.kpc / u.Myr).to(u.km / u.s)
-
-            # save the positions
-            self._x[com_mask] = xv[:, 0] * u.kpc
-            self._y[com_mask] = xv[:, 1] * u.kpc
-            self._z[com_mask] = xv[:, 2] * u.kpc
-
-            # work out the velocities by rotating using SkyCoord
-            full_coord = SkyCoord(x=self._x[com_mask], y=self._y[com_mask], z=self._z[com_mask],
-                                  v_x=xv[:, 3] * u.km / u.s,
-                                  v_y=xv[:, 4] * u.km / u.s,
-                                  v_z=xv[:, 5] * u.km / u.s,
-                                  frame="galactocentric").represent_as("cylindrical")
-
-            with u.set_enabled_equivalencies(u.dimensionless_angles()):
-                self.v_R[com_mask] = full_coord.differentials['s'].d_rho
-                self.v_T[com_mask] = (full_coord.differentials['s'].d_phi * full_coord.rho).to(u.km / u.s)
-                self.v_z[com_mask] = full_coord.differentials['s'].d_z
 
         # compute the metallicity given the other values
         self.get_metallicity()
