@@ -7,7 +7,6 @@ from scipy.interpolate import interp1d
 from scipy.integrate import quad, cumulative_trapezoid
 from scipy.special import lambertw
 from scipy.stats import beta
-from scipy.optimize import brentq
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import pandas as pd
@@ -821,13 +820,6 @@ class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
         if immediately_sample:
             self.sample()
 
-    def _get_guiding_radius(self, J_phi, low=1e-5, high=1000):
-        """Get the guiding radius for a given angular momentum by finding the root of Lz - R * v_c(R)"""
-        J_phi = np.atleast_1d(J_phi.to(u.kpc * u.km / u.s))
-        Rg = [brentq(lambda R: R * self.potential.circular_velocity(q=[R, 0, 0]).value - J.value, low, high)
-              for J in J_phi]
-        return Rg * u.kpc
-
     def _get_omega(self, R_g):
         """Get the circular frequency at a given guiding radius
 
@@ -934,7 +926,7 @@ class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
         valid = (J_phi >= 1e-5) & (J_phi <= 100)
 
         R_d = 3.45 if component == "thin_disc" else 2.31
-        L_0 = 0.1
+        L_0 = 0.01
 
         # get guiding radii
         R_g = np.zeros_like(J_r)
