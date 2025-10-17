@@ -717,7 +717,7 @@ class Wagg2022(StarFormationHistory):
         return np.power(10, FeH + np.log10(self.zsun))
 
 
-class DistributionFunctionBasedSFH(StarFormationHistory):      # pragma: no cover
+class DistributionFunctionBasedSFH(StarFormationHistory):
     """A star formation history based on a distribution function.
     This is an abstract base class and should not be instantiated directly.
 
@@ -812,7 +812,7 @@ class DistributionFunctionBasedSFH(StarFormationHistory):      # pragma: no cove
         self.get_metallicity()
 
 
-class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
+class SandersBinney2015(DistributionFunctionBasedSFH):
     """Star formation history model based on a Quasi-Isothermal Disc distribution function from
     `Sanders & Binney 2015 <https://ui.adsabs.harvard.edu/abs/2015MNRAS.449.3479S/abstract>`_.
     
@@ -1122,7 +1122,7 @@ class SandersBinney2015(DistributionFunctionBasedSFH):      # pragma: no cover
         self.get_metallicity()
 
 
-class SpheroidalDwarf(DistributionFunctionBasedSFH):      # pragma: no cover
+class SpheroidalDwarf(DistributionFunctionBasedSFH):
     """An action-based model for dwarf spheroidal galaxies and globular clusters
     `Pascale+2019 <https://ui.adsabs.harvard.edu/abs/2019MNRAS.488.2423P/abstract>`_.
 
