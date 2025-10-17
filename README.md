@@ -1,9 +1,11 @@
-<p align="center">  
-  <img width=500 src="docs/_static/cogsworth_invite.png">
+<p align="center">
+    <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/_static/cogsworth-logo-darkmode.png">
+    <source media="(prefers-color-scheme: light)" srcset="docs/_static/cogsworth-logo.png">
+    <img width=500 alt='cogsworth-logo' src="docs/_static/cogsworth-logo.png">
+    </picture>
 </p>
 <h1 align='center'>
-  cogsworth
-  <br>
   <a href="https://raw.githubusercontent.com/TomWagg/cogsworth/paper/paper/ApJS/apjs_paper.pdf">
       <img src="https://img.shields.io/badge/read-paper-blue.svg?style=flat" alt="Read the article"/>
   </a>
