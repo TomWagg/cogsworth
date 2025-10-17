@@ -867,6 +867,7 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
         tau_pdf = np.exp(tau_range / self.tau_F - self.tau_S / (self.tau_m - tau_range))
         tau_cdf = cumulative_trapezoid(tau_pdf, tau_range, initial=0)
         self._inv_cdf = interp1d(tau_cdf / tau_cdf[-1], tau_range, bounds_error=True)
+        self.galaxy_age = self.tau_m
 
         # pre-compute frequencies at a range of guiding radii
         R_g_range = np.linspace(1e-2, 100, 10000) * u.kpc
