@@ -1088,7 +1088,7 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
             for t0, t1 in zip(time_bin_edges[:-1], time_bin_edges[1:]):
                 in_bin = com_mask & (self.tau >= t0) & (self.tau < t1)
                 n_in_bin = np.sum(in_bin)
-                if n_in_bin == 0:
+                if n_in_bin == 0:           # pragma: no cover
                     continue
 
                 if self.verbose:

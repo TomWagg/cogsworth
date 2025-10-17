@@ -87,7 +87,7 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential()
     if events is None:
         try:
             full_orbit = potential.integrate_orbit(w0, t1=t1, t2=t2, dt=dt, Integrator=gi.DOPRI853Integrator)
-        except RuntimeError:
+        except RuntimeError:            # pragma: no cover
             return None
         # jettison everything but the final timestep if user says so
         if not store_all:
