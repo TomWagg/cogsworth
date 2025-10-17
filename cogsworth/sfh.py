@@ -743,11 +743,11 @@ class DistributionFunctionBasedSFH(StarFormationHistory):
         self._agama_pot = potential if isinstance(potential, agama.Potential) else potential.as_interop("agama")
 
         if isinstance(df, dict):
-            self._df = agama.DistributionFunction(potential=self._agama_pot, **df)
+            self._df = agama.DistributionFunction(potential=self.agama_pot, **df)
         elif isinstance(df, FunctionType):
             self._df = df
         elif isinstance(df, list):
-            self._df = [agama.DistributionFunction(potential=self._agama_pot, **df_kw)
+            self._df = [agama.DistributionFunction(potential=self.agama_pot, **df_kw)
                         if isinstance(df_kw, dict) else df_kw for df_kw in df]
 
         super().__init__(size=size, **kwargs)
@@ -785,8 +785,8 @@ class DistributionFunctionBasedSFH(StarFormationHistory):
         for i, com in enumerate(self.components if self.components is not None else ["main"]):
             com_mask = self._which_comp == com
 
-            df = self._df[i] if isinstance(self._df, list) else self._df
-            xv, _ = agama.GalaxyModel(self._agama_pot, df).sample(com_mask.sum())
+            df = self.df[i] if isinstance(self.df, list) else self.df
+            xv, _ = agama.GalaxyModel(self.agama_pot, df).sample(com_mask.sum())
 
             # convert units for velocity
             xv[:, 3:] *= (u.kpc / u.Myr).to(u.km / u.s)
@@ -848,7 +848,7 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
         self.verbose = verbose
 
         # ensure we don't pass components twice
-        for var in ["components", "component_masses"]:
+        for var in ["components", "component_masses"]:          # pragma: no cover
             if var in kwargs:
                 kwargs.pop(var)
 
@@ -1072,7 +1072,7 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
         self.v_T = np.zeros(self._size) * u.km / u.s
 
         for size, com in zip(sizes, self.components):
-            if size == 0:
+            if size == 0:          # pragma: no cover
                 continue
             com_mask = self._which_comp == com
 
@@ -1168,7 +1168,7 @@ class SpheroidalDwarf(DistributionFunctionBasedSFH):
         self._df = None
 
         # ensure we don't pass components twice
-        for var in ["components", "component_masses"]:
+        for var in ["components", "component_masses"]:          # pragma: no cover
             if var in kwargs:
                 kwargs.pop(var)
 
@@ -1192,7 +1192,9 @@ class SpheroidalDwarf(DistributionFunctionBasedSFH):
         """
         # if no size is given then use the class value
         size = self._size if size is None else size
-        return np.random.uniform(self.tau_min.to(u.Gyr).value, self.galaxy_age.to(u.Gyr).value, size) * u.Gyr
+        self._tau = np.random.uniform(self.tau_min.to(u.Gyr).value,
+                                      self.galaxy_age.to(u.Gyr).value, size) * u.Gyr
+        return self._tau
 
     def get_metallicity(self):
         """Convert radius and time to metallicity using

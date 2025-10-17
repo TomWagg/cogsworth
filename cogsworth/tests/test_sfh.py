@@ -3,7 +3,8 @@ import unittest
 import cogsworth.sfh as sfh
 import os
 import astropy.units as u
-
+import gala.potential as gp
+from gala.units import galactic
 
 class Test(unittest.TestCase):
     def test_basic_class(self):
@@ -256,3 +257,64 @@ class Test(unittest.TestCase):
             if isinstance(ind, slice):
                 ind = list(range(ind.stop)[ind])
             self.assertTrue(np.all(g.tau[ind] == g_ind.tau))
+
+    def test_spheroidal_dwarf(self):
+        """Test the Carina Dwarf SFH class"""
+        # first make a bad one
+        it_broke = False
+        try:
+            s = sfh.SpheroidalDwarf(size=1000, J_0_star=1, alpha=1, eta=1, fixed_Z=0.02,
+                                    tau_min=5 * u.Gyr, galaxy_age=4 * u.Gyr)
+        except ValueError:
+            it_broke = True
+        self.assertTrue(it_broke)
+
+        # then a carina dwarf
+        s = sfh.CarinaDwarf(size=1000, fixed_Z=0.02, tau_min=0 * u.Gyr, galaxy_age=13.5 * u.Gyr)
+        self.assertTrue(np.all(s.Z == 0.02))
+        self.assertTrue(np.all(s.tau >= 0 * u.Gyr))
+        self.assertTrue(np.all(s.tau <= 13.5 * u.Gyr))
+
+    def test_sb15(self):
+        """Test the Sanders & Binney (2015) SFH class"""
+        s = sfh.SandersBinney2015(size=100, time_bins=1, potential=gp.MilkyWayPotential2022(), verbose=True)
+        # ensure all thick disc stars are older than thin disc stars
+        self.assertTrue(np.all(s.tau[s.which_comp == "thick_disc"] >= np.max(s.tau[s.which_comp == "thin_disc"])))
+
+    def test_custom_df(self):
+        """Test a custom DF-based SFH class"""
+        class SimpleDF(sfh.DistributionFunctionBasedSFH):
+            def __init__(self, size, **kwargs):
+                super().__init__(size=size, components=["simple"], component_masses=[1], **kwargs)
+
+            def draw_lookback_times(self):
+                self._tau = np.full(self.size, 5.0) * u.Gyr
+                return self._tau
+
+            def get_metallicity(self):
+                self._Z = np.full(self.size, 0.01)
+                return self._Z
+            
+        s = SimpleDF(size=100, potential=gp.MilkyWayPotential2022(), df={
+                'type': 'QuasiIsothermal',
+                'Rdisk': 3.45,
+                'Rsigmar': 7.8,
+                'Rsigmaz': 7.8,
+                'sigmar0': (48.3*u.km/u.s).decompose(galactic).value,
+                'sigmaz0': (30.7*u.km/u.s).decompose(galactic).value,
+                'Sigma0': 1.0,
+            }, immediately_sample=False)
+
+        s = SimpleDF(size=100, potential=gp.MilkyWayPotential2022(), df=[{
+                'type': 'QuasiIsothermal',
+                'Rdisk': 3.45,
+                'Rsigmar': 7.8,
+                'Rsigmaz': 7.8,
+                'sigmar0': (48.3*u.km/u.s).decompose(galactic).value,
+                'sigmaz0': (30.7*u.km/u.s).decompose(galactic).value,
+                'Sigma0': 1.0,
+            }], immediately_sample=False)
+        s._which_comp = np.array(["simple"] * s.size)
+        s.sample()
+
+        self.assertTrue(np.all(s.tau == 5.0 * u.Gyr))
