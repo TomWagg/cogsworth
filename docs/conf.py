@@ -125,8 +125,8 @@ html_theme = 'pydata_sphinx_theme'
 html_theme_options = {
     "logo": {
         "link": "index",
-        "image_light": "cog.png",
-        "image_dark": "cog.png",
+        "image_light": "cogsworth-flat.png",
+        "image_dark": "cogsworth-flat.png",
     },
     "icon_links": [
         {
