@@ -30,6 +30,8 @@ jobs:
         sudo apt-get install gsl-bin libgsl0-dev build-essential
         sudo apt-get install libhdf5-serial-dev
         python -m pip install --upgrade pip
+        # need to pre-install these to make agama work
+        python -m pip install numpy setuptools wheel
         python -m pip install -e .[test]
     - name: Grab the data you need to test observables
       run: |
