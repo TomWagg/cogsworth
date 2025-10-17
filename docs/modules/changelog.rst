@@ -4,6 +4,10 @@ Full changelog
 
 This page tracks all of the changes that have been made to ``cogsworth``. We follow the standard versioning convention of A.B.C, where C is a patch/bugfix, B is a large bugfix or new feature and A is a major new breaking change. B/C are backwards compatible but A changes may be breaking.
 
+3.2.1
+=====
+- Bug fix: Ensure masks used in plotting functions are always the correct length to avoid broadcasting issues. Problems arose when orbits were removed after bad integration.
+
 3.2.0
 =====
 - New feature: Added distribution function based star formation histories in the `cogsworth.sfh` module, allowing users to create more realistic SFHs based on analytic distribution functions for stellar systems in equilibrium.
