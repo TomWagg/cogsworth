@@ -840,10 +840,6 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
         self.tau_T = 10 * u.Gyr
         self.tau_F = 8 * u.Gyr
         self.tau_1 = 0.11 * u.Gyr
-        self.F_R = -0.064 / u.kpc
-        self.F_m = -0.99
-        self.r_F = 7.37 * u.kpc
-        self.zsun = 0.0142
         self.time_bins = time_bins
         self.verbose = verbose
 
@@ -1035,13 +1031,12 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
         return self._tau
 
     def get_metallicity(self):
-        """Calculate the metallicity based on the radius and lookback time using
-        `Sanders & Binney 2015 <https://ui.adsabs.harvard.edu/abs/2015MNRAS.449.3479S/abstract>`_ Eq. 1 & 2.
+        """Calculate the metallicity based on the radius and lookback time 
+        BUT use the prescription from Frankel+2018, the SB15 one is outdated.
         """
-        F_of_R = self.F_m * (1 - np.exp(-self.F_R * (self.rho - self.r_F) / self.F_m))
-        tanh_arg = ((self.tau_m - self.tau) / self.tau_F).decompose().value
-        FeH = (F_of_R - self.F_m) * np.tanh(tanh_arg) + self.F_m
-        self._Z = np.power(10, FeH + np.log10(self.zsun))
+        Fm, gradient, Rnow, gamma = -1, -0.075 / u.kpc, 8.7 * u.kpc, 0.3
+        FeH = Fm + gradient * self.rho - (Fm + gradient * Rnow) * (1 - (self.tau / self.galaxy_age))**gamma
+        self._Z = np.power(10, FeH + np.log10(0.0142))
         return self._Z
 
     def sample(self):
