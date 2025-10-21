@@ -4,7 +4,8 @@ Home
 .. raw:: html
 
     <div style="text-align:center; padding-top: 1rem">
-        <h1>Cogsworth</h1>
+        <img src="_static/cogsworth-logo.png" class='light-only' alt="logo for cogsworth" style='max-width: min(700px, 100%);'/>
+        <img src="_static/cogsworth-logo-darkmode.png" class='dark-only' alt="logo for cogsworth" style='max-width: min(700px, 100%);'/>
         <h4>A Python package for performing self-consistent population synthesis and galactic dynamics simulations</h4>
     </div>
 

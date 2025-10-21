@@ -4,15 +4,21 @@ Full changelog
 
 This page tracks all of the changes that have been made to ``cogsworth``. We follow the standard versioning convention of A.B.C, where C is a patch/bugfix, B is a large bugfix or new feature and A is a major new breaking change. B/C are backwards compatible but A changes may be breaking.
 
+3.2.1
+=====
+- Bug fix: Ensure masks used in plotting functions are always the correct length to avoid broadcasting issues. Problems arose when orbits were removed after bad integration.
+
+3.2.0
+=====
+- New feature: Added distribution function based star formation histories in the `cogsworth.sfh` module, allowing users to create more realistic SFHs based on analytic distribution functions for stellar systems in equilibrium.
+
 3.1.0
 =====
 - Bug fix: Inclinations of binaries relative to the galactic plane are now drawn from a uniform in cos(i) distribution rather than uniform in i
 
 3.0.0
 =====
-- Major breaking change: `cogsworth` no longer allows you to use the default BSE settings unless you explicitly
-set `use_default_BSE_settings=True` when creating a Population. This is to avoid users passing settings without
-acknowledging that they are making choices about the binary physics.
+- Major breaking change: `cogsworth` no longer allows you to use the default BSE settings unless you explicitly set `use_default_BSE_settings=True` when creating a Population. This is to avoid users passing settings without acknowledging that they are making choices about the binary physics.
     - This also fixes an issue where the settings in an initC table were being overwritten by BSE_settings
 - Update default `kickflag` to match COSMIC `v3.6.1` with the Disberg distribution instead of Hobbs
 

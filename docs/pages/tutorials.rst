@@ -74,3 +74,4 @@ If you're new to ``cogsworth`` I recommend going through the whole basics sectio
 
             ../tutorials/misc/lisa.ipynb
             ../tutorials/misc/runtime.ipynb
+            ../tutorials/misc/dfs.ipynb
