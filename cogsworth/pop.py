@@ -793,9 +793,9 @@ class Population():
                     z=self._initial_galaxy.z.to(u.kpc).value * ux.unit("kpc")
                 ),
                 p=cx.CartesianVel3D(
-                    x=np.zeros_like(self._initial_galaxy.x.to(u.kpc).value) * ux.unit("kpc / Myr"),
-                    y=np.zeros_like(self._initial_galaxy.y.to(u.kpc).value) * ux.unit("kpc / Myr"),
-                    z=np.zeros_like(self._initial_galaxy.z.to(u.kpc).value) * ux.unit("kpc / Myr")
+                    x=ux.Quantity(np.zeros(len(self._initial_galaxy)), "km / s"),
+                    y=ux.Quantity(np.zeros(len(self._initial_galaxy)), "km / s"),
+                    z=ux.Quantity(np.zeros(len(self._initial_galaxy)), "km / s"),
                 ),
                 t=ux.Quantity((self._initial_galaxy.galaxy_age - self._initial_galaxy.tau).to(u.Myr).value, "Myr")
             )
@@ -1039,6 +1039,11 @@ class Population():
 
         # identify the pertinent events in the evolution
         events = identify_events(p=self)
+
+        self.x0 = x0
+        self.v0 = v0
+        self.t0 = t0
+        self.events = events
 
         self.xf, self.vf = integrate_pop_with_events(
             gd.HamiltonianField(self.galactic_potential), x0, v0, t0, events,
