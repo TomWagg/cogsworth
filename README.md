@@ -15,7 +15,7 @@
   <a href="https://codecov.io/github/TomWagg/cogsworth" > 
       <img src="https://codecov.io/github/TomWagg/cogsworth/graph/badge.svg?token=L2WGWNLJQU"/> 
   </a>
-  <a href="[https://codecov.io/github/TomWagg/cogsworth](https://github.com/TomWagg/cogsworth/actions/workflows/test_cogsworth.yml)" > 
+  <a href="https://github.com/TomWagg/cogsworth/actions/workflows/test_cogsworth.yml" > 
       <img src="https://github.com/TomWagg/cogsworth/actions/workflows/test_cogsworth.yml/badge.svg"/> 
   </a>
   <a href="mailto:tomjwagg@gmail.com">
@@ -25,6 +25,8 @@
 <h4 align="center">cogsworth is a Python package for performing seamlessly self-consistent population synthesis and galactic dynamics simulations!</h4>
 
 ### Installation
+[![PyPI version](https://badge.fury.io/py/cogsworth.svg)](https://badge.fury.io/py/cogsworth)
+
 A quick and easy `pip install cogsworth` will cover most use cases, but we recommend using a conda environment as well. Check out the full instructions [here](https://cogsworth.readthedocs.io/en/latest/pages/install.html).
 
 ### Documentation
