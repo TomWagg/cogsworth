@@ -15,6 +15,9 @@
   <a href="https://codecov.io/github/TomWagg/cogsworth" > 
       <img src="https://codecov.io/github/TomWagg/cogsworth/graph/badge.svg?token=L2WGWNLJQU"/> 
   </a>
+  <a href="[https://codecov.io/github/TomWagg/cogsworth](https://github.com/TomWagg/cogsworth/actions/workflows/test_cogsworth.yml)" > 
+      <img src="https://github.com/TomWagg/cogsworth/actions/workflows/test_cogsworth.yml/badge.svg"/> 
+  </a>
   <a href="mailto:tomjwagg@gmail.com">
       <img src="https://img.shields.io/badge/contact-authors-blueviolet.svg?style=flat" alt="Email the authors"/>
   </a>
