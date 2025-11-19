@@ -74,6 +74,22 @@ class Test(unittest.TestCase):
 
         os.remove("testing-pop-io.h5")
 
+    def test_io_types(self):
+        """Ensure that certain variables still have the same type after saving and loading"""
+        p = pop.Population(2, processes=1, use_default_BSE_settings=True)
+        p.create_population()
+
+        p.save("testing-pop-io-types", overwrite=True)
+
+        p_loaded = pop.load("testing-pop-io-types")
+
+        self.assertTrue(type(p.bcm_timestep_conditions) == type(p_loaded.bcm_timestep_conditions))
+        self.assertTrue(type(p.bpp_columns) == type(p_loaded.bpp_columns))
+        self.assertTrue(type(p.bcm_columns) == type(p_loaded.bcm_columns))
+
+        os.remove("testing-pop-io-types.h5")
+
+
     def test_save_complicated_sampling(self):
         """Check that you can save a population with complicated sampling params"""
         p = pop.Population(2, processes=1,
