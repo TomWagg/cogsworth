@@ -91,7 +91,7 @@ class Population():
     """
     def __init__(self, n_binaries, processes=8, m1_cutoff=0, final_kstar1=list(range(16)),
                  final_kstar2=list(range(16)), sfh_model=sfh.Wagg2022, sfh_params={},
-                 galactic_potential=gp.MilkyWayPotential(), v_dispersion=5 * u.km / u.s,
+                 galactic_potential=gp.MilkyWayPotential2022(), v_dispersion=5 * u.km / u.s,
                  max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, ini_file=None,
                  use_default_BSE_settings=False, sampling_params={}, bcm_timestep_conditions=[],
                  store_entire_orbits=True, bpp_columns=None, bcm_columns=None):
@@ -866,7 +866,8 @@ class Population():
         # calculate the Galactic circular velocity at the initial positions
         v_circ = self.galactic_potential.circular_velocity(q=[self._initial_galaxy.x,
                                                               self._initial_galaxy.y,
-                                                              self._initial_galaxy.z]).to(vel_units)
+                                                              self._initial_galaxy.z],
+                                                           t=(self.max_ev_time - self._initial_galaxy.tau)).to(vel_units)
 
         # add some velocity dispersion
         v_R, v_T, v_z = np.random.normal([np.zeros_like(v_circ), v_circ, np.zeros_like(v_circ)],
