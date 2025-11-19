@@ -881,7 +881,7 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
         interp_needed = (self._inv_cdf is None or self._guiding_radius_interp is None
                          or self._omega_interp is None or self._kappa_interp is None
                          or self._nu_interp is None)
-        if not interp_needed:
+        if not interp_needed:       # pragma: no cover
             return
         if self.verbose:
             print("Pre-computing lookback time, guiding radius and frequency interpolations")
