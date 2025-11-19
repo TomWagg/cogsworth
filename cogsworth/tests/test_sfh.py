@@ -53,7 +53,7 @@ class Test(unittest.TestCase):
                                  t_burst=5 * u.Gyr,
                                  R_max=20 * u.kpc,
                                  z_max=1 * u.kpc,
-                                 Z=0.02)
+                                 Z_all=0.02)
         self.assertTrue(np.all(g.tau == 5 * u.Gyr))
         self.assertTrue(np.all(g.z <= 1 * u.kpc))
         self.assertTrue(np.all(g.rho <= 20 * u.kpc))
@@ -65,7 +65,7 @@ class Test(unittest.TestCase):
                                     t_burst=5 * u.Gyr,
                                     R_max=20 * u.kpc,
                                     z_max=1 * u.kpc,
-                                    Z=0.02)
+                                    Z_all=0.02)
         self.assertTrue(np.all(g.tau <= 5 * u.Gyr))
         self.assertTrue(np.all(g.z <= 1 * u.kpc))
         self.assertTrue(np.all(g.rho <= 20 * u.kpc))

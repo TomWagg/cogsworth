@@ -66,7 +66,8 @@ class StarFormationHistory():
         # check for any extra parameters that have been passed
         # this may occur when loading from a file and the user was writing a custom class
         if len(kwargs) > 0:
-            logging.getLogger("cogsworth").warning(f"Ignoring extra parameters: {kwargs.keys()}")
+            for key in kwargs:
+                setattr(self, key, kwargs[key])
 
         self.__citations__ = ["cogsworth"]
 
@@ -91,11 +92,18 @@ class StarFormationHistory():
         # work out any extra kwargs we might need to set
         kwargs = self.__dict__
         actual_kwargs = {}
+        saved_attributes = {}
+        array_attributes = ["_tau", "_Z", "_x", "_y", "_z", "_which_comp", "v_R", "v_T", "v_z", "v_x", "v_y"]
         for key in list(kwargs.keys()):
-            if key[0] != "_" and key not in ["v_R", "v_T", "v_z"]:
+            # only keep attributes that have no underscores and aren't velocity components
+            if key[0] != "_" and key not in array_attributes:
                 actual_kwargs[key] = kwargs[key]
+            # also keep any component specific attributes
             elif key.startswith("_component"):
                 actual_kwargs[key[1:]] = kwargs[key]
+            # save other attributes for later
+            elif key not in array_attributes and key != "_size":
+                saved_attributes[key] = kwargs[key]
 
         # pre-mask tau to get the length easily
         tau = np.atleast_1d(self.tau[ind])
@@ -110,12 +118,13 @@ class StarFormationHistory():
         new_sfh._which_comp = np.atleast_1d(self._which_comp[ind])
 
         # if we have any of the velocity components then we need to slice them too
-        if hasattr(self, "v_R"):
-            new_sfh.v_R = np.atleast_1d(self.v_R[ind])
-        if hasattr(self, "v_T"):
-            new_sfh.v_T = np.atleast_1d(self.v_T[ind])
-        if hasattr(self, "v_z"):
-            new_sfh.v_z = np.atleast_1d(self.v_z[ind])
+        vel_comps = ["v_R", "v_T", "v_z", "v_x", "v_y"]
+        for vel in vel_comps:
+            if hasattr(self, vel):
+                setattr(new_sfh, vel, np.atleast_1d(getattr(self, vel)[ind]))
+
+        for attr in saved_attributes:
+            setattr(new_sfh, attr, saved_attributes[attr])
 
         return new_sfh
 
@@ -404,7 +413,9 @@ class StarFormationHistory():
 
         fig.subplots_adjust(hspace=0)
 
-        axes[0].scatter(x, y1, c=colour_by, s=0.1, cmap=cmap, norm=cbar_norm, **kwargs)
+        s = kwargs.pop("s", 0.1)
+
+        axes[0].scatter(x, y1, c=colour_by, s=s, cmap=cmap, norm=cbar_norm, **kwargs)
 
         axes[0].set_xlabel(r"$x$ [kpc]", labelpad=15)
         axes[0].xaxis.tick_top()
@@ -412,7 +423,7 @@ class StarFormationHistory():
 
         axes[0].set_ylabel(r"$z$ [kpc]")
 
-        scatt = axes[1].scatter(x.value, y2.value, c=colour_by, s=0.1, cmap=cmap, norm=cbar_norm, **kwargs)
+        scatt = axes[1].scatter(x.value, y2.value, c=colour_by, s=s, cmap=cmap, norm=cbar_norm, **kwargs)
         cbar = fig.colorbar(scatt, ax=axes, pad=0.0)
         cbar.set_label(cbar_label)
 
@@ -815,7 +826,7 @@ class DistributionFunctionBasedSFH(StarFormationHistory):
 class SandersBinney2015(DistributionFunctionBasedSFH):
     """Star formation history model based on a Quasi-Isothermal Disc distribution function from
     `Sanders & Binney 2015 <https://ui.adsabs.harvard.edu/abs/2015MNRAS.449.3479S/abstract>`_.
-    
+
     This class doesn't account for the extended distribution function described in SB15, instead following
     the quasi-isothermal DF described in Section 2.2 of that paper. We follow their prescription for the
     time evolution of the velocity dispersions and the metallicity distribution, but do not include radial
@@ -833,15 +844,23 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
     verbose : `bool`, optional
         Whether to print out information about the setup and sampling of the model, by default False
     """
-    def __init__(self, size, time_bins=5, verbose=False, **kwargs):
+    def __init__(self, size, time_bins=5, verbose=False,
+                 tau_m=12 * u.Gyr, tau_S=0.43 * u.Gyr, tau_T=10 * u.Gyr,
+                 tau_F=8 * u.Gyr, tau_1=0.11 * u.Gyr,
+                 **kwargs):
         self._size = size
-        self.tau_m = 12 * u.Gyr
-        self.tau_S = 0.43 * u.Gyr
-        self.tau_T = 10 * u.Gyr
-        self.tau_F = 8 * u.Gyr
-        self.tau_1 = 0.11 * u.Gyr
         self.time_bins = time_bins
+        self.tau_m = tau_m
+        self.tau_S = tau_S
+        self.tau_T = tau_T
+        self.tau_F = tau_F
+        self.tau_1 = tau_1
         self.verbose = verbose
+        self._inv_cdf = None
+        self._guiding_radius_interp = None
+        self._omega_interp = None
+        self._kappa_interp = None
+        self._nu_interp = None
 
         # ensure we don't pass components twice
         for var in ["components", "component_masses"]:          # pragma: no cover
@@ -851,13 +870,19 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
         # save whether the user wants to immediately sample (we're going to tell super not to either way)
         immediately_sample = kwargs.pop("immediately_sample", True)
 
-        if self.verbose:
-            print("Setting up Sanders & Binney 2015 star formation history model to work with Agama")
-
         super().__init__(size=size, components=["thin_disc", "thick_disc"],
                          df=None, immediately_sample=False, **kwargs)
         self.__citations__.append("Sanders&Binney2015")
-        
+
+        if immediately_sample:
+            self.sample()
+
+    def _precompute_interpolations(self):
+        interp_needed = (self._inv_cdf is None or self._guiding_radius_interp is None
+                         or self._omega_interp is None or self._kappa_interp is None
+                         or self._nu_interp is None)
+        if not interp_needed:       # pragma: no cover
+            return
         if self.verbose:
             print("Pre-computing lookback time, guiding radius and frequency interpolations")
 
@@ -882,9 +907,6 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
         self._kappa_interp = interp1d(R_g_range.value, kappa.value)
         self._nu_interp = interp1d(R_g_range.value, nu.value)
 
-        if immediately_sample: 
-            self.sample()
-
     def _get_omega(self, R_g):
         """Get the circular frequency at a given guiding radius
 
@@ -892,13 +914,13 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
         ----------
         R_g : float
             Guiding radius in same units as potential
-        
+
         .. math::
             \\Omega(R_g) = \\frac{v_c(R_g)}{R_g}
         """
         R_g = np.atleast_1d(R_g)
         return (self.potential.circular_velocity(q=[R_g, 0 * R_g, 0 * R_g]) / R_g).to(1 / u.Myr)
-    
+
     def _get_kappa(self, R_g, omega):
         """Get the radial epicyclic frequency at a given guiding radius
 
@@ -916,7 +938,7 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
         R_g = np.atleast_1d(R_g)
         d_omega_2_dR = np.gradient(omega**2, R_g)
         return np.sqrt(4 * omega**2 + R_g * d_omega_2_dR).to(1 / u.Myr)
-    
+
     def _get_nu(self, R_g):
         """Get the vertical epicyclic frequency at a given guiding radius
 
@@ -924,7 +946,7 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
         ----------
         R_g : float
             Guiding radius in same units as potential
-        
+
         .. math::
             \\nu(R_g) = \\sqrt{\\frac{\\partial^2 \\Phi}{\\partial z^2}}
         """
@@ -936,7 +958,7 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
 
         Follows `Sanders & Binney 2015 <https://ui.adsabs.harvard.edu/abs/2015MNRAS.449.3479S/abstract>`_
         Eq. 4 and 10.
-        
+
         Parameters
         ----------
         i : `str`
@@ -967,7 +989,7 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
 
         Follows `Sanders & Binney 2015 <https://ui.adsabs.harvard.edu/abs/2015MNRAS.449.3479S/abstract>`_
         Eq. 3.1.
-        
+
         Parameters
         ----------
         J : `array-like`, shape (N, 3)
@@ -1045,6 +1067,8 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
         assert check_dependencies("agama")
         import agama
         agama.setUnits(**{k: galactic[k] for k in ['length', 'mass', 'time']})
+
+        self._precompute_interpolations()
 
         if self.verbose:
             print("Initiating sampling procedure")
@@ -1321,7 +1345,7 @@ def concat(*sfhs):
 
 
 def simplify_params(params, dont_save=["_tau", "_Z", "_x", "_y", "_z", "_which_comp", "v_R", "v_T", "v_z",
-                                       "_df", "_agama_pot", "__citations__"]):
+                                       "v_x", "v_y", "_df", "_agama_pot", "__citations__", "sfh_params"]):
     # delete any keys that we don't want to save
     delete_keys = [key for key in params.keys() if key in dont_save]
     for key in delete_keys:
