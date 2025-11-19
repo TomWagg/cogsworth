@@ -1741,7 +1741,7 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
         store_entire_orbits = file["numeric_params"].attrs["store_entire_orbits"]
         final_kstars = [file["numeric_params"].attrs["final_kstar1"],
                         file["numeric_params"].attrs["final_kstar2"]]
-        bcm_tc = file["numeric_params"].attrs["timestep_conditions"]
+        bcm_tc = file["numeric_params"].attrs["timestep_conditions"].tolist()
         bpp_columns = file["numeric_params"].attrs["bpp_columns"]
         bcm_columns = file["numeric_params"].attrs["bcm_columns"]
 
