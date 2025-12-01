@@ -241,7 +241,11 @@ class Population():
                                  v_dispersion=self.v_dispersion, max_ev_time=self.max_ev_time,
                                  timestep_size=self.timestep_size, BSE_settings=self.BSE_settings,
                                  sampling_params=self.sampling_params,
-                                 store_entire_orbits=self.store_entire_orbits)
+                                 bcm_timestep_conditions=self.bcm_timestep_conditions,
+                                 store_entire_orbits=self.store_entire_orbits,
+                                 bpp_columns=self.bpp_columns,
+                                 bcm_columns=self.bcm_columns)
+
         new_pop.n_binaries_match = new_pop.n_binaries
 
         # proxy for checking whether sampling has been done

@@ -500,6 +500,21 @@ class Test(unittest.TestCase):
         self.assertFalse(it_worked)
         os.remove("DUMMY.h5")
 
+    def test_indexing_retains_settings(self):
+        """Ensure that indexing retains important settings"""
+        p = pop.Population(10, m1_cutoff=5.0, final_kstar1=[13, 14],
+                           use_default_BSE_settings=True,
+                           bpp_columns=["tphys", "mass_1", "mass_2", "kstar_1",
+                                        "kstar_2", "sep", "ecc", "evol_type"],
+                           bcm_timestep_conditions=[['dtp=100000.0']])
+        p.create_population()
+
+        p_ind = p[:5]
+        self.assertTrue(p_ind.m1_cutoff == p.m1_cutoff)
+        self.assertTrue(p_ind.final_kstar1 == p.final_kstar1)
+        self.assertTrue(p_ind.bpp_columns == p.bpp_columns)
+        self.assertTrue(p_ind.bcm_timestep_conditions == p.bcm_timestep_conditions)
+
     def test_evolved_pop(self):
         """Check that the EvolvedPopulation class works as it should"""
         p = pop.Population(10, use_default_BSE_settings=True)
