@@ -148,6 +148,19 @@ class Test(unittest.TestCase):
 
         os.remove("testing-galaxy-io-custom-params.h5")
 
+    def test_io_SB15(self):
+        """Check you can save and load the SB15 class"""
+        g = sfh.SandersBinney2015(size=1000, time_bins=1, potential=gp.MilkyWayPotential2022())
+
+        g.save("testing-galaxy-io-sb15")
+
+        g_loaded = sfh.load("testing-galaxy-io-sb15")
+
+        self.assertTrue(np.all(g.tau == g_loaded.tau))
+        self.assertTrue(np.all(g.rho == g_loaded.rho))
+        self.assertTrue(np.all(g.z == g_loaded.z))
+        self.assertTrue(g.potential == g_loaded.potential)
+
     def test_getters(self):
         """Test getting attributes"""
         it_broke = False
