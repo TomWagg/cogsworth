@@ -492,9 +492,12 @@ class StarFormationHistory():
 
         # warn the user if we saved a different class name
         if class_name != self.__class__.__name__:
-            print((f"Warning: StarFormationHistory class being saved as `{class_name}` instead of "
-                   f"`{self.__class__.__name__}`. Data will be copied but new sampling will draw from the "
-                   f"functions in `{class_name}` rather than the custom class you used."))
+            logging.getLogger("cogsworth").warning(("cogsworth warning: StarFormationHistory class being "
+                                                    f"saved as `{class_name}` instead of "
+                                                    f"`{self.__class__.__name__}`. Data will be copied but "
+                                                    "new sampling will draw from the "
+                                                    f"functions in `{class_name}` rather than the "
+                                                    "custom class you used."))
         params["class_name"] = class_name
 
         # dump it all into the file attrs using yaml
