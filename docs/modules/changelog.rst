@@ -4,6 +4,10 @@ Full changelog
 
 This page tracks all of the changes that have been made to ``cogsworth``. We follow the standard versioning convention of A.B.C, where C is a patch/bugfix, B is a large bugfix or new feature and A is a major new breaking change. B/C are backwards compatible but A changes may be breaking.
 
+3.2.3
+=====
+- Bug fix: When indexing or copying populations, ensure that `bpp_columns` and `bcm_timestep_conditions` are preserved correctly. This resolves issues where these attributes were lost or incorrectly set after such operations.
+
 3.2.2
 =====
 - Bug fix: When loading populations, ensure that `bpp_columns` and `bcm_timestep_conditions` are properly converted back to lists from numpy arrays. This resolves issues when these attributes were not of the expected type after loading a saved population.
