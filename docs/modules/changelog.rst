@@ -8,6 +8,7 @@ This page tracks all of the changes that have been made to ``cogsworth``. We fol
 =====
 - Bug fix: When indexing or copying populations, ensure that `bpp_columns` and `bcm_timestep_conditions` are preserved correctly. This resolves issues where these attributes were lost or incorrectly set after such operations.
 - Bug fix: When loading populations, ensure that `bpp_columns` and `bcm_columns` are only converted to `None` if they are explicitly set to the string 'None'. Don't perform check on lists.
+- Bug fix: Saving/loading a SandersBinney2015 sfh now works correctly, previously failed due to bad saving of precomputed interpolations and potential.
 
 3.2.2
 =====
