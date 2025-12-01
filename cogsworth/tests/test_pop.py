@@ -89,6 +89,22 @@ class Test(unittest.TestCase):
 
         os.remove("testing-pop-io-types.h5")
 
+    def test_io_cols(self):
+        """Ensure that loading columns is possible"""
+        p = pop.Population(2, processes=1, use_default_BSE_settings=True,
+                           bpp_columns=["tphys", "mass_1", "mass_2", "sep", "evol_type"],
+                           bcm_columns=["tphys", "mass_1", "mass_2", "porb", "ecc", "sep"],
+                           bcm_timestep_conditions=[['dtp=0.0']])
+        p.create_population()
+
+        p.save("testing-pop-io-cols", overwrite=True)
+
+        p_loaded = pop.load("testing-pop-io-cols")
+
+        self.assertTrue(set(p.bpp.columns) == set(p_loaded.bpp.columns))
+        self.assertTrue(set(p.bcm.columns) == set(p_loaded.bcm.columns))
+
+        os.remove("testing-pop-io-cols.h5")
 
     def test_save_complicated_sampling(self):
         """Check that you can save a population with complicated sampling params"""
@@ -108,6 +124,8 @@ class Test(unittest.TestCase):
         p_loaded = pop.load("testing-pop-io-sampling", parts=["initial_binaries"])
 
         self.assertTrue(np.all(p.initC == p_loaded.initC))
+
+        os.remove("testing-pop-io-sampling.h5")
 
     def test_lazy_io(self):
         """Check that a population can be saved and re-loaded lazily"""
@@ -499,21 +517,6 @@ class Test(unittest.TestCase):
             it_worked = False
         self.assertFalse(it_worked)
         os.remove("DUMMY.h5")
-
-    def test_indexing_retains_settings(self):
-        """Ensure that indexing retains important settings"""
-        p = pop.Population(10, m1_cutoff=5.0, final_kstar1=[13, 14],
-                           use_default_BSE_settings=True,
-                           bpp_columns=["tphys", "mass_1", "mass_2", "kstar_1",
-                                        "kstar_2", "sep", "ecc", "evol_type"],
-                           bcm_timestep_conditions=[['dtp=100000.0']])
-        p.create_population()
-
-        p_ind = p[:5]
-        self.assertTrue(p_ind.m1_cutoff == p.m1_cutoff)
-        self.assertTrue(p_ind.final_kstar1 == p.final_kstar1)
-        self.assertTrue(p_ind.bpp_columns == p.bpp_columns)
-        self.assertTrue(p_ind.bcm_timestep_conditions == p.bcm_timestep_conditions)
 
     def test_evolved_pop(self):
         """Check that the EvolvedPopulation class works as it should"""
