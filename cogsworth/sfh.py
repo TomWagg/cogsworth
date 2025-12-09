@@ -3,6 +3,7 @@ import yaml
 import h5py as h5
 import numpy as np
 import astropy.units as u
+import astropy.constants as const
 from scipy.interpolate import interp1d
 from scipy.integrate import quad, cumulative_trapezoid
 from scipy.special import lambertw
@@ -25,7 +26,8 @@ from cogsworth.tests.optional_deps import check_dependencies
 from cogsworth.citations import CITATIONS
 
 
-__all__ = ["StarFormationHistory", "DistributionFunctionBasedSFH", "Wagg2022", "BurstUniformDisc", "ConstantUniformDisc",
+__all__ = ["StarFormationHistory", "DistributionFunctionBasedSFH", "Wagg2022",
+           "BurstUniformDisc", "ConstantUniformDisc", "ConstantPlummerSphere",
            "SandersBinney2015", "SpheroidalDwarf", "CarinaDwarf", "load", "concat"]
 
 
@@ -563,6 +565,130 @@ class ConstantUniformDisc(BurstUniformDisc):
     """
     def draw_lookback_times(self, size=None, component=None):
         return np.random.uniform(0, self.t_burst.value, size) * self.t_burst.unit
+
+
+class ConstantPlummerSphere(StarFormationHistory):
+    """A simple star formation history, with all stars formed at a constant rate between ``tau_min``
+    and ``tau_max`` in a Plummer sphere potential, all with metallicity ``Z``.
+
+    This star formation history sampled BOTH positions and velocities self-consistently in a Plummer
+    potential.
+
+    Parameters
+    ----------
+    size : `int`
+        Number of points to sample from the model
+    tau_min : :class:`~astropy.units.Quantity` [time]
+        Minimum lookback time
+    tau_max : :class:`~astropy.units.Quantity` [time]
+        Maximum lookback time
+    Z_all : `float`
+        Metallicity of the sphere
+    potential : :class:`gala.potential.PlummerPotential`
+        A Plummer potential instance from `gala <https://gala.adrian.pw/en/stable/>`_
+    r_trunc : :class:`~astropy.units.Quantity` [length], optional
+        Truncation radius for the Plummer sphere, by default None (i.e. no truncation). If set, stars
+        will only be sampled within this radius. For some guidance on setting this value, note that you will
+        lose 1 - (r_trunc**3 / (r_trunc**2 + a**2)**1.5) of the mass of the Plummer sphere, where `a` is the
+        Plummer scale radius. So setting r_trunc = 5 a will lose ~6% of the mass, r_trunc = 10 a will
+        lose ~0.5% of the mass.
+    """
+    def __init__(self, size, tau_min, tau_max, Z_all, potential, r_trunc=None, **kwargs):
+        self.tau_min = tau_min
+        self.tau_max = tau_max
+        self.Z_all = Z_all
+        self.a = potential.parameters['b']
+        self.M = potential.parameters['m']
+        self.r_trunc = r_trunc
+        super().__init__(size=size, components=kwargs.pop('components', ["sphere"]),
+                         component_masses=kwargs.pop('component_masses', [1]),
+                         **kwargs)
+
+    def draw_lookback_times(self):
+        """Draw lookback times uniformly between tau_min and tau_max"""
+        return np.random.uniform(self.tau_min.to(u.Gyr).value,
+                                 self.tau_max.to(u.Gyr).value, self.size) * u.Gyr
+
+    def get_metallicity(self):
+        """Fix all metallicities to Z_all"""
+        return np.repeat(self.Z_all, self.size) * u.dimensionless_unscaled
+
+    def sample(self):
+        # sample times
+        self._tau = self.draw_lookback_times()
+
+        # sample positions in a Plummer sphere
+        u_max = 1.0 if self.r_trunc is None else self.r_trunc**3 / (self.r_trunc**2 + self.a**2)**1.5
+        u_rand = np.random.uniform(0, u_max, self.size)
+        r = self.a * (u_rand**(-2/3) - 1.0)**(-0.5)
+
+        # uniformly sample isotropic directions
+        cos_theta = np.random.uniform(-1, 1, self.size)
+        sin_theta = np.sqrt(1 - cos_theta**2)
+        phi = np.random.uniform(0, 2 * np.pi, self.size)
+
+        # set positions, components and metallicities
+        self._x = r * sin_theta * np.cos(phi)
+        self._y = r * sin_theta * np.sin(phi)
+        self._z = r * cos_theta
+        self._which_comp = np.repeat("sphere", self.size)
+        self._Z = self.get_metallicity()
+
+        # radii in Plummer units: r' = r / a
+        r_dimless = (r / self.a).decompose().value
+
+        # potential and escape speed in Plummer units (G=M=a=1)
+        phi_dimless = -1.0 / np.sqrt(1.0 + r_dimless**2)
+        vesc_dimless = np.sqrt(-2.0 * phi_dimless)
+
+        # we want q = v / v_esc in [0, 1] with PDF ∝ q^2 (1 - q^2)^(7/2)
+        # precompute maximum of g(q) = q^2 (1 - q^2)^(7/2), which occurs at q^2 = 2/9
+        g = lambda q: q**2 * (1.0 - q**2)**3.5
+        g_max = g(np.sqrt(2.0 / 9.0))
+
+        # perform vectorised rejection sampling
+        q = np.empty(self.size)
+        remaining = np.ones(self.size, dtype=bool)
+
+        # keep sampling until we have all values
+        while np.any(remaining):
+            n_rem = remaining.sum()
+
+            # pick random q values in the valid random of 0, 1
+            q_try = np.random.uniform(0.0, 1.0, n_rem)
+
+            # pick random y values in the bounding rectangle of 0, g_max
+            y = np.random.uniform(0.0, g_max, n_rem)
+
+            accept = y < g(q_try)
+
+            # get inds of remaining points we just sampled
+            idx_rem = np.nonzero(remaining)[0]
+
+            # for those that were accepted, save the q value and mark as done
+            q[idx_rem[accept]] = q_try[accept]
+            remaining[idx_rem[accept]] = False
+
+        # speed in Plummer units: v = q * v_esc
+        v_dimless = q * vesc_dimless
+
+        # convert to physical speed
+        v_phys = v_dimless * np.sqrt(const.G * self.M / self.a).to(u.km / u.s)
+
+        # random isotropic velocity directions
+        cos_theta_v = np.random.uniform(-1.0, 1.0, self.size)
+        sin_theta_v = np.sqrt(1.0 - cos_theta_v**2)
+        phi_v = np.random.uniform(0.0, 2.0 * np.pi, self.size)
+
+        # save and convert velocities
+        self.v_x = v_phys * sin_theta_v * np.cos(phi_v)
+        self.v_y = v_phys * sin_theta_v * np.sin(phi_v)
+        self.v_z = v_phys * cos_theta_v
+
+        self.v_T = np.sqrt(((-self.x * self.v_y + self.y * self.v_x)**2) / (self.x**2 + self.y**2))
+        self.v_R = (self.x * self.v_x + self.y * self.v_y) / np.sqrt(self.x**2 + self.y**2)
+
+        return self._tau, self.positions, self.Z
 
 
 class Wagg2022(StarFormationHistory):
