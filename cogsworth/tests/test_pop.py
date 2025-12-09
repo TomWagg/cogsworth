@@ -7,6 +7,7 @@ import h5py as h5
 import os
 import pytest
 import astropy.units as u
+import matplotlib.pyplot as plt
 
 
 class Test(unittest.TestCase):
@@ -270,6 +271,7 @@ class Test(unittest.TestCase):
         bn = p.bin_nums[p.disrupted][0]
         p.plot_orbit(bn, show=False)
         p.plot_orbit(bn, t_max=0.1 * u.Myr, show=False)
+        plt.close("all")
 
     def test_initial_binaries_replace_initC(self):
         """Test that initial binaries returns initC if present and initial_binaries is not"""
@@ -605,6 +607,7 @@ class Test(unittest.TestCase):
 
         for bin_num in p.bin_nums:
             p.plot_cartoon_binary(bin_num, show=False)
+        plt.close("all")
 
     def test_sampling_with_initC(self):
         """Check we can sample from an initC table"""

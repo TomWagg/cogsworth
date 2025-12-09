@@ -5,6 +5,7 @@ import os
 import astropy.units as u
 import gala.potential as gp
 from gala.units import galactic
+import matplotlib.pyplot as plt
 
 class Test(unittest.TestCase):
     def test_basic_class(self):
@@ -70,6 +71,21 @@ class Test(unittest.TestCase):
         self.assertTrue(np.all(g.z <= 1 * u.kpc))
         self.assertTrue(np.all(g.rho <= 20 * u.kpc))
         self.assertTrue(np.all(g.Z == 0.02))
+
+    def test_constant_plummer_sphere(self):
+        """Ensure the constant Plummer sphere class works"""
+        g = sfh.ConstantPlummerSphere(size=10000,
+                                      tau_min=0 * u.Gyr,
+                                      tau_max=10 * u.Gyr,
+                                      Z_all=0.02,
+                                      potential=gp.PlummerPotential(m=1e10*u.Msun,
+                                                                    b=5.0*u.kpc,
+                                                                    units=galactic),
+                                      r_trunc=30 * u.kpc)
+        self.assertTrue(np.all(g.tau >= 0 * u.Gyr))
+        self.assertTrue(np.all(g.tau <= 10 * u.Gyr))
+        self.assertTrue(np.all(g.Z == 0.02))
+        self.assertTrue(np.all(np.sqrt(g.x**2 + g.y**2 + g.z**2) <= 30 * u.kpc))
 
     def test_bad_inputs(self):
         """Ensure the classes fail with bad input"""
@@ -246,6 +262,8 @@ class Test(unittest.TestCase):
         except ValueError:
             it_broke = True
         self.assertTrue(it_broke)
+
+        plt.close('all')
 
     def test_indexing(self):
         """Ensure that indexing works correctly (reprs too)"""
