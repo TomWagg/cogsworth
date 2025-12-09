@@ -72,9 +72,8 @@ If you're new to ``cogsworth`` I recommend going through the whole basics sectio
             :titlesonly:
             :caption: More on star formation histories
 
-            ../tutorials/misc/lisa.ipynb
-            ../tutorials/misc/runtime.ipynb
-            ../tutorials/misc/dfs.ipynb
+            ../tutorials/more_sfh/other_sfhs.ipynb
+            ../tutorials/more_sfh/dfs.ipynb
 
     .. grid-item-card::
 

@@ -389,9 +389,12 @@ class StarFormationHistory():
         raise NotImplementedError("This StarFormationHistory model has not implemented this method")
 
     def plot(self, coordinates="cartesian", component=None, colour_by=None, show=True, cbar_norm=LogNorm(),
-             cbar_label=r"Metallicity, $Z$", cmap="plasma", xlim=None, ylim=None, zlim=None, **kwargs):
-        fig, axes = plt.subplots(2, 1, figsize=(10 * 1.2475, 14), gridspec_kw={'height_ratios': [4, 14]},
-                                 sharex=True)
+             cbar_label=r"Metallicity, $Z$", cmap="plasma", xlim=None, ylim=None, zlim=None,
+             fig=None, axes=None, **kwargs):
+        if fig is None or axes is None:
+            fig, axes = plt.subplots(2, 1, figsize=(10 * 1.2475, 14),
+                                     gridspec_kw={'height_ratios': [4, 14]},
+                                     sharex=True)
         if colour_by is None:
             colour_by = self.Z.value
 
