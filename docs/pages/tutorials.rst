@@ -70,8 +70,17 @@ If you're new to ``cogsworth`` I recommend going through the whole basics sectio
 
         .. toctree::
             :titlesonly:
-            :caption: Miscellaneous
+            :caption: More on star formation histories
 
             ../tutorials/misc/lisa.ipynb
             ../tutorials/misc/runtime.ipynb
             ../tutorials/misc/dfs.ipynb
+
+    .. grid-item-card::
+
+        .. toctree::
+            :titlesonly:
+            :caption: Miscellaneous
+
+            ../tutorials/misc/lisa.ipynb
+            ../tutorials/misc/runtime.ipynb
