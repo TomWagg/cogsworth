@@ -5,6 +5,7 @@ import os
 import astropy.units as u
 import gala.potential as gp
 from gala.units import galactic
+import matplotlib.pyplot as plt
 
 class Test(unittest.TestCase):
     def test_basic_class(self):
@@ -261,6 +262,8 @@ class Test(unittest.TestCase):
         except ValueError:
             it_broke = True
         self.assertTrue(it_broke)
+
+        plt.close('all')
 
     def test_indexing(self):
         """Ensure that indexing works correctly (reprs too)"""

@@ -3,6 +3,7 @@ import pandas as pd
 import astropy.units as u
 import unittest
 import cogsworth
+import matplotlib.pyplot as plt
 
 
 class Test(unittest.TestCase):
@@ -17,6 +18,7 @@ class Test(unittest.TestCase):
                                        "RP_app_2": np.ones(len(p)),
                                        "secondary_brighter": np.zeros(len(p)).astype(bool)})
         cogsworth.plot.plot_cmd(p, show=False)
+        plt.close('all')
 
     def test_plot_orbit(self):
         """Test you can plot a galactic orbit of a binary"""
@@ -42,3 +44,5 @@ class Test(unittest.TestCase):
         except ValueError:
             should_fail = True
         self.assertTrue(should_fail, "Plotting an orbit with t_min > t_max should fail")
+
+        plt.close('all')
