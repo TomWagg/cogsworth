@@ -18,6 +18,7 @@ from types import FunctionType
 # for action-based potentials
 import gala.potential as gp
 from gala.units import galactic
+from gala.potential.potential.io import to_dict as potential_to_dict, from_dict as potential_from_dict
 
 from cogsworth.tests.optional_deps import check_dependencies
 
@@ -491,14 +492,22 @@ class StarFormationHistory():
 
         # warn the user if we saved a different class name
         if class_name != self.__class__.__name__:
-            print((f"Warning: StarFormationHistory class being saved as `{class_name}` instead of "
-                   f"`{self.__class__.__name__}`. Data will be copied but new sampling will draw from the "
-                   f"functions in `{class_name}` rather than the custom class you used."))
+            logging.getLogger("cogsworth").warning(("cogsworth warning: StarFormationHistory class being "
+                                                    f"saved as `{class_name}` instead of "
+                                                    f"`{self.__class__.__name__}`. Data will be copied but "
+                                                    "new sampling will draw from the "
+                                                    f"functions in `{class_name}` rather than the "
+                                                    "custom class you used."))
         params["class_name"] = class_name
 
         # dump it all into the file attrs using yaml
         with h5.File(file_name, "a") as file:
             file[key].attrs["params"] = yaml.dump(params, default_flow_style=None)
+
+            # if there's a potential associated with the SFH then save it too
+            if hasattr(self, "potential"):
+                pot_dict = potential_to_dict(self.potential)
+                file[key].attrs["potential"] = yaml.dump(pot_dict, default_flow_style=None)
 
 
 class BurstUniformDisc(StarFormationHistory):
@@ -1274,11 +1283,19 @@ def load(file_name, key="sfh"):
     if file_name[-3:] != ".h5":
         file_name += ".h5"
 
+    # assume no potential unless we find one
+    pot = None
+
     # load the parameters back in using yaml
     with h5.File(file_name, "r") as file:
         if key not in file.keys():
             raise ValueError((f"Can't find a saved SFH in {file_name} under the key {key}."))
         params = yaml.load(file[key].attrs["params"], Loader=yaml.Loader)
+
+        # load associated potential if it exists
+        if "potential" in file[key].attrs:
+            potential_data = file[key].attrs["potential"]
+            pot = potential_from_dict(yaml.load(potential_data, Loader=yaml.Loader))
 
     # get the current module, get a class using the name, delete it from parameters that will be passed
     module = sys.modules[__name__]
@@ -1289,8 +1306,15 @@ def load(file_name, key="sfh"):
     # ensure no samples are taken
     params["immediately_sample"] = False
 
+    # complicate the parameters to add units back in
+    complicated_params = complicate_params(params)
+
+    # add associated potential if it exists
+    if pot is not None:
+        complicated_params["potential"] = pot
+
     # create a new sfh using the parameters
-    loaded_sfh = sfh_class(**complicate_params(params))
+    loaded_sfh = sfh_class(**complicated_params)
 
     # read in the data and save it into the class
     df = pd.read_hdf(file_name, key=key)
@@ -1345,7 +1369,9 @@ def concat(*sfhs):
 
 
 def simplify_params(params, dont_save=["_tau", "_Z", "_x", "_y", "_z", "_which_comp", "v_R", "v_T", "v_z",
-                                       "v_x", "v_y", "_df", "_agama_pot", "__citations__", "sfh_params"]):
+                                       "v_x", "v_y", "_df", "_agama_pot", "potential", "__citations__",
+                                       "sfh_params", "_guiding_radius_interp", "_omega_interp",
+                                       "_kappa_interp", "_nu_interp", "_inv_cdf"]):
     # delete any keys that we don't want to save
     delete_keys = [key for key in params.keys() if key in dont_save]
     for key in delete_keys:
