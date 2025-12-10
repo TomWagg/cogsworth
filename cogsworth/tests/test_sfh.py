@@ -78,14 +78,26 @@ class Test(unittest.TestCase):
                                       tau_min=0 * u.Gyr,
                                       tau_max=10 * u.Gyr,
                                       Z_all=0.02,
-                                      potential=gp.PlummerPotential(m=1e10*u.Msun,
-                                                                    b=5.0*u.kpc,
-                                                                    units=galactic),
+                                      M=1e10*u.Msun,
+                                      a=5.0*u.kpc,
                                       r_trunc=30 * u.kpc)
         self.assertTrue(np.all(g.tau >= 0 * u.Gyr))
         self.assertTrue(np.all(g.tau <= 10 * u.Gyr))
         self.assertTrue(np.all(g.Z == 0.02))
         self.assertTrue(np.all(np.sqrt(g.x**2 + g.y**2 + g.z**2) <= 30 * u.kpc))
+
+    def test_plummer_indexing(self):
+        """Ensure the constant Plummer sphere class works"""
+        g = sfh.ConstantPlummerSphere(size=100,
+                                      tau_min=0 * u.Gyr,
+                                      tau_max=10 * u.Gyr,
+                                      Z_all=0.02,
+                                      M=1e10*u.Msun,
+                                      a=5.0*u.kpc,
+                                      r_trunc=30 * u.kpc)
+        g_subset = g[:5]
+        self.assertTrue(g_subset.size == 5)
+        self.assertTrue(np.all(g.tau[:5] == g_subset.tau))
 
     def test_bad_inputs(self):
         """Ensure the classes fail with bad input"""
