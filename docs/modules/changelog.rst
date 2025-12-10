@@ -4,6 +4,10 @@ Full changelog
 
 This page tracks all of the changes that have been made to ``cogsworth``. We follow the standard versioning convention of A.B.C, where C is a patch/bugfix, B is a large bugfix or new feature and A is a major new breaking change. B/C are backwards compatible but A changes may be breaking.
 
+3.3.1
+=====
+- Bug fix: Change `ConstantPlummerSphere` to directly accept the Plummer scale radius and mass rather than a Gala potential instance. This avoids indexing issues
+
 3.3.0
 =====
 - New feature: Added a new star formation history in the `cogsworth.sfh` module called `ConstantPlummerSphere`, which allows users to create a population of stars formed at a constant rate within a Plummer sphere potential. This SFH samples stellar positions and velocities according to the Plummer model, providing a more realistic spatial and kinematic distribution for certain astrophysical scenarios.
