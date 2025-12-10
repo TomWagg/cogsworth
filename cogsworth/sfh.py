@@ -587,8 +587,10 @@ class ConstantPlummerSphere(StarFormationHistory):
         Maximum lookback time
     Z_all : `float`
         Metallicity of the sphere
-    potential : :class:`gala.potential.PlummerPotential`
-        A Plummer potential instance from `gala <https://gala.adrian.pw/en/stable/>`_
+    M : :class:`~astropy.units.Quantity` [mass]
+        Total mass of the Plummer sphere
+    a : :class:`~astropy.units.Quantity` [length]
+        Plummer scale radius
     r_trunc : :class:`~astropy.units.Quantity` [length], optional
         Truncation radius for the Plummer sphere, by default None (i.e. no truncation). If set, stars
         will only be sampled within this radius. For some guidance on setting this value, note that you will
@@ -596,12 +598,12 @@ class ConstantPlummerSphere(StarFormationHistory):
         Plummer scale radius. So setting r_trunc = 5 a will lose ~6% of the mass, r_trunc = 10 a will
         lose ~0.5% of the mass.
     """
-    def __init__(self, size, tau_min, tau_max, Z_all, potential, r_trunc=None, **kwargs):
+    def __init__(self, size, tau_min, tau_max, Z_all, M, a, r_trunc=None, **kwargs):
         self.tau_min = tau_min
         self.tau_max = tau_max
         self.Z_all = Z_all
-        self.a = potential.parameters['b']
-        self.M = potential.parameters['m']
+        self.a = a
+        self.M = M
         self.r_trunc = r_trunc
         super().__init__(size=size, components=kwargs.pop('components', ["sphere"]),
                          component_masses=kwargs.pop('component_masses', [1]),
