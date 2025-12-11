@@ -29,18 +29,50 @@ Package installation
 
                 pip install 'cogsworth[extras]'
 
+        .. dropdown:: Having trouble building wheels for ``agama``?
+
+            `agama <https://github.com/GalacticDynamics-Oxford/Agama>`_ is need for the distribution-function based star formation histories in ``cogsworth``.
+            It is installed as part of the extras, but this can sometimes generate errors.
+            
+            If you run into these, you can install ``agama`` *manually* **BEFORE installing cogsworth** following `their installation instructions <https://github.com/GalacticDynamics-Oxford/Agama/blob/master/INSTALL>`_,
+            which usually involves the following commands:
+
+            .. code-block:: bash
+
+                python -m pip install numpy setuptools wheel --no-build-isolation
+                git clone https://github.com/GalacticDynamics-Oxford/Agama.git agama
+                cd agama
+                pip install . --config-settings --build-option=--yes --no-build-isolation
+                cd ..
+
         and you should be all set! Now it's time to learn about `Getting Started <getting_started.ipynb>`_ with ``cogsworth``.
 
     .. tab-item:: Stable (without conda)
 
         We don't recommend installing ``cogsworth`` without a conda environment but if you prefer to do it this
-        way then all you need to do is run::
+        way then all you need to do is run:
 
             pip install cogsworth
 
         **OPTIONALLY** if you want to install some of the ``cogsworth`` extras (**this is necessary for some tutorials and examples**, particularly those on observables predictions and postprocessing hydrodynamical simulations) then you can do so by instead running::
 
             pip install 'cogsworth[extras]'
+
+        .. dropdown:: Having trouble building wheels for ``agama``?
+
+            `agama <https://github.com/GalacticDynamics-Oxford/Agama>`_ is need for the distribution-function based star formation histories in ``cogsworth``.
+            It is installed as part of the extras, but this can sometimes generate errors.
+            
+            If you run into these, you can install ``agama`` *manually* **BEFORE installing cogsworth** following `their installation instructions <https://github.com/GalacticDynamics-Oxford/Agama/blob/master/INSTALL>`_,
+            which usually involves the following commands:
+
+            .. code-block:: bash
+
+                python -m pip install numpy setuptools wheel --no-build-isolation
+                git clone https://github.com/GalacticDynamics-Oxford/Agama.git agama
+                cd agama
+                pip install . --config-settings --build-option=--yes --no-build-isolation
+                cd ..
 
         and you should be all set! Now it's time to learn about `Getting Started <getting_started.ipynb>`_ with ``cogsworth``.
 
@@ -75,15 +107,21 @@ Package installation
 
             pip install '.[extras]'
 
-	**N.B.:** `agama<https://github.com/GalacticDynamics-Oxford/Agama>`_ is needed, for example, to use action-angle formulations of the potential. It is installed as part of the extras, but this can sometimes generate errors. If you run into these, you can install ``agama`` manually with::
+        .. dropdown:: Having trouble building wheels for ``agama``?
 
-	  python -m pip install numpy setuptools wheel --no-build-isolation
-          git clone https://github.com/GalacticDynamics-Oxford/Agama.git agama
-          cd agama
-          pip install . --config-settings --build-option=--yes --no-build-isolation
-          cd ..
+            `agama <https://github.com/GalacticDynamics-Oxford/Agama>`_ is need for the distribution-function based star formation histories in ``cogsworth``.
+            It is installed as part of the extras, but this can sometimes generate errors.
+            
+            If you run into these, you can install ``agama`` *manually* **BEFORE installing cogsworth** following `their installation instructions <https://github.com/GalacticDynamics-Oxford/Agama/blob/master/INSTALL>`_,
+            which usually involves the following commands:
 
-	Before pip-installing `.[extras]`.
+            .. code-block:: bash
+
+                python -m pip install numpy setuptools wheel --no-build-isolation
+                git clone https://github.com/GalacticDynamics-Oxford/Agama.git agama
+                cd agama
+                pip install . --config-settings --build-option=--yes --no-build-isolation
+                cd ..
 
 
 .. tip::
