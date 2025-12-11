@@ -1808,17 +1808,19 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
 def concat(*pops):
     """Concatenate multiple populations into a single population
 
-    NOTE: The final population will have the same settings as the first population in the list (but data
-    from all populations)
+    .. note::
+    
+        The final population will have the same settings as the first population in the list (but data
+        from all populations)
 
     Parameters
     ----------
-    pops : `list` of :class:`~cogsworth.Population` or :class:`~cogsworth.EvolvedPopulation`
+    pops : `list` of :class:`~cogsworth.pop.Population` or :class:`~cogsworth.pop.EvolvedPopulation`
         List of populations to concatenate
 
     Returns
     -------
-    total_pop : :class:`~cogsworth.Population` or :class:`~cogsworth.EvolvedPopulation`
+    total_pop : :class:`~cogsworth.pop.Population` or :class:`~cogsworth.pop.EvolvedPopulation`
         The concatenated population
     """
     # ensure the input is a list of populations
@@ -1837,6 +1839,16 @@ def concat(*pops):
     # create a new population to store the final population (just a copy of the first population)
     final_pop = pops[0][:]
 
+    # reset auto-calculated class variables
+    final_pop._bin_nums = None
+    final_pop._classes = None
+    final_pop._final_pos = None
+    final_pop._final_vel = None
+    final_pop._final_bpp = None
+    final_pop._disrupted = None
+    final_pop._escaped = None
+    final_pop._observables = None
+
     # loop over the remaining populations
     for pop in pops[1:]:
         # sum the total numbers of binaries
@@ -1850,7 +1862,7 @@ def concat(*pops):
             final_pop._initial_galaxy += pop._initial_galaxy
 
         # loop through pandas tables that may need to be copied
-        for table in ["_initial_binaries", "_initC", "_bpp", "_bcm", "_kick_info", ]:
+        for table in ["_initial_binaries", "_initC", "_bpp", "_bcm", "_kick_info"]:
             # only copy if the table exists in the main population
             if getattr(final_pop, table) is not None:
                 # if the table doesn't exist in the new population then raise an error
@@ -1874,20 +1886,10 @@ def concat(*pops):
         final_pop.n_binaries_match += pop.n_binaries_match
 
         if final_pop._orbits is not None or pop._orbits is not None:
-            raise NotImplementedError("Cannot concatenate populations with orbits for now")
+            raise NotImplementedError("Cannot concatenate populations with orbits for now - PRs are welcome!")
 
-        bin_num_offset = max(final_pop.bin_nums) + 1
         final_pop._bin_nums = None
-
-    # reset auto-calculated class variables
-    final_pop._bin_nums = None
-    final_pop._classes = None
-    final_pop._final_pos = None
-    final_pop._final_vel = None
-    final_pop._final_bpp = None
-    final_pop._disrupted = None
-    final_pop._escaped = None
-    final_pop._observables = None
+        bin_num_offset = max(final_pop.bin_nums) + 1
 
     return final_pop
 
