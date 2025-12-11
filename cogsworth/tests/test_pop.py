@@ -713,7 +713,7 @@ class Test(unittest.TestCase):
         self.assertTrue(it_failed)
 
     def test_concat_no_orbits(self):
-        """Check that we can't concatenate populations without orbits"""
+        """Check that we can't concatenate populations with orbits"""
         p = pop.Population(10, use_default_BSE_settings=True)
         q = pop.Population(10, use_default_BSE_settings=True)
         p.create_population()
@@ -725,6 +725,23 @@ class Test(unittest.TestCase):
         except NotImplementedError:
             it_failed = True
         self.assertTrue(it_failed)
+
+    def test_concat_bin_nums_consistent(self):
+        """Check that bin_nums are consistent after concatenation"""
+        pops = [
+            pop.Population(10, use_default_BSE_settings=True, processes=1)
+            for _ in range(3)
+        ]
+        for p in pops:
+            p.sample_initial_binaries()
+            p.perform_stellar_evolution()
+
+        total = pop.concat(*pops)
+        
+        # there should be the same number of unique bin_nums in total as the sum of the individuals
+        total_unique_bin_nums = total.initC["bin_num"].nunique()
+        sum_individual_unique_bin_nums = sum(p.initC["bin_num"].nunique() for p in pops)
+        self.assertEqual(total_unique_bin_nums, sum_individual_unique_bin_nums)
 
     def test_changing_columns(self):
         """Check that a different choice of bpp and bcm columns works"""
