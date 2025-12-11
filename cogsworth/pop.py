@@ -1166,11 +1166,18 @@ class Population():
                           " (initial conditions for these systems were saved to `bad_orbits.h5` file)")
             bad_bin_nums = np.concatenate((self.bin_nums, self.bin_nums[self.disrupted]))[bad_orbits]
 
+            # decide on file name (avoid overwriting existing file)
+            file_num = 1
+            file_name = "bad_orbits.h5"
+            while os.path.exists(file_name):
+                file_name = f"bad_orbits_{file_num}.h5"
+                file_num += 1
+
             # save the bad orbits population
-            self.initC.loc[bad_bin_nums].to_hdf("bad_orbits.h5", key="initC")
-            self.bpp.loc[bad_bin_nums].to_hdf("bad_orbits.h5", key="bpp")
-            self.kick_info.loc[bad_bin_nums].to_hdf("bad_orbits.h5", key="kick_info")
-            self.initial_galaxy[np.isin(self.bin_nums, bad_bin_nums)].save("bad_orbits.h5", key="sfh")
+            self.initC.loc[bad_bin_nums].to_hdf(file_name, key="initC")
+            self.bpp.loc[bad_bin_nums].to_hdf(file_name, key="bpp")
+            self.kick_info.loc[bad_bin_nums].to_hdf(file_name, key="kick_info")
+            self.initial_galaxy[np.isin(self.bin_nums, bad_bin_nums)].save(file_name, key="sfh")
 
             # mask them out from the main population
             new_self = self[~np.isin(self.bin_nums, bad_bin_nums)]
@@ -1801,17 +1808,19 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
 def concat(*pops):
     """Concatenate multiple populations into a single population
 
-    NOTE: The final population will have the same settings as the first population in the list (but data
-    from all populations)
+    .. note::
+    
+        The final population will have the same settings as the first population in the list (but data
+        from all populations)
 
     Parameters
     ----------
-    pops : `list` of :class:`~cogsworth.Population` or :class:`~cogsworth.EvolvedPopulation`
+    pops : `list` of :class:`~cogsworth.pop.Population` or :class:`~cogsworth.pop.EvolvedPopulation`
         List of populations to concatenate
 
     Returns
     -------
-    total_pop : :class:`~cogsworth.Population` or :class:`~cogsworth.EvolvedPopulation`
+    total_pop : :class:`~cogsworth.pop.Population` or :class:`~cogsworth.pop.EvolvedPopulation`
         The concatenated population
     """
     # ensure the input is a list of populations
@@ -1823,12 +1832,39 @@ def concat(*pops):
         return pops[0]
     elif len(pops) == 0:
         raise ValueError("No populations provided to concatenate")
+    
+    # warn about orbits if necessary
+    if any([pop._orbits is not None for pop in pops]):
+        logging.getLogger("cogsworth").warning(
+            "cogsworth warning: Concatenating populations with orbits is not supported yet - "
+            "the final population will not have orbits. PRs are welcome!"
+        )
 
     # get the offset for the bin numbers
     bin_num_offset = max(pops[0].bin_nums) + 1
 
     # create a new population to store the final population (just a copy of the first population)
     final_pop = pops[0][:]
+
+    # store the final positions and velocities if they were loaded
+    # separate into bound and disrupted for easier stacking later
+    bound_pos, bound_vel = None, None
+    disrupted_pos, disrupted_vel = None, None
+    if final_pop._final_pos is not None:
+        bound_pos = final_pop._final_pos[:len(final_pop)]
+        bound_vel = final_pop._final_vel[:len(final_pop)]
+        disrupted_pos = final_pop._final_pos[len(final_pop):]
+        disrupted_vel = final_pop._final_vel[len(final_pop):]
+
+    # reset auto-calculated class variables
+    final_pop._bin_nums = None
+    final_pop._classes = None
+    final_pop._final_pos = None
+    final_pop._final_vel = None
+    final_pop._final_bpp = None
+    final_pop._disrupted = None
+    final_pop._escaped = None
+    final_pop._observables = None
 
     # loop over the remaining populations
     for pop in pops[1:]:
@@ -1843,7 +1879,7 @@ def concat(*pops):
             final_pop._initial_galaxy += pop._initial_galaxy
 
         # loop through pandas tables that may need to be copied
-        for table in ["_initial_binaries", "_initC", "_bpp", "_bcm", "_kick_info", ]:
+        for table in ["_initial_binaries", "_initC", "_bpp", "_bcm", "_kick_info"]:
             # only copy if the table exists in the main population
             if getattr(final_pop, table) is not None:
                 # if the table doesn't exist in the new population then raise an error
@@ -1866,21 +1902,22 @@ def concat(*pops):
         final_pop._mass_binaries += pop._mass_binaries
         final_pop.n_binaries_match += pop.n_binaries_match
 
-        if final_pop._orbits is not None or pop._orbits is not None:
-            raise NotImplementedError("Cannot concatenate populations with orbits for now")
+        # combine the final positions and velocities if they were loaded
+        if bound_pos is not None:
+            if pop._final_pos is None:
+                raise ValueError(f"Population {pop} does not have final positions, but the first does")
+            bound_pos = np.vstack((bound_pos, pop._final_pos[:len(pop)]))
+            bound_vel = np.vstack((bound_vel, pop._final_vel[:len(pop)]))
+            disrupted_pos = np.vstack((disrupted_pos, pop._final_pos[len(pop):]))
+            disrupted_vel = np.vstack((disrupted_vel, pop._final_vel[len(pop):]))
 
-        bin_num_offset = max(final_pop.bin_nums) + 1
         final_pop._bin_nums = None
+        bin_num_offset = max(final_pop.bin_nums) + 1
 
-    # reset auto-calculated class variables
-    final_pop._bin_nums = None
-    final_pop._classes = None
-    final_pop._final_pos = None
-    final_pop._final_vel = None
-    final_pop._final_bpp = None
-    final_pop._disrupted = None
-    final_pop._escaped = None
-    final_pop._observables = None
+    # set the final positions and velocities if they were loaded
+    if bound_pos is not None:
+        final_pop._final_pos = np.vstack((bound_pos, disrupted_pos))
+        final_pop._final_vel = np.vstack((bound_vel, disrupted_vel))
 
     return final_pop
 

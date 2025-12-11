@@ -713,16 +713,81 @@ class Test(unittest.TestCase):
         self.assertTrue(it_failed)
 
     def test_concat_no_orbits(self):
-        """Check that we can't concatenate populations without orbits"""
+        """Check that a warning is raised when concatenating populations with orbits"""
         p = pop.Population(10, use_default_BSE_settings=True)
         q = pop.Population(10, use_default_BSE_settings=True)
         p.create_population()
         q.create_population()
 
+        with self.assertLogs("cogsworth", level="WARNING") as cm:
+            r = pop.concat(p, q)
+        self.assertIn("Concatenating populations with orbits is not supported yet", cm.output[0])
+
+    def test_concat_bin_nums_consistent(self):
+        """Check that bin_nums are consistent after concatenation"""
+        pops = [
+            pop.Population(10, use_default_BSE_settings=True, processes=1)
+            for _ in range(3)
+        ]
+        for p in pops:
+            p.sample_initial_binaries()
+            p.perform_stellar_evolution()
+
+        total = pop.concat(*pops)
+        
+        # there should be the same number of unique bin_nums in total as the sum of the individuals
+        total_unique_bin_nums = total.initC["bin_num"].nunique()
+        sum_individual_unique_bin_nums = sum(p.initC["bin_num"].nunique() for p in pops)
+        self.assertEqual(total_unique_bin_nums, sum_individual_unique_bin_nums)
+
+    def test_concat_final_pos(self):
+        """Check that final_pos is consistent after concatenation"""
+        pops = [
+            pop.Population(100, final_kstar1=[13, 14], use_default_BSE_settings=True, processes=1,
+                           store_entire_orbits=False)
+            for _ in range(2)
+        ]
+        for p in pops:
+            p.create_population()
+            p.final_pos
+            p._orbits = None
+
+        total = pop.concat(*pops)
+
+        # final_pos should have the correct length
+        self.assertEqual(len(total.final_pos), sum(len(p.final_pos) for p in pops))
+
+        # final_pos entries should match those from the individual populations, start with bound systems
+        # and then the unbound systems like in a normal population
+        index = 0
+        for p in pops:
+            for pos in p.final_pos[:len(p)]:
+                self.assertTrue(np.array_equal(total.final_pos[index], pos))
+                index += 1
+        for p in pops:
+            for pos in p.final_pos[len(p):]:
+                self.assertTrue(np.array_equal(total.final_pos[index], pos))
+                index += 1
+
+
+    def test_concat_final_pos_bad_input(self):
+        """Check that final_pos concatenation raises error when one population lacks final positions"""
+        pops = [
+            pop.Population(5, use_default_BSE_settings=True, processes=1,
+                           store_entire_orbits=False)
+            for _ in range(2)
+        ]
+        for p in pops:
+            p.create_population()
+            p.final_pos
+            p._orbits = None
+
+        pops[-1]._final_pos = None  # simulate not having final positions for one population
+
         it_failed = False
         try:
-            r = p + q
-        except NotImplementedError:
+            total = pop.concat(*pops)
+        except ValueError:
             it_failed = True
         self.assertTrue(it_failed)
 

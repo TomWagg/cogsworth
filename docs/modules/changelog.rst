@@ -4,6 +4,11 @@ Full changelog
 
 This page tracks all of the changes that have been made to ``cogsworth``. We follow the standard versioning convention of A.B.C, where C is a patch/bugfix, B is a large bugfix or new feature and A is a major new breaking change. B/C are backwards compatible but A changes may be breaking.
 
+3.4.0
+=====
+- New feature: Populations that have had orbits integrated can now be concatenated together using the `pop.concat` function or simply the `+` operator. Note that the resulting population will not have orbits, as combining orbits from different populations is non-trivial and not yet implemented. However, the final positions and velocities are available as `.final_pos` and `.final_vel` attributes if they were loaded for the original populations.
+- Bug fix: Ensure that when concatenating populations, the bin_nums are updated correctly to avoid overlaps and that everything remains unique.
+
 3.3.1
 =====
 - Bug fix: Change `ConstantPlummerSphere` to directly accept the Plummer scale radius and mass rather than a Gala potential instance. This avoids indexing issues
