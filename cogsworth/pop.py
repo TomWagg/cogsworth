@@ -1839,6 +1839,16 @@ def concat(*pops):
     # create a new population to store the final population (just a copy of the first population)
     final_pop = pops[0][:]
 
+    # store the final positions and velocities if they were loaded
+    # separate into bound and disrupted for easier stacking later
+    bound_pos, bound_vel = None, None
+    disrupted_pos, disrupted_vel = None, None
+    if final_pop._final_pos is not None:
+        bound_pos = final_pop._final_pos[:len(final_pop)]
+        bound_vel = final_pop._final_vel[:len(final_pop)]
+        disrupted_pos = final_pop._final_pos[len(final_pop):]
+        disrupted_vel = final_pop._final_vel[len(final_pop):]
+
     # reset auto-calculated class variables
     final_pop._bin_nums = None
     final_pop._classes = None
@@ -1885,11 +1895,25 @@ def concat(*pops):
         final_pop._mass_binaries += pop._mass_binaries
         final_pop.n_binaries_match += pop.n_binaries_match
 
+        # combine the final positions and velocities if they were loaded
+        if bound_pos is not None:
+            if pop._final_pos is None:
+                raise ValueError(f"Population {pop} does not have final positions, but the first does")
+            bound_pos = np.vstack((bound_pos, pop._final_pos[:len(pop)]))
+            bound_vel = np.vstack((bound_vel, pop._final_vel[:len(pop)]))
+            disrupted_pos = np.vstack((disrupted_pos, pop._final_pos[len(pop):]))
+            disrupted_vel = np.vstack((disrupted_vel, pop._final_vel[len(pop):]))
+
         if final_pop._orbits is not None or pop._orbits is not None:
             raise NotImplementedError("Cannot concatenate populations with orbits for now - PRs are welcome!")
 
         final_pop._bin_nums = None
         bin_num_offset = max(final_pop.bin_nums) + 1
+
+    # set the final positions and velocities if they were loaded
+    if bound_pos is not None:
+        final_pop._final_pos = np.vstack((bound_pos, disrupted_pos))
+        final_pop._final_vel = np.vstack((bound_vel, disrupted_vel))
 
     return final_pop
 
