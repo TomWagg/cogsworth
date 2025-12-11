@@ -45,14 +45,14 @@ Package installation
         and you should be all set! Now it's time to learn about `Getting Started <getting_started.ipynb>`_ with ``cogsworth``.
 
     .. tab-item:: Development (from GitHub)
-        
+
         .. warning::
 
             We don't guarantee that there won't be mistakes or bugs in the development version, use at your own risk!
 
         The latest development version is available directly from our `GitHub Repo
         <https://github.com/TomWagg/cogsworth>`_. To start, clone the repository onto your machine: ::
-        
+
             git clone https://github.com/TomWagg/cogsworth
             cd cogsworth
 
@@ -69,11 +69,22 @@ Package installation
 
             pip install .
 
+        and you should be all set! Now it's time to learn about `Getting Started <getting_started.ipynb>`_ with ``cogsworth``.
+
         **OPTIONALLY** if you want to install some of the ``cogsworth`` extras (**this is necessary for some tutorials and examples**, particularly those on observables predictions and postprocessing hydrodynamical simulations) then you can do so by instead running::
 
             pip install '.[extras]'
 
-        and you should be all set! Now it's time to learn about `Getting Started <getting_started.ipynb>`_ with ``cogsworth``.
+	**N.B.:** `agama<https://github.com/GalacticDynamics-Oxford/Agama>`_ is needed, for example, to use action-angle formulations of the potential. It is installed as part of the extras, but this can sometimes generate errors. If you run into these, you can install ``agama`` manually with::
+
+	  python -m pip install numpy setuptools wheel --no-build-isolation
+          git clone https://github.com/GalacticDynamics-Oxford/Agama.git agama
+          cd agama
+          pip install . --config-settings --build-option=--yes --no-build-isolation
+          cd ..
+
+	Before pip-installing `.[extras]`.
+
 
 .. tip::
     If you also want to work with Jupyter notebooks then you'll also need to install jupyter/ipython to this environment!
@@ -93,11 +104,11 @@ Dependencies
     .. grid-item::
 
         .. card::
-            
+
             .. div:: sd-text-center sd-fs-4 sd-text-primary sd-font-weight-bolder
 
                 Core Dependencies
-            
+
             .. div:: sd-text-center sd-fs-6 sd-font-italic
 
                 Install via: pip install cogsworth
@@ -115,11 +126,11 @@ Dependencies
             - :mod:`astropy` for coordinate transformations
 
         .. card::
-            
+
             .. div:: sd-text-center sd-fs-4 sd-text-primary sd-font-weight-bolder
 
                 Development Dependencies
-            
+
             .. div:: sd-text-center sd-fs-6 sd-font-italic
 
                 Install via: pip install 'cogsworth[all]'
@@ -127,17 +138,17 @@ Dependencies
             ^^^^^^^^^^^^^^^^^^^^^^^^
 
             For developers of ``cogsworth`` there are also additional dependencies for testing (``pytest``, ``coverage``, etc.) and documentation building (``sphinx``, ``nbspinx``, etc.).
-            
+
             Most users do **not** need these dependencies.
 
     .. grid-item::
 
         .. card::
-            
+
             .. div:: sd-text-center sd-fs-4 sd-text-primary sd-font-weight-bolder
 
                 Optional Dependencies
-            
+
             .. div:: sd-text-center sd-fs-6 sd-font-italic
 
                 Install via: pip install 'cogsworth[extras]'
@@ -159,7 +170,7 @@ Dependencies
             **LISA gravitational wave sources**:
 
             - :mod:`legwork` for calculating LISA gravitational wave signals
-            
+
             **Action-based galactic potentials**:
 
             - :mod:`agama` for action-based galactic potentials
@@ -191,7 +202,7 @@ Gaia empirical selection function
 
 If you'd like to use ``cogsworth`` to make predictions for which stars are observable by Gaia then you'll need
 to run the following to ensure there's a directory for the files::
-    
+
     import os
     gaia_unlimited_path = os.path.join(os.path.expanduser('~'), ".gaiaunlimited")
     if not os.path.isdir(gaia_unlimited_path):
