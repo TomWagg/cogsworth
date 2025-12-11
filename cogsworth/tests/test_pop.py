@@ -743,6 +743,35 @@ class Test(unittest.TestCase):
         sum_individual_unique_bin_nums = sum(p.initC["bin_num"].nunique() for p in pops)
         self.assertEqual(total_unique_bin_nums, sum_individual_unique_bin_nums)
 
+    def test_concat_final_pos(self):
+        """Check that final_pos is consistent after concatenation"""
+        pops = [
+            pop.Population(100, final_kstar1=[13, 14], use_default_BSE_settings=True, processes=1,
+                           store_entire_orbits=False)
+            for _ in range(2)
+        ]
+        for p in pops:
+            p.create_population()
+            p.final_pos
+            p._orbits = None
+
+        total = pop.concat(*pops)
+
+        # final_pos should have the correct length
+        self.assertEqual(len(total.final_pos), sum(len(p.final_pos) for p in pops))
+
+        # final_pos entries should match those from the individual populations, start with bound systems
+        # and then the unbound systems like in a normal population
+        index = 0
+        for p in pops:
+            for pos in p.final_pos[:len(p)]:
+                self.assertTrue(np.array_equal(total.final_pos[index], pos))
+                index += 1
+        for p in pops:
+            for pos in p.final_pos[len(p):]:
+                self.assertTrue(np.array_equal(total.final_pos[index], pos))
+                index += 1
+
     def test_changing_columns(self):
         """Check that a different choice of bpp and bcm columns works"""
         TEST_COLS = ["mass_1", "mass_2", "tphys", "porb", "sep", "ecc", "evol_type"]
