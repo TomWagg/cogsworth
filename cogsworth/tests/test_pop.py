@@ -712,6 +712,17 @@ class Test(unittest.TestCase):
             it_failed = True
         self.assertTrue(it_failed)
 
+    def test_concat_no_orbits(self):
+        """Check that a warning is raised when concatenating populations with orbits"""
+        p = pop.Population(10, use_default_BSE_settings=True)
+        q = pop.Population(10, use_default_BSE_settings=True)
+        p.create_population()
+        q.create_population()
+
+        with self.assertLogs("cogsworth", level="WARNING") as cm:
+            r = pop.concat(p, q)
+        self.assertIn("Concatenating populations with orbits is not supported yet", cm.output[0])
+
     def test_concat_bin_nums_consistent(self):
         """Check that bin_nums are consistent after concatenation"""
         pops = [
@@ -757,6 +768,28 @@ class Test(unittest.TestCase):
             for pos in p.final_pos[len(p):]:
                 self.assertTrue(np.array_equal(total.final_pos[index], pos))
                 index += 1
+
+
+    def test_concat_final_pos_bad_input(self):
+        """Check that final_pos concatenation raises error when one population lacks final positions"""
+        pops = [
+            pop.Population(5, use_default_BSE_settings=True, processes=1,
+                           store_entire_orbits=False)
+            for _ in range(2)
+        ]
+        for p in pops:
+            p.create_population()
+            p.final_pos
+            p._orbits = None
+
+        pops[-1]._final_pos = None  # simulate not having final positions for one population
+
+        it_failed = False
+        try:
+            total = pop.concat(*pops)
+        except ValueError:
+            it_failed = True
+        self.assertTrue(it_failed)
 
     def test_changing_columns(self):
         """Check that a different choice of bpp and bcm columns works"""
