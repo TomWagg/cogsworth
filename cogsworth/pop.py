@@ -1166,11 +1166,18 @@ class Population():
                           " (initial conditions for these systems were saved to `bad_orbits.h5` file)")
             bad_bin_nums = np.concatenate((self.bin_nums, self.bin_nums[self.disrupted]))[bad_orbits]
 
+            # decide on file name (avoid overwriting existing file)
+            file_num = 1
+            file_name = "bad_orbits.h5"
+            while os.path.exists(file_name):
+                file_name = f"bad_orbits_{file_num}.h5"
+                file_num += 1
+
             # save the bad orbits population
-            self.initC.loc[bad_bin_nums].to_hdf("bad_orbits.h5", key="initC")
-            self.bpp.loc[bad_bin_nums].to_hdf("bad_orbits.h5", key="bpp")
-            self.kick_info.loc[bad_bin_nums].to_hdf("bad_orbits.h5", key="kick_info")
-            self.initial_galaxy[np.isin(self.bin_nums, bad_bin_nums)].save("bad_orbits.h5", key="sfh")
+            self.initC.loc[bad_bin_nums].to_hdf(file_name, key="initC")
+            self.bpp.loc[bad_bin_nums].to_hdf(file_name, key="bpp")
+            self.kick_info.loc[bad_bin_nums].to_hdf(file_name, key="kick_info")
+            self.initial_galaxy[np.isin(self.bin_nums, bad_bin_nums)].save(file_name, key="sfh")
 
             # mask them out from the main population
             new_self = self[~np.isin(self.bin_nums, bad_bin_nums)]
