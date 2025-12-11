@@ -712,20 +712,6 @@ class Test(unittest.TestCase):
             it_failed = True
         self.assertTrue(it_failed)
 
-    def test_concat_no_orbits(self):
-        """Check that we can't concatenate populations with orbits"""
-        p = pop.Population(10, use_default_BSE_settings=True)
-        q = pop.Population(10, use_default_BSE_settings=True)
-        p.create_population()
-        q.create_population()
-
-        it_failed = False
-        try:
-            r = p + q
-        except NotImplementedError:
-            it_failed = True
-        self.assertTrue(it_failed)
-
     def test_concat_bin_nums_consistent(self):
         """Check that bin_nums are consistent after concatenation"""
         pops = [

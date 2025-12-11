@@ -1832,6 +1832,13 @@ def concat(*pops):
         return pops[0]
     elif len(pops) == 0:
         raise ValueError("No populations provided to concatenate")
+    
+    # warn about orbits if necessary
+    if any([pop._orbits is not None for pop in pops]):
+        logging.getLogger("cogsworth").warning(
+            "cogsworth warning: Concatenating populations with orbits is not supported yet - "
+            "the final population will not have orbits. PRs are welcome!"
+        )
 
     # get the offset for the bin numbers
     bin_num_offset = max(pops[0].bin_nums) + 1
@@ -1903,9 +1910,6 @@ def concat(*pops):
             bound_vel = np.vstack((bound_vel, pop._final_vel[:len(pop)]))
             disrupted_pos = np.vstack((disrupted_pos, pop._final_pos[len(pop):]))
             disrupted_vel = np.vstack((disrupted_vel, pop._final_vel[len(pop):]))
-
-        if final_pop._orbits is not None or pop._orbits is not None:
-            raise NotImplementedError("Cannot concatenate populations with orbits for now - PRs are welcome!")
 
         final_pop._bin_nums = None
         bin_num_offset = max(final_pop.bin_nums) + 1
