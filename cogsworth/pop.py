@@ -17,11 +17,13 @@ from cosmic.sample.initialbinarytable import InitialBinaryTable
 from cosmic.evolve import Evolve
 from cosmic.checkstate import set_checkstates
 from cosmic.utils import parse_inifile
+from cosmic import __version__ as cosmic_version
 import gala.potential as gp
 import gala.dynamics as gd
 from gala.potential.potential.io import to_dict as potential_to_dict, from_dict as potential_from_dict
+from gala import __version__ as gala_version
 
-from cogsworth import sfh
+from cogsworth import sfh, __version__
 from cogsworth.kicks import integrate_orbit_with_events
 from cogsworth.events import identify_events
 from cogsworth.classify import determine_final_classes
@@ -1719,6 +1721,11 @@ class Population():
             # save sampling params
             d = file.create_dataset("sampling_params", data=[])
             d.attrs["dict"] = yaml.dump(self.sampling_params, default_flow_style=None)
+
+            # save the version of cogsworth, COSMIC, and gala that was used
+            file.attrs["cogsworth_version"] = __version__
+            file.attrs["COSMIC_version"] = cosmic_version
+            file.attrs["gala_version"] = gala_version
 
 
 def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolution"]):
