@@ -23,7 +23,8 @@ import gala.dynamics as gd
 from gala.potential.potential.io import to_dict as potential_to_dict, from_dict as potential_from_dict
 from gala import __version__ as gala_version
 
-from cogsworth import sfh, __version__
+from cogsworth import sfh
+from cogsworth._version import __version__
 from cogsworth.kicks import integrate_orbit_with_events
 from cogsworth.events import identify_events
 from cogsworth.classify import determine_final_classes
@@ -1763,7 +1764,7 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
                 saved_version = file.attrs[key]
                 if saved_version != version:
                     logging.getLogger("cogsworth").warning(
-                        f"cogsworth warning: file was saved with {key.split("_")[0]} v{saved_version} "
+                        f"cogsworth warning: file was saved with {key.split('_')[0]} v{saved_version} "
                         f"but you are using v{version}"
                     )
 
