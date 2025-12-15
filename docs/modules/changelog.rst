@@ -4,6 +4,12 @@ Full changelog
 
 This page tracks all of the changes that have been made to ``cogsworth``. We follow the standard versioning convention of A.B.C, where C is a patch/bugfix, B is a large bugfix or new feature and A is a major new breaking change. B/C are backwards compatible but A changes may be breaking.
 
+3.5.0
+=====
+- New feature: Added support for the latest version of Gala (v1.11.0). This means time-evolving potentials can now be used when integrating orbits for populations, as well as connections to EXP and new interface with the MilkyWayPotential class.
+- New feature: When saving populations, the versions of `cogsworth`, `COSMIC`, and `gala` used to create the population are now stored as attributes in the saved file. This allows for better tracking of software versions for reproducibility.
+- Bug fix: When loading populations, ensure that `bpp_columns` and `bcm_columns` are properly decoded from byte strings to regular strings. This resolves issues when these attributes were not of the expected type after loading a saved population.
+
 3.4.0
 =====
 - New feature: Populations that have had orbits integrated can now be concatenated together using the `pop.concat` function or simply the `+` operator. Note that the resulting population will not have orbits, as combining orbits from different populations is non-trivial and not yet implemented. However, the final positions and velocities are available as `.final_pos` and `.final_vel` attributes if they were loaded for the original populations.

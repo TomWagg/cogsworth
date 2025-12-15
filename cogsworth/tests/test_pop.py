@@ -107,6 +107,25 @@ class Test(unittest.TestCase):
 
         os.remove("testing-pop-io-cols.h5")
 
+    def test_io_versions(self):
+        """Check that version mismatches are warned about"""
+        p = pop.Population(2, processes=1, use_default_BSE_settings=True)
+        p.create_population()
+
+        p.save("testing-pop-io-versions", overwrite=True)
+
+        # load the file and mess with the versions
+        with h5.File("testing-pop-io-versions.h5", "a") as f:
+            f.attrs["cogsworth_version"] = "0.0.0"
+            f.attrs["COSMIC_version"] = "0.0.0"
+            f.attrs["gala_version"] = "0.0.0"
+
+        with self.assertLogs("cogsworth", level="WARNING") as cm:
+            p_loaded = pop.load("testing-pop-io-versions")
+
+        os.remove("testing-pop-io-versions.h5")
+        self.assertIn("file was saved with", cm.output[0])
+
     def test_save_complicated_sampling(self):
         """Check that you can save a population with complicated sampling params"""
         p = pop.Population(2, processes=1,

@@ -44,7 +44,7 @@ def get_kick_differential(delta_v_sys_xyz, phase=None, inclination=None):
     return kick_differential
 
 
-def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential(), events=None,
+def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential(version='v2'), events=None,
                                 store_all=True, quiet=False):
     """Integrate :class:`~gala.dynamics.PhaseSpacePosition` in a 
     :class:`Potential <gala.potential.potential.PotentialBase>` with events that occur at certain times

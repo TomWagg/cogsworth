@@ -17,11 +17,14 @@ from cosmic.sample.initialbinarytable import InitialBinaryTable
 from cosmic.evolve import Evolve
 from cosmic.checkstate import set_checkstates
 from cosmic.utils import parse_inifile
+from cosmic import __version__ as cosmic_version
 import gala.potential as gp
 import gala.dynamics as gd
 from gala.potential.potential.io import to_dict as potential_to_dict, from_dict as potential_from_dict
+from gala import __version__ as gala_version
 
 from cogsworth import sfh
+from cogsworth._version import __version__
 from cogsworth.kicks import integrate_orbit_with_events
 from cogsworth.events import identify_events
 from cogsworth.classify import determine_final_classes
@@ -91,7 +94,7 @@ class Population():
     """
     def __init__(self, n_binaries, processes=8, m1_cutoff=0, final_kstar1=list(range(16)),
                  final_kstar2=list(range(16)), sfh_model=sfh.Wagg2022, sfh_params={},
-                 galactic_potential=gp.MilkyWayPotential2022(), v_dispersion=5 * u.km / u.s,
+                 galactic_potential=gp.MilkyWayPotential(version='v2'), v_dispersion=5 * u.km / u.s,
                  max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, ini_file=None,
                  use_default_BSE_settings=False, sampling_params={}, bcm_timestep_conditions=[],
                  store_entire_orbits=True, bpp_columns=None, bcm_columns=None):
@@ -1720,6 +1723,11 @@ class Population():
             d = file.create_dataset("sampling_params", data=[])
             d.attrs["dict"] = yaml.dump(self.sampling_params, default_flow_style=None)
 
+            # save the version of cogsworth, COSMIC, and gala that was used
+            file.attrs["cogsworth_version"] = __version__
+            file.attrs["COSMIC_version"] = cosmic_version
+            file.attrs["gala_version"] = gala_version
+
 
 def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolution"]):
     """Load a Population from a series of files
@@ -1747,6 +1755,19 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
         if "numeric_params" not in file.keys():
             raise ValueError((f"{file_name} is not a Population file, "
                              "perhaps you meant to use `cogsworth.sfh.load`?"))
+        
+        # warn users about version mismatches
+        for key, version in [("cogsworth_version", __version__),
+                             ("COSMIC_version", cosmic_version),
+                             ("gala_version", gala_version)]:
+            if key in file.attrs:
+                saved_version = file.attrs[key]
+                if saved_version != version:
+                    logging.getLogger("cogsworth").warning(
+                        f"cogsworth warning: file was saved with {key.split('_')[0]} v{saved_version} "
+                        f"but you are using v{version}"
+                    )
+
         numeric_params = file["numeric_params"][...]
 
         store_entire_orbits = file["numeric_params"].attrs["store_entire_orbits"]
@@ -1759,6 +1780,10 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
         # convert columns to None if empty
         bpp_columns = None if isinstance(bpp_columns, bytes) and bpp_columns == b'None' else bpp_columns
         bcm_columns = None if isinstance(bcm_columns, bytes) and bcm_columns == b'None' else bcm_columns
+
+        # decode byte strings as necessary
+        bpp_columns = [col.decode('utf-8') for col in bpp_columns] if bpp_columns is not None else None
+        bcm_columns = [col.decode('utf-8') for col in bcm_columns] if bcm_columns is not None else None
 
         # load in BSE settings
         for key in file["BSE_settings"].attrs:
