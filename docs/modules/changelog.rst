@@ -7,6 +7,7 @@ This page tracks all of the changes that have been made to ``cogsworth``. We fol
 3.5.0
 =====
 - New feature: Added support for the latest version of Gala (v1.11.0). This means time-evolving potentials can now be used when integrating orbits for populations, as well as connections to EXP and new interface with the MilkyWayPotential class.
+- New feature: When saving populations, the versions of `cogsworth`, `COSMIC`, and `gala` used to create the population are now stored as attributes in the saved file. This allows for better tracking of software versions for reproducibility.
 - Bug fix: When loading populations, ensure that `bpp_columns` and `bcm_columns` are properly decoded from byte strings to regular strings. This resolves issues when these attributes were not of the expected type after loading a saved population.
 
 3.4.0
