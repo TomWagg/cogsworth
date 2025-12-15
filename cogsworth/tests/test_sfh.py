@@ -178,7 +178,7 @@ class Test(unittest.TestCase):
 
     def test_io_SB15(self):
         """Check you can save and load the SB15 class"""
-        g = sfh.SandersBinney2015(size=1000, time_bins=1, potential=gp.MilkyWayPotential2022())
+        g = sfh.SandersBinney2015(size=1000, time_bins=1, potential=gp.MilkyWayPotential(version='v2'))
 
         g.save("testing-galaxy-io-sb15")
 
@@ -320,7 +320,8 @@ class Test(unittest.TestCase):
 
     def test_sb15(self):
         """Test the Sanders & Binney (2015) SFH class"""
-        s = sfh.SandersBinney2015(size=100, time_bins=1, potential=gp.MilkyWayPotential2022(), verbose=True)
+        s = sfh.SandersBinney2015(size=100, time_bins=1, potential=gp.MilkyWayPotential(version='v2'),
+                                  verbose=True)
         # ensure all thick disc stars are older than thin disc stars
         self.assertTrue(np.all(s.tau[s.which_comp == "thick_disc"] >= np.max(s.tau[s.which_comp == "thin_disc"])))
 
@@ -338,7 +339,7 @@ class Test(unittest.TestCase):
                 self._Z = np.full(self.size, 0.01)
                 return self._Z
             
-        s = SimpleDF(size=100, potential=gp.MilkyWayPotential2022(), df={
+        s = SimpleDF(size=100, potential=gp.MilkyWayPotential(version='v2'), df={
                 'type': 'QuasiIsothermal',
                 'Rdisk': 3.45,
                 'Rsigmar': 7.8,
@@ -348,7 +349,7 @@ class Test(unittest.TestCase):
                 'Sigma0': 1.0,
             }, immediately_sample=False)
 
-        s = SimpleDF(size=100, potential=gp.MilkyWayPotential2022(), df=[{
+        s = SimpleDF(size=100, potential=gp.MilkyWayPotential(version='v2'), df=[{
                 'type': 'QuasiIsothermal',
                 'Rdisk': 3.45,
                 'Rsigmar': 7.8,
