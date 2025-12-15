@@ -1754,6 +1754,19 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
         if "numeric_params" not in file.keys():
             raise ValueError((f"{file_name} is not a Population file, "
                              "perhaps you meant to use `cogsworth.sfh.load`?"))
+        
+        # warn users about version mismatches
+        for key, version in [("cogsworth_version", __version__),
+                             ("COSMIC_version", cosmic_version),
+                             ("gala_version", gala_version)]:
+            if key in file.attrs:
+                saved_version = file.attrs[key]
+                if saved_version != version:
+                    logging.getLogger("cogsworth").warning(
+                        f"cogsworth warning: file was saved with {key.split("_")[0]} v{saved_version} "
+                        f"but you are using v{version}"
+                    )
+
         numeric_params = file["numeric_params"][...]
 
         store_entire_orbits = file["numeric_params"].attrs["store_entire_orbits"]
