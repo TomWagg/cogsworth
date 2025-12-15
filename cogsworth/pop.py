@@ -1760,6 +1760,10 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
         bpp_columns = None if isinstance(bpp_columns, bytes) and bpp_columns == b'None' else bpp_columns
         bcm_columns = None if isinstance(bcm_columns, bytes) and bcm_columns == b'None' else bcm_columns
 
+        # decode byte strings as necessary
+        bpp_columns = [col.decode('utf-8') for col in bpp_columns] if bpp_columns is not None else None
+        bcm_columns = [col.decode('utf-8') for col in bcm_columns] if bcm_columns is not None else None
+
         # load in BSE settings
         for key in file["BSE_settings"].attrs:
             BSE_settings[key] = file["BSE_settings"].attrs[key]
