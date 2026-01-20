@@ -1,6 +1,6 @@
 import logging
 import subprocess
-from runSubmit import pythonProgramOptions as COMPAS_command_creator
+from .runSubmit import pythonProgramOptions as COMPAS_command_creator
 
 from ..pop import Population
 

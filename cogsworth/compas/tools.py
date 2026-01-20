@@ -25,10 +25,12 @@ def grab_h5_data(filename, groupname, set_index=False, fields=None):
         DataFrame containing the data from the specified group in the HDF5 file.
     """
     with h5.File(filename, "r") as f:
+        if "SEED" not in fields and fields is not None:
+            fields.append("SEED")
         data_dict = {k: f[groupname][k][...] for k in f[groupname].keys() if fields is None or k in fields}
         df = pd.DataFrame(data_dict)
-        if set_index and 'SEED' in df.columns:
-            df.set_index('SEED', inplace=True)
+        # if set_index and 'SEED' in df.columns:
+        #     df.set_index('SEED', inplace=True, drop=False)
     return df
 
 # Function to convert separation to orbital period
