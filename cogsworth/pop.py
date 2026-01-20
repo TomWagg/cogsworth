@@ -36,6 +36,7 @@ from cogsworth.utils import translate_COSMIC_tables, get_default_BSE_settings
 from cogsworth.citations import CITATIONS
 
 __all__ = ["Population", "EvolvedPopulation", "load", "concat"]
+_GLOBAL = {}
 
 
 class Population():
@@ -129,6 +130,7 @@ class Population():
         self.max_ev_time = max_ev_time
         self.timestep_size = timestep_size
         self.pool = None
+        self.pool_config = None
         self.store_entire_orbits = store_entire_orbits
         self.bpp_columns = bpp_columns
         self.bcm_columns = bcm_columns
@@ -813,6 +815,26 @@ class Population():
         else:
             return self._observables
 
+    def _close_pool(self):
+        """Close the multiprocessing pool if it exists."""
+        if self.pool is not None:
+            self.pool.close()
+            self.pool.join()
+            self.pool = None
+            self.pool_config = None
+
+    def _ensure_pool(self, quiet):
+        """Ensure the multiprocessing pool is set up."""
+        # if the config has changed and an old pool exists, close the old pool
+        config = (self.galactic_potential, self.max_ev_time, self.store_entire_orbits, quiet)
+        if self.pool is not None and self.pool_config != config:        # pragma: no cover
+            self._close_pool()
+
+        # set up a new pool if needed
+        if self.processes > 1 and self.pool is None:
+            self.pool = Pool(self.processes, initializer=_init_pool, initargs=(*config,))
+            self.pool_config = config
+
     def create_population(self, with_timing=True):
         """Create an entirely evolved population of binaries.
 
@@ -837,7 +859,7 @@ class Population():
         if self.bcm_timestep_conditions != []:
             set_checkstates(self.bcm_timestep_conditions)
 
-        self.pool = Pool(self.processes) if self.processes > 1 else None
+        self._ensure_pool(quiet=False)
         self.perform_stellar_evolution()
         if with_timing:
             print(f"[{time.time() - lap:1.1f}s] Evolve binaries (run COSMIC)")
@@ -847,10 +869,7 @@ class Population():
         if with_timing:
             print(f"[{time.time() - lap:1.1f}s] Get orbits (run gala)")
 
-        if self.pool is not None:
-            self.pool.close()
-            self.pool.join()
-            self.pool = None
+        self._close_pool()
 
         if with_timing:
             print(f"Overall: {time.time() - start:1.1f}s")
@@ -980,7 +999,7 @@ class Population():
 
         no_pool_existed = self.pool is None and self.processes > 1
         if no_pool_existed:
-            self.pool = Pool(self.processes)
+            self._ensure_pool(quiet=False)
 
         # catch any warnings about overwrites
         with warnings.catch_warnings():
@@ -1008,9 +1027,7 @@ class Population():
                 self._bcm = bcm
 
         if no_pool_existed:
-            self.pool.close()
-            self.pool.join()
-            self.pool = None
+            self._close_pool()
 
         # check if there are any NaNs in the final bpp table rows or the kick_info
         nans = np.isnan(self.final_bpp["sep"])
@@ -1114,34 +1131,26 @@ class Population():
         if self.pool is not None or self.processes > 1:
             # track whether a pool already existed
             pool_existed = self.pool is not None
-
-            # if not, create one
-            if not pool_existed:
-                self.pool = Pool(self.processes)
+            self._ensure_pool(quiet=quiet)
 
             # setup arguments to combine primary and secondaries into a single list
-            primary_args = [(w0s[i], self.max_ev_time - self.initial_galaxy.tau[i], self.max_ev_time,
-                             copy(self.timestep_size), self.galactic_potential,
-                             primary_events[i], self.store_entire_orbits, quiet)
+            primary_args = [(w0s[i], self.max_ev_time - self.initial_galaxy.tau[i],
+                             copy(self.timestep_size), primary_events[i])
                             for i in range(self.n_binaries_match)]
-            secondary_args = [(w0s[i], self.max_ev_time - self.initial_galaxy.tau[i], self.max_ev_time,
-                               copy(self.timestep_size), self.galactic_potential,
-                               secondary_events[i], self.store_entire_orbits, quiet)
+            secondary_args = [(w0s[i], self.max_ev_time - self.initial_galaxy.tau[i],
+                               copy(self.timestep_size), secondary_events[i])
                               for i in range(self.n_binaries_match) if secondary_events[i] is not None]
             args = primary_args + secondary_args
 
             # evolve the orbits from birth until present day
             if progress_bar:
-                orbits = self.pool.starmap(integrate_orbit_with_events,
-                                           tqdm(args, total=self.n_binaries_match))
+                orbits = self.pool.starmap(_orbit_worker, tqdm(args, total=self.n_binaries_match))
             else:
-                orbits = self.pool.starmap(integrate_orbit_with_events, args)
+                orbits = self.pool.starmap(_orbit_worker, args)
 
             # if a pool didn't exist before then close the one just created
             if not pool_existed:
-                self.pool.close()
-                self.pool.join()
-                self.pool = None
+                self._close_pool()
         else:
             # otherwise just use a for loop to evolve the orbits from birth until present day
             orbits = []
@@ -1947,6 +1956,17 @@ def concat(*pops):
     return final_pop
 
 
+def _init_pool(potential, t2, store_all, quiet):
+    _GLOBAL["potential"] = potential
+    _GLOBAL["t2"] = t2
+    _GLOBAL["store_all"] = store_all
+    _GLOBAL["quiet"] = quiet
+
+def _orbit_worker(w0, t1, dt, events):
+    return integrate_orbit_with_events(
+        w0, t1, _GLOBAL["t2"], dt, _GLOBAL["potential"], events, _GLOBAL["store_all"], _GLOBAL["quiet"],
+    )
+
 class EvolvedPopulation(Population):
     def __init__(self, n_binaries, mass_singles=None, mass_binaries=None, n_singles_req=None, n_bin_req=None,
                  bpp=None, bcm=None, initC=None, kick_info=None, **pop_kwargs):
@@ -1986,15 +2006,11 @@ class EvolvedPopulation(Population):
             print(f"[{time.time() - start:1.0e}s] Sample initial galaxy")
             lap = time.time()
 
-        self.pool = Pool(self.processes) if self.processes > 1 else None
+        self._ensure_pool(quiet=False)
         self.perform_galactic_evolution(progress_bar=with_timing)
         if with_timing:
             print(f"[{time.time() - lap:1.1f}s] Get orbits (run gala)")
-
-        if self.pool is not None:
-            self.pool.close()
-            self.pool.join()
-            self.pool = None
+        self._close_pool()
 
         if with_timing:
             print(f"Overall: {time.time() - start:1.1f}s")

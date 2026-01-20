@@ -4,6 +4,10 @@ Full changelog
 
 This page tracks all of the changes that have been made to ``cogsworth``. We follow the standard versioning convention of A.B.C, where C is a patch/bugfix, B is a large bugfix or new feature and A is a major new breaking change. B/C are backwards compatible but A changes may be breaking.
 
+3.5.1
+=====
+- Enhancement: Avoid pickling static arguments unnecessarily when evolving orbits, this should speed things up and reduce memory usage.
+
 3.5.0
 =====
 - New feature: Added support for the latest version of Gala (v1.11.0). This means time-evolving potentials can now be used when integrating orbits for populations, as well as connections to EXP and new interface with the MilkyWayPotential class.

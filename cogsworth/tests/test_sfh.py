@@ -6,6 +6,7 @@ import astropy.units as u
 import gala.potential as gp
 from gala.units import galactic
 import matplotlib.pyplot as plt
+import tempfile
 
 class Test(unittest.TestCase):
     def test_basic_class(self):
@@ -128,15 +129,13 @@ class Test(unittest.TestCase):
         """Check that a galaxy can be saved and re-loaded"""
         g = sfh.Wagg2022(size=10000)
 
-        g.save("testing-galaxy-io")
-
-        g_loaded = sfh.load("testing-galaxy-io")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            g.save(os.path.join(tmpdir, "testing-galaxy-io"))
+            g_loaded = sfh.load(os.path.join(tmpdir, "testing-galaxy-io"))
 
         self.assertTrue(np.all(g.tau == g_loaded.tau))
         self.assertTrue(np.all(g.rho == g_loaded.rho))
         self.assertTrue(np.all(g.z == g_loaded.z))
-
-        os.remove("testing-galaxy-io.h5")
 
     def test_io_custom_sfh(self):
         """Check you can save a custom SFH class"""
@@ -145,15 +144,14 @@ class Test(unittest.TestCase):
                 return 0.02
 
         g = Fixed_Z(size=10000)
-        g.save("testing-galaxy-io-custom")
 
-        g_loaded = sfh.load("testing-galaxy-io-custom")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            g.save(os.path.join(tmpdir, "testing-galaxy-io-custom"))
+            g_loaded = sfh.load(os.path.join(tmpdir, "testing-galaxy-io-custom"))
 
         self.assertTrue(np.all(g.tau == g_loaded.tau))
         self.assertTrue(np.all(g.rho == g_loaded.rho))
         self.assertTrue(np.all(g.z == g_loaded.z))
-
-        os.remove("testing-galaxy-io-custom.h5")
 
     def test_io_custom_sfh_with_params(self):
         """Check you can save a custom SFH class with its own parameters"""
@@ -166,23 +164,22 @@ class Test(unittest.TestCase):
                 return self.fixed_Z
 
         g = Fixed_Z(size=10000, fixed_Z=0.02)
-        g.save("testing-galaxy-io-custom-params")
 
-        g_loaded = sfh.load("testing-galaxy-io-custom-params")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            g.save(os.path.join(tmpdir, "testing-galaxy-io-custom-params"))
+            g_loaded = sfh.load(os.path.join(tmpdir, "testing-galaxy-io-custom-params"))    
 
         self.assertTrue(np.all(g.tau == g_loaded.tau))
         self.assertTrue(np.all(g.rho == g_loaded.rho))
         self.assertTrue(np.all(g.z == g_loaded.z))
 
-        os.remove("testing-galaxy-io-custom-params.h5")
-
     def test_io_SB15(self):
         """Check you can save and load the SB15 class"""
         g = sfh.SandersBinney2015(size=1000, time_bins=1, potential=gp.MilkyWayPotential(version='v2'))
 
-        g.save("testing-galaxy-io-sb15")
-
-        g_loaded = sfh.load("testing-galaxy-io-sb15")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            g.save(os.path.join(tmpdir, "testing-galaxy-io-sb15"))
+            g_loaded = sfh.load(os.path.join(tmpdir, "testing-galaxy-io-sb15"))
 
         self.assertTrue(np.all(g.tau == g_loaded.tau))
         self.assertTrue(np.all(g.rho == g_loaded.rho))
@@ -245,15 +242,13 @@ class Test(unittest.TestCase):
 
         g = Custom(size=100)
 
-        g.save("testing-galaxy-custom")
-
-        g_loaded = sfh.load("testing-galaxy-custom")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            g.save(os.path.join(tmpdir, "testing-galaxy-custom"))
+            g_loaded = sfh.load(os.path.join(tmpdir, "testing-galaxy-custom"))
 
         self.assertTrue(np.all(g.tau == g_loaded.tau))
         self.assertTrue(np.all(g.rho == g_loaded.rho))
         self.assertTrue(np.all(g.z == g_loaded.z))
-
-        os.remove("testing-galaxy-custom.h5")
 
     def test_plot(self):
         """Test plotting capabilities"""
