@@ -11,6 +11,16 @@ __all__ = ["create_bpp_from_COMPAS_files"]
 def create_bpp_from_COMPAS_files(filename):
     """Create a COSMIC-like bpp table from a COMPAS output file
 
+    This function combines several different COMPAS output tables to create a bpp-like
+    table that contains rows for each significant stellar evolution event in the life of
+    each binary system.
+
+    The function currently implements the following events:
+    - Changes in stellar type (from BSE_Switch_Log)
+    - Start and end of mass transfer episodes (from BSE_RLOF)
+    - Start and end of common-envelope events (from BSE_Common_Envelopes)
+    - Supernova events (from BSE_Supernovae)
+
     TODO list
     ---------
     - Get initial state from the grid file
@@ -165,6 +175,29 @@ def create_bpp_from_COMPAS_files(filename):
         bpp.loc[bound, f"RRLO_{l}"] = bpp.loc[bound, f"rad_{l}"] / (f_Roche * bpp.loc[bound, "sep"])
 
     return bpp
+
+def create_kick_info_from_COMPAS_file(filename):
+    """Create a kick_info table from a COMPAS output file
+
+    The kick_info table needs the following columns, in this order:
+        star, disrupted, natal_kick, phi, theta, mean_anomaly
+
+    Parameters
+    ----------
+    filename : `str`
+        Path to the COMPAS output file in HDF5 format.
+
+    Returns
+    -------
+    kick_info : `pandas.DataFrame`
+        A DataFrame containing the kick_info table.
+    """
+    with h5.File(filename, "r") as f:
+        df_dict = {k: f["BSE_Supernovae"][k][...] for k in f["BSE_Supernovae"].keys()}
+        supernovae = pd.DataFrame(df_dict)
+        supernovae.set_index("SEED", inplace=True)
+
+    return kick_info
 
 def _get_porb_from_a(a, m1, m2):
     """Calculate the orbital period based on the semi-major axis and stellar masses.
