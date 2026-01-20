@@ -1,9 +1,35 @@
-from bseflow import file_processing as h5p
 import pandas as pd
 import numpy as np
 import cogsworth
 from astropy import constants as const
 from astropy import units as u
+import h5py as h5
+
+def grab_h5_data(filename, groupname, set_index=False, fields=None):
+    """Grab data from an HDF5 file and return as a pandas DataFrame
+
+    Parameters
+    ----------
+    filename : `str`
+        Path to the HDF5 file.
+    groupname : `str`
+        Name of the group within the HDF5 file to read data from.
+    set_index : `bool`, optional
+        Whether to set the index of the DataFrame to the 'SEED' column. Default is False.
+    fields : `list` of `str`, optional
+        List of fields (columns) to read from the group. If None, all fields are read. Default is None.
+
+    Returns
+    -------
+    df : `pandas.DataFrame`
+        DataFrame containing the data from the specified group in the HDF5 file.
+    """
+    with h5.File(filename, "r") as f:
+        data_dict = {k: f[groupname][k][...] for k in f[groupname].keys() if fields is None or k in fields}
+        df = pd.DataFrame(data_dict)
+        if set_index and 'SEED' in df.columns:
+            df.set_index('SEED', inplace=True)
+    return df
 
 # Function to convert separation to orbital period
 def convert_a_to_P(separation, M1, M2):
@@ -29,7 +55,7 @@ def convert_a_to_P(separation, M1, M2):
 
 # Initial state
 def initial(compas_output):
-    bpp = h5p.grab_h5_data(compas_output, "BSE_System_Parameters", True, fields=["Mass@ZAMS(1)", "Mass@ZAMS(2)", "Stellar_Type@ZAMS(1)", "Stellar_Type@ZAMS(2)", "SemiMajorAxis@ZAMS"])
+    bpp = grab_h5_data(compas_output, "BSE_System_Parameters", True, fields=["Mass@ZAMS(1)", "Mass@ZAMS(2)", "Stellar_Type@ZAMS(1)", "Stellar_Type@ZAMS(2)", "SemiMajorAxis@ZAMS"])
     cols_sys = {"Mass@ZAMS(1)": "mass_1", 
                 "Mass@ZAMS(2)": "mass_2", 
                 "Stellar_Type@ZAMS(1)": "kstar_1", 
@@ -43,7 +69,7 @@ def initial(compas_output):
 
 # RLOF
 def rlof(compas_output):
-    rlof = h5p.grab_h5_data(compas_output, "BSE_RLOF", True, fields=["Time<MT", "Mass(1)<MT", "Mass(2)<MT", "Stellar_Type(1)<MT", "Stellar_Type(2)<MT", "SemiMajorAxis<MT", "Radius(1)|RL<step", "Radius(2)|RL<step",
+    rlof = grab_h5_data(compas_output, "BSE_RLOF", True, fields=["Time<MT", "Mass(1)<MT", "Mass(2)<MT", "Stellar_Type(1)<MT", "Stellar_Type(2)<MT", "SemiMajorAxis<MT", "Radius(1)|RL<step", "Radius(2)|RL<step",
         "Time>MT", "Mass(1)>MT", "Mass(2)>MT", "Stellar_Type(1)>MT", "Stellar_Type(2)>MT", "SemiMajorAxis>MT", "Radius(1)|RL>step", "Radius(2)|RL>step"])
     rlof_before = rlof[["Time<MT", "Mass(1)<MT", "Mass(2)<MT", "Stellar_Type(1)<MT", "Stellar_Type(2)<MT", "SemiMajorAxis<MT", "Radius(1)|RL<step", "Radius(2)|RL<step"]]
     rlof_after = rlof[["Time>MT", "Mass(1)>MT", "Mass(2)>MT", "Stellar_Type(1)>MT", "Stellar_Type(2)>MT", "SemiMajorAxis>MT", "Radius(1)|RL>step", "Radius(2)|RL>step"]]
@@ -74,7 +100,7 @@ def rlof(compas_output):
 
 # Supernovae
 def supernovae(compas_output):
-    bpp = h5p.grab_h5_data(compas_output, "BSE_Supernovae", True, fields=["Time", "Mass(SN)", "Mass(CP)", "Stellar_Type(SN)", "Stellar_Type(CP)", "SemiMajorAxis", "Supernova_State"])
+    bpp = grab_h5_data(compas_output, "BSE_Supernovae", True, fields=["Time", "Mass(SN)", "Mass(CP)", "Stellar_Type(SN)", "Stellar_Type(CP)", "SemiMajorAxis", "Supernova_State"])
     
     def create_sn_rows(row):
         if row["Supernova_State"] == 1:
@@ -102,7 +128,7 @@ def supernovae(compas_output):
 
 # Stellar type changes
 def stc(compas_output):
-    bpp = h5p.grab_h5_data(compas_output, "BSE_Switch_Log", True, fields=["Time", "Star_Switching", "Switching_To"])
+    bpp = grab_h5_data(compas_output, "BSE_Switch_Log", True, fields=["Time", "Star_Switching", "Switching_To"])
     bpp = bpp.rename(columns={"Time": "tphys"})
     def create_kstar(row):
         row[f"kstar_{int(row['Star_Switching'])}"] = row["Switching_To"]
