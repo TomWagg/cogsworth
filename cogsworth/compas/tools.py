@@ -105,7 +105,7 @@ def stc(compas_output):
     bpp = h5p.grab_h5_data(compas_output, "BSE_Switch_Log", True, fields=["Time", "Star_Switching", "Switching_To"])
     bpp = bpp.rename(columns={"Time": "tphys"})
     def create_kstar(row):
-        row[f"kstar_{int(row["Star_Switching"])}"] = row["Switching_To"]
+        row[f"kstar_{int(row['Star_Switching'])}"] = row["Switching_To"]
         return row
     bpp = bpp.apply(create_kstar, axis=1)
     bpp.drop(["Star_Switching", "Switching_To"], axis=1, inplace=True)
