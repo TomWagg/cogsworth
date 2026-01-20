@@ -30,7 +30,7 @@ def get_kick_differential(delta_v_sys_xyz, phase=None, inclination=None):
     """
     # orbital phase angle and inclination to Galactic plane
     theta = np.random.uniform(0, 2 * np.pi) if phase is None else phase
-    phi = np.random.uniform(0, 2 * np.pi) if inclination is None else inclination
+    phi = np.arccos(2 * np.random.rand() - 1.0) if inclination is None else inclination
 
     # rotate BSE (v_x, v_y, v_z) into Galactocentric (v_X, v_Y, v_Z)
     v_X = delta_v_sys_xyz[0] * np.cos(theta) - delta_v_sys_xyz[1] * np.sin(theta) * np.cos(phi)\
@@ -44,7 +44,7 @@ def get_kick_differential(delta_v_sys_xyz, phase=None, inclination=None):
     return kick_differential
 
 
-def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential(), events=None,
+def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential(version='v2'), events=None,
                                 store_all=True, quiet=False):
     """Integrate :class:`~gala.dynamics.PhaseSpacePosition` in a 
     :class:`Potential <gala.potential.potential.PotentialBase>` with events that occur at certain times
@@ -80,9 +80,15 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential()
         Integrated orbit. If a disrupted binary with two event lists was supplied then two orbit classes will
         be returned. If the orbit integration failed for any reason then None is returned.
     """
+    # ensure timestep isn't larger than integration time
+    dt = min(dt, t2 - t1)
+
     # if there are no events then just integrate the whole thing
     if events is None:
-        full_orbit = potential.integrate_orbit(w0, t1=t1, t2=t2, dt=dt, Integrator=gi.DOPRI853Integrator)
+        try:
+            full_orbit = potential.integrate_orbit(w0, t1=t1, t2=t2, dt=dt, Integrator=gi.DOPRI853Integrator)
+        except RuntimeError:            # pragma: no cover
+            return None
         # jettison everything but the final timestep if user says so
         if not store_all:
             full_orbit = full_orbit[-1:]

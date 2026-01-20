@@ -11,7 +11,8 @@ data. Also feel free to turn ``with_timing`` back on.
 """
 
 import cogsworth
-p = cogsworth.pop.Population(1000, processes=1, BSE_settings={"binfrac": 1.0})
+p = cogsworth.pop.Population(1000, processes=1, BSE_settings={"binfrac": 1.0},
+                             use_default_BSE_settings=True)
 p.create_population(with_timing=False)
 
 p.plot_map(ra="auto", dec="auto", nside=16, norm="log")

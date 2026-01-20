@@ -171,6 +171,46 @@ archivePrefix = {arXiv},
        adsurl = {https://ui.adsabs.harvard.edu/abs/2011MNRAS.414.2446M},
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}}"""
         },
+        "Sanders&Binney2015": {
+            "tags": ["Sanders&Binney2015"],
+            "bibtex": r"""@ARTICLE{Sanders&Binney2015,
+       author = {{Sanders}, Jason L. and {Binney}, James},
+        title = "{Extended distribution functions for our Galaxy}",
+      journal = {\mnras},
+     keywords = {Galaxy: abundances, Galaxy: disc, Galaxy: evolution, Galaxy: kinematics and dynamics, solar neighbourhood, Astrophysics - Astrophysics of Galaxies},
+         year = 2015,
+        month = jun,
+       volume = {449},
+       number = {4},
+        pages = {3479-3502},
+          doi = {10.1093/mnras/stv578},
+archivePrefix = {arXiv},
+       eprint = {1501.02227},
+ primaryClass = {astro-ph.GA},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2015MNRAS.449.3479S},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}"""
+        },
+        "Pascale+2019": {
+            "tags": ["Pascale+2019"],
+            "bibtex": r"""@ARTICLE{Pascale+2019:2019MNRAS.488.2423P,
+       author = {{Pascale}, Raffaele and {Binney}, James and {Nipoti}, Carlo and {Posti}, Lorenzo},
+        title = "{Action-based models for dwarf spheroidal galaxies and globular clusters}",
+      journal = {\mnras},
+     keywords = {globular clusters: general, galaxies: dwarf, galaxies: kinematics and dynamics, galaxies: structure, dark matter, Astrophysics - Astrophysics of Galaxies},
+         year = 2019,
+        month = sep,
+       volume = {488},
+       number = {2},
+        pages = {2423-2439},
+          doi = {10.1093/mnras/stz1617},
+archivePrefix = {arXiv},
+       eprint = {1904.08447},
+ primaryClass = {astro-ph.GA},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2019MNRAS.488.2423P},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}"""
+        },
     },
     "observables": {
         "isochrones": {

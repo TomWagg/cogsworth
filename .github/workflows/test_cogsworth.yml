@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.10', '3.11']
+        python-version: ['3.11']
 
     steps:
     - uses: actions/checkout@v4
@@ -30,6 +30,12 @@ jobs:
         sudo apt-get install gsl-bin libgsl0-dev build-essential
         sudo apt-get install libhdf5-serial-dev
         python -m pip install --upgrade pip
+        # need to pre-install these to make agama work
+        python -m pip install numpy setuptools wheel --no-build-isolation
+        git clone https://github.com/GalacticDynamics-Oxford/Agama.git agama
+        cd agama
+        pip install . --config-settings --build-option=--yes --no-build-isolation
+        cd ..
         python -m pip install -e .[test]
     - name: Grab the data you need to test observables
       run: |

@@ -17,18 +17,21 @@ from cosmic.sample.initialbinarytable import InitialBinaryTable
 from cosmic.evolve import Evolve
 from cosmic.checkstate import set_checkstates
 from cosmic.utils import parse_inifile
+from cosmic import __version__ as cosmic_version
 import gala.potential as gp
 import gala.dynamics as gd
 from gala.potential.potential.io import to_dict as potential_to_dict, from_dict as potential_from_dict
+from gala import __version__ as gala_version
 
 from cogsworth import sfh
+from cogsworth._version import __version__
 from cogsworth.kicks import integrate_orbit_with_events
 from cogsworth.events import identify_events
 from cogsworth.classify import determine_final_classes
 from cogsworth.observables import get_photometry
 from cogsworth.tests.optional_deps import check_dependencies
 from cogsworth.plot import plot_cartoon_evolution, plot_galactic_orbit
-from cogsworth.utils import translate_COSMIC_tables
+from cogsworth.utils import translate_COSMIC_tables, get_default_BSE_settings
 
 from cogsworth.citations import CITATIONS
 
@@ -68,6 +71,9 @@ class Population():
         Any BSE settings to pass to COSMIC, superseded by `ini_file` if provided
     ini_file : `str`, optional
         Path to an ini file to use for the COSMIC stellar evolution, supersedes `BSE_settings` by default None
+    use_default_BSE_settings : `bool`, optional
+        Whether to use the default COSMIC BSE settings, by default False. If False then at least one of
+        `BSE_settings` or `ini_file` must be provided.
     bcm_timestep_conditions : List of lists, optional
         Any timestep conditions to pass to COSMIC evolution. This will affect the rows that are output in the
         the BCM table, by default only the first and last timesteps are output. For more details check out the
@@ -88,15 +94,27 @@ class Population():
     """
     def __init__(self, n_binaries, processes=8, m1_cutoff=0, final_kstar1=list(range(16)),
                  final_kstar2=list(range(16)), sfh_model=sfh.Wagg2022, sfh_params={},
-                 galactic_potential=gp.MilkyWayPotential(), v_dispersion=5 * u.km / u.s,
+                 galactic_potential=gp.MilkyWayPotential(version='v2'), v_dispersion=5 * u.km / u.s,
                  max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, ini_file=None,
-                 sampling_params={}, bcm_timestep_conditions=[], store_entire_orbits=True,
-                 bpp_columns=None, bcm_columns=None):
+                 use_default_BSE_settings=False, sampling_params={}, bcm_timestep_conditions=[],
+                 store_entire_orbits=True, bpp_columns=None, bcm_columns=None):
 
         # require a sensible number of binaries if you are not targetting total mass
         if not ("sampling_target" in sampling_params and sampling_params["sampling_target"] == "total_mass"):
             if n_binaries <= 0:
                 raise ValueError("You need to input a *nonnegative* number of binaries")
+
+        # warn users that everything will soon explode without settings
+        if not use_default_BSE_settings and ini_file is None and BSE_settings == {}:
+            logging.getLogger("cogsworth").warning(("cogsworth warning: You have not provided any binary "
+                                                    "stellar evolution (BSE) settings. You must provide "
+                                                    "either `BSE_settings` or an `ini_file` in order to "
+                                                    "perform stellar evolution with COSMIC. You may set "
+                                                    "`use_default_BSE_settings=True` to use the default "
+                                                    "settings listed in cogsworth, but do so at your own "
+                                                    "risk and be sure to understand the choices that you "
+                                                    "have made.\nRun `cogsworth.utils.list_BSE_defaults()` "
+                                                    "to see these."))
 
         self.n_binaries = n_binaries
         self.n_binaries_match = n_binaries
@@ -138,25 +156,7 @@ class Population():
 
         self.__citations__ = ["cogsworth", "cosmic", "gala"]
 
-        self.BSE_settings = {'xi': 1.0, 'bhflag': 1, 'neta': 0.5, 'windflag': 3, 'wdflag': 1, 'alpha1': 1.0,
-                             'pts1': 0.001, 'pts3': 0.02, 'pts2': 0.01, 'epsnov': 0.001, 'hewind': 0.5,
-                             'ck': 1000, 'bwind': 0.0, 'lambdaf': 0.0, 'mxns': 3.0, 'beta': -1.0, 'tflag': 1,
-                             'acc2': 1.5, 'grflag': 1, 'remnantflag': 4, 'ceflag': 0, 'eddfac': 1.0,
-                             'ifflag': 0, 'bconst': 3000, 'sigma': 265.0, 'gamma': -2.0, 'pisn': 45.0,
-                             'natal_kick_array': [[-100.0, -100.0, -100.0, -100.0, 0.0],
-                                                  [-100.0, -100.0, -100.0, -100.0, 0.0]], 'bhsigmafrac': 1.0,
-                             'polar_kick_angle': 90, 'qcrit_array': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                                                                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-                             'cekickflag': 2, 'cehestarflag': 0, 'cemergeflag': 0, 'ecsn': 2.25,
-                             'ecsn_mlow': 1.6, 'aic': 1, 'ussn': 0, 'sigmadiv': -20.0, 'qcflag': 5,
-                             'eddlimflag': 0, 'fprimc_array': [2.0/21.0, 2.0/21.0, 2.0/21.0, 2.0/21.0,
-                                                               2.0/21.0, 2.0/21.0, 2.0/21.0, 2.0/21.0,
-                                                               2.0/21.0, 2.0/21.0, 2.0/21.0, 2.0/21.0,
-                                                               2.0/21.0, 2.0/21.0, 2.0/21.0, 2.0/21.0],
-                             'bhspinflag': 0, 'bhspinmag': 0.0, 'rejuv_fac': 1.0, 'rejuvflag': 0, 'htpmb': 1,
-                             'ST_cr': 1, 'ST_tide': 1, 'bdecayfac': 1, 'rembar_massloss': 0.5, 'kickflag': 1,
-                             'zsun': 0.014, 'bhms_coll_flag': 0, 'don_lim': -1, 'acc_lim': -1, 'binfrac': 0.5,
-                             'rtmsflag': 0, 'wd_mass_lim': 1}
+        self.BSE_settings = get_default_BSE_settings() if use_default_BSE_settings else {}
         self.BSE_settings.update(BSE_settings if ini_file is None else parse_inifile(ini_file)[0])
 
         self.sampling_params = {'primary_model': 'kroupa01', 'ecc_model': 'sana12', 'porb_model': 'sana12',
@@ -244,7 +244,11 @@ class Population():
                                  v_dispersion=self.v_dispersion, max_ev_time=self.max_ev_time,
                                  timestep_size=self.timestep_size, BSE_settings=self.BSE_settings,
                                  sampling_params=self.sampling_params,
-                                 store_entire_orbits=self.store_entire_orbits)
+                                 bcm_timestep_conditions=self.bcm_timestep_conditions,
+                                 store_entire_orbits=self.store_entire_orbits,
+                                 bpp_columns=self.bpp_columns,
+                                 bcm_columns=self.bcm_columns)
+
         new_pop.n_binaries_match = new_pop.n_binaries
 
         # proxy for checking whether sampling has been done
@@ -869,7 +873,8 @@ class Population():
         # calculate the Galactic circular velocity at the initial positions
         v_circ = self.galactic_potential.circular_velocity(q=[self._initial_galaxy.x,
                                                               self._initial_galaxy.y,
-                                                              self._initial_galaxy.z]).to(vel_units)
+                                                              self._initial_galaxy.z],
+                                                           t=(self.max_ev_time - self._initial_galaxy.tau)).to(vel_units)
 
         # add some velocity dispersion
         v_R, v_T, v_z = np.random.normal([np.zeros_like(v_circ), v_circ, np.zeros_like(v_circ)],
@@ -916,6 +921,9 @@ class Population():
                 for col in cols:
                     self._initial_binaries[col] = -100.0
         else:
+            if "binfrac" not in self.BSE_settings:
+                raise ValueError("You must specify a binary fraction (e.g. `binfrac: 0.5`) in "
+                                 "`Population.BSE_settings` to sample binaries")
             if self.BSE_settings["binfrac"] == 0.0 and not self.sampling_params["keep_singles"]:
                 raise ValueError(("You've chosen a binary fraction of 0.0 but set `keep_singles=False` (in "
                                   "self.sampling_params), so you'll draw 0 samples...I don't think you "
@@ -980,11 +988,18 @@ class Population():
             warnings.filterwarnings("ignore", message=".*to a different value than assumed in the mlwind.*")
 
             ibt = self.initial_binaries if self._initC is None else self._initC
+            BSEDict = self.BSE_settings
+            if "kickflag" in ibt.columns and BSEDict != {}:
+                BSEDict = {}
+                logging.getLogger("cogsworth").warning("cogsworth warning: You passed settings for BSE (in `Population.BSE_settings`) but "
+                                                       "your initial binary table already has settings saved "
+                                                       "in its columns. cogsworth will use the settings "
+                                                       "found in the table.")
 
             # perform the evolution!
             self._bpp, bcm, self._initC, \
                 self._kick_info = Evolve.evolve(initialbinarytable=ibt,
-                                                BSEDict=self.BSE_settings, pool=self.pool,
+                                                BSEDict=BSEDict, pool=self.pool,
                                                 timestep_conditions=self.bcm_timestep_conditions,
                                                 bpp_columns=self.bpp_columns, bcm_columns=self.bcm_columns)
 
@@ -1085,9 +1100,12 @@ class Population():
                                                                         self.initial_galaxy.v_z]] * u.km/u.s)
 
         # randomly drawn phase and inclination angles as necessary
-        for col in ["phase_sn_1", "phase_sn_2", "inc_sn_1", "inc_sn_2"]:
+        for col in ["phase_sn_1", "phase_sn_2"]:
             if col not in self.initC:
                 self.initC[col] = np.random.uniform(0, 2 * np.pi, len(self.initC))
+        for col in ["inc_sn_1", "inc_sn_2"]:
+            if col not in self.initC:
+                self.initC[col] = np.arccos(2 * np.random.rand(len(self.initC)) - 1.0)
 
         # identify the pertinent events in the evolution
         primary_events, secondary_events = identify_events(p=self)
@@ -1102,7 +1120,6 @@ class Population():
                 self.pool = Pool(self.processes)
 
             # setup arguments to combine primary and secondaries into a single list
-            print(len(self.initial_galaxy.tau), len(primary_events), len(self.bin_nums))
             primary_args = [(w0s[i], self.max_ev_time - self.initial_galaxy.tau[i], self.max_ev_time,
                              copy(self.timestep_size), self.galactic_potential,
                              primary_events[i], self.store_entire_orbits, quiet)
@@ -1152,11 +1169,18 @@ class Population():
                           " (initial conditions for these systems were saved to `bad_orbits.h5` file)")
             bad_bin_nums = np.concatenate((self.bin_nums, self.bin_nums[self.disrupted]))[bad_orbits]
 
+            # decide on file name (avoid overwriting existing file)
+            file_num = 1
+            file_name = "bad_orbits.h5"
+            while os.path.exists(file_name):
+                file_name = f"bad_orbits_{file_num}.h5"
+                file_num += 1
+
             # save the bad orbits population
-            self.initC.loc[bad_bin_nums].to_hdf("bad_orbits.h5", key="initC")
-            self.bpp.loc[bad_bin_nums].to_hdf("bad_orbits.h5", key="bpp")
-            self.kick_info.loc[bad_bin_nums].to_hdf("bad_orbits.h5", key="kick_info")
-            self.initial_galaxy[np.isin(self.bin_nums, bad_bin_nums)].save("bad_orbits.h5", key="sfh")
+            self.initC.loc[bad_bin_nums].to_hdf(file_name, key="initC")
+            self.bpp.loc[bad_bin_nums].to_hdf(file_name, key="bpp")
+            self.kick_info.loc[bad_bin_nums].to_hdf(file_name, key="kick_info")
+            self.initial_galaxy[np.isin(self.bin_nums, bad_bin_nums)].save(file_name, key="sfh")
 
             # mask them out from the main population
             new_self = self[~np.isin(self.bin_nums, bad_bin_nums)]
@@ -1194,7 +1218,7 @@ class Population():
             for i, orbit in enumerate(self.orbits):
                 # check if the orbit is missing
                 if orbit is None:
-                    print("Warning: Detected `None` orbit, entering coordinates as `np.inf`")
+                    warnings.warn("Warning: Detected `None` orbit, entering coordinates as `np.inf`")
                 else:
                     self._final_pos[i] = orbit[-1].pos.xyz.to(u.kpc).value
                     self._final_vel[i] = orbit[-1].vel.d_xyz.to(u.km / u.s).value
@@ -1699,6 +1723,11 @@ class Population():
             d = file.create_dataset("sampling_params", data=[])
             d.attrs["dict"] = yaml.dump(self.sampling_params, default_flow_style=None)
 
+            # save the version of cogsworth, COSMIC, and gala that was used
+            file.attrs["cogsworth_version"] = __version__
+            file.attrs["COSMIC_version"] = cosmic_version
+            file.attrs["gala_version"] = gala_version
+
 
 def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolution"]):
     """Load a Population from a series of files
@@ -1726,14 +1755,35 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
         if "numeric_params" not in file.keys():
             raise ValueError((f"{file_name} is not a Population file, "
                              "perhaps you meant to use `cogsworth.sfh.load`?"))
+        
+        # warn users about version mismatches
+        for key, version in [("cogsworth_version", __version__),
+                             ("COSMIC_version", cosmic_version),
+                             ("gala_version", gala_version)]:
+            if key in file.attrs:
+                saved_version = file.attrs[key]
+                if saved_version != version:
+                    logging.getLogger("cogsworth").warning(
+                        f"cogsworth warning: file was saved with {key.split('_')[0]} v{saved_version} "
+                        f"but you are using v{version}"
+                    )
+
         numeric_params = file["numeric_params"][...]
 
         store_entire_orbits = file["numeric_params"].attrs["store_entire_orbits"]
         final_kstars = [file["numeric_params"].attrs["final_kstar1"],
                         file["numeric_params"].attrs["final_kstar2"]]
-        bcm_tc = file["numeric_params"].attrs["timestep_conditions"]
+        bcm_tc = file["numeric_params"].attrs["timestep_conditions"].tolist()
         bpp_columns = file["numeric_params"].attrs["bpp_columns"]
         bcm_columns = file["numeric_params"].attrs["bcm_columns"]
+
+        # convert columns to None if empty
+        bpp_columns = None if isinstance(bpp_columns, bytes) and bpp_columns == b'None' else bpp_columns
+        bcm_columns = None if isinstance(bcm_columns, bytes) and bcm_columns == b'None' else bcm_columns
+
+        # decode byte strings as necessary
+        bpp_columns = [col.decode('utf-8') for col in bpp_columns] if bpp_columns is not None else None
+        bcm_columns = [col.decode('utf-8') for col in bcm_columns] if bcm_columns is not None else None
 
         # load in BSE settings
         for key in file["BSE_settings"].attrs:
@@ -1783,17 +1833,19 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
 def concat(*pops):
     """Concatenate multiple populations into a single population
 
-    NOTE: The final population will have the same settings as the first population in the list (but data
-    from all populations)
+    .. note::
+    
+        The final population will have the same settings as the first population in the list (but data
+        from all populations)
 
     Parameters
     ----------
-    pops : `list` of :class:`~cogsworth.Population` or :class:`~cogsworth.EvolvedPopulation`
+    pops : `list` of :class:`~cogsworth.pop.Population` or :class:`~cogsworth.pop.EvolvedPopulation`
         List of populations to concatenate
 
     Returns
     -------
-    total_pop : :class:`~cogsworth.Population` or :class:`~cogsworth.EvolvedPopulation`
+    total_pop : :class:`~cogsworth.pop.Population` or :class:`~cogsworth.pop.EvolvedPopulation`
         The concatenated population
     """
     # ensure the input is a list of populations
@@ -1805,12 +1857,39 @@ def concat(*pops):
         return pops[0]
     elif len(pops) == 0:
         raise ValueError("No populations provided to concatenate")
+    
+    # warn about orbits if necessary
+    if any([pop._orbits is not None for pop in pops]):
+        logging.getLogger("cogsworth").warning(
+            "cogsworth warning: Concatenating populations with orbits is not supported yet - "
+            "the final population will not have orbits. PRs are welcome!"
+        )
 
     # get the offset for the bin numbers
     bin_num_offset = max(pops[0].bin_nums) + 1
 
     # create a new population to store the final population (just a copy of the first population)
     final_pop = pops[0][:]
+
+    # store the final positions and velocities if they were loaded
+    # separate into bound and disrupted for easier stacking later
+    bound_pos, bound_vel = None, None
+    disrupted_pos, disrupted_vel = None, None
+    if final_pop._final_pos is not None:
+        bound_pos = final_pop._final_pos[:len(final_pop)]
+        bound_vel = final_pop._final_vel[:len(final_pop)]
+        disrupted_pos = final_pop._final_pos[len(final_pop):]
+        disrupted_vel = final_pop._final_vel[len(final_pop):]
+
+    # reset auto-calculated class variables
+    final_pop._bin_nums = None
+    final_pop._classes = None
+    final_pop._final_pos = None
+    final_pop._final_vel = None
+    final_pop._final_bpp = None
+    final_pop._disrupted = None
+    final_pop._escaped = None
+    final_pop._observables = None
 
     # loop over the remaining populations
     for pop in pops[1:]:
@@ -1825,7 +1904,7 @@ def concat(*pops):
             final_pop._initial_galaxy += pop._initial_galaxy
 
         # loop through pandas tables that may need to be copied
-        for table in ["_initial_binaries", "_initC", "_bpp", "_bcm", "_kick_info", ]:
+        for table in ["_initial_binaries", "_initC", "_bpp", "_bcm", "_kick_info"]:
             # only copy if the table exists in the main population
             if getattr(final_pop, table) is not None:
                 # if the table doesn't exist in the new population then raise an error
@@ -1848,21 +1927,22 @@ def concat(*pops):
         final_pop._mass_binaries += pop._mass_binaries
         final_pop.n_binaries_match += pop.n_binaries_match
 
-        if final_pop._orbits is not None or pop._orbits is not None:
-            raise NotImplementedError("Cannot concatenate populations with orbits for now")
+        # combine the final positions and velocities if they were loaded
+        if bound_pos is not None:
+            if pop._final_pos is None:
+                raise ValueError(f"Population {pop} does not have final positions, but the first does")
+            bound_pos = np.vstack((bound_pos, pop._final_pos[:len(pop)]))
+            bound_vel = np.vstack((bound_vel, pop._final_vel[:len(pop)]))
+            disrupted_pos = np.vstack((disrupted_pos, pop._final_pos[len(pop):]))
+            disrupted_vel = np.vstack((disrupted_vel, pop._final_vel[len(pop):]))
 
-        bin_num_offset = max(final_pop.bin_nums) + 1
         final_pop._bin_nums = None
+        bin_num_offset = max(final_pop.bin_nums) + 1
 
-    # reset auto-calculated class variables
-    final_pop._bin_nums = None
-    final_pop._classes = None
-    final_pop._final_pos = None
-    final_pop._final_vel = None
-    final_pop._final_bpp = None
-    final_pop._disrupted = None
-    final_pop._escaped = None
-    final_pop._observables = None
+    # set the final positions and velocities if they were loaded
+    if bound_pos is not None:
+        final_pop._final_pos = np.vstack((bound_pos, disrupted_pos))
+        final_pop._final_vel = np.vstack((bound_vel, disrupted_vel))
 
     return final_pop
 

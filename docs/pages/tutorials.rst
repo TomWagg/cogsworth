@@ -70,6 +70,15 @@ If you're new to ``cogsworth`` I recommend going through the whole basics sectio
 
         .. toctree::
             :titlesonly:
+            :caption: More on star formation histories
+
+            ../tutorials/more_sfh/other_sfhs.ipynb
+            ../tutorials/more_sfh/dfs.ipynb
+
+    .. grid-item-card::
+
+        .. toctree::
+            :titlesonly:
             :caption: Miscellaneous
 
             ../tutorials/misc/lisa.ipynb
