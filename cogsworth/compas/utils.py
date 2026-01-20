@@ -21,11 +21,6 @@ def create_bpp_from_COMPAS_files(filename):
     - Start and end of common-envelope events (from BSE_Common_Envelopes)
     - Supernova events (from BSE_Supernovae)
 
-    TODO list
-    ---------
-    - Get initial state from the grid file
-    - Read in the supernova kicks into kick_info
-
     Parameters
     ----------
     filename : `str`
@@ -38,9 +33,28 @@ def create_bpp_from_COMPAS_files(filename):
     """
     BPP_COLUMNS = ["Time", "Mass(1)", "Mass(2)", "Stellar_Type(1)", "Stellar_Type(2)",
                    "SemiMajorAxis", "Eccentricity", "RLOF(1)", "RLOF(2)", "Radius(1)", "Radius(2)"]
+    INIT_COLS = ["Mass@ZAMS(1)", "Mass@ZAMS(2)", "Eccentricity@ZAMS", "SemiMajorAxis@ZAMS",
+                 "Stellar_Type@ZAMS(1)", "Stellar_Type@ZAMS(2)"]
 
     # open the COMPAS file
     with h5.File(filename, "r") as f:
+
+        # ------------------
+        # INITIAL CONDITIONS
+        # ------------------
+
+        bse_sys = pd.DataFrame({k: f["BSE_System_Parameters"][k][...] for k in f["BSE_System_Parameters"].keys()})
+        bse_sys.set_index("SEED", inplace=True)
+
+        init_col_translator = {
+            "Mass@ZAMS(1)": "Mass(1)", "Mass@ZAMS(2)": "Mass(2)", "Eccentricity@ZAMS": "Eccentricity",
+            "SemiMajorAxis@ZAMS": "SemiMajorAxis", "Stellar_Type@ZAMS(1)": "Stellar_Type(1)",
+            "Stellar_Type@ZAMS(2)": "Stellar_Type(2)"
+        }
+        init = bse_sys[INIT_COLS].rename(init_col_translator, axis=1)
+
+        init[["Time", "RLOF(1)", "RLOF(2)",
+              "Radius(1)", "Radius(2)", "evol_type"]] = [0.0, 0.0, 0.0, np.nan, np.nan, 1]
 
         # create a DF just with the moments where a star changes stellar type
         df_dict = {k: f["BSE_Switch_Log"][k][...] for k in f["BSE_Switch_Log"].keys()}
@@ -129,9 +143,9 @@ def create_bpp_from_COMPAS_files(filename):
         disruption_rows["evol_type"] = 11
         sn_df = pd.concat([sn_df, disruption_rows])
 
-    bpp = pd.concat([switch_df, mt_rows,
-                        ce_rows, sn_df], sort=False).sort_values(["SEED", "Time", "evol_type"],
-                                                                ascending=[True, True, False])
+    bpp = pd.concat([init, switch_df, mt_rows, ce_rows, sn_df], sort=False)
+    bpp = bpp.sort_values(["SEED", "Time", "evol_type"], ascending=[True, True, False])
+
     # change CE end rows back to evol_type 8
     bpp["evol_type"] = bpp["evol_type"].replace({6.9: 8}).astype(int)
 
