@@ -16,7 +16,7 @@ def create_bpp_from_COMPAS_file(filename):
     each binary system.
 
     The function currently implements the following events:
-    - Initial conditions (from BSE_System_Parameters)
+    - Initial conditions and final state (from BSE_System_Parameters)
     - Changes in stellar type (from BSE_Switch_Log)
     - Start and end of mass transfer episodes (from BSE_RLOF)
     - Start and end of common-envelope events (from BSE_Common_Envelopes)
@@ -66,9 +66,9 @@ def create_bpp_from_COMPAS_file(filename):
             sn = pd.DataFrame({k: f["BSE_Supernovae"][k][...] for k in f["BSE_Supernovae"].keys()})
             sn.index = sn["SEED"].values
 
-    # ------------------
-    # INITIAL CONDITIONS
-    # ------------------
+    # ----------------------------------
+    # INITIAL CONDITIONS AND FINAL STATE
+    # ----------------------------------
 
     if has_subfile["BSE_System_Parameters"]:
         init_col_translator = {
@@ -85,6 +85,9 @@ def create_bpp_from_COMPAS_file(filename):
         # don't try and guess initial radius, set to NaN, evol_type = 1
         init[["Time", "RLOF(1)", "RLOF(2)",
             "Radius(1)", "Radius(2)", "evol_type"]] = [0.0, 0.0, 0.0, np.nan, np.nan, 1]
+        
+        final = bse_sys[BPP_COLUMNS].copy()
+        final["evol_type"] = 10
     
     # --------------------
     # STELLAR TYPE CHANGES
@@ -201,6 +204,7 @@ def create_bpp_from_COMPAS_file(filename):
     to_concat = []
     if has_subfile["BSE_System_Parameters"]:
         to_concat.append(init)
+        to_concat.append(final)
     if has_subfile["BSE_Switch_Log"]:
         to_concat.append(kstar_change)
     if has_subfile["BSE_RLOF"]:
@@ -379,6 +383,7 @@ def create_kick_info_from_COMPAS_file(filename):
                                   columns=KICK_INFO_COLS, index=full_index)
     # fill in the kick_info rows we have
     if any_kicks:
+        full_kick_info["WAS_KICKED"] = 0
         full_kick_info.update(kick_info)
 
     full_kick_info.reset_index(inplace=True)
