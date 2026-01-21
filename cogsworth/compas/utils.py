@@ -5,7 +5,7 @@ import astropy.units as u
 import astropy.constants as const
 
 
-__all__ = ["create_bpp_from_COMPAS_files"]
+__all__ = ["create_bpp_from_COMPAS_file", "create_kick_info_from_COMPAS_file"]
 
 
 def create_bpp_from_COMPAS_file(filename):
