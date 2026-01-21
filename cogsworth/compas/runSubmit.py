@@ -1,14 +1,9 @@
 import numpy as np
 import sys
 import os
-from subprocess import call
 import yaml
 import argparse
 import warnings
-
-# Check if we are using python 3
-python_version = sys.version_info[0]
-# print("python_version =", python_version)
 
 HERE = os.path.dirname(__file__)
 DEFAULT_CONFIG_FILE = os.path.join(HERE, 'compasConfigDefault.yaml')
@@ -20,7 +15,7 @@ class pythonProgramOptions:
     """
 
     def __init__(self, config_file=DEFAULT_CONFIG_FILE, grid_filename=None,
-                 random_seed_filename=None, output_directory=None):
+                 random_seed_filename=None, output_directory=None, logfile_definitions=None):
         # Do './COMPAS --help' to see all options
         # -- Define variables
 
@@ -52,7 +47,7 @@ class pythonProgramOptions:
             os.environ['COMPAS_ROOT_DIR'] = REPO_ROOT
         compas_exe = os.path.join(compas_root_dir, 'src/COMPAS')
         compas_executable_override = os.environ.get('COMPAS_EXECUTABLE_PATH', compas_exe)
-        print('compas_executable_override', compas_executable_override)
+        # print('compas_executable_override', compas_executable_override)
         self.compas_executable = compas_executable_override
 
         # If random_seed_filename is specified, overwrite the random seed from the yaml file
@@ -71,7 +66,7 @@ class pythonProgramOptions:
                 if '--grid' in self.stringChoices:
                     self.grid_filename = self.stringChoices['--grid']
 
-        print('grid_filename', self.grid_filename)
+        # print('grid_filename', self.grid_filename)
 
         # environment variable COMPAS_LOGS_OUTPUT_DIR_PATH is used primarily for docker runs
         # if COMPAS_LOGS_OUTPUT_DIR_PATH is set (!= None) it is used as the value for the
@@ -100,6 +95,10 @@ class pythonProgramOptions:
                 self.grid_filename = os.getcwd() + '/' + self.grid_filename
             else:
                 self.grid_filename = compas_input_path_override + '/' + self.grid_filename
+
+        if logfile_definitions is not None:
+            self.stringChoices['--logfile-definitions'] = logfile_definitions
+        # print("Override logfile definitions:", logfile_definitions)
 
         if '--logfile-definitions' in self.stringChoices:
             self.logfile_definitions = self.stringChoices['--logfile-definitions']  # logfile record definitions file name (e.g. 'logdefs.txt')
@@ -152,26 +151,3 @@ class pythonProgramOptions:
             self.shellCommand += f' {key} {val}'
 
         return
-
-
-def runSubmit(cli_args=None, execute=True):
-    parser = argparse.ArgumentParser(
-        description='Run COMPAS using a config yaml (for settings refer to ./COMPAS --help)'
-    )
-    parser.add_argument('config_file', type=str, nargs="?", default=DEFAULT_CONFIG_FILE)
-    parser.add_argument('--grid', type=str, default=None)
-    args = parser.parse_args(cli_args)
-    # -- Get the program options
-    myoptions = pythonProgramOptions(config_file=args.config_file, grid_filename=args.grid)
-    print(myoptions.shellCommand)
-    if execute:  # Execute COMPAS shell string
-        call(myoptions.shellCommand, shell=True)
-
-
-def main():
-    cli_args = sys.argv[1:]
-    runSubmit(cli_args=cli_args, execute=True)
-
-
-if __name__ == "__main__":
-    main()
