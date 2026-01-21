@@ -35,9 +35,9 @@ def create_bpp_from_COMPAS_file(filename):
         A DataFrame containing the bpp table with rows for each stellar evolution event.
     """
     BPP_COLUMNS = ["Time", "Mass(1)", "Mass(2)", "Stellar_Type(1)", "Stellar_Type(2)",
-                   "SemiMajorAxis", "Eccentricity","Radius(1)", "Radius(2)", "SEED"]
+                   "SemiMajorAxis", "Eccentricity", "Radius(1)", "Radius(2)", "SEED"]
     INIT_COLS = ["Mass@ZAMS(1)", "Mass@ZAMS(2)", "Eccentricity@ZAMS", "SemiMajorAxis@ZAMS",
-                 "Stellar_Type@ZAMS(1)", "Stellar_Type@ZAMS(2)", "SEED"]
+                 "Stellar_Type@ZAMS(1)", "Stellar_Type@ZAMS(2)", "Radius@ZAMS(1)", "Radius@ZAMS(2)", "SEED"]
 
     has_subfile = {"BSE_System_Parameters": False, "BSE_Switch_Log": False, "BSE_RLOF": False,
                    "BSE_Common_Envelopes": False, "BSE_Supernovae": False}
@@ -74,17 +74,15 @@ def create_bpp_from_COMPAS_file(filename):
         init_col_translator = {
             "Mass@ZAMS(1)": "Mass(1)", "Mass@ZAMS(2)": "Mass(2)", "Eccentricity@ZAMS": "Eccentricity",
             "SemiMajorAxis@ZAMS": "SemiMajorAxis", "Stellar_Type@ZAMS(1)": "Stellar_Type(1)",
-            "Stellar_Type@ZAMS(2)": "Stellar_Type(2)"
+            "Stellar_Type@ZAMS(2)": "Stellar_Type(2)",
+            "Radius@ZAMS(1)": "Radius(1)", "Radius@ZAMS(2)": "Radius(2)",
         }
         # rename columns to look like other tables
         init = bse_sys[INIT_COLS].rename(init_col_translator, axis=1)
 
-        # convert initial separation to Rsun
+        # convert initial separation to Rsun, use evol_type = 1
         init["SemiMajorAxis"] = init["SemiMajorAxis"].values * u.AU.to(u.Rsun)
-
-        # don't try and guess initial radius, set to NaN, evol_type = 1
-        init[["Time", "RLOF(1)", "RLOF(2)",
-            "Radius(1)", "Radius(2)", "evol_type"]] = [0.0, 0.0, 0.0, np.nan, np.nan, 1]
+        init[["Time", "evol_type"]] = [0.0, 1]
         
         final = bse_sys[BPP_COLUMNS].copy()
         final["evol_type"] = 10
@@ -239,6 +237,9 @@ def create_bpp_from_COMPAS_file(filename):
 
     # delete any duplicate rows that may have been created
     bpp = bpp.drop_duplicates()
+
+    # COMPAS sets SemiMajorAxis and Eccentricity to NaN for disrupted systems, we want -1.0
+    bpp.loc[bpp["SemiMajorAxis"].isna(), ["SemiMajorAxis", "Eccentricity"]] = -1.0
 
     # calculate porb and match SemiMajorAxis/Eccentricity conventions
     merged = (bpp["SemiMajorAxis"] == np.inf) | (bpp["SemiMajorAxis"] == 0.0)
