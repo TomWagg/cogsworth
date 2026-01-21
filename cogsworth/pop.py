@@ -378,10 +378,10 @@ class Population():
         if self._bin_nums is None:
             if self._final_bpp is not None:
                 self._bin_nums = self._final_bpp["bin_num"].unique()
-            elif self._initC is not None:
-                self._bin_nums = self._initC["bin_num"].unique()
             elif self._initial_binaries is not None:
                 self._bin_nums = np.unique(self._initial_binaries.index.values)
+            elif self._initC is not None:
+                self._bin_nums = self._initC["bin_num"].unique()
             else:
                 raise ValueError("You need to first sample binaries to get a list of `bin_nums`!")
         return self._bin_nums
@@ -750,8 +750,10 @@ class Population():
         """
         if self._final_bpp is None:
             self._final_bpp = self.bpp.drop_duplicates(subset="bin_num", keep="last")
-            self._final_bpp.insert(len(self._final_bpp.columns), "metallicity",
-                                   self.initC["metallicity"].values)
+
+            metallicity = (self._initC["metallicity"].values if self._initC is not None
+                           else self.initial_binaries["metallicity"].values)
+            self._final_bpp.insert(len(self._final_bpp.columns), "metallicity", metallicity)
         return self._final_bpp
 
     @property

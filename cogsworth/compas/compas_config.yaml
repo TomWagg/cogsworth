@@ -18,7 +18,7 @@ booleanChoices:
    --evolve-unbound-systems: True                                        # Default: True
 #    --population-data-printing: False                                     # Default: False
 #    --print-bool-as-string: False                                         # Default: False
-   --quiet: True                                                        # Default: False
+#    --quiet: False                                                        # Default: False
 #    --rlof-printing: True                                                 # Default: True
 #    --store-input-files: True                                             # Default: True
    --switch-log: True                                                   # Default: False

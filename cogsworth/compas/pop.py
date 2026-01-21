@@ -69,6 +69,21 @@ class COMPASPopulation(Population):
         self.initial_binaries.index = self.final_bpp["bin_num"].values
         self._initC = self.initial_binaries
 
+    def to_Population(self):
+        """Convert this COMPASPopulation to a generic Population object"""
+        pop = Population(self.n_binaries, processes=self.processes, use_default_BSE_settings=True)
+        attrs_to_copy = ["n_binaries", "n_binaries_match", "processes", "final_kstar1", "final_kstar2",
+                         "sfh_model", "sfh_params", "galactic_potential", "v_dispersion", "max_ev_time",
+                         "timestep_size", "pool", "store_entire_orbits", "bpp_columns", "bcm_columns",
+                         "_file", "_initial_binaries", "_initial_galaxy", "_mass_singles", "_mass_binaries",
+                         "_n_singles_req", "_n_bin_req", "_bpp", "_bcm", "_kick_info",
+                         "_orbits", "_classes", "_final_pos", "_final_vel", "_final_bpp", "_disrupted",
+                         "_escaped", "_observables", "_bin_nums", "BSE_settings",
+                         "sampling_params", "bcm_timestep_conditions"]
+        for attr in attrs_to_copy:
+            setattr(pop, attr, getattr(self, attr))
+        return pop
+
 
 def _stringify_initC(df):
     return " ".join([
