@@ -16,10 +16,13 @@ def create_bpp_from_COMPAS_files(filename):
     each binary system.
 
     The function currently implements the following events:
+    - Initial conditions (from BSE_System_Parameters)
     - Changes in stellar type (from BSE_Switch_Log)
     - Start and end of mass transfer episodes (from BSE_RLOF)
     - Start and end of common-envelope events (from BSE_Common_Envelopes)
     - Supernova events (from BSE_Supernovae)
+
+    This code is built upon work by Eugene Shang.
 
     Parameters
     ----------
@@ -32,142 +35,190 @@ def create_bpp_from_COMPAS_files(filename):
         A DataFrame containing the bpp table with rows for each stellar evolution event.
     """
     BPP_COLUMNS = ["Time", "Mass(1)", "Mass(2)", "Stellar_Type(1)", "Stellar_Type(2)",
-                   "SemiMajorAxis", "Eccentricity", "RLOF(1)", "RLOF(2)", "Radius(1)", "Radius(2)"]
+                   "SemiMajorAxis", "Eccentricity","Radius(1)", "Radius(2)", "SEED"]
     INIT_COLS = ["Mass@ZAMS(1)", "Mass@ZAMS(2)", "Eccentricity@ZAMS", "SemiMajorAxis@ZAMS",
-                 "Stellar_Type@ZAMS(1)", "Stellar_Type@ZAMS(2)"]
+                 "Stellar_Type@ZAMS(1)", "Stellar_Type@ZAMS(2)", "SEED"]
 
-    # open the COMPAS file
+    # open the COMPAS file and read DFs
     with h5.File(filename, "r") as f:
-
-        # ------------------
-        # INITIAL CONDITIONS
-        # ------------------
-
         bse_sys = pd.DataFrame({k: f["BSE_System_Parameters"][k][...] for k in f["BSE_System_Parameters"].keys()})
-        bse_sys.set_index("SEED", inplace=True)
+        kstar_change = pd.DataFrame({k: f["BSE_Switch_Log"][k][...] for k in f["BSE_Switch_Log"].keys()})
+        rlof = pd.DataFrame({k: f["BSE_RLOF"][k][...] for k in f["BSE_RLOF"].keys()})
+        ce = pd.DataFrame({k: f["BSE_Common_Envelopes"][k][...] for k in f["BSE_Common_Envelopes"].keys()})
+        sn = pd.DataFrame({k: f["BSE_Supernovae"][k][...] for k in f["BSE_Supernovae"].keys()})
 
-        init_col_translator = {
-            "Mass@ZAMS(1)": "Mass(1)", "Mass@ZAMS(2)": "Mass(2)", "Eccentricity@ZAMS": "Eccentricity",
-            "SemiMajorAxis@ZAMS": "SemiMajorAxis", "Stellar_Type@ZAMS(1)": "Stellar_Type(1)",
-            "Stellar_Type@ZAMS(2)": "Stellar_Type(2)"
-        }
-        init = bse_sys[INIT_COLS].rename(init_col_translator, axis=1)
+        # set SEED as index for all dataframes
+        bse_sys.index = bse_sys["SEED"].values
+        kstar_change.index = kstar_change["SEED"].values
+        rlof.index = rlof["SEED"].values
+        ce.index = ce["SEED"].values
+        sn.index = sn["SEED"].values
 
-        init[["Time", "RLOF(1)", "RLOF(2)",
-              "Radius(1)", "Radius(2)", "evol_type"]] = [0.0, 0.0, 0.0, np.nan, np.nan, 1]
+    # ------------------
+    # INITIAL CONDITIONS
+    # ------------------
 
-        # create a DF just with the moments where a star changes stellar type
-        df_dict = {k: f["BSE_Switch_Log"][k][...] for k in f["BSE_Switch_Log"].keys()}
-        switch_df = pd.DataFrame(df_dict)
-        switch_df.set_index("SEED", inplace=True)
+    init_col_translator = {
+        "Mass@ZAMS(1)": "Mass(1)", "Mass@ZAMS(2)": "Mass(2)", "Eccentricity@ZAMS": "Eccentricity",
+        "SemiMajorAxis@ZAMS": "SemiMajorAxis", "Stellar_Type@ZAMS(1)": "Stellar_Type(1)",
+        "Stellar_Type@ZAMS(2)": "Stellar_Type(2)"
+    }
+    # rename columns to look like other tables
+    init = bse_sys[INIT_COLS].rename(init_col_translator, axis=1)
 
-        # but remove any rows where the stellar type doesn't actually change, or mergers
-        switch_df = switch_df[(switch_df["Switching_From"] != switch_df["Switching_To"])
-                              & (switch_df["Switching_To"] != 15)]
-        switch_df = switch_df.loc[:, BPP_COLUMNS]
-        switch_df["evol_type"] = 2
+    # convert initial separation to Rsun
+    init["SemiMajorAxis"] = init["SemiMajorAxis"].values * u.AU.to(u.Rsun)
 
-        # create a DF with the moments where a star fills its Roche lobe
-        df_dict = {k: f["BSE_RLOF"][k][...] for k in f["BSE_RLOF"].keys()}
-        rlof_df = pd.DataFrame(df_dict)
-        rlof_df.set_index("SEED", inplace=True)
+    # don't try and guess initial radius, set to NaN, evol_type = 1
+    init[["Time", "RLOF(1)", "RLOF(2)",
+        "Radius(1)", "Radius(2)", "evol_type"]] = [0.0, 0.0, 0.0, np.nan, np.nan, 1]
+    
+    # --------------------
+    # STELLAR TYPE CHANGES
+    # --------------------
 
-        # convert the DF into two, with a row for the start and end of RLOF
-        mt_cols = ["Time", "Mass(1)", "Mass(2)", "Stellar_Type(1)", "Stellar_Type(2)",
-                "SemiMajorAxis", "Eccentricity", "Radius(1)", "Radius(2)"]
-        start_cols = [c + "<MT" for c in mt_cols]
-        end_cols = [c + ">MT" for c in mt_cols] + ["CEE>MT"]
-        mt_start_rows = rlof_df[start_cols].rename({s: s.replace("<MT", "") for s in start_cols}, axis=1)
-        mt_start_rows["evol_type"] = 3
-        mt_end_rows = rlof_df[end_cols].rename({s: s.replace(">MT", "") for s in end_cols if s != "CEE>MT"},
-                                               axis=1)
-        mt_end_rows["evol_type"] = 4
-        # mt_end_rows = mt_end_rows[~mt_end_rows["CEE>MT"] == 1]
-        mt_end_rows.drop(columns=["CEE>MT"], inplace=True)
+    # remove any rows where the stellar type doesn't actually change, or mergers
+    kstar_change = kstar_change[(kstar_change["Switching_From"] != kstar_change["Switching_To"])
+                                & (kstar_change["Switching_To"] != 15)]
+    
+    # keep bpp columns, set evol_type = 2
+    kstar_change = kstar_change.loc[:, BPP_COLUMNS]
+    kstar_change["evol_type"] = 2
 
-        # combine the mass transfer start and end rows into a single dataframe
-        mt_rows = pd.concat([mt_start_rows, mt_end_rows]).sort_values(["SEED", "Time", "evol_type"],
-                                                                    ascending=[True, True, False])
+    # --------------------
+    # MASS TRANSFER EVENTS
+    # --------------------
 
-        # go through mt_rows dataframe, merge subsequent mass transfer episodes
-        mt_rows["SEED"] = mt_rows.index
-        for col in ["evol_type", "SEED", "Time"]:
-            for prefix, dir in [("prev_", 1), ("next_", -1)]:
-                mt_rows[f"{prefix}{col}"] = mt_rows[col].shift(dir)
+    # split the DF into two, with a row for the start and end of RLOF
+    # starting cols are marked with <MT, ending cols with >MT
+    start_cols = [c + "<MT" if c != "SEED" else c for c in BPP_COLUMNS]
+    end_cols = [c + ">MT" if c != "SEED" else c for c in BPP_COLUMNS]
+
+    # grab the start rows, stripping off the <MT suffix, these are evol_type 3
+    mt_start_rows = rlof[start_cols].rename({s: s.replace("<MT", "") for s in start_cols}, axis=1)
+    mt_start_rows["evol_type"] = 3
+
+    # grab the end rows, stripping off the >MT suffix, these are evol_type 4
+    mt_end_rows = rlof[end_cols].rename({s: s.replace(">MT", "") for s in end_cols}, axis=1)
+    mt_end_rows["evol_type"] = 4
+
+    # combine the mass transfer start and end rows into a single dataframe
+    mt_rows = pd.concat([mt_start_rows, mt_end_rows]).sort_values(["SEED", "Time", "evol_type"],
+                                                                  ascending=[True, True, False])
+
+    # it seems COMPAS can sometimes create *MANY* rows where the mass transfer gets split up because
+    # the rate changes slightly - we want to merge these back together again since we aren't tracking it
+
+    # create previous and next evol_type, SEED, Time columns to identify these cases
+    for col in ["evol_type", "SEED", "Time"]:
+        for prefix, dir in [("prev_", 1), ("next_", -1)]:
+            mt_rows[f"{prefix}{col}"] = mt_rows[col].shift(dir)
+
+    # drop rows where a MT end is immediately followed by a MT start at the same time for the same SEED
+    # this will leave us with just the start and the end of the mass transfer episode
+    same_next = (mt_rows["next_SEED"] == mt_rows["SEED"]) & (mt_rows["next_Time"] == mt_rows["Time"])
+    same_prev = (mt_rows["prev_SEED"] == mt_rows["SEED"]) & (mt_rows["prev_Time"] == mt_rows["Time"])
+
+    restart_after_end = (mt_rows["evol_type"] == 3) & (mt_rows["prev_evol_type"] == 4) & same_prev
+    end_before_restart = (mt_rows["evol_type"] == 4) & (mt_rows["next_evol_type"] == 3) & same_next
+
+    mt_rows = mt_rows[~(restart_after_end | end_before_restart)]
+
+    # get rid of those extra columns we just created
+    mt_rows = mt_rows.loc[:, BPP_COLUMNS + ["evol_type"]]
+
+    # ----------------------
+    # COMMON-ENVELOPE EVENTS
+    # ----------------------
+
+    # as before, convert the DF into two, with a row for the start and end of CE
+    start_ce_cols = [c + "<CE" if c not in ["Time", "SEED"] else c for c in BPP_COLUMNS]
+
+    # end_cols is the same as BPP_COLUMNS but with >CE suffixes, except for Time and Stellar_Type columns
+    end_ce_cols = [c + ">CE" if c not in ["Time", "Stellar_Type(1)", "Stellar_Type(2)", "SEED"] else c
+                   for c in BPP_COLUMNS]
+    ce_start_rows = ce[start_ce_cols].rename({s: s.replace("<CE", "") for s in start_ce_cols}, axis=1)
+    ce_start_rows["evol_type"] = 7
+    ce_end_rows = ce[end_ce_cols + ["Merger"]].rename({s: s.replace(">CE", "") for s in end_ce_cols}, axis=1)
+    ce_end_rows["evol_type"] = 8
+
+    # if a merger occurs, turn the other star into a massless remnant and set the separation to 0.0
+    # (COMPAS doesn't do this...?)
+    # for now let's just insert a row that does the coalescence that has sep = 0.0
+    merger_mask = ce_end_rows["Merger"] == 1
+    if merger_mask.any():
+        merger_rows = ce_end_rows.loc[merger_mask].copy()
+        merger_rows[["SemiMajorAxis", "Eccentricity", "evol_type"]] = [0.0, 0.0, 6]
+        ce_end_rows = pd.concat([ce_end_rows, merger_rows])
+    ce_end_rows.drop(columns=["Merger"], inplace=True)
+
+    # combine all ce_rows
+    ce_rows = pd.concat([ce_start_rows, ce_end_rows]).sort_values(["SEED", "Time"])
+
+    # ----------
+    # SUPERNOVAE
+    # ----------
+
+    # no RLOF during supernovae
+    sn[["RLOF(1)", "RLOF(2)"]] = [0.0, 0.0]
+
+    # set evol_type based on Supernova_State
+    sn_type = sn["Supernova_State"].copy()
+    sn = sn.loc[:, BPP_COLUMNS]
+    sn["evol_type"] = np.where(sn_type == 1, 15, 16)
+
+    # add rows for disrupted systems
+    disruption_rows = sn.loc[sn["SemiMajorAxis"] < 0.0].copy()
+    disruption_rows["evol_type"] = 11
+
+    # remove any duplicate disruption rows, just keep the first instance
+    disruption_rows = disruption_rows.drop_duplicates(subset=["SEED"], keep="first")
+
+    # combine back into SN DF
+    sn = pd.concat([sn, disruption_rows])
 
 
-        mt_rows = mt_rows[~(((mt_rows["evol_type"] == 4) & (mt_rows["next_evol_type"] == 3)
-                            & (mt_rows["next_SEED"] == mt_rows["SEED"]) & (mt_rows["next_Time"] == mt_rows["Time"]))
-                            | ((mt_rows["evol_type"] == 3) & (mt_rows["prev_evol_type"] == 4)
-                            & (mt_rows["prev_SEED"] == mt_rows["SEED"]) & (mt_rows["prev_Time"] == mt_rows["Time"])))]
+    # -------------
+    # CONSTRUCT BPP
+    # -------------
 
-        # get rid of those extra columns
-        mt_rows = mt_rows.loc[:, mt_cols + ["evol_type"]]
+    bpp = pd.concat([init, kstar_change, mt_rows, ce_rows, sn], sort=False)
+    
+    # sort by SEED, then by Time, then by evol_type based on priority
+    evol_type_priority = [1, 3, 7, 2, 15, 16, 11, 8, 4, 6, 10]
+    order = {v: i for i, v in enumerate(evol_type_priority)}
+    bpp["_evol_key"] = bpp["evol_type"].map(order).fillna(len(order)).astype(int)
+    bpp = (
+        bpp.sort_values(
+            by=["SEED", "Time", "_evol_key"],
+        ).drop(columns="_evol_key")
+    )
 
-        # create a DF with the moments where a star causes a common-envelope event
-        df_dict = {k: f["BSE_Common_Envelopes"][k][...] for k in f["BSE_Common_Envelopes"].keys()}
-        ce_df = pd.DataFrame(df_dict)
-        ce_df.set_index("SEED", inplace=True)
-
-        # as before, convert the DF into two, with a row for the start and end of CE
-        ce_cols = ["Time", "Mass(1)", "Mass(2)", "Stellar_Type(1)", "Stellar_Type(2)", "SemiMajorAxis",
-                   "Eccentricity", "Radius(1)", "Radius(2)"]
-        start_cols = [c + "<CE" if c != "Time" else c for c in ce_cols]
-        end_cols = [c + ">CE" if c not in ["Time", "Stellar_Type(1)", "Stellar_Type(2)"] else c for c in ce_cols]
-        ce_start_rows = ce_df[start_cols].rename({s: s.replace("<CE", "") for s in start_cols}, axis=1)
-        ce_start_rows["evol_type"] = 7
-        ce_end_rows = ce_df[end_cols + ["Merger"]].rename({s: s.replace(">CE", "") for s in end_cols}, axis=1)
-
-        # set to -42 so that sorting works out nicely (this is just a magic negative number)
-        ce_end_rows["evol_type"] = 6.9
-
-        # if a merger occurs, turn the other star into a massless remnant (COMPAS doesn't do this...?)
-        ce_end_rows.loc[(ce_end_rows["Merger"] == 1) & (ce_end_rows["Mass(1)"] > 1e10),
-                        ["Mass(1)", "Stellar_Type(1)", "Radius(1)"]] = [0.0, 15, 0.0]
-        ce_end_rows.loc[(ce_end_rows["Merger"] == 1) & (ce_end_rows["Mass(2)"] > 1e10),
-                        ["Mass(2)", "Stellar_Type(2)", "Radius(2)"]] = [0.0, 15, 0.0]
-        ce_end_rows.drop(columns=["Merger"], inplace=True)
-
-        # combine all ce_rows
-        ce_rows = pd.concat([ce_start_rows, ce_end_rows]).sort_values(["SEED", "Time"])
-
-        df_dict = {k: f["BSE_Supernovae"][k][...] for k in f["BSE_Supernovae"].keys()}
-        sn_df = pd.DataFrame(df_dict)
-        sn_df[["RLOF(1)", "RLOF(2)"]] = [0.0, 0.0]
-        sn_df.set_index("SEED", inplace=True)
-        sn_type = sn_df["Supernova_State"].copy()
-        sn_df = sn_df.loc[:, BPP_COLUMNS]
-        sn_df["evol_type"] = np.where(sn_type == 1, 15, 16)
-
-        disruption_rows = sn_df.loc[sn_df["SemiMajorAxis"] < 0.0].copy()
-        disruption_rows["evol_type"] = 11
-        sn_df = pd.concat([sn_df, disruption_rows])
-
-    bpp = pd.concat([init, switch_df, mt_rows, ce_rows, sn_df], sort=False)
-    bpp = bpp.sort_values(["SEED", "Time", "evol_type"], ascending=[True, True, False])
-
-    # change CE end rows back to evol_type 8
-    bpp["evol_type"] = bpp["evol_type"].replace({6.9: 8}).astype(int)
-
-    # find all rows where evol_type == 4 and the previous row had evol_type == 8
+    # find all rows where evol_type == 4 and the previous row had evol_type == 8, state should be same
+    bpp["row_inds"] = np.arange(len(bpp))
     bpp["prev_evol_type"] = bpp["evol_type"].shift(1)
     mask = (bpp["evol_type"] == 4) & (bpp["prev_evol_type"] == 8)
     cols = BPP_COLUMNS + ["row_inds"]
-    bpp["row_inds"] = np.arange(len(bpp))
     bpp.loc[mask, cols] = bpp.loc[bpp["row_inds"].isin(bpp.loc[mask, cols]["row_inds"] - 1), cols]
 
-    cols = BPP_COLUMNS + ["evol_type", "bin_num"]
-    bpp["bin_num"] = bpp.index
-    bpp.index = bpp["bin_num"]
+    # reduce to just the columns we want
+    cols = BPP_COLUMNS + ["evol_type"]
     bpp = bpp.loc[:, cols]
 
-    # calculate porb and match SemiMajorAxis conventions
-    merged = bpp["SemiMajorAxis"] == np.inf
-    disrupted = bpp["SemiMajorAxis"] < 0.0
-    bpp["porb"] = _get_porb_from_a(bpp["SemiMajorAxis"].values, bpp["Mass(1)"].values, bpp["Mass(2)"].values)
-    bpp.loc[disrupted, ["SemiMajorAxis", "porb"]] = [-1.0, -1.0]
-    bpp.loc[merged, ["SemiMajorAxis", "porb"]] = [0.0, 0.0]
+    # delete any duplicate rows that may have been created
+    bpp = bpp.drop_duplicates()
 
+    # calculate porb and match SemiMajorAxis/Eccentricity conventions
+    merged = (bpp["SemiMajorAxis"] == np.inf) | (bpp["SemiMajorAxis"] == 0.0)
+    disrupted = bpp["SemiMajorAxis"] < 0.0
+    bound = ~(disrupted | merged)
+    bpp.loc[bound, "porb"] = _get_porb_from_a(bpp.loc[bound, "SemiMajorAxis"].values,
+                                              bpp.loc[bound, "Mass(1)"].values,
+                                              bpp.loc[bound, "Mass(2)"].values)
+    bpp.loc[disrupted, ["SemiMajorAxis", "Eccentricity", "porb"]] = [-1.0, -1.0, -1.0]
+    bpp.loc[merged, ["SemiMajorAxis", "Eccentricity", "porb"]] = [0.0, 0.0, 0.0]
+
+    # rename columns to COSMIC bpp style
     bpp.rename({
         "Time": "tphys",
         "Mass(1)": "mass_1",
@@ -180,9 +231,9 @@ def create_bpp_from_COMPAS_files(filename):
         "RLOF(2)": "RRLO_2",
         "Radius(1)": "rad_1",
         "Radius(2)": "rad_2",
+        "SEED": "bin_num"
     }, axis=1, inplace=True)
-
-    bound = bpp["sep"] > 0.0
+    
     bpp.loc[~bound, ["RRLO_1", "RRLO_2"]] = [0.0, 0.0]
     for l, r in [("1", "2"), ("2", "1")]:
         f_Roche = _calculate_roche_lobe_factor(bpp.loc[bound, f"mass_{r}"] / bpp.loc[bound, f"mass_{l}"])
@@ -194,7 +245,8 @@ def create_kick_info_from_COMPAS_file(filename):
     """Create a kick_info table from a COMPAS output file
 
     The kick_info table needs the following columns, in this order:
-        star, disrupted, natal_kick, phi, theta, mean_anomaly
+        star, disrupted, natal_kick, phi, theta, mean_anomaly, delta_vsysx_1, delta_vsysy_1,
+        delta_vsysz_1, vsys_1_total, delta_vsysx_2, delta_vsysy_2, delta_vsysz_2, vsys_2_total
 
     Parameters
     ----------
