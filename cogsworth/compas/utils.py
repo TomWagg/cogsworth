@@ -8,7 +8,7 @@ import astropy.constants as const
 __all__ = ["create_bpp_from_COMPAS_files"]
 
 
-def create_bpp_from_COMPAS_files(filename):
+def create_bpp_from_COMPAS_file(filename):
     """Create a COSMIC-like bpp table from a COMPAS output file
 
     This function combines several different COMPAS output tables to create a bpp-like
@@ -243,10 +243,9 @@ def create_bpp_from_COMPAS_files(filename):
 
 def create_kick_info_from_COMPAS_file(filename):
     """Create a kick_info table from a COMPAS output file
-
-    The kick_info table needs the following columns, in this order:
-        star, disrupted, natal_kick, phi, theta, mean_anomaly, delta_vsysx_1, delta_vsysy_1,
-        delta_vsysz_1, vsys_1_total, delta_vsysx_2, delta_vsysy_2, delta_vsysz_2, vsys_2_total
+    
+    This function reads the BSE_Supernovae table from a COMPAS output file and reformats
+    it into a kick_info table similar to that used in COSMIC.
 
     Parameters
     ----------
@@ -258,12 +257,101 @@ def create_kick_info_from_COMPAS_file(filename):
     kick_info : `pandas.DataFrame`
         A DataFrame containing the kick_info table.
     """
+    # open the COMPAS file and read the Supernovae DF
     with h5.File(filename, "r") as f:
         df_dict = {k: f["BSE_Supernovae"][k][...] for k in f["BSE_Supernovae"].keys()}
-        supernovae = pd.DataFrame(df_dict)
-        supernovae.set_index("SEED", inplace=True)
+        sn = pd.DataFrame(df_dict)
+        sn.index = sn["SEED"].values
 
-    return kick_info
+        all_seeds = f["BSE_System_Parameters"]["SEED"][...]
+
+    # determine which star is undergoing the SN
+    sn["star"] = np.where(sn["Supernova_State"] == 1, 1, 2)
+
+    # extract relevant columns
+    proto_kick_info = sn[["star", "Unbound", "Applied_Kick_Magnitude(SN)",
+                          "SN_Kick_Theta(SN)", "SN_Kick_Phi(SN)", "SN_Kick_Mean_Anomaly(SN)",
+                          "VelocityX(SN)", "VelocityY(SN)", "VelocityZ(SN)", "ComponentSpeed(SN)",
+                          "VelocityX(CP)", "VelocityY(CP)", "VelocityZ(CP)", "ComponentSpeed(CP)", "SEED"]]
+
+    # COMPAS reports the total velocity change imparted to each star, but we need to adjust
+    # the values for the second SN so that it's just a *delta* from the first SN as in COSMIC
+    which_kick = proto_kick_info.groupby("SEED").cumcount()
+    first_kicks = proto_kick_info[which_kick == 0]
+    second_kicks = proto_kick_info[which_kick == 1]
+
+    # find any system that had two kicks
+    two_kick_seeds = np.intersect1d(first_kicks["SEED"], second_kicks["SEED"])
+
+    # adjust the second kick velocities to be relative to the first kick
+    # the SN star gets the CP velocity subtracted, the companion gets the SN velocity subtracted since they
+    # swap which star is exploding between the rows
+    SN_VEL_COLS = ["VelocityX(SN)", "VelocityY(SN)", "VelocityZ(SN)"]
+    CP_VEL_COLS = ["VelocityX(CP)", "VelocityY(CP)", "VelocityZ(CP)"]
+    second_kicks.loc[two_kick_seeds, SN_VEL_COLS] -= first_kicks.loc[two_kick_seeds, CP_VEL_COLS].values
+    second_kicks.loc[two_kick_seeds, CP_VEL_COLS] -= first_kicks.loc[two_kick_seeds, SN_VEL_COLS].values
+
+    # recombine the adjusted kicks
+    kick_info = pd.concat([first_kicks, second_kicks]).sort_values("SEED")
+
+    # now the problem is COSMIC wants the kick info in a different format, with star 1 and star 2 columns
+    # rather than SN and CP columns - so we need to rearrange things again
+    NEW_COLS = ["delta_vsysx_1", "delta_vsysy_1", "delta_vsysz_1", "vsys_1_total",
+                     "delta_vsysx_2", "delta_vsysy_2", "delta_vsysz_2", "vsys_2_total"]
+
+    # for default case (star = 1), star 1 gets SN values, star 2 gets CP values
+    kick_info[NEW_COLS] = kick_info[["VelocityX(SN)", "VelocityY(SN)", "VelocityZ(SN)", "ComponentSpeed(SN)",
+                                     "VelocityX(CP)", "VelocityY(CP)", "VelocityZ(CP)", "ComponentSpeed(CP)"]]
+
+    # for star = 2, star 2 gets SN values, star 1 gets CP values
+    is_star_2 = kick_info["star"] == 2
+    kick_info.loc[is_star_2, NEW_COLS] = kick_info.loc[
+        is_star_2,
+        ["VelocityX(CP)", "VelocityY(CP)", "VelocityZ(CP)", "ComponentSpeed(CP)",
+         "VelocityX(SN)", "VelocityY(SN)", "VelocityZ(SN)", "ComponentSpeed(SN)"]
+    ].values
+
+    # rename columns to COSMIC kick_info style
+    kick_info.rename({
+        "Unbound": "disrupted",
+        "Applied_Kick_Magnitude(SN)": "natal_kick",
+        "SN_Kick_Phi(SN)": "theta",                 # <-- this is a purposeful swap to match COSMIC convention
+        "SN_Kick_Theta(SN)": "phi",                 # <-- this is a purposeful swap to match COSMIC convention
+        "SN_Kick_Mean_Anomaly(SN)": "mean_anomaly",
+        "SEED": "bin_num"
+    }, axis=1, inplace=True)
+
+    # drop the extra columns
+    kick_info.drop(columns=["VelocityX(SN)", "VelocityY(SN)", "VelocityZ(SN)", "ComponentSpeed(SN)",
+                            "VelocityX(CP)", "VelocityY(CP)", "VelocityZ(CP)", "ComponentSpeed(CP)"],
+                   inplace=True)
+    # track which systems were kicked (see below)
+    kick_info["WAS_KICKED"] = 1
+
+    # adjust angles to degrees from radians
+    kick_info["phi"] = np.degrees(kick_info["phi"])
+    kick_info["theta"] = np.degrees(kick_info["theta"])
+    kick_info["mean_anomaly"] = np.degrees(kick_info["mean_anomaly"])
+
+    # index kick_info on both the bin_num and star columns
+    kick_info.set_index(["bin_num", "star"], inplace=True)
+    
+    # the full kick_info has TWO rows per binary system, it's just a row of zeros if an SN didn't occur
+    # indices are from the all_seeds list, star are []
+    n_binaries = len(all_seeds)
+    full_index = pd.MultiIndex.from_product([all_seeds, [1, 2]], names=["bin_num", "star"])
+    full_kick_info = pd.DataFrame(np.zeros((n_binaries * 2, len(kick_info.columns))),
+                                  columns=kick_info.columns, index=full_index)
+    # fill in the kick_info rows we have
+    full_kick_info.update(kick_info)
+    full_kick_info.reset_index(inplace=True)
+    full_kick_info.index = full_kick_info["bin_num"].values
+
+    # set star to 0 where WAS_KICKED is 0, drop WAS_KICKED
+    full_kick_info.loc[full_kick_info["WAS_KICKED"] == 0, "star"] = 0
+    full_kick_info.drop(columns=["WAS_KICKED"], inplace=True)
+
+    return full_kick_info
 
 def _get_porb_from_a(a, m1, m2):
     """Calculate the orbital period based on the semi-major axis and stellar masses.
