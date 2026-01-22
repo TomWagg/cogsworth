@@ -38,6 +38,12 @@ def create_bpp_from_COMPAS_file(filename):
                    "SemiMajorAxis", "Eccentricity", "Radius(1)", "Radius(2)", "SEED"]
     INIT_COLS = ["Mass@ZAMS(1)", "Mass@ZAMS(2)", "Eccentricity@ZAMS", "SemiMajorAxis@ZAMS",
                  "Stellar_Type@ZAMS(1)", "Stellar_Type@ZAMS(2)", "Radius@ZAMS(1)", "Radius@ZAMS(2)", "SEED"]
+    INIT_COL_TRANSLATOR = {
+        "Mass@ZAMS(1)": "Mass(1)", "Mass@ZAMS(2)": "Mass(2)", "Eccentricity@ZAMS": "Eccentricity",
+        "SemiMajorAxis@ZAMS": "SemiMajorAxis", "Stellar_Type@ZAMS(1)": "Stellar_Type(1)",
+        "Stellar_Type@ZAMS(2)": "Stellar_Type(2)",
+        "Radius@ZAMS(1)": "Radius(1)", "Radius@ZAMS(2)": "Radius(2)",
+    }
 
     has_subfile = {"BSE_System_Parameters": False, "BSE_Switch_Log": False, "BSE_RLOF": False,
                    "BSE_Common_Envelopes": False, "BSE_Supernovae": False}
@@ -71,14 +77,8 @@ def create_bpp_from_COMPAS_file(filename):
     # ----------------------------------
 
     if has_subfile["BSE_System_Parameters"]:
-        init_col_translator = {
-            "Mass@ZAMS(1)": "Mass(1)", "Mass@ZAMS(2)": "Mass(2)", "Eccentricity@ZAMS": "Eccentricity",
-            "SemiMajorAxis@ZAMS": "SemiMajorAxis", "Stellar_Type@ZAMS(1)": "Stellar_Type(1)",
-            "Stellar_Type@ZAMS(2)": "Stellar_Type(2)",
-            "Radius@ZAMS(1)": "Radius(1)", "Radius@ZAMS(2)": "Radius(2)",
-        }
         # rename columns to look like other tables
-        init = bse_sys[INIT_COLS].rename(init_col_translator, axis=1)
+        init = bse_sys[INIT_COLS].rename(INIT_COL_TRANSLATOR, axis=1)
 
         # convert initial separation to Rsun, use evol_type = 1
         init["SemiMajorAxis"] = init["SemiMajorAxis"].values * u.AU.to(u.Rsun)
@@ -105,43 +105,44 @@ def create_bpp_from_COMPAS_file(filename):
     # --------------------
 
     if has_subfile["BSE_RLOF"]:
-        # split the DF into two, with a row for the start and end of RLOF
+        # first we need to isolate separate episodes of MT. It seems COMPAS can sometimes create *MANY* rows
+        # where the mass transfer gets split up because the rate changes slightly - we only care about
+        # the start and end here
+        rlof.sort_values(["SEED", "Time<MT"], inplace=True)
+        rlof["prev_SEED"] = rlof["SEED"].shift(1, fill_value=-1)
+        rlof["next_SEED"] = rlof["SEED"].shift(-1, fill_value=-1)
+        rlof["prev_Time>MT"] = rlof["Time>MT"].shift(1, fill_value=-1)
+        rlof["next_Time<MT"] = rlof["Time<MT"].shift(-1, fill_value=-1)
+
+        # find rows where MT starts or ends
+        rlof["mt_start"] = (rlof["SEED"] != rlof["prev_SEED"]) | (rlof["Time<MT"] != rlof["prev_Time>MT"])
+        rlof["mt_end"] = (rlof["SEED"] != rlof["next_SEED"]) | (rlof["Time>MT"] != rlof["next_Time<MT"])
+
+        # split the DFs into two, with a row for the start and end of RLOF
         # starting cols are marked with <MT, ending cols with >MT
-        start_cols = [c + "<MT" if c != "SEED" else c for c in BPP_COLUMNS]
-        end_cols = [c + ">MT" if c != "SEED" else c for c in BPP_COLUMNS]
+        start_cols = ([c + "<MT" if c != "SEED" else c for c in BPP_COLUMNS]
+                      + ["Radius(1)|RL<step", "Radius(2)|RL<step"])
+        end_cols = ([c + ">MT" if c != "SEED" else c for c in BPP_COLUMNS]
+                    + ["Radius(1)|RL>step", "Radius(2)|RL>step"])
 
         # grab the start rows, stripping off the <MT suffix, these are evol_type 3
-        mt_start_rows = rlof[start_cols].rename({s: s.replace("<MT", "") for s in start_cols}, axis=1)
+        mt_start_rows = rlof.loc[rlof["mt_start"], start_cols].rename(
+            {s: s.replace("<MT", "") for s in start_cols}
+            | {"Radius(1)|RL<step": "RRLO(1)", "Radius(2)|RL<step": "RRLO(2)"}, axis=1)
         mt_start_rows["evol_type"] = 3
 
         # grab the end rows, stripping off the >MT suffix, these are evol_type 4
-        mt_end_rows = rlof[end_cols].rename({s: s.replace(">MT", "") for s in end_cols}, axis=1)
+        mt_end_rows = rlof.loc[rlof["mt_end"], end_cols].rename(
+            {s: s.replace(">MT", "") for s in end_cols}
+            | {"Radius(1)|RL>step": "RRLO(1)", "Radius(2)|RL>step": "RRLO(2)"}, axis=1)
         mt_end_rows["evol_type"] = 4
 
         # combine the mass transfer start and end rows into a single dataframe
         mt_rows = pd.concat([mt_start_rows, mt_end_rows]).sort_values(["SEED", "Time", "evol_type"],
-                                                                    ascending=[True, True, False])
-
-        # it seems COMPAS can sometimes create *MANY* rows where the mass transfer gets split up because
-        # the rate changes slightly - we want to merge these back together again since we aren't tracking it
-
-        # create previous and next evol_type, SEED, Time columns to identify these cases
-        for col in ["evol_type", "SEED", "Time"]:
-            for prefix, dir in [("prev_", 1), ("next_", -1)]:
-                mt_rows[f"{prefix}{col}"] = mt_rows[col].shift(dir)
-
-        # drop rows where a MT end is immediately followed by a MT start at the same time for the same SEED
-        # this will leave us with just the start and the end of the mass transfer episode
-        same_next = (mt_rows["next_SEED"] == mt_rows["SEED"]) & (mt_rows["next_Time"] == mt_rows["Time"])
-        same_prev = (mt_rows["prev_SEED"] == mt_rows["SEED"]) & (mt_rows["prev_Time"] == mt_rows["Time"])
-
-        restart_after_end = (mt_rows["evol_type"] == 3) & (mt_rows["prev_evol_type"] == 4) & same_prev
-        end_before_restart = (mt_rows["evol_type"] == 4) & (mt_rows["next_evol_type"] == 3) & same_next
-
-        mt_rows = mt_rows[~(restart_after_end | end_before_restart)]
+                                                                      ascending=[True, True, False])
 
         # get rid of those extra columns we just created
-        mt_rows = mt_rows.loc[:, BPP_COLUMNS + ["evol_type"]]
+        mt_rows = mt_rows.loc[:, BPP_COLUMNS + ["evol_type", "RRLO(1)", "RRLO(2)"]]
 
     # ----------------------
     # COMMON-ENVELOPE EVENTS
@@ -232,7 +233,7 @@ def create_bpp_from_COMPAS_file(filename):
     bpp.loc[mask, cols] = bpp.loc[bpp["row_inds"].isin(bpp.loc[mask, cols]["row_inds"] - 1), cols]
 
     # reduce to just the columns we want
-    cols = BPP_COLUMNS + ["evol_type"]
+    cols = BPP_COLUMNS + ["evol_type", "RRLO(1)", "RRLO(2)"]
     bpp = bpp.loc[:, cols]
 
     # delete any duplicate rows that may have been created
@@ -260,17 +261,18 @@ def create_bpp_from_COMPAS_file(filename):
         "Stellar_Type(2)": "kstar_2",
         "SemiMajorAxis": "sep",
         "Eccentricity": "ecc",
-        "RLOF(1)": "RRLO_1",
-        "RLOF(2)": "RRLO_2",
+        "RRLO(1)": "RRLO_1",
+        "RRLO(2)": "RRLO_2",
         "Radius(1)": "rad_1",
         "Radius(2)": "rad_2",
         "SEED": "bin_num"
     }, axis=1, inplace=True)
     
     bpp.loc[~bound, ["RRLO_1", "RRLO_2"]] = [0.0, 0.0]
+    mask = bound & (bpp["RRLO_1"].isna()) & (bpp["RRLO_2"].isna())
     for l, r in [("1", "2"), ("2", "1")]:
-        f_Roche = _calculate_roche_lobe_factor(bpp.loc[bound, f"mass_{r}"] / bpp.loc[bound, f"mass_{l}"])
-        bpp.loc[bound, f"RRLO_{l}"] = bpp.loc[bound, f"rad_{l}"] / (f_Roche * bpp.loc[bound, "sep"])
+        f_Roche = _calculate_roche_lobe_factor(bpp.loc[mask, f"mass_{r}"] / bpp.loc[mask, f"mass_{l}"])
+        bpp.loc[mask, f"RRLO_{l}"] = bpp.loc[mask, f"rad_{l}"] / (f_Roche * bpp.loc[mask, "sep"])
 
     return bpp
 
