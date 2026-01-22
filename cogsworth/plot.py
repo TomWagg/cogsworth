@@ -2,6 +2,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import astropy.units as u
+import pandas as pd
 
 from .utils import kstar_translator, evol_type_translator
 
@@ -213,16 +214,56 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
     """
     # extract the pertinent information from the bpp table
     df = bpp.loc[bin_num][["tphys", "mass_1", "mass_2", "kstar_1", "kstar_2", "porb", "sep",
-                           "evol_type", "RRLO_1", "RRLO_2"]]
+                           "evol_type", "RRLO_1", "RRLO_2"]].copy()
 
     # add some offset kstar columns to tell what type a star *previously* was
     df[["prev_kstar_1", "prev_kstar_2", "prev_evol_type"]] = df.shift(1, fill_value=0)[["kstar_1", "kstar_2",
                                                                                         "evol_type"]]
+    df.reset_index(drop=True, inplace=True)
+    
+    # pre-determine whether you've got primary_rlof, secondary_rlof, common_envelope, or disruption happening
+    # on a given row
+    state = pd.DataFrame(np.zeros((len(df), 5), dtype=bool),
+                         columns=["primary_rlof", "secondary_rlof", "common_envelope",
+                                  "disrupted", "contact"])
+    for i, row in df.iterrows():
+        # if there's a previous row then copy over the previous state
+        if i > 0:
+            state.loc[i] = state.loc[i - 1]
+
+        # use the translators to convert evol_type and kstars
+        et_ind, k1, k2, pk1, pk2 = int(row["evol_type"]), kstar_translator[int(row["kstar_1"])],\
+            kstar_translator[int(row["kstar_2"])], kstar_translator[int(row["prev_kstar_1"])],\
+            kstar_translator[int(row["prev_kstar_2"])]
+        et = evol_type_translator[et_ind]
+
+        # set disrupted, rlof and common-envelope flags are necessary
+        if et_ind == 11 or row["porb"] < 0.0:
+            state.loc[i, "disrupted"] = True
+        if et_ind == 3 and (((row["RRLO_1"] >= 1.0) & (row["kstar_1"] < 13)) | ((row["RRLO_2"] >= 1.0) & (row["kstar_2"] < 13))):
+            state.loc[i, "primary_rlof"] = (row["RRLO_1"] >= 1.0)
+            state.loc[i, "secondary_rlof"] = (row["RRLO_2"] >= 1.0)
+        if et_ind == 4:
+            state.loc[i, "primary_rlof"] = False
+            state.loc[i, "secondary_rlof"] = False
+            state.loc[i, "contact"] = False
+        if et_ind == 5:
+            state.loc[i, "primary_rlof"] = False
+            state.loc[i, "secondary_rlof"] = False
+            state.loc[i, "contact"] = True
+        if et_ind == 7:
+            state.loc[i, "common_envelope"] = True
+        if et_ind == 8:
+            state.loc[i, "common_envelope"] = False
+            state.loc[i, "primary_rlof"] = False
+            state.loc[i, "secondary_rlof"] = False
+
+    # attach state to the df
+    df = pd.concat([df, state], axis=1)
+    df["rlof"] = df["primary_rlof"] | df["secondary_rlof"]
 
     # delete rows where RLOF ends immediately after a CE ends
     df = df[~((df["evol_type"] == 4) & (df["prev_evol_type"] == 8))]
-
-    print(df)
 
     # count the number of evolution steps and start figure with size based on that
     total = len(df)
@@ -231,10 +272,6 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
 
     # instantiate some flags to track state of binary
     i = 0
-    disrupted = False
-    common_envelope = False
-    rlof = False
-    contact = False
 
     min_log10_sep = np.log10(df["sep"][df["sep"] > 0.0].min())
     max_log10_sep = np.log10(df["sep"].max())
@@ -243,14 +280,14 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
     times, row_inds = [], []
     prev_time, rows, j = -1.0, [], 0
     for _, row in df.iterrows():
-        if row["tphys"].round(2) == prev_time:
+        if np.round(row["tphys"], 2) == prev_time:
             rows.append(j)
         else:
             if prev_time >= 0.0:
                 times.append(prev_time)
                 row_inds.append(rows)
             rows = [j]
-            prev_time = row["tphys"].round(2)
+            prev_time = np.round(row["tphys"], 2)
         j += 1
     # append the last set of rows
     times.append(prev_time)
@@ -288,30 +325,6 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
         else:
             sep_modifier, off_s = None, 0.0
 
-        # set disrupted, rlof and common-envelope flags are necessary
-        if et_ind == 11 or row["porb"] < 0.0:
-            disrupted = True
-        if et_ind == 3 and (((row["RRLO_1"] >= 1.0) & (row["kstar_1"] < 13)) | (row["kstar_2"] < 13)):
-            rlof = True
-        if et_ind == 4:
-            rlof = False
-            contact = False
-        if et_ind == 5:
-            rlof = False
-            contact = True
-        if et_ind == 7:
-            common_envelope = True
-        if et_ind == 8:
-            common_envelope = False
-            rlof = False
-
-        if row["RRLO_1"] < 1.0 and row["RRLO_2"] < 1.0:
-            rlof = False
-            common_envelope = False
-            contact = False
-
-        print(et_ind, rlof, common_envelope)
-
         # check if either star is now a massless remnant
         mr_1 = k1["short"] == "MR"
         mr_2 = k2["short"] == "MR"
@@ -330,7 +343,7 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
         ax.annotate(evol_label, xy=(0.5, total - i), va="center", fontsize=0.4*fs*label_fs_mult)
 
         # if we've got a common envelope then draw an ellipse behind the binary
-        if common_envelope:
+        if row["common_envelope"]:
             envelope = mpl.patches.Ellipse(xy=(0, total - i),
                                            width=4 * offset + off_s, height=1.5 + off_s,
                                            facecolor="orange", edgecolor="none", zorder=-1, alpha=0.5)
@@ -364,8 +377,7 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
 
         # otherwise we've got two stars
         else:
-            print("two stars")
-            contact_adjust = 0.25 if contact else 1.0
+            contact_adjust = 0.25 if row["contact"] else 1.0
 
             # plot stars offset from the centre
             ax.scatter(0 - (offset + off_s) * contact_adjust, total - i,
@@ -374,18 +386,20 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
                        color=k2["colour"], s=s_base, zorder=10)
 
             # annotate the mass (with some extra padding if there's RLOF)
-            mass_y_offset = 0.35 if not (rlof and not common_envelope) else 0.5
+            mass_y_offset = 0.35 if not (row["rlof"] and not row["common_envelope"]) else 0.5
             ax.annotate(f'{row["mass_1"]:1.2f} ' + r'$\rm M_{\odot}$',
                         xy=(0 - offset * contact_adjust - off_s, total - i - mass_y_offset),
-                        ha="left" if common_envelope else "center", va="top", fontsize=0.3*fs*mass_fs_mult,
-                        rotation=45 if contact else 0,
+                        ha="left" if row["common_envelope"] else "center", va="top",
+                        fontsize=0.3*fs*mass_fs_mult,
+                        rotation=45 if row["contact"] else 0,
                         bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.7)
                         if et_ind in [15, 16] else None)
             ax.annotate(f'{row["mass_2"]:1.2f} ' + r'$\rm M_{\odot}$',
                         xy=(0 + offset * contact_adjust + off_s, total - i - mass_y_offset),
-                        ha="right" if common_envelope else "center", va="top", fontsize=0.3*fs*mass_fs_mult,
+                        ha="right" if row["common_envelope"] else "center", va="top",
+                        fontsize=0.3*fs*mass_fs_mult,
                         zorder=1000,
-                        rotation=45 if contact else 0,
+                        rotation=45 if row["contact"] else 0,
                         bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.7)
                         if et_ind in [15, 16] else None)
 
@@ -404,7 +418,7 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
                             zorder=10, fontsize=ks_fontsize, fontweight="bold")
 
             # for bound binaries plot a line connecting them
-            if not disrupted or et_ind == 11:
+            if not row["disrupted"] or et_ind == 11:
                 ax.plot([0 - offset * contact_adjust - off_s, 0 + offset * contact_adjust + off_s], [total - i, total - i],
                         linestyle="--", zorder=-1, color="black")
 
@@ -412,19 +426,18 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
                 ax.scatter(0, total - i, marker=(10, 1, 360 / 10 / 2), s=s_base / 2, zorder=-1,
                            facecolor="orange", edgecolor="none", linewidth=1)
 
-            if not disrupted:
+            if not row["disrupted"]:
                 # annotate the line with period, offset to one side if there's RLOF
-                x = 0 if not (rlof and not common_envelope) else (-offset * contact_adjust / 4 if row["RRLO_1"] >= 1.0 else offset * contact_adjust / 4)
+                x = 0 if not (row["rlof"] and not row["common_envelope"]) else (-offset * contact_adjust / 4 if row["primary_rlof"] else offset * contact_adjust / 4)
                 p_lab = f'{row["porb"]:1.2e} days' if row["porb"] > 10000 or row["porb"] < 1\
                     else f'{row["porb"]:1.0f} days'
                 ax.annotate(p_lab, xy=(x, total - i + 0.05), ha="center", va="bottom",
                             fontsize=0.2*fs*porb_fs_mult if row["porb"] > 10000 or row["porb"] < 1 else 0.3*fs*porb_fs_mult)
 
             # for non-common-envelope RLOF, plot a RLOF teardrop in the background
-            if rlof and not common_envelope:
-                print("Starting rlof")
+            if row["rlof"] and not row["common_envelope"]:
                 # flip the shape depending on the direction
-                if row["RRLO_1"] >= 1.0:
+                if row["primary_rlof"]:
                     x, y = _rlof_path((0 - offset / 2.6, total - i), 2 * (offset + off_s),
                                       0.6 * (1 + off_s), flip=False)
                 else:
