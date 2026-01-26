@@ -265,7 +265,7 @@ class Test(unittest.TestCase):
         p.observables
 
         # cheat and make sure at least one binary is bright enough
-        p.observables["G_app_1"].iloc[0] = 18.0
+        p.observables["Gaia_G_EDR3_app_1"].iloc[0] = 18.0
         p.get_gaia_observed_bin_nums(ra="auto", dec="auto")
 
         it_worked = True

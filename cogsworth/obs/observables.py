@@ -237,7 +237,7 @@ def get_photometry(filters, population=None, final_bpp=None, final_pos=None, dis
     Parameters
     ----------
     filters : `list` of `str`
-        Which filters to compute photometry for (e.g. ['J', 'H', 'K', 'G', 'BP', 'RP'])
+        Which filters to compute photometry for (e.g. ['Gaia_G_EDR3', 'Gaia_BP_EDR3', 'Gaia_RP_EDR3'])
     population : :class:`~cogsworth.pop.Population`
         The population for which to compute photometry (either supply this or a final_bpp and final_pos)
     final_bpp : :class:`~pandas.DataFrame`

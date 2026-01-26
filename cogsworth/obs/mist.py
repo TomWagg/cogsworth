@@ -88,12 +88,15 @@ class MISTBolometricCorrectionGrid:
         # find all of the necessary filter sets
         needed_filter_sets = set()
         for band in self.bands:
+            found_it = False
             for filter_set in MIST_FILTER_SETS:
                 if band in MIST_FILTER_SETS[filter_set]:
                     needed_filter_sets.add(filter_set)
+                    found_it = True
                     break
-            
-            raise KeyError(f"band '{band}' not found in any MIST filter set")
+        
+            if not found_it:
+                raise KeyError(f"band '{band}' not found in any MIST filter set")
 
         self.needed_filter_sets = needed_filter_sets
 
