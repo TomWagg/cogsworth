@@ -176,7 +176,7 @@ class MISTBolometricCorrectionGrid:
             )
             dfs.append(df)
 
-        if not dfs:
+        if not dfs:     # pragma: no cover
             raise FileNotFoundError(f"no BC files found in {extract_dir}")
 
         df = pd.concat(dfs, copy=False)
@@ -211,11 +211,6 @@ class MISTBolometricCorrectionGrid:
         return pd.read_hdf(h5_path, key="bc")
     
     def _build_interpolators(self) -> None:
-        # check bands exist
-        missing = [b for b in self.bands if b not in self.bc_grid.columns]
-        if missing:
-            raise KeyError(f"requested bands not found in grid columns: {missing}")
-
         df = self.bc_grid.sort_index()
 
         teff = np.asarray(df.index.get_level_values("Teff").unique(), dtype=float)
