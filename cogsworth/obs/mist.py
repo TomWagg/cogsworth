@@ -9,6 +9,10 @@ import pandas as pd
 from scipy.interpolate import RegularGridInterpolator
 import numpy as np
 
+
+__all__ = ["MISTBolometricCorrectionGrid"]
+
+
 # this is a mapping of photometric systems to the bands available in MIST BC tables
 MIST_FILTER_SETS = {
     "UBVRIplus": [

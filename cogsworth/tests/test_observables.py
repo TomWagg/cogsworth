@@ -1,6 +1,6 @@
 import numpy as np
 import unittest
-import cogsworth.observables as obs
+import cogsworth.obs.observables as obs
 import astropy.units as u
 
 

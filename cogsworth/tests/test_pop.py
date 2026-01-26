@@ -2,7 +2,7 @@ import numpy as np
 import unittest
 import cogsworth.pop as pop
 import cogsworth.sfh as sfh
-import cogsworth.observables as obs
+import cogsworth.obs.observables as obs
 import h5py as h5
 import os
 import pytest

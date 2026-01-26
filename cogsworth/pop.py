@@ -28,7 +28,7 @@ from cogsworth._version import __version__
 from cogsworth.kicks import integrate_orbit_with_events
 from cogsworth.events import identify_events
 from cogsworth.classify import determine_final_classes
-from cogsworth.observables import get_photometry
+from cogsworth.obs.observables import get_photometry
 from cogsworth.tests.optional_deps import check_dependencies
 from cogsworth.plot import plot_cartoon_evolution, plot_galactic_orbit
 from cogsworth.utils import translate_COSMIC_tables, get_default_BSE_settings

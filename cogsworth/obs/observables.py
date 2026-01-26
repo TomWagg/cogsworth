@@ -7,6 +7,7 @@ from copy import copy
 
 import logging
 from cogsworth.tests.optional_deps import check_dependencies
+from cogsworth.obs.mist import MISTBolometricCorrectionGrid
 
 import sys
 import os
@@ -255,12 +256,6 @@ def get_photometry(filters, population=None, final_bpp=None, final_pos=None, dis
     photometry : :class:`~pandas.DataFrame`
         Photometry and extinction information for supplied COSMIC binaries in desired `filters`
     """
-    assert check_dependencies(["isochrones", "nose", "tables"])
-    # HACK around the isochrone import to ignore warnings about Holoview and Multinest
-    logging.getLogger("isochrones").setLevel("ERROR")
-    from isochrones.mist.bc import MISTBolometricCorrectionGrid
-    logging.getLogger("isochrones").setLevel("WARNING")
-
     # check that the input is valid
     if population is None and (final_bpp is None or final_pos is None):
         raise ValueError("Either a population or final_bpp and final_pos must be supplied")
@@ -326,12 +321,12 @@ def get_photometry(filters, population=None, final_bpp=None, final_pos=None, dis
                                        radius=final_bpp[f"rad_{ind}"].values * u.Rsun))
 
         # get the bolometric corrections from MIST isochrones
-        bc["app"][ind - 1] = bc_grid.interp([final_bpp[f"teff_{ind}"].values,
-                                             final_bpp[f"log_g_{ind}"].values,
-                                             FeH, photometry[f"Av_{ind}"]], filters)
-        bc["abs"][ind - 1] = bc_grid.interp([final_bpp[f"teff_{ind}"].values,
-                                             final_bpp[f"log_g_{ind}"].values,
-                                             FeH, np.zeros(len(final_bpp))], filters)
+        bc["app"][ind - 1] = bc_grid.interp(teff=final_bpp[f"teff_{ind}"].values,
+                                            logg=final_bpp[f"log_g_{ind}"].values,
+                                            feh=FeH, av=photometry[f"Av_{ind}"], bands=filters).values
+        bc["abs"][ind - 1] = bc_grid.interp(teff=final_bpp[f"teff_{ind}"].values,
+                                            logg=final_bpp[f"log_g_{ind}"].values,
+                                            feh=FeH, av=np.zeros(len(final_bpp)), bands=filters).values
 
         # calculate the absolute bolometric magnitude and set any BH or massless remnants to invisible
         photometry[f"M_abs_{ind}"] = get_absolute_bol_mag(lum=final_bpp[f"lum_{ind}"].values * u.Lsun)
