@@ -21,6 +21,10 @@ class Test(unittest.TestCase):
         self.assertTrue(h5_path.exists())
 
         grid = mist.MISTBolometricCorrectionGrid(bands=("Gaia_G_EDR3",), rebuild=False)
+        grid.download_filter_set("UBVRIplus")
+        grid.extract_filter_set("UBVRIplus")
+        grid.build_hdf5("UBVRIplus")
+
         self.assertTrue(h5_path.exists())
 
     def test_interpolator(self):
@@ -35,4 +39,9 @@ class Test(unittest.TestCase):
         self.assertTrue(np.allclose(
             grid.interp(teff, logg, feh, av)["Gaia_G_EDR3"].values,
             expected
+        ))
+        
+        self.assertTrue(np.isclose(
+            grid.interp(teff[0], logg[0], feh[0], av[0])["Gaia_G_EDR3"],
+            expected[0]
         ))

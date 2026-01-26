@@ -265,9 +265,6 @@ class MISTBolometricCorrectionGrid:
         - DataFrame if any input is array-like (one row per broadcasted point)
         """
         use_bands = self.bands if bands is None else bands
-        for b in use_bands:
-            if b not in self._interpolators:
-                raise KeyError(f"band '{b}' has no interpolator; available: {tuple(self._interpolators)}")
 
         teff_a = np.asarray(teff, dtype=float)
         logg_a = np.asarray(logg, dtype=float)
