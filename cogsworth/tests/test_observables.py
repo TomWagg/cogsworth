@@ -38,21 +38,21 @@ class Test(unittest.TestCase):
         """Test that it breaks when it should"""
         it_worked = True
         try:
-            obs.get_photometry(filters=["G"])
+            obs.get_photometry(filters=["Gaia_G_EDR3"])
         except ValueError:
             it_worked = False
         self.assertFalse(it_worked)
 
         it_worked = True
         try:
-            obs.get_photometry(filters=["G"], population="dummy")
+            obs.get_photometry(filters=["Gaia_G_EDR3"], population="dummy")
         except ValueError:
             it_worked = False
         self.assertFalse(it_worked)
 
         it_worked = True
         try:
-            obs.get_photometry(filters=["G"], population="dummy", distances="dummy")
+            obs.get_photometry(filters=["Gaia_G_EDR3"], population="dummy", distances="dummy")
         except ValueError:
             it_worked = False
         self.assertFalse(it_worked)

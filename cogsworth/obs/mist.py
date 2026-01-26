@@ -19,7 +19,7 @@ MIST_FILTER_SETS = {
         "Bessell_U", "Bessell_B", "Bessell_V", "Bessell_R", "Bessell_I", "2MASS_J", "2MASS_H", "2MASS_Ks",
         "Kepler_Kp", "Kepler_D51", "Hipparcos_Hp", "Tycho_B", "Tycho_V",
         "Gaia_G_DR2Rev", "Gaia_BP_DR2Rev", "Gaia_RP_DR2Rev", "Gaia_G_MAW", "Gaia_BP_MAWf", "Gaia_BP_MAWb",
-        "Gaia_RP_MAW", "TESS",
+        "Gaia_RP_MAW", "TESS", "Gaia_G_EDR3", "Gaia_BP_EDR3", "Gaia_RP_EDR3"
     ],
     "WISE":["WISE_W1", "WISE_W2", "WISE_W3", "WISE_W4"],
     "CFHT":["CFHT_u", "CFHT_g", "CFHT_r", "CFHT_i_new", "CFHT_i_old", "CFHT_z"],
@@ -87,9 +87,14 @@ class MISTBolometricCorrectionGrid:
 
         # find all of the necessary filter sets
         needed_filter_sets = set()
-        for filter_set in MIST_FILTER_SETS:
-            if any(band in MIST_FILTER_SETS[filter_set] for band in self.bands):
-                needed_filter_sets.add(filter_set)
+        for band in self.bands:
+            for filter_set in MIST_FILTER_SETS:
+                if band in MIST_FILTER_SETS[filter_set]:
+                    needed_filter_sets.add(filter_set)
+                    break
+            
+            raise KeyError(f"band '{band}' not found in any MIST filter set")
+
         self.needed_filter_sets = needed_filter_sets
 
         # load all necessary filter sets and concatenate, keeping only requested bands

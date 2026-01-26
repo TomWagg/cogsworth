@@ -258,9 +258,9 @@ class Test(unittest.TestCase):
             p.observables
         except ValueError:
             pass
-        p.get_observables(filters=["G", "BP", "RP", "J", "H", "K"],
+        p.get_observables(filters=["Gaia_G_EDR3", "Gaia_BP_EDR3", "Gaia_RP_EDR3"],
                           assume_mw_galactocentric=True, ignore_extinction=True)
-        obs.get_photometry(filters=["G", "BP", "RP", "J", "H", "K"], final_bpp=p.final_bpp,
+        obs.get_photometry(filters=["Gaia_G_EDR3", "Gaia_BP_EDR3", "Gaia_RP_EDR3"], final_bpp=p.final_bpp,
                            final_pos=p.final_pos, assume_mw_galactocentric=True, ignore_extinction=True)
         p.observables
 
