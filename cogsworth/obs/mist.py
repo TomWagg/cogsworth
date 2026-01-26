@@ -102,7 +102,7 @@ class MISTBolometricCorrectionGrid:
         self.needed_filter_sets = needed_filter_sets
 
         # load all necessary filter sets and concatenate, keeping only requested bands
-        dfs = [self.load_hdf5(filter_set, build=True) for filter_set in self.needed_filter_sets]
+        dfs = [self.load_hdf5(filter_set) for filter_set in self.needed_filter_sets]
         df_cols = ["Rv", *self.bands]
         bc_grid = pd.concat(dfs, axis=1, copy=False)[df_cols]
         self.bc_grid = bc_grid.loc[:, ~bc_grid.columns.duplicated()]
@@ -206,11 +206,7 @@ class MISTBolometricCorrectionGrid:
         Load a previously-built HDF5 BC grid.
         """
         h5_path = self.cache_dir / f"{filter_set}.h5"
-        if not h5_path.exists() and not self.rebuild:
-            raise FileNotFoundError(
-                f"{h5_path} does not exist; run build_hdf5('{filter_set}') first"
-            )
-        elif not h5_path.exists() and self.rebuild:
+        if not h5_path.exists() or self.rebuild:
             self.build_hdf5(filter_set)
         return pd.read_hdf(h5_path, key="bc")
     

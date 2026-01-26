@@ -10,7 +10,7 @@ class Test(unittest.TestCase):
         it_worked = True
         try:
             grid = mist.MISTBolometricCorrectionGrid(bands=("NOT A BAND",))
-        except ValueError:
+        except KeyError:
             it_worked = False
         self.assertFalse(it_worked)
 
