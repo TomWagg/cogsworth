@@ -4,11 +4,13 @@ from dataclasses import dataclass
 from pathlib import Path
 import tarfile
 
-import pandas as pd
 import requests
+import pandas as pd
+from scipy.interpolate import RegularGridInterpolator
+import numpy as np
 
 # this is a mapping of photometric systems to the bands available in MIST BC tables
-MIST_PHOT_BANDS = {
+MIST_FILTER_SETS = {
     "UBVRIplus": [
         "Bessell_U", "Bessell_B", "Bessell_V", "Bessell_R", "Bessell_I", "2MASS_J", "2MASS_H", "2MASS_Ks",
         "Kepler_Kp", "Kepler_D51", "Hipparcos_Hp", "Tycho_B", "Tycho_V",
@@ -72,14 +74,28 @@ class MISTBolometricCorrectionGrid:
     """
     bands: tuple[str] = ("G", "BP", "RP")
     cache_dir: Path = Path("~/.MIST_bc_grids").expanduser()
+    bounds_error: bool = False
+    fill_value: float | None = np.nan
 
     def __post_init__(self) -> None:
         self.cache_dir = Path(self.cache_dir).expanduser()
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
-    # ------------------
-    # download / extract
-    # ------------------
+        # find all of the necessary filter sets
+        needed_filter_sets = set()
+        for filter_set in MIST_FILTER_SETS:
+            if any(band in MIST_FILTER_SETS[filter_set] for band in self.bands):
+                needed_filter_sets.add(filter_set)
+        self.needed_filter_sets = needed_filter_sets
+
+        # load all necessary filter sets and concatenate, keeping only requested bands
+        dfs = [self.load_hdf5(filter_set, build=True) for filter_set in self.needed_filter_sets]
+        df_cols = ["Rv", *self.bands]
+        bc_grid = pd.concat(dfs, axis=1, copy=False)[df_cols]
+        self.bc_grid = bc_grid.loc[:, ~bc_grid.columns.duplicated()]
+
+        self._build_interpolators()
+
 
     def download_filter_set(self, filter_set: str, *, overwrite: bool = False) -> Path:
         """
@@ -118,10 +134,6 @@ class MISTBolometricCorrectionGrid:
 
         return extract_dir
 
-    # ------------------
-    # ingestion
-    # ------------------
-
     def _iter_data_files(self, folder: Path):
         for p in folder.rglob("*"):
             if p.is_file() and not p.name.startswith("."):
@@ -140,21 +152,23 @@ class MISTBolometricCorrectionGrid:
             with open(fp, "r") as f:
                 for _ in range(5 + 1):
                     header_line = f.readline()
+            names = [s.replace("[Fe/H]", "feh") for s in header_line.strip().lstrip("#").split()]
             df = pd.read_csv(
                 fp,
                 sep="\\s+",
                 comment="#",
                 header=None,
                 engine="python",
-                names=header_line.strip().lstrip("#").split(),
+                names=names,
             )
-            df["__source_file__"] = fp.name
             dfs.append(df)
 
         if not dfs:
             raise FileNotFoundError(f"no BC files found in {extract_dir}")
 
-        return pd.concat(dfs, ignore_index=True, copy=False)
+        df = pd.concat(dfs, copy=False)
+        df.set_index(["Teff", "logg", "feh", "Av"], inplace=True)
+        return df
 
     def build_hdf5(self, filter_set: str, *, overwrite: bool = False) -> Path:
         """
@@ -174,13 +188,103 @@ class MISTBolometricCorrectionGrid:
 
         return h5_path
 
-    def load_hdf5(self, filter_set: str) -> pd.DataFrame:
+    def load_hdf5(self, filter_set: str, build: bool = False) -> pd.DataFrame:
         """
         Load a previously-built HDF5 BC grid.
         """
         h5_path = self.cache_dir / f"{filter_set}.h5"
-        if not h5_path.exists():
+        if not h5_path.exists() and not build:
             raise FileNotFoundError(
                 f"{h5_path} does not exist; run build_hdf5('{filter_set}') first"
             )
+        elif not h5_path.exists() and build:
+            self.build_hdf5(filter_set)
         return pd.read_hdf(h5_path, key="bc")
+    
+    def _build_interpolators(self) -> None:
+        # check bands exist
+        missing = [b for b in self.bands if b not in self.bc_grid.columns]
+        if missing:
+            raise KeyError(f"requested bands not found in grid columns: {missing}")
+
+        df = self.bc_grid.sort_index()
+
+        teff = np.asarray(df.index.get_level_values("Teff").unique(), dtype=float)
+        logg = np.asarray(df.index.get_level_values("logg").unique(), dtype=float)
+        feh = np.asarray(df.index.get_level_values("feh").unique(), dtype=float)
+        av = np.asarray(df.index.get_level_values("Av").unique(), dtype=float)
+
+        teff.sort()
+        logg.sort()
+        feh.sort()
+        av.sort()
+
+        full_index = pd.MultiIndex.from_product(
+            [teff, logg, feh, av],
+            names=["Teff", "logg", "feh", "Av"],
+        )
+        dense = df.reindex(full_index)
+
+        self._grid_axes = (teff, logg, feh, av)
+        self._interpolators: dict[str, RegularGridInterpolator] = {}
+
+        n_teff, n_logg, n_feh, n_av = len(teff), len(logg), len(feh), len(av)
+
+        for band in self.bands:
+            values_1d = dense[band].to_numpy(dtype=float, copy=False)
+            values_4d = values_1d.reshape(n_teff, n_logg, n_feh, n_av)
+
+            self._interpolators[band] = RegularGridInterpolator(
+                self._grid_axes,
+                values_4d,
+                method="linear",
+                bounds_error=getattr(self, "bounds_error", False),
+                fill_value=getattr(self, "fill_value", np.nan),
+            )
+
+
+    def interp(
+        self,
+        teff: float | np.ndarray,
+        logg: float | np.ndarray,
+        feh: float | np.ndarray,
+        av: float | np.ndarray,
+        *,
+        bands: tuple[str, ...] | None = None,
+    ) -> pd.Series | pd.DataFrame:
+        """
+        Interpolate BCs at (Teff, logg, feh, Av) in that order.
+
+        Returns
+        -------
+        - Series if all inputs are scalar
+        - DataFrame if any input is array-like (one row per broadcasted point)
+        """
+        use_bands = self.bands if bands is None else bands
+        for b in use_bands:
+            if b not in self._interpolators:
+                raise KeyError(f"band '{b}' has no interpolator; available: {tuple(self._interpolators)}")
+
+        teff_a = np.asarray(teff, dtype=float)
+        logg_a = np.asarray(logg, dtype=float)
+        feh_a = np.asarray(feh, dtype=float)
+        av_a = np.asarray(av, dtype=float)
+
+        teff_b, logg_b, feh_b, av_b = np.broadcast_arrays(teff_a, logg_a, feh_a, av_a)
+        n = teff_b.size
+
+        pts = np.column_stack([
+            teff_b.reshape(n),
+            logg_b.reshape(n),
+            feh_b.reshape(n),
+            av_b.reshape(n),
+        ])
+
+        out = {b: self._interpolators[b](pts) for b in use_bands}
+
+        # scalar -> Series
+        if teff_b.shape == () and logg_b.shape == () and feh_b.shape == () and av_b.shape == ():
+            return pd.Series({b: float(out[b]) for b in use_bands})
+
+        # vectorised -> DataFrame
+        return pd.DataFrame(out)
