@@ -80,6 +80,7 @@ class MISTBolometricCorrectionGrid:
     cache_dir: Path = Path("~/.MIST_bc_grids").expanduser()
     bounds_error: bool = False
     fill_value: float | None = np.nan
+    rebuild: bool = False
 
     def __post_init__(self) -> None:
         self.cache_dir = Path(self.cache_dir).expanduser()
@@ -109,13 +110,13 @@ class MISTBolometricCorrectionGrid:
         self._build_interpolators()
 
 
-    def download_filter_set(self, filter_set: str, *, overwrite: bool = False) -> Path:
+    def download_filter_set(self, filter_set: str) -> Path:
         """
         Download the MIST BC tarball for a given filter set (e.g. 'LSST').
         """
         tarball_path = self.cache_dir / f"{filter_set}.txz"
 
-        if tarball_path.exists() and not overwrite:
+        if tarball_path.exists() and not self.rebuild:
             return tarball_path
 
         url = f"https://waps.cfa.harvard.edu/MIST/BC_tables/{filter_set}.txz"
@@ -129,17 +130,17 @@ class MISTBolometricCorrectionGrid:
 
         return tarball_path
 
-    def extract_filter_set(self, filter_set: str, *, overwrite: bool = False) -> Path:
+    def extract_filter_set(self, filter_set: str) -> Path:
         """
         Extract a downloaded tarball into a subdirectory of cache_dir.
         """
         extract_dir = self.cache_dir / filter_set
         extract_dir.mkdir(parents=True, exist_ok=True)
 
-        if not overwrite and any(extract_dir.iterdir()):
+        if not self.rebuild and any(extract_dir.iterdir()):
             return extract_dir
 
-        tarball_path = self.download_filter_set(filter_set, overwrite=overwrite)
+        tarball_path = self.download_filter_set(filter_set)
 
         with tarfile.open(tarball_path, mode="r:*") as tf:
             tf.extractall(path=extract_dir)
@@ -182,13 +183,13 @@ class MISTBolometricCorrectionGrid:
         df.set_index(["Teff", "logg", "feh", "Av"], inplace=True)
         return df
 
-    def build_hdf5(self, filter_set: str, *, overwrite: bool = False) -> Path:
+    def build_hdf5(self, filter_set: str) -> Path:
         """
         Build (or rebuild) a single HDF5 file for a filter set.
         """
         h5_path = self.cache_dir / f"{filter_set}.h5"
 
-        if h5_path.exists() and not overwrite:
+        if h5_path.exists() and not self.rebuild:
             return h5_path
 
         df = self.read_filter_set(filter_set)
@@ -200,16 +201,16 @@ class MISTBolometricCorrectionGrid:
 
         return h5_path
 
-    def load_hdf5(self, filter_set: str, build: bool = False) -> pd.DataFrame:
+    def load_hdf5(self, filter_set: str) -> pd.DataFrame:
         """
         Load a previously-built HDF5 BC grid.
         """
         h5_path = self.cache_dir / f"{filter_set}.h5"
-        if not h5_path.exists() and not build:
+        if not h5_path.exists() and not self.rebuild:
             raise FileNotFoundError(
                 f"{h5_path} does not exist; run build_hdf5('{filter_set}') first"
             )
-        elif not h5_path.exists() and build:
+        elif not h5_path.exists() and self.rebuild:
             self.build_hdf5(filter_set)
         return pd.read_hdf(h5_path, key="bc")
     

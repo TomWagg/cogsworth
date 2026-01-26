@@ -231,7 +231,8 @@ def get_extinction(coords):     # pragma: no cover
 
 
 def get_photometry(filters, population=None, final_bpp=None, final_pos=None, distances=None,
-                   ignore_extinction=False, assume_mw_galactocentric=False):
+                   ignore_extinction=False, assume_mw_galactocentric=False,
+                   main_filter=None):
     """Computes photometry subject to dust extinction using the MIST boloemtric correction grid
 
     Parameters
@@ -250,6 +251,9 @@ def get_photometry(filters, population=None, final_bpp=None, final_pos=None, dis
         will be set to `np.inf` for ease of masking.
     ignore_extinction : `bool`
         Whether to ignore extinction
+    main_filter : `str`
+        The main filter to use for calculating which star is observed as the brighter one
+
 
     Returns
     -------
@@ -263,6 +267,7 @@ def get_photometry(filters, population=None, final_bpp=None, final_pos=None, dis
         raise ValueError("Must supply either distances or have `assume_mw_galactocentric=True`")
     if not ignore_extinction and not assume_mw_galactocentric:
         raise ValueError("Cannot calculate extinction due to dust without `assume_mw_galactocentric=True`")
+    main_filter = filters[0] if main_filter is None else main_filter
 
     if population is not None:
         final_bpp = population.final_bpp
@@ -356,7 +361,7 @@ def get_photometry(filters, population=None, final_bpp=None, final_pos=None, dis
                 photometry.loc[disrupted, f"{filter}_{mag_type}_{ind}"] = filter_mags[ind - 1][disrupted]
 
             # for the G filter in particular, see which temperature/log-g is getting measured
-            if filter == "G" and mag_type == "app":
+            if filter == main_filter and mag_type == "app":
                 # by default assume the primary is dominant
                 photometry["teff_obs"] = final_bpp["teff_1"].values
                 photometry["log_g_obs"] = final_bpp["log_g_1"].values
