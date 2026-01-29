@@ -4,6 +4,11 @@ Full changelog
 
 This page tracks all of the changes that have been made to ``cogsworth``. We follow the standard versioning convention of A.B.C, where C is a patch/bugfix, B is a large bugfix or new feature and A is a major new breaking change. B/C are backwards compatible but A changes may be breaking.
 
+3.5.2
+=====
+- Enhancement: Allow users to specify a directory for saving bad orbits when integrating populations by adding an `error_file_path` argument to the Population class. If set, bad orbits will be saved to this directory instead of the current working directory. If set to None, bad orbits will not be saved. This provides more flexibility in managing output files.
+
+
 3.5.1
 =====
 - Enhancement: Avoid pickling static arguments unnecessarily when evolving orbits, this should speed things up and reduce memory usage.
