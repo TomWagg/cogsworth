@@ -12,6 +12,28 @@ __all__ = ["COMPASPopulation"]
 
 
 class COMPASPopulation(Population):
+    """A Population class which uses COMPAS to perform binary stellar evolution instead of COSMIC
+    
+    This class extends the generic Population class to use COMPAS as the binary stellar evolution
+    engine. It requires a COMPAS installation to be available.
+
+    Parameters
+    ----------
+    n_binaries : int
+        The number of binaries to simulate
+    config_file : str, optional
+        The path to the COMPAS configuration file to use. If None, a default config file included with
+        cogsworth is used.
+    logfile_definitions : str, optional
+        The path to the COMPAS logfile definitions file to use. If None, a default logfile definitions file
+        included with cogsworth is used.
+        TODO: list which columns are necessary
+    output_directory : str, optional
+        The directory to output the COMPAS results to. If the directory already exists, a suffix
+        _1, _2 etc. will be appended to create a new directory. By default, "./COMPAS_Output" is used.
+    **kwargs : dict
+        Additional keyword arguments to pass to the Population class constructor
+    """
     def __init__(self, n_binaries, config_file=None, logfile_definitions=None,
                  output_directory="./COMPAS_Output", **kwargs):
         # set to the default file, which is in the same directory as this file
@@ -40,6 +62,24 @@ class COMPASPopulation(Population):
 
     @classmethod
     def from_COMPAS_output(cls, compas_output_file, lookback_times=None, **kwargs):
+        """Create a COMPASPopulation from an existing COMPAS output file
+
+        This class method creates a COMPASPopulation object from an existing COMPAS output file which has
+        already been generated with COMPAS. The initial binaries, BPP and kick information are read from the
+        output file.
+
+        Parameters
+        ----------
+        compas_output_file : str
+            The path to the COMPAS output file (HDF5 format)
+        lookback_times : array-like, optional
+            An array of lookback times (in Myr) to use for each binary when reading the initial conditions.
+            If None, the maximum evolution times stored in the COMPAS output file are used (found in the
+            PO_Max_Evolution_Time column). If that column is not present, a warning is issued and a default
+            of 13.7 Gyr is assumed for all systems.
+        **kwargs : dict
+            Additional keyword arguments to pass to the COMPASPopulation constructor
+        """
         initial_binaries = get_initial_binaries(compas_output_file, tphysf=lookback_times)
         pop = cls(n_binaries=len(initial_binaries), **kwargs)
         pop._initial_binaries = initial_binaries
@@ -53,7 +93,13 @@ class COMPASPopulation(Population):
     #                     output_directory="./COMPAS_Output", **kwargs):
 
     def initial_binaries_to_gridfile(self, grid_filename):
-        """Write the initial conditions to a COMPAS grid file"""
+        """Write the initial binaries to a COMPAS grid file
+        
+        Parameters
+        ----------
+        grid_filename : str
+            The path to the grid file to write the initial binaries to
+        """
         with open(grid_filename, "w") as f:
             f.write('\n'.join(self.initial_binaries.apply(_stringify_initC, axis=1).values))
 
@@ -91,7 +137,7 @@ class COMPASPopulation(Population):
         self._initC = self.initial_binaries
 
     def to_Population(self):
-        """Convert this COMPASPopulation to a generic Population object"""
+        """Convert this COMPASPopulation to a generic Population object that uses COSMIC"""
         pop = Population(self.n_binaries, processes=self.processes, use_default_BSE_settings=True)
         attrs_to_copy = ["n_binaries", "n_binaries_match", "processes", "final_kstar1", "final_kstar2",
                          "sfh_model", "sfh_params", "galactic_potential", "v_dispersion", "max_ev_time",
@@ -107,6 +153,7 @@ class COMPASPopulation(Population):
 
 
 def _stringify_initC(df):
+    """Convert a row of the initial conditions dataframe to a COMPAS grid file line string"""
     return " ".join([
         f'--initial-mass-1 {df["mass_1"]}',
         f'--initial-mass-2 {df["mass_2"]}',
