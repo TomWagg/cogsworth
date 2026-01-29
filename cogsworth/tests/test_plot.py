@@ -12,11 +12,15 @@ class Test(unittest.TestCase):
         p.sample_initial_binaries()
         p.perform_stellar_evolution()
 
-        p._observables = pd.DataFrame({"G_abs_1": np.ones(len(p)), "BP_app_1": np.ones(len(p)),
-                                       "RP_app_1": np.ones(len(p)),
-                                       "G_abs_2": np.ones(len(p)), "BP_app_2": np.ones(len(p)),
-                                       "RP_app_2": np.ones(len(p)),
-                                       "secondary_brighter": np.zeros(len(p)).astype(bool)})
+        p._observables = pd.DataFrame({
+            "Gaia_G_EDR3_abs_1": np.ones(len(p)),
+            "Gaia_BP_EDR3_app_1": np.ones(len(p)),
+            "Gaia_RP_EDR3_app_1": np.ones(len(p)),
+            "Gaia_G_EDR3_abs_2": np.ones(len(p)),
+            "Gaia_BP_EDR3_app_2": np.ones(len(p)),
+            "Gaia_RP_EDR3_app_2": np.ones(len(p)),
+            "secondary_brighter": np.zeros(len(p)).astype(bool)
+        })
         cogsworth.plot.plot_cmd(p, show=False)
         plt.close('all')
 
