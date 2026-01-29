@@ -807,7 +807,7 @@ class Population():
         -------
         observables : :class:`~pandas.DataFrame`
             The observable properties of each binary. Columns are defined in
-            :func:`~cogsworth.observables.get_observables`.
+            :func:`~cogsworth.obs.observables.get_observables`.
 
         Raises
         ------
@@ -1261,7 +1261,7 @@ class Population():
 
         Parameters
         ----------
-        **kwargs to pass to :func:`~cogsworth.observables.get_photometry`
+        **kwargs to pass to :func:`~cogsworth.obs.observables.get_photometry`
         """
         self.__citations__.extend(["MIST", "MESA", "bayestar2019"])
         self._observables = get_photometry(population=self, **kwargs)
