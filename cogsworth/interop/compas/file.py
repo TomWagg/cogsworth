@@ -4,6 +4,7 @@ import numpy as np
 import astropy.units as u
 import astropy.constants as const
 from cosmic.sample import InitialBinaryTable
+import logging
 
 
 __all__ = ["get_initial_binaries", "get_bpp", "get_kick_info"]
@@ -21,33 +22,54 @@ INIT_COL_TRANSLATOR = {
 }
 
 
-def get_initial_binaries(filename):
+def get_initial_binaries(filename, tphysf=None):
     # open the COMPAS file and read DF
     with h5.File(filename, "r") as f:
         bse_sys = pd.DataFrame({k: f["BSE_System_Parameters"][k][...]
                                 for k in f["BSE_System_Parameters"].keys()})
         bse_sys.index = bse_sys["SEED"].values
+
+    REQ_COLS = ["Mass@ZAMS(1)", "Mass@ZAMS(2)", "Eccentricity@ZAMS", "SemiMajorAxis@ZAMS",
+                "Stellar_Type@ZAMS(1)", "Stellar_Type@ZAMS(2)", "Metallicity@ZAMS(1)", "SEED"]
+    missing_cols = [col for col in REQ_COLS if col not in bse_sys.columns]
+    if missing_cols:
+        raise ValueError(
+            f"Input COMPAS file is missing required columns for initial binaries: {missing_cols}"
+        )
     
-    # rename columns to look like other tables
-    init = bse_sys[INIT_COLS].rename(INIT_COL_TRANSLATOR, axis=1)
+    if "PO_Max_Evolution_Time" not in bse_sys.columns and tphysf is None:
+        logging.getLogger("cogsworth").warning(
+            "cogsworth warning: PO_Max_Evolution_Time not found in COMPAS output, and no lookback times"
+            "/tphysf provided. Assuming default of 13.7 Gyr for all systems."
+        )
+        tphysf = 13700.0
+    elif "PO_Max_Evolution_Time" in bse_sys.columns and tphysf is None:
+        tphysf = bse_sys["PO_Max_Evolution_Time"].values
 
     # convert initial separation to Rsun, use evol_type = 1
-    init["SemiMajorAxis"] = init["SemiMajorAxis"].values * u.AU.to(u.Rsun)  
+    bse_sys["SemiMajorAxis@ZAMS"] = bse_sys["SemiMajorAxis@ZAMS"].values * u.AU.to(u.Rsun)
+    bse_sys["porb@ZAMS"] = _get_porb_from_a(
+        bse_sys["SemiMajorAxis@ZAMS"].values,
+        bse_sys["Mass@ZAMS(1)"].values,
+        bse_sys["Mass@ZAMS(2)"].values
+    )
 
-    # initial_binaries = InitialBinaryTable.InitialBinaries(
-    #     m1
+    tphysf = np.full(len(bse_sys), tphysf) if np.isscalar(tphysf) else tphysf
 
-    #     m1=[85.543645, 11.171469], m2=[84.99784, 6.67305],
+    initial_binaries = InitialBinaryTable.InitialBinaries(
+        m1=bse_sys["Mass@ZAMS(1)"].values,
+        m2=bse_sys["Mass@ZAMS(2)"].values,
+        porb=bse_sys["porb@ZAMS"].values,
+        ecc=bse_sys["Eccentricity@ZAMS"].values,
+        tphysf=tphysf,
+        kstar1=bse_sys["Stellar_Type@ZAMS(1)"].values,
+        kstar2=bse_sys["Stellar_Type@ZAMS(2)"].values,
+        metallicity=bse_sys["Metallicity@ZAMS(1)"].values
+    )
+    initial_binaries.index = bse_sys["SEED"].values
+    initial_binaries["bin_num"] = bse_sys["SEED"].values
 
-    #                                             porb=[446.795757, 170.758343], ecc=[0.448872, 0.370],
-
-    #                                             tphysf=[13700.0, 13700.0],
-
-    #                                             kstar1=[1, 1], kstar2=[1, 1],
-
-    #                                             metallicity=[0.002, 0.02])
-    
-    return 
+    return initial_binaries
 
 
 def get_bpp(filename):

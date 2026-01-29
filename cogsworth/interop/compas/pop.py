@@ -3,9 +3,9 @@ import subprocess
 import tempfile
 import os
 
-from ..pop import Population
+from ...pop import Population
 from .runner import pythonProgramOptions as COMPAS_command_creator
-from .file import get_bpp, get_kick_info
+from .file import get_bpp, get_kick_info, get_initial_binaries
 
 
 __all__ = ["COMPASPopulation"]
@@ -39,13 +39,12 @@ class COMPASPopulation(Population):
         super().__init__(n_binaries=n_binaries, **kwargs)
 
     @classmethod
-    def from_COMPAS_output(cls, compas_output_file, **kwargs):
-        bpp = get_bpp(compas_output_file)
-        kick_info = get_kick_info(compas_output_file)
-        n_binaries = len(bpp["bin_num"].unique())
-        pop = cls(n_binaries=n_binaries, **kwargs)
-        pop._bpp = bpp
-        pop._kick_info = kick_info
+    def from_COMPAS_output(cls, compas_output_file, lookback_times=None, **kwargs):
+        initial_binaries = get_initial_binaries(compas_output_file, tphysf=lookback_times)
+        pop = cls(n_binaries=len(initial_binaries), **kwargs)
+        pop._initial_binaries = initial_binaries
+        pop._bpp = get_bpp(compas_output_file)
+        pop._kick_info = get_kick_info(compas_output_file)
         pop.output_directory = os.path.dirname(compas_output_file)
         return pop
 
