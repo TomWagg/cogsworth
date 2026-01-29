@@ -1178,27 +1178,37 @@ class Population():
 
         # if there are any bad orbits then warn the user and remove them from the population
         if any(bad_orbits):             # pragma: no cover
-            warnings.warn(f"{bad_orbits.sum()} bad orbit(s) detected, removing them from the population" +
-                          " (initial conditions for these systems were saved to `bad_orbits.h5` file)")
+            # start a warning message
             bad_bin_nums = np.concatenate((self.bin_nums, self.bin_nums[self.disrupted]))[bad_orbits]
+            warning_message = (
+                f"cogsworth warning: {bad_orbits.sum()} orbit(s) failed numerical integration, removing them."
+                " This can occur due to NaNs in stellar evolution or extreme orbits that Gala cannot handle."
+            )
 
-            # decide on file name (avoid overwriting existing file)
-            file_num = 1
-            file_name = "bad_orbits.h5"
-            while os.path.exists(file_name):
-                file_name = f"bad_orbits_{file_num}.h5"
-                file_num += 1
+            # if we're going to save them then find a file name
+            if self.error_file_path is not None:
+                # decide on file name (avoid overwriting existing file)
+                file_num = 1
+                file_name = os.path.join(self.error_file_path, "bad_orbits.h5")
+                while os.path.exists(file_name):
+                    file_name = os.path.join(self.error_file_path, f"bad_orbits_{file_num}.h5")
+                    file_num += 1
 
-            # save the bad orbits population
-            self.initC.loc[bad_bin_nums].to_hdf(file_name, key="initC")
-            self.bpp.loc[bad_bin_nums].to_hdf(file_name, key="bpp")
-            self.kick_info.loc[bad_bin_nums].to_hdf(file_name, key="kick_info")
-            self.initial_galaxy[np.isin(self.bin_nums, bad_bin_nums)].save(file_name, key="sfh")
+                # save the bad orbits population
+                self.initC.loc[bad_bin_nums].to_hdf(file_name, key="initC")
+                self.bpp.loc[bad_bin_nums].to_hdf(file_name, key="bpp")
+                self.kick_info.loc[bad_bin_nums].to_hdf(file_name, key="kick_info")
+                self.initial_galaxy[np.isin(self.bin_nums, bad_bin_nums)].save(file_name, key="sfh")
+        
+                warning_message += f" Information for these systems was saved to `{file_name}`."
+                warning_message += " This includes their initC, bpp, kick_info, and initial galaxy objects."
+            logging.getLogger("cogsworth").warning(warning_message)
 
             # mask them out from the main population
             new_self = self[~np.isin(self.bin_nums, bad_bin_nums)]
             self.__dict__.update(new_self.__dict__)
 
+            # also mask them out from the orbits
             orbits = np.array(orbits, dtype="object")[~bad_orbits]
 
         self._orbits = np.array(orbits, dtype="object")
