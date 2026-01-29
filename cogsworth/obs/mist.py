@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import tarfile
+import logging
 
 import requests
 import pandas as pd
@@ -78,8 +79,6 @@ class MISTBolometricCorrectionGrid:
     """
     bands: tuple[str] = ("G", "BP", "RP")
     cache_dir: Path = Path("~/.MIST_bc_grids").expanduser()
-    bounds_error: bool = False
-    fill_value: float | None = np.nan
     rebuild: bool = False
 
     def __post_init__(self) -> None:
@@ -242,8 +241,6 @@ class MISTBolometricCorrectionGrid:
                 self._grid_axes,
                 values_4d,
                 method="linear",
-                bounds_error=getattr(self, "bounds_error", False),
-                fill_value=getattr(self, "fill_value", np.nan),
             )
 
 
@@ -253,8 +250,8 @@ class MISTBolometricCorrectionGrid:
         logg: float | np.ndarray,
         feh: float | np.ndarray,
         av: float | np.ndarray,
-        *,
         bands: tuple[str, ...] | None = None,
+        silence_bounds_warning: bool = False,
     ) -> pd.Series | pd.DataFrame:
         """
         Interpolate BCs at (Teff, logg, feh, Av) in that order.
@@ -274,6 +271,31 @@ class MISTBolometricCorrectionGrid:
         teff_b, logg_b, feh_b, av_b = np.broadcast_arrays(teff_a, logg_a, feh_a, av_a)
         n = teff_b.size
 
+        # warn the user if any points are out of bounds
+        teff_min, teff_max = self._grid_axes[0][0], self._grid_axes[0][-1]
+        logg_min, logg_max = self._grid_axes[1][0], self._grid_axes[1][-1]
+        feh_min, feh_max = self._grid_axes[2][0], self._grid_axes[2][-1]
+        av_min, av_max = self._grid_axes[3][0], self._grid_axes[3][-1]
+
+        if not silence_bounds_warning:
+            for var, label, min_val, max_val in [
+                (teff_b, "Teff", teff_min, teff_max),
+                (logg_b, "logg", logg_min, logg_max),
+                (feh_b, "feh", feh_min, feh_max),
+                (av_b, "Av", av_min, av_max),
+            ]:
+                n_out_of_bounds = ((var < min_val) | (var > max_val)).sum()
+                if n_out_of_bounds > 0:
+                    logging.getLogger("cogsworth").warning(
+                        f"cogsworth warning: {n_out_of_bounds} out of bounds points for {label} when "
+                        f"interpolating MIST BCs (valid range: {min_val} to {max_val}). Clipping to bounds."
+                    )
+
+        teff_b = np.clip(teff_b, teff_min, teff_max)
+        logg_b = np.clip(logg_b, logg_min, logg_max)
+        feh_b = np.clip(feh_b, feh_min, feh_max)
+        av_b = np.clip(av_b, av_min, av_max)
+                    
         pts = np.column_stack([
             teff_b.reshape(n),
             logg_b.reshape(n),

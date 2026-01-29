@@ -232,7 +232,7 @@ def get_extinction(coords):     # pragma: no cover
 
 def get_photometry(filters, population=None, final_bpp=None, final_pos=None, distances=None,
                    ignore_extinction=False, assume_mw_galactocentric=False,
-                   main_filter=None):
+                   main_filter=None, silence_bounds_warning=False):
     """Computes photometry subject to dust extinction using the MIST boloemtric correction grid
 
     Parameters
@@ -251,8 +251,12 @@ def get_photometry(filters, population=None, final_bpp=None, final_pos=None, dis
         will be set to `np.inf` for ease of masking.
     ignore_extinction : `bool`
         Whether to ignore extinction
+    assume_mw_galactocentric : `bool`
+        Whether to assume the population positions/distances are in the Milky Way galactocentric frame
     main_filter : `str`
         The main filter to use for calculating which star is observed as the brighter one
+    silence_bounds_warning : `bool`
+        Whether to silence the out-of-bounds warning from the MIST bolometric correction grid
 
 
     Returns
@@ -328,10 +332,12 @@ def get_photometry(filters, population=None, final_bpp=None, final_pos=None, dis
         # get the bolometric corrections from MIST isochrones
         bc["app"][ind - 1] = bc_grid.interp(teff=final_bpp[f"teff_{ind}"].values,
                                             logg=final_bpp[f"log_g_{ind}"].values,
-                                            feh=FeH, av=photometry[f"Av_{ind}"], bands=filters).values
+                                            feh=FeH, av=photometry[f"Av_{ind}"], bands=filters,
+                                            silence_bounds_warning=silence_bounds_warning).values
         bc["abs"][ind - 1] = bc_grid.interp(teff=final_bpp[f"teff_{ind}"].values,
                                             logg=final_bpp[f"log_g_{ind}"].values,
-                                            feh=FeH, av=np.zeros(len(final_bpp)), bands=filters).values
+                                            feh=FeH, av=np.zeros(len(final_bpp)), bands=filters,
+                                            silence_bounds_warning=silence_bounds_warning).values
 
         # calculate the absolute bolometric magnitude and set any BH or massless remnants to invisible
         photometry[f"M_abs_{ind}"] = get_absolute_bol_mag(lum=final_bpp[f"lum_{ind}"].values * u.Lsun)
