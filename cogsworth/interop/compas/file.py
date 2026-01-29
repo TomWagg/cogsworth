@@ -23,6 +23,27 @@ INIT_COL_TRANSLATOR = {
 
 
 def get_initial_binaries(filename, tphysf=None):
+    """Create an InitialBinaries table from a COMPAS output file
+
+    This function reads the BSE_System_Parameters table from a COMPAS output file and requires that the
+    following columns are present: Mass@ZAMS(1), Mass@ZAMS(2), Eccentricity@ZAMS, SemiMajorAxis@ZAMS,
+    Stellar_Type@ZAMS(1), Stellar_Type@ZAMS(2), Metallicity@ZAMS(1), SEED.
+
+    Parameters
+    ----------
+    filename : `str`
+        Path to the COMPAS output file in HDF5 format.
+    tphysf : `array-like` or `float`, optional
+        An array of lookback times (in Myr) to use for each binary when reading the initial conditions.
+        If None, the maximum evolution times stored in the COMPAS output file are used (found in the
+        PO_Max_Evolution_Time column). If that column is not present, a warning is issued and a default
+        of 13.7 Gyr is assumed for all systems.
+
+    Returns
+    -------
+    initial_binaries : `cosmic.sample.InitialBinaryTable.InitialBinaries`
+        An InitialBinaries table containing the initial binary parameters.
+    """
     # open the COMPAS file and read DF
     with h5.File(filename, "r") as f:
         bse_sys = pd.DataFrame({k: f["BSE_System_Parameters"][k][...]

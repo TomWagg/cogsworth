@@ -79,6 +79,11 @@ class COMPASPopulation(Population):
             of 13.7 Gyr is assumed for all systems.
         **kwargs : dict
             Additional keyword arguments to pass to the COMPASPopulation constructor
+
+        Returns
+        -------
+        pop : `~cogsworth.interop.compas.COMPASPopulation`
+            The COMPASPopulation object created from the COMPAS output file
         """
         initial_binaries = get_initial_binaries(compas_output_file, tphysf=lookback_times)
         pop = cls(n_binaries=len(initial_binaries), **kwargs)
