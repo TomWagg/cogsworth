@@ -29,6 +29,11 @@ jobs:
       with:
         path: ~/.gaiaunlimited
         key: gaiaunlimited-data
+    - name: Cache MIST data
+      uses: actions/cache@v4
+      with:
+        path: ~/.MIST_bc_grids
+        key: mist-bc-grids-data
     - name: Install dependencies
       run: |
         sudo apt-get update
