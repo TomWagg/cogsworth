@@ -1,7 +1,6 @@
-import matplotlib.pyplot as plt
-import matplotlib as mpl
 import numpy as np
-from copy import copy
+from importlib.resources import files
+import json
 
 
 __all__ = ["kstar_translator", "evol_type_translator", "default_BSE_settings",
@@ -67,29 +66,21 @@ evol_type_translator = [
 ]
 
 
-default_BSE_settings = {'xi': 1.0, 'bhflag': 1, 'neta': 0.5, 'windflag': 3, 'wdflag': 1, 'alpha1': 1.0,
-                        'pts1': 0.001, 'pts3': 0.02, 'pts2': 0.01, 'epsnov': 0.001, 'hewind': 0.5,
-                        'ck': 1000, 'bwind': 0.0, 'lambdaf': 0.0, 'mxns': 3.0, 'beta': -1.0, 'tflag': 1,
-                        'acc2': 1.5, 'grflag': 1, 'remnantflag': 4, 'ceflag': 0, 'eddfac': 1.0,
-                        'ifflag': 0, 'bconst': 3000, 'sigma': 265.0, 'gamma': -2.0, 'pisn': 45.0,
-                        'natal_kick_array': [[-100.0, -100.0, -100.0, -100.0, 0.0],
-                                             [-100.0, -100.0, -100.0, -100.0, 0.0]], 'bhsigmafrac': 1.0,
-                        'polar_kick_angle': 90, 'qcrit_array': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                                                                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-                        'cekickflag': 2, 'cehestarflag': 0, 'cemergeflag': 0, 'ecsn': 2.25,
-                        'ecsn_mlow': 1.6, 'aic': 1, 'ussn': 0, 'sigmadiv': -20.0, 'qcflag': 5,
-                        'eddlimflag': 0, 'fprimc_array': [2.0/21.0, 2.0/21.0, 2.0/21.0, 2.0/21.0,
-                                                          2.0/21.0, 2.0/21.0, 2.0/21.0, 2.0/21.0,
-                                                          2.0/21.0, 2.0/21.0, 2.0/21.0, 2.0/21.0,
-                                                          2.0/21.0, 2.0/21.0, 2.0/21.0, 2.0/21.0],
-                        'bhspinflag': 0, 'bhspinmag': 0.0, 'rejuv_fac': 1.0, 'rejuvflag': 0, 'htpmb': 1,
-                        'ST_cr': 1, 'ST_tide': 1, 'bdecayfac': 1, 'rembar_massloss': 0.5, 'kickflag': 5,
-                        'zsun': 0.014, 'bhms_coll_flag': 0, 'don_lim': -1, 'acc_lim': -1, 'binfrac': 1.0,
-                        'rtmsflag': 0, 'wd_mass_lim': 1}
-
-
 def get_default_BSE_settings():
-    return copy(default_BSE_settings)
+    """Get a copy of the default BSE settings from the COSMIC settings JSON file"""
+    cosmic_settings = json.loads((files("cosmic") / "data" / "cosmic-settings.json").read_text())
+    defaults = {}
+    # loop through settings to find bse
+    for cat in cosmic_settings:
+        if cat["category"] != "bse":
+            continue
+        
+        # go through each setting, finding the default option
+        for setting in cat["settings"]:
+            for option in setting["options"]:
+                if option.get("default", False):
+                    defaults[setting["name"]] = option["name"]
+    return defaults
 
 
 def translate_COSMIC_tables(tab, kstars=True, evol_type=True, label_type="short", replace_columns=True):
@@ -146,5 +137,6 @@ def translate_COSMIC_tables(tab, kstars=True, evol_type=True, label_type="short"
 
 def list_BSE_defaults():            # pragma: no cover
     """Print the default BSE settings cogsworth assumes for running COSMIC."""
+    default_BSE_settings = get_default_BSE_settings()
     for k, v in default_BSE_settings.items():
         print(f"{k}: {v}")
