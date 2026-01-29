@@ -3,12 +3,54 @@ import pandas as pd
 import numpy as np
 import astropy.units as u
 import astropy.constants as const
+from cosmic.sample import InitialBinaryTable
 
 
-__all__ = ["create_bpp_from_COMPAS_file", "create_kick_info_from_COMPAS_file"]
+__all__ = ["get_initial_binaries", "get_bpp", "get_kick_info"]
 
 
-def create_bpp_from_COMPAS_file(filename):
+BPP_COLUMNS = ["Time", "Mass(1)", "Mass(2)", "Stellar_Type(1)", "Stellar_Type(2)",
+                "SemiMajorAxis", "Eccentricity", "Radius(1)", "Radius(2)", "SEED"]
+INIT_COLS = ["Mass@ZAMS(1)", "Mass@ZAMS(2)", "Eccentricity@ZAMS", "SemiMajorAxis@ZAMS",
+                "Stellar_Type@ZAMS(1)", "Stellar_Type@ZAMS(2)", "Radius@ZAMS(1)", "Radius@ZAMS(2)", "SEED"]
+INIT_COL_TRANSLATOR = {
+    "Mass@ZAMS(1)": "Mass(1)", "Mass@ZAMS(2)": "Mass(2)", "Eccentricity@ZAMS": "Eccentricity",
+    "SemiMajorAxis@ZAMS": "SemiMajorAxis", "Stellar_Type@ZAMS(1)": "Stellar_Type(1)",
+    "Stellar_Type@ZAMS(2)": "Stellar_Type(2)",
+    "Radius@ZAMS(1)": "Radius(1)", "Radius@ZAMS(2)": "Radius(2)",
+}
+
+
+def get_initial_binaries(filename):
+    # open the COMPAS file and read DF
+    with h5.File(filename, "r") as f:
+        bse_sys = pd.DataFrame({k: f["BSE_System_Parameters"][k][...]
+                                for k in f["BSE_System_Parameters"].keys()})
+        bse_sys.index = bse_sys["SEED"].values
+    
+    # rename columns to look like other tables
+    init = bse_sys[INIT_COLS].rename(INIT_COL_TRANSLATOR, axis=1)
+
+    # convert initial separation to Rsun, use evol_type = 1
+    init["SemiMajorAxis"] = init["SemiMajorAxis"].values * u.AU.to(u.Rsun)  
+
+    # initial_binaries = InitialBinaryTable.InitialBinaries(
+    #     m1
+
+    #     m1=[85.543645, 11.171469], m2=[84.99784, 6.67305],
+
+    #                                             porb=[446.795757, 170.758343], ecc=[0.448872, 0.370],
+
+    #                                             tphysf=[13700.0, 13700.0],
+
+    #                                             kstar1=[1, 1], kstar2=[1, 1],
+
+    #                                             metallicity=[0.002, 0.02])
+    
+    return 
+
+
+def get_bpp(filename):
     """Create a COSMIC-like bpp table from a COMPAS output file
 
     This function combines several different COMPAS output tables to create a bpp-like
@@ -34,16 +76,6 @@ def create_bpp_from_COMPAS_file(filename):
     bpp : `pandas.DataFrame`
         A DataFrame containing the bpp table with rows for each stellar evolution event.
     """
-    BPP_COLUMNS = ["Time", "Mass(1)", "Mass(2)", "Stellar_Type(1)", "Stellar_Type(2)",
-                   "SemiMajorAxis", "Eccentricity", "Radius(1)", "Radius(2)", "SEED"]
-    INIT_COLS = ["Mass@ZAMS(1)", "Mass@ZAMS(2)", "Eccentricity@ZAMS", "SemiMajorAxis@ZAMS",
-                 "Stellar_Type@ZAMS(1)", "Stellar_Type@ZAMS(2)", "Radius@ZAMS(1)", "Radius@ZAMS(2)", "SEED"]
-    INIT_COL_TRANSLATOR = {
-        "Mass@ZAMS(1)": "Mass(1)", "Mass@ZAMS(2)": "Mass(2)", "Eccentricity@ZAMS": "Eccentricity",
-        "SemiMajorAxis@ZAMS": "SemiMajorAxis", "Stellar_Type@ZAMS(1)": "Stellar_Type(1)",
-        "Stellar_Type@ZAMS(2)": "Stellar_Type(2)",
-        "Radius@ZAMS(1)": "Radius(1)", "Radius@ZAMS(2)": "Radius(2)",
-    }
 
     has_subfile = {"BSE_System_Parameters": False, "BSE_Switch_Log": False, "BSE_RLOF": False,
                    "BSE_Common_Envelopes": False, "BSE_Supernovae": False}
@@ -276,7 +308,7 @@ def create_bpp_from_COMPAS_file(filename):
 
     return bpp
 
-def create_kick_info_from_COMPAS_file(filename):
+def get_kick_info(filename):
     """Create a kick_info table from a COMPAS output file
     
     This function reads the BSE_Supernovae table from a COMPAS output file and reformats

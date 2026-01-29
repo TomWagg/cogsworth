@@ -1,11 +1,14 @@
 import logging
 import subprocess
-from .runSubmit import pythonProgramOptions as COMPAS_command_creator
 import tempfile
 import os
 
 from ..pop import Population
-from .utils import create_bpp_from_COMPAS_file, create_kick_info_from_COMPAS_file
+from .runner import pythonProgramOptions as COMPAS_command_creator
+from .file import get_bpp, get_kick_info
+
+
+__all__ = ["COMPASPopulation"]
 
 
 class COMPASPopulation(Population):
@@ -29,7 +32,26 @@ class COMPASPopulation(Population):
             output_directory = f"{output_directory}_{counter}"
             counter += 1
         self.output_directory = output_directory
+
+        if "use_default_BSE_settings" not in kwargs:
+            kwargs["use_default_BSE_settings"] = True
+
         super().__init__(n_binaries=n_binaries, **kwargs)
+
+    @classmethod
+    def from_COMPAS_output(cls, compas_output_file, **kwargs):
+        bpp = get_bpp(compas_output_file)
+        kick_info = get_kick_info(compas_output_file)
+        n_binaries = len(bpp["bin_num"].unique())
+        pop = cls(n_binaries=n_binaries, **kwargs)
+        pop._bpp = bpp
+        pop._kick_info = kick_info
+        pop.output_directory = os.path.dirname(compas_output_file)
+        return pop
+
+    # @classmethod
+    # def from_Population(cls, pop: Population, config_file=None, logfile_definitions=None,
+    #                     output_directory="./COMPAS_Output", **kwargs):
 
     def initial_binaries_to_gridfile(self, grid_filename):
         """Write the initial conditions to a COMPAS grid file"""
@@ -61,8 +83,8 @@ class COMPASPopulation(Population):
                                                          output_directory=self.output_directory).shellCommand
             subprocess.call(self.COMPAS_command + " > /dev/null", shell=True)
 
-        self._bpp = create_bpp_from_COMPAS_file(f"{self.output_directory}/COMPAS_Output.h5")
-        self._kick_info = create_kick_info_from_COMPAS_file(f"{self.output_directory}/COMPAS_Output.h5")
+        self._bpp = get_bpp(f"{self.output_directory}/COMPAS_Output.h5")
+        self._kick_info = get_kick_info(f"{self.output_directory}/COMPAS_Output.h5")
         self._initC = self.initial_binaries
 
         self.initial_binaries["bin_num"] = self.final_bpp["bin_num"].values
