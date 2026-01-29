@@ -28,7 +28,7 @@ from cogsworth._version import __version__
 from cogsworth.kicks import integrate_orbit_with_events
 from cogsworth.events import identify_events
 from cogsworth.classify import determine_final_classes
-from cogsworth.observables import get_photometry
+from cogsworth.obs.observables import get_photometry
 from cogsworth.tests.optional_deps import check_dependencies
 from cogsworth.plot import plot_cartoon_evolution, plot_galactic_orbit
 from cogsworth.utils import translate_COSMIC_tables, get_default_BSE_settings
@@ -1253,7 +1253,7 @@ class Population():
         self._observables = get_photometry(population=self, **kwargs)
         return self._observables
 
-    def get_gaia_observed_bin_nums(self, ra=None, dec=None):
+    def get_gaia_observed_bin_nums(self, ra=None, dec=None, gaia_G_filter="Gaia_G_EDR3"):
         """Get a list of ``bin_nums`` of systems that are bright enough to be observed by Gaia.
 
         This is calculated based on the Gaia selection function provided by :mod:`gaiaunlimited`. This
@@ -1263,6 +1263,17 @@ class Population():
         E.g. if Gaia's completeness is 0 for a source of a given magnitude and location then it will never be
         included. Similarly, if the completeness is 1 then it will always be included. However, if the
         completeness is 0.5 then it will only be included in the list of ``bin_nums`` half of the time.
+
+        Parameters
+        ----------
+        ra : :class:`~numpy.ndarray` or `None`
+            Right ascension of the binaries. Either supply value or set to "auto" to use the RA from the
+            population's observables.
+        dec : :class:`~numpy.ndarray` or `None`
+            Declination of the binaries. Either supply value or set to "auto" to use the Dec from the
+            population's observables.
+        gaia_G_filter : str
+            The name of the Gaia G-band filter to use for apparent magnitude (e.g. "Gaia_G_EDR3").
 
         Returns
         -------
@@ -1291,8 +1302,8 @@ class Population():
         # and then (secondaries from disrupted binaries)
         observed = []
         for pix, g_mags, bin_nums in zip([pix_inds[:len(self)], pix_inds[len(self):]],
-                                         [self.observables["G_app_1"].values,
-                                          self.observables["G_app_2"][self.disrupted].values],
+                                         [self.observables[f"{gaia_G_filter}_app_1"].values,
+                                          self.observables[f"{gaia_G_filter}_app_2"][self.disrupted].values],
                                          [self.bin_nums, self.bin_nums[self.disrupted]]):
             # get the coordinates of the corresponding pixels
             comp_coords = coords_of_centers[pix]
