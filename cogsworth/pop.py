@@ -109,7 +109,7 @@ class Population():
                  use_default_BSE_settings=False, sampling_params={},
                  bcm_timestep_conditions=[], store_entire_orbits=True,
                  bpp_columns=None, bcm_columns=None, error_file_path="./",
-                 integrator=gi.DOPRI853Integrator, integrator_kwargs={"a_tol": 1e-10, "r_tol": 1e-10}):
+                 integrator=gi.DOPRI853Integrator, integrator_kwargs={}):
 
         # require a sensible number of binaries if you are not targetting total mass
         if not ("sampling_target" in sampling_params and sampling_params["sampling_target"] == "total_mass"):
@@ -264,7 +264,7 @@ class Population():
                                  store_entire_orbits=self.store_entire_orbits,
                                  bpp_columns=self.bpp_columns,
                                  bcm_columns=self.bcm_columns,
-                                 error_file_path=self.error_file_path
+                                 error_file_path=self.error_file_path,
                                  integrator=self.integrator,
                                  integrator_kwargs=self.integrator_kwargs)
         new_pop.n_binaries_match = new_pop.n_binaries
@@ -1176,9 +1176,9 @@ class Population():
                                                           t1=self.max_ev_time - self.initial_galaxy.tau[i],
                                                           t2=self.max_ev_time, dt=copy(self.timestep_size),
                                                           events=primary_events[i], quiet=quiet,
-                                                          store_all=self.store_entire_orbits),
+                                                          store_all=self.store_entire_orbits,
                                                           integrator=self.integrator,
-                                                          integrator_kwargs=self.integrator_kwargs)
+                                                          integrator_kwargs=self.integrator_kwargs))
             for i in range(self.n_binaries_match):
                 if secondary_events[i] is None:
                     continue
@@ -1186,9 +1186,9 @@ class Population():
                                                           t1=self.max_ev_time - self.initial_galaxy.tau[i],
                                                           t2=self.max_ev_time, dt=copy(self.timestep_size),
                                                           events=secondary_events[i], quiet=quiet,
-                                                          store_all=self.store_entire_orbits),
+                                                          store_all=self.store_entire_orbits,
                                                           integrator=self.integrator,
-                                                          integrator_kwargs=self.integrator_kwargs)
+                                                          integrator_kwargs=self.integrator_kwargs))
 
         # check for bad orbits
         bad_orbits = np.array([orbit is None for orbit in orbits])
@@ -1852,7 +1852,7 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
         sampling_params = yaml.load(file["sampling_params"].attrs["dict"], Loader=yaml.Loader)
 
         integrator_name = file.get("integrator", None)
-        integrator_kwargs = file.get("integrator_kwargs", {"a_tol": 1e-10, "r_tol": 1e-10})
+        integrator_kwargs = file.get("integrator_kwargs", {})
         if integrator_name is None:
             integrator = gi.DOPRI853Integrator
         else:
