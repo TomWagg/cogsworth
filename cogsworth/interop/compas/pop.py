@@ -3,9 +3,13 @@ import subprocess
 import tempfile
 import os
 
+import numpy as np
+import pandas as pd
+
 from ...pop import Population
 from .runner import pythonProgramOptions as COMPAS_command_creator
 from .file import get_bpp, get_kick_info, get_initial_binaries
+from .utils import add_kicks_to_initial_binaries
 
 
 __all__ = ["COMPASPopulation"]
@@ -90,12 +94,16 @@ class COMPASPopulation(Population):
         pop._initial_binaries = initial_binaries
         pop._bpp = get_bpp(compas_output_file)
         pop._kick_info = get_kick_info(compas_output_file)
+        pop._append_kicks()
         pop.output_directory = os.path.dirname(compas_output_file)
         return pop
-
-    # @classmethod
-    # def from_Population(cls, pop: Population, config_file=None, logfile_definitions=None,
-    #                     output_directory="./COMPAS_Output", **kwargs):
+    
+    def _append_kicks(self):
+        """Add the kick information from COMPAS to the initial binaries dataframe"""
+        if self._initial_binaries is None or self._kick_info is None:
+            raise ValueError("Either initial_binaries or kick_info is None, cannot append kicks.")
+        self._initial_binaries = add_kicks_to_initial_binaries(self._initial_binaries, self._kick_info)
+        return self._initial_binaries
 
     def initial_binaries_to_gridfile(self, grid_filename):
         """Write the initial binaries to a COMPAS grid file
@@ -139,6 +147,7 @@ class COMPASPopulation(Population):
 
         self.initial_binaries["bin_num"] = self.final_bpp["bin_num"].values
         self.initial_binaries.index = self.final_bpp["bin_num"].values
+        self._append_kicks()
         self._initC = self.initial_binaries
 
     def to_Population(self):
