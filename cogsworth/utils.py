@@ -80,6 +80,19 @@ def get_default_BSE_settings():
             for option in setting["options"]:
                 if option.get("default", False):
                     defaults[setting["name"]] = option["name"]
+
+    # ensure array settings are converted from strings to lists
+    for setting in ["qcrit_array", "natal_kick_array", "fprimc_array"]:
+        # this one requires special handling because of the fractions
+        if setting == "fprimc_array":
+            parts = defaults[setting].strip("[]").split(",")
+            defaults[setting] = [float(p.split("/")[0]) / float(p.split("/")[1]) for p in parts]
+        else:
+            defaults[setting] = json.loads(defaults[setting])
+
+    # set binfrac default if not present
+    if "binfrac" not in defaults:
+        defaults["binfrac"] = 0.5
     return defaults
 
 
