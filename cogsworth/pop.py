@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 from cosmic.sample.initialbinarytable import InitialBinaryTable
 from cosmic.evolve import Evolve
 from cosmic.checkstate import set_checkstates
+from cosmic.output import save_initC, load_initC
 from cosmic.utils import parse_inifile
 from cosmic import __version__ as cosmic_version
 import gala.potential as gp
@@ -604,12 +605,12 @@ class Population():
             If no stellar evolution has been performed yet.
         """
         if self._initC is None and self._file is not None:
-            self._initC = pd.read_hdf(self._file, key="initC")
+            self._initC = load_initC(self._file, key="initC", settings_key="initC_settings")
         elif self._initC is None:
             raise ValueError("No stellar evolution performed yet, run `perform_stellar_evolution` to do so.")
         return self._initC
 
-    @property
+    @property 
     def kick_info(self):
         """A table of the kicks that occur for each binary.
 
@@ -1691,7 +1692,7 @@ class Population():
 
         # save initial binaries, preferably the initC table
         if self._initC is not None:
-            self._initC.to_hdf(file_name, key="initC")
+            save_initC(file_name, self._initC, key="initC", settings_key="initC_settings")
         elif self._initial_binaries is not None:
             self._initial_binaries.to_hdf(file_name, key="initial_binaries")
 
