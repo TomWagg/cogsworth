@@ -2,7 +2,7 @@ import numpy as np
 import unittest
 import cogsworth.pop as pop
 import cogsworth.sfh as sfh
-import cogsworth.observables as obs
+import cogsworth.obs.observables as obs
 import h5py as h5
 import os
 import pytest
@@ -258,14 +258,14 @@ class Test(unittest.TestCase):
             p.observables
         except ValueError:
             pass
-        p.get_observables(filters=["G", "BP", "RP", "J", "H", "K"],
+        p.get_observables(filters=["Gaia_G_EDR3", "Gaia_BP_EDR3", "Gaia_RP_EDR3"],
                           assume_mw_galactocentric=True, ignore_extinction=True)
-        obs.get_photometry(filters=["G", "BP", "RP", "J", "H", "K"], final_bpp=p.final_bpp,
+        obs.get_photometry(filters=["Gaia_G_EDR3", "Gaia_BP_EDR3", "Gaia_RP_EDR3"], final_bpp=p.final_bpp,
                            final_pos=p.final_pos, assume_mw_galactocentric=True, ignore_extinction=True)
         p.observables
 
         # cheat and make sure at least one binary is bright enough
-        p.observables["G_app_1"].iloc[0] = 18.0
+        p.observables["Gaia_G_EDR3_app_1"].iloc[0] = 18.0
         p.get_gaia_observed_bin_nums(ra="auto", dec="auto")
 
         it_worked = True

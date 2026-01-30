@@ -4,11 +4,14 @@ Full changelog
 
 This page tracks all of the changes that have been made to ``cogsworth``. We follow the standard versioning convention of A.B.C, where C is a patch/bugfix, B is a large bugfix or new feature and A is a major new breaking change. B/C are backwards compatible but A changes may be breaking.
 
-3.5.3
+3.6.1
 =====
-This version is released to coincide with the release of COSMIC v3.6.2
+- Enhancement: Allow users to specify a directory for saving bad orbits when integrating populations by adding an `error_file_path` argument to the Population class. If set, bad orbits will be saved to this directory instead of the current working directory. If set to None, bad orbits will not be saved. This provides more flexibility in managing output files.
+- Enhancement: Default BSE settings are drawn directly from the COSMIC cosmic-settings.json data file
 
-- Enhancement: Use default BSE settings based on the cosmic-settings.json
+3.6.0
+=====
+- New feature: Move observables to obs module and added obs.mist module to interpolate MIST bolometric corrections. This means we can avoid depending on isochrones which is largely unmaintained at this point.
 
 3.5.1
 =====

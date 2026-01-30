@@ -26,7 +26,7 @@ params = {'figure.figsize': (12, 8),
 plt.rcParams.update(params)
 
 
-def plot_cmd(pop, m_filter="G", c_filter_1="BP", c_filter_2="RP",
+def plot_cmd(pop, m_filter="Gaia_G_EDR3", c_filter_1="Gaia_BP_EDR3", c_filter_2="Gaia_RP_EDR3",
              fig=None, ax=None, show=True, **kwargs):
     """Plot a colour-magnitude diagram for a population.
 

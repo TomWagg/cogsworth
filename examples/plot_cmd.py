@@ -41,7 +41,7 @@ p = cogsworth.pop.Population(2000, processes=1, BSE_settings={"binfrac": 1.0},
                              use_default_BSE_settings=True)
 p.create_population()
 
-p.get_observables(filters=["G", "BP", "RP"],
+p.get_observables(filters=["Gaia_G_EDR3", "Gaia_BP_EDR3", "Gaia_RP_EDR3"],
                   assume_mw_galactocentric=True, ignore_extinction=True)
 
 cogsworth.plot.plot_cmd(p, show=False)

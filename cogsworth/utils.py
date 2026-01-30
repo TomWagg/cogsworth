@@ -128,6 +128,9 @@ def translate_COSMIC_tables(tab, kstars=True, evol_type=True, label_type="short"
             kstar_2_str[tab["kstar_2"] == kstar] = kstar_translator[kstar][label_type]
 
         if replace_columns:
+            # replace kstar_1 column with new kstar_1_str column (change dtype from int to str)
+            tab["kstar_1"] = tab["kstar_1"].astype("str")
+            tab["kstar_2"] = tab["kstar_2"].astype("str")
             tab.loc[:, "kstar_1"] = kstar_1_str
             tab.loc[:, "kstar_2"] = kstar_2_str
         else:
@@ -141,6 +144,7 @@ def translate_COSMIC_tables(tab, kstars=True, evol_type=True, label_type="short"
             evol_type_str[tab["evol_type"] == evol_type] = evol_type_translator[evol_type][label_type]
 
         if replace_columns:
+            tab["evol_type"] = tab["evol_type"].astype("str")
             tab.loc[:, "evol_type"] = evol_type_str
         else:
             tab.loc[:, "evol_type_str"] = evol_type_str
