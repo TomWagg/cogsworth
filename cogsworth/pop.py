@@ -1853,10 +1853,7 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
 
         integrator_name = file.get("integrator", None)
         integrator_kwargs = file.get("integrator_kwargs", {})
-        if integrator_name is None:
-            integrator = gi.DOPRI853Integrator
-        else:
-            integrator = getattr(gi, integrator_name)
+        integrator = gi.DOPRI853Integrator if integrator_name is None else getattr(gi, integrator_name)
 
     with h5.File(file_name, 'r') as f:
         galactic_potential = potential_from_dict(yaml.load(f.attrs["potential_dict"], Loader=yaml.Loader))
