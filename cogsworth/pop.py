@@ -1812,7 +1812,8 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
         bcm_tc = file["numeric_params"].attrs["timestep_conditions"].tolist()
         bpp_columns = file["numeric_params"].attrs["bpp_columns"]
         bcm_columns = file["numeric_params"].attrs["bcm_columns"]
-        error_file_path = file["numeric_params"].attrs["error_file_path"]
+        error_file_path = (file["numeric_params"].attrs["error_file_path"]
+                           if "error_file_path" in file["numeric_params"].attrs else None)
 
         # convert columns to None if empty
         bpp_columns = None if isinstance(bpp_columns, bytes) and bpp_columns == b'None' else bpp_columns
