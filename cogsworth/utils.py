@@ -1,9 +1,10 @@
-import matplotlib.pyplot as plt
-import matplotlib as mpl
 import numpy as np
+from importlib.resources import files
+import json
 
 
-__all__ = ["kstar_translator", "evol_type_translator", "translate_COSMIC_tables"]
+__all__ = ["kstar_translator", "evol_type_translator", "default_BSE_settings",
+           "translate_COSMIC_tables", "list_BSE_defaults"]
 
 fs = 24
 
@@ -65,6 +66,36 @@ evol_type_translator = [
 ]
 
 
+def get_default_BSE_settings():
+    """Get a copy of the default BSE settings from the COSMIC settings JSON file"""
+    cosmic_settings = json.loads((files("cosmic") / "data" / "cosmic-settings.json").read_text())
+    defaults = {}
+    # loop through settings to find bse
+    for cat in cosmic_settings:
+        if cat["category"] != "bse":
+            continue
+        
+        # go through each setting, finding the default option
+        for setting in cat["settings"]:
+            for option in setting["options"]:
+                if option.get("default", False):
+                    defaults[setting["name"]] = option["name"]
+
+    # ensure array settings are converted from strings to lists
+    for setting in ["qcrit_array", "natal_kick_array", "fprimc_array"]:
+        # this one requires special handling because of the fractions
+        if setting == "fprimc_array":
+            parts = defaults[setting].strip("[]").split(",")
+            defaults[setting] = [float(p.split("/")[0]) / float(p.split("/")[1]) for p in parts]
+        else:
+            defaults[setting] = json.loads(defaults[setting])
+
+    # set binfrac default if not present
+    if "binfrac" not in defaults:
+        defaults["binfrac"] = 0.5
+    return defaults
+
+
 def translate_COSMIC_tables(tab, kstars=True, evol_type=True, label_type="short", replace_columns=True):
     """Translate COSMIC BSE tables to human-readable labels
 
@@ -97,6 +128,9 @@ def translate_COSMIC_tables(tab, kstars=True, evol_type=True, label_type="short"
             kstar_2_str[tab["kstar_2"] == kstar] = kstar_translator[kstar][label_type]
 
         if replace_columns:
+            # replace kstar_1 column with new kstar_1_str column (change dtype from int to str)
+            tab["kstar_1"] = tab["kstar_1"].astype("str")
+            tab["kstar_2"] = tab["kstar_2"].astype("str")
             tab.loc[:, "kstar_1"] = kstar_1_str
             tab.loc[:, "kstar_2"] = kstar_2_str
         else:
@@ -110,8 +144,16 @@ def translate_COSMIC_tables(tab, kstars=True, evol_type=True, label_type="short"
             evol_type_str[tab["evol_type"] == evol_type] = evol_type_translator[evol_type][label_type]
 
         if replace_columns:
+            tab["evol_type"] = tab["evol_type"].astype("str")
             tab.loc[:, "evol_type"] = evol_type_str
         else:
             tab.loc[:, "evol_type_str"] = evol_type_str
 
     return tab
+
+
+def list_BSE_defaults():            # pragma: no cover
+    """Print the default BSE settings cogsworth assumes for running COSMIC."""
+    default_BSE_settings = get_default_BSE_settings()
+    for k, v in default_BSE_settings.items():
+        print(f"{k}: {v}")

@@ -26,7 +26,7 @@ params = {'figure.figsize': (12, 8),
 plt.rcParams.update(params)
 
 
-def plot_cmd(pop, m_filter="G", c_filter_1="BP", c_filter_2="RP",
+def plot_cmd(pop, m_filter="Gaia_G_EDR3", c_filter_1="Gaia_BP_EDR3", c_filter_2="Gaia_RP_EDR3",
              fig=None, ax=None, show=True, **kwargs):
     """Plot a colour-magnitude diagram for a population.
 
@@ -82,11 +82,12 @@ def plot_cmd(pop, m_filter="G", c_filter_1="BP", c_filter_2="RP",
         # loop over bound binaries, disrupted primaries and disrupted secondaries
         for dis, marker, suffix in zip([False, True, True], ["o", "^", "v"], ["1", "1", "2"]):
             # select stars with the right kstar (based on which is brighter)
-            mask = (((pop.final_bpp["kstar_1"] == kstar) & ~pop.observables["secondary_brighter"])
-                    | ((pop.final_bpp["kstar_2"] == kstar) & pop.observables["secondary_brighter"]))
+            mask = np.where(pop.observables["secondary_brighter"], 
+                            pop.final_bpp["kstar_2"] == kstar,
+                            pop.final_bpp["kstar_1"] == kstar)
 
             # apply disruption mask
-            mask = mask & pop.disrupted if dis else mask & ~pop.disrupted
+            mask = (mask & pop.disrupted) if dis else (mask & ~pop.disrupted)
 
             ax.scatter(pop.observables[f'{c_filter_1}_app_{suffix}'][mask]
                        - pop.observables[f'{c_filter_2}_app_{suffix}'][mask],
@@ -491,6 +492,9 @@ def plot_galactic_orbit(primary_orbit, secondary_orbit=None,
     time_mask = ((primary_orbit.t - primary_orbit.t[0] >= t_min)
                  & (primary_orbit.t - primary_orbit.t[0] < t_max))
 
+    if not time_mask.any():
+        raise ValueError("No times in the specified range. Please check t_min and t_max.")
+
     # add a label to the primary orbit if not already present
     if "label" not in primary_kwargs:
         primary_kwargs["label"] = "Primary orbit"
@@ -503,11 +507,13 @@ def plot_galactic_orbit(primary_orbit, secondary_orbit=None,
         if "label" not in secondary_kwargs:
             secondary_kwargs["label"] = "Secondary orbit"
         # find the first time at which the secondary orbit differs from the primary orbit
-        t_diff = np.where(np.any(secondary_orbit.xyz != primary_orbit.xyz, axis=0))[0][0]
-        t_diff = max(0, t_diff - 1)
+        t_diffs = np.where(np.any(secondary_orbit[time_mask].xyz != primary_orbit[time_mask].xyz, axis=0))[0]
 
-        # only plot the secondary orbit if it differs from the primary orbit
-        secondary_orbit[time_mask][t_diff:].plot(axes=fig.axes, **secondary_kwargs)
+        if len(t_diffs) != 0:
+            t_diff = max(0, t_diffs[0] - 1)
+
+            # only plot the secondary orbit if it differs from the primary orbit
+            secondary_orbit[time_mask][t_diff:].plot(axes=fig.axes, **secondary_kwargs)
 
     # if we're showing the start position then plot a marker there
     if show_start:
