@@ -140,6 +140,10 @@ class Test(unittest.TestCase):
             p.save(os.path.join(tmpdir, "testing-pop-io-sampling"), overwrite=True)
             p_loaded = pop.load(os.path.join(tmpdir, "testing-pop-io-sampling"), parts=["initial_binaries"])
 
+        # sort columns in both initC to ensure they match
+        p._initC = p.initC.reindex(sorted(p.initC.columns), axis=1)
+        p_loaded._initC = p_loaded.initC.reindex(sorted(p_loaded.initC.columns), axis=1)
+
         self.assertTrue(np.all(p.initC == p_loaded.initC))
 
     def test_lazy_io(self):
@@ -151,6 +155,10 @@ class Test(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             p.save(os.path.join(tmpdir, "testing-lazy-io"), overwrite=True)
             p_loaded = pop.load(os.path.join(tmpdir, "testing-lazy-io"), parts=[])
+
+            # sort columns in both initC to ensure they match
+            p._initC = p.initC.reindex(sorted(p.initC.columns), axis=1)
+            p_loaded._initC = p_loaded.initC.reindex(sorted(p_loaded.initC.columns), axis=1)
 
             self.assertTrue(np.all(p.initC == p_loaded.initC))
             self.assertTrue(np.all(p.bpp == p_loaded.bpp))

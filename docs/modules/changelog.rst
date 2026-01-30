@@ -7,7 +7,9 @@ This page tracks all of the changes that have been made to ``cogsworth``. We fol
 3.6.1
 =====
 - Enhancement: Allow users to specify a directory for saving bad orbits when integrating populations by adding an `error_file_path` argument to the Population class. If set, bad orbits will be saved to this directory instead of the current working directory. If set to None, bad orbits will not be saved. This provides more flexibility in managing output files.
-- Enhancement: Default BSE settings are drawn directly from the COSMIC cosmic-settings.json data file
+- Development: Default BSE settings are drawn directly from the COSMIC cosmic-settings.json data file
+- Development: Use new initC IO functions from COSMIC that compress the data a LOT
+- Development: Add testing for Python 3.11, 3.12, and 3.13
 
 3.6.0
 =====
