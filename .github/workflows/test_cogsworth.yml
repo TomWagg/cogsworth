@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.11']
+        python-version: ['3.11', '3.12', '3.13']
 
     steps:
     - uses: actions/checkout@v4
@@ -24,6 +24,11 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
+        cache: pip
+        cache-dependency-path: |
+          pyproject.toml
+          setup.cfg
+          setup.py
     - name: Cache gaiaunlimited data
       uses: actions/cache@v4
       with:
@@ -50,7 +55,9 @@ jobs:
     - name: Ensure the gaiaunlimited folder exists and download data
       run: |
         mkdir -p ~/.gaiaunlimited
-        wget -O ~/.gaiaunlimited/allsky_M10_hpx7.hdf5 https://zenodo.org/record/8063930/files/allsky_M10_hpx7.hdf5?download=1
+        if [ ! -f ~/.gaiaunlimited/allsky_M10_hpx7.hdf5 ]; then
+          wget -O ~/.gaiaunlimited/allsky_M10_hpx7.hdf5 "https://zenodo.org/record/8063930/files/allsky_M10_hpx7.hdf5?download=1"
+        fi
     - name: Test package with pytest and generate coverage report
       run: |
         # test with as many cores as possible for speed
