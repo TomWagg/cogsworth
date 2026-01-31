@@ -1,8 +1,6 @@
 import numpy as np
-import sys
 import os
 import yaml
-import argparse
 import warnings
 
 HERE = os.path.dirname(__file__)
