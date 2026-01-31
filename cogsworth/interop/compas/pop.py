@@ -150,9 +150,10 @@ class COMPASPopulation(Population):
         self._append_kicks()
         self._initC = self.initial_binaries
 
-    def to_Population(self):
+    def to_Population(self, **kwargs):
         """Convert this COMPASPopulation to a generic Population object that uses COSMIC"""
-        pop = Population(self.n_binaries, processes=self.processes, use_default_BSE_settings=True)
+        use_defaults = kwargs.pop("use_default_BSE_settings", True)
+        pop = Population(self.n_binaries, use_default_BSE_settings=use_defaults, **kwargs)
         attrs_to_copy = ["n_binaries", "n_binaries_match", "processes", "final_kstar1", "final_kstar2",
                          "sfh_model", "sfh_params", "galactic_potential", "v_dispersion", "max_ev_time",
                          "timestep_size", "pool", "store_entire_orbits", "bpp_columns", "bcm_columns",
@@ -163,6 +164,26 @@ class COMPASPopulation(Population):
                          "sampling_params", "bcm_timestep_conditions"]
         for attr in attrs_to_copy:
             setattr(pop, attr, getattr(self, attr))
+
+        # check whether kicks were calculated from COMPAS and whether they might be overwritten
+        kick_cols = ["natal_kick_1", "natal_kick_2", "phi_1", "theta_1", "phi_2", "theta_2",
+                     "mean_anomaly_1", "mean_anomaly_2"]
+        any_were_present = False
+        for col in kick_cols:
+            if col in self.initial_binaries.columns:
+                any_were_present = True
+        
+        # for defaults, just remove any natal kick settings so that COSMIC uses the table
+        if any_were_present and use_defaults:
+            del pop.BSE_settings["natal_kick_array"]
+
+        # if not using defaults, warn the user that their settings will overwrite COMPAS kicks
+        elif any_were_present and not use_defaults:
+            logging.getLogger("cogsworth").warning(
+                "cogsworth warning: Natal kick settings found in BSE_settings will overwrite "
+                "the kicks calculated by COMPAS."
+            )
+
         return pop
 
 
