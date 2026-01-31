@@ -3,7 +3,7 @@ from importlib.resources import files
 import json
 
 
-__all__ = ["kstar_translator", "evol_type_translator", "default_BSE_settings",
+__all__ = ["kstar_translator", "evol_type_translator", "get_default_BSE_settings",
            "translate_COSMIC_tables", "list_BSE_defaults"]
 
 fs = 24
