@@ -44,8 +44,9 @@ def get_kick_differential(delta_v_sys_xyz, phase=None, inclination=None):
     return kick_differential
 
 
-def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential(version='v2'), events=None,
-                                store_all=True, quiet=False):
+def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential(version='v2'), events=None, 
+                                store_all=True, quiet=False, 
+                                integrator=gi.DOPRI853Integrator, integrator_kwargs={}):
     """Integrate :class:`~gala.dynamics.PhaseSpacePosition` in a 
     :class:`Potential <gala.potential.potential.PotentialBase>` with events that occur at certain times
 
@@ -73,6 +74,8 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential(v
         PhaseSpacePosition will be stored - this cuts down on memory usage.
     quiet : `bool`, optional
         Whether to silence warning messages about failing orbits
+    integrator : :class:`~gala.integrate.Integrator`, optional
+        The integrator used by gala for evolving the orbits of binaries in the galactic potential
 
     Returns
     -------
@@ -86,7 +89,9 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential(v
     # if there are no events then just integrate the whole thing
     if events is None:
         try:
-            full_orbit = potential.integrate_orbit(w0, t1=t1, t2=t2, dt=dt, Integrator=gi.DOPRI853Integrator)
+            full_orbit = potential.integrate_orbit(
+                w0, t1=t1, t2=t2, dt=dt, Integrator=integrator, Integrator_kwargs=integrator_kwargs
+            )
         except RuntimeError:            # pragma: no cover
             return None
         # jettison everything but the final timestep if user says so
@@ -121,7 +126,8 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential(v
 
                     # integrate the orbit over these timesteps
                     orbit = potential.integrate_orbit(current_w0, t=matching_timesteps,
-                                                      Integrator=gi.DOPRI853Integrator)
+                                                      Integrator=integrator,
+                                                      Integrator_kwargs=integrator_kwargs)
 
                     # save the orbit data (minus the last timestep to avoid duplicates)
                     orbit_data.append(orbit.data[:-1])
@@ -149,7 +155,8 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential(v
                 # evolve the rest of the orbit out
                 matching_timesteps = timesteps[timesteps >= time_cursor]
                 orbit = potential.integrate_orbit(current_w0, t=matching_timesteps,
-                                                  Integrator=gi.DOPRI853Integrator)
+                                                  Integrator=integrator,
+                                                  Integrator_kwargs=integrator_kwargs)
                 orbit_data.append(orbit.data)
 
             data = coords.concatenate_representations(orbit_data) if len(orbit_data) > 1 else orbit_data[0]

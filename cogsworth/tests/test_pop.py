@@ -2,12 +2,13 @@ import numpy as np
 import unittest
 import cogsworth.pop as pop
 import cogsworth.sfh as sfh
-import cogsworth.observables as obs
+import cogsworth.obs.observables as obs
 import h5py as h5
 import os
 import pytest
 import astropy.units as u
 import matplotlib.pyplot as plt
+import tempfile
 
 
 class Test(unittest.TestCase):
@@ -29,66 +30,65 @@ class Test(unittest.TestCase):
 
     def test_io(self):
         """Check that a population can be saved and re-loaded"""
-        # do one with just initial sampling
-        p = pop.Population(2, processes=1, sampling_params={"qmin": 0.5}, use_default_BSE_settings=True)
-        p.sample_initial_galaxy()
-        p.sample_initial_binaries()
 
-        p.save("testing-pop-io", overwrite=True)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # do one with just initial sampling
+            p = pop.Population(2, processes=1, sampling_params={"qmin": 0.5}, use_default_BSE_settings=True)
+            p.sample_initial_galaxy()
+            p.sample_initial_binaries()
+            p.save(os.path.join(tmpdir, "testing-pop-io"), overwrite=True)
 
-        p_loaded = pop.load("testing-pop-io", parts=["initial_binaries", "initial_galaxy"])
+            p_loaded = pop.load(os.path.join(tmpdir, "testing-pop-io"), 
+                                parts=["initial_binaries", "initial_galaxy"])
 
-        self.assertTrue(np.all(p.initial_binaries["mass_1"] == p_loaded.initial_binaries["mass_1"]))
+            self.assertTrue(np.all(p.initial_binaries["mass_1"] == p_loaded.initial_binaries["mass_1"]))
 
-        # again with everything
-        p = pop.Population(2, processes=1, bcm_timestep_conditions=[['dtp=100000.0']],
-                           sampling_params={"qmin": 0.5}, use_default_BSE_settings=True)
-        p.create_population()
+            # again with everything
+            p = pop.Population(2, processes=1, bcm_timestep_conditions=[['dtp=100000.0']],
+                            sampling_params={"qmin": 0.5}, use_default_BSE_settings=True)
+            p.create_population()
 
-        p.save("testing-pop-io", overwrite=True)
+            p.save(os.path.join(tmpdir, "testing-pop-io"), overwrite=True)
 
-        p_loaded = pop.load("testing-pop-io", parts=["initial_binaries", "initial_galaxy",
-                                                     "stellar_evolution", "galactic_orbits"])
+            p_loaded = pop.load(os.path.join(tmpdir, "testing-pop-io"),
+                                parts=["initial_binaries", "initial_galaxy",
+                                       "stellar_evolution", "galactic_orbits"])
 
-        self.assertTrue(np.all(p.bpp == p_loaded.bpp))
-        self.assertTrue(np.all(p.final_pos == p_loaded.final_pos))
-        self.assertTrue(np.all(p.orbits[0].pos == p_loaded.orbits[0].pos))
-        self.assertTrue(np.all(p.initial_galaxy.v_R == p_loaded.initial_galaxy.v_R))
-        self.assertTrue(p.sampling_params == p_loaded.sampling_params)
+            self.assertTrue(np.all(p.bpp == p_loaded.bpp))
+            self.assertTrue(np.all(p.final_pos == p_loaded.final_pos))
+            self.assertTrue(np.all(p.orbits[0].pos == p_loaded.orbits[0].pos))
+            self.assertTrue(np.all(p.initial_galaxy.v_R == p_loaded.initial_galaxy.v_R))
+            self.assertTrue(p.sampling_params == p_loaded.sampling_params)
 
-        # attempt overwrite without setting flag
-        it_broke = False
-        try:
-            p.save("testing-pop-io")
-        except FileExistsError:
-            it_broke = True
-        self.assertTrue(it_broke)
+            # attempt overwrite without setting flag
+            it_broke = False
+            try:
+                p.save(os.path.join(tmpdir, "testing-pop-io"))
+            except FileExistsError:
+                it_broke = True
+            self.assertTrue(it_broke)
 
-        # attempt overwrite now WITH the flag
-        it_broke = False
-        try:
-            p.save("testing-pop-io", overwrite=True)
-        except Exception as e:
-            print(e)
-            it_broke = True
-        self.assertFalse(it_broke)
-
-        os.remove("testing-pop-io.h5")
+            # attempt overwrite now WITH the flag
+            it_broke = False
+            try:
+                p.save(os.path.join(tmpdir, "testing-pop-io"), overwrite=True)
+            except Exception as e:
+                print(e)
+                it_broke = True
+            self.assertFalse(it_broke)
 
     def test_io_types(self):
         """Ensure that certain variables still have the same type after saving and loading"""
         p = pop.Population(2, processes=1, use_default_BSE_settings=True)
         p.create_population()
 
-        p.save("testing-pop-io-types", overwrite=True)
-
-        p_loaded = pop.load("testing-pop-io-types")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            p.save(os.path.join(tmpdir, "testing-pop-io-types"), overwrite=True)
+            p_loaded = pop.load(os.path.join(tmpdir, "testing-pop-io-types"))
 
         self.assertTrue(type(p.bcm_timestep_conditions) == type(p_loaded.bcm_timestep_conditions))
         self.assertTrue(type(p.bpp_columns) == type(p_loaded.bpp_columns))
         self.assertTrue(type(p.bcm_columns) == type(p_loaded.bcm_columns))
-
-        os.remove("testing-pop-io-types.h5")
 
     def test_io_cols(self):
         """Ensure that loading columns is possible"""
@@ -98,33 +98,30 @@ class Test(unittest.TestCase):
                            bcm_timestep_conditions=[['dtp=0.0']])
         p.create_population()
 
-        p.save("testing-pop-io-cols", overwrite=True)
-
-        p_loaded = pop.load("testing-pop-io-cols")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            p.save(os.path.join(tmpdir, "testing-pop-io-cols"), overwrite=True)
+            p_loaded = pop.load(os.path.join(tmpdir, "testing-pop-io-cols"))
 
         self.assertTrue(set(p.bpp.columns) == set(p_loaded.bpp.columns))
         self.assertTrue(set(p.bcm.columns) == set(p_loaded.bcm.columns))
-
-        os.remove("testing-pop-io-cols.h5")
 
     def test_io_versions(self):
         """Check that version mismatches are warned about"""
         p = pop.Population(2, processes=1, use_default_BSE_settings=True)
         p.create_population()
 
-        p.save("testing-pop-io-versions", overwrite=True)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            p.save(os.path.join(tmpdir, "testing-pop-io-versions"), overwrite=True)
 
-        # load the file and mess with the versions
-        with h5.File("testing-pop-io-versions.h5", "a") as f:
-            f.attrs["cogsworth_version"] = "0.0.0"
-            f.attrs["COSMIC_version"] = "0.0.0"
-            f.attrs["gala_version"] = "0.0.0"
+            # load the file and mess with the versions
+            with h5.File(os.path.join(tmpdir, "testing-pop-io-versions.h5"), "a") as f:
+                f.attrs["cogsworth_version"] = "0.0.0"
+                f.attrs["COSMIC_version"] = "0.0.0"
+                f.attrs["gala_version"] = "0.0.0"
 
-        with self.assertLogs("cogsworth", level="WARNING") as cm:
-            p_loaded = pop.load("testing-pop-io-versions")
-
-        os.remove("testing-pop-io-versions.h5")
-        self.assertIn("file was saved with", cm.output[0])
+            with self.assertLogs("cogsworth", level="WARNING") as cm:
+                p_loaded = pop.load(os.path.join(tmpdir, "testing-pop-io-versions"))
+            self.assertIn("file was saved with", cm.output[0])
 
     def test_save_complicated_sampling(self):
         """Check that you can save a population with complicated sampling params"""
@@ -139,32 +136,37 @@ class Test(unittest.TestCase):
                            }, use_default_BSE_settings=True)
         p.create_population()
 
-        p.save("testing-pop-io-sampling", overwrite=True)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            p.save(os.path.join(tmpdir, "testing-pop-io-sampling"), overwrite=True)
+            p_loaded = pop.load(os.path.join(tmpdir, "testing-pop-io-sampling"), parts=["initial_binaries"])
 
-        p_loaded = pop.load("testing-pop-io-sampling", parts=["initial_binaries"])
+        # sort columns in both initC to ensure they match
+        p._initC = p.initC.reindex(sorted(p.initC.columns), axis=1)
+        p_loaded._initC = p_loaded.initC.reindex(sorted(p_loaded.initC.columns), axis=1)
 
         self.assertTrue(np.all(p.initC == p_loaded.initC))
-
-        os.remove("testing-pop-io-sampling.h5")
 
     def test_lazy_io(self):
         """Check that a population can be saved and re-loaded lazily"""
         p = pop.Population(2, processes=1, bcm_timestep_conditions=[['dtp=100000.0']],
                            sampling_params={"qmin": 0.5}, use_default_BSE_settings=True)
         p.create_population()
+        
+        with tempfile.TemporaryDirectory() as tmpdir:
+            p.save(os.path.join(tmpdir, "testing-lazy-io"), overwrite=True)
+            p_loaded = pop.load(os.path.join(tmpdir, "testing-lazy-io"), parts=[])
 
-        p.save("testing-lazy-io", overwrite=True)
+            # sort columns in both initC to ensure they match
+            p._initC = p.initC.reindex(sorted(p.initC.columns), axis=1)
+            p_loaded._initC = p_loaded.initC.reindex(sorted(p_loaded.initC.columns), axis=1)
 
-        p_loaded = pop.load("testing-lazy-io", parts=[])
+            self.assertTrue(np.all(p.initC == p_loaded.initC))
+            self.assertTrue(np.all(p.bpp == p_loaded.bpp))
+            self.assertTrue(np.all(p.final_pos == p_loaded.final_pos))
+            self.assertTrue(np.all(p.orbits[0].pos == p_loaded.orbits[0].pos))
+            self.assertTrue(np.all(p.initial_galaxy.v_R == p_loaded.initial_galaxy.v_R))
+            self.assertTrue(p.sampling_params == p_loaded.sampling_params)
 
-        self.assertTrue(np.all(p.initC == p_loaded.initC))
-        self.assertTrue(np.all(p.bpp == p_loaded.bpp))
-        self.assertTrue(np.all(p.final_pos == p_loaded.final_pos))
-        self.assertTrue(np.all(p.orbits[0].pos == p_loaded.orbits[0].pos))
-        self.assertTrue(np.all(p.initial_galaxy.v_R == p_loaded.initial_galaxy.v_R))
-        self.assertTrue(p.sampling_params == p_loaded.sampling_params)
-
-        os.remove("testing-lazy-io.h5")
 
     def test_load_no_orbits(self):
         """Check that a population can be saved without orbits, and raises an error if trying to load them"""
@@ -173,43 +175,42 @@ class Test(unittest.TestCase):
         p.sample_initial_galaxy()
         p.sample_initial_binaries()
         p.perform_stellar_evolution()
+        
+        with tempfile.TemporaryDirectory() as tmpdir:
+            p.save(os.path.join(tmpdir, "testing-no-orbits"), overwrite=True)
+            p_loaded = pop.load(os.path.join(tmpdir, "testing-no-orbits"), parts=[])
 
-        p.save("testing-no-orbits", overwrite=True)
+            it_broke = False
+            try:
+                p_loaded.orbits
+            except ValueError:
+                it_broke = True
+            self.assertTrue(it_broke)
 
-        p_loaded = pop.load("testing-no-orbits", parts=[])
-
-        it_broke = False
-        try:
-            p_loaded.orbits
-        except ValueError:
-            it_broke = True
-        self.assertTrue(it_broke)
-
-        os.remove("testing-no-orbits.h5")
 
     def test_wrong_load_function(self):
         """Check that errors are properly raised when the wrong load function is used"""
         g = sfh.Wagg2022(10000)
-        g.save("test-sfh-for-load")
 
-        it_broke = False
-        try:
-            pop.load("test-sfh-for-load")
-        except ValueError:
-            it_broke = True
-        os.remove("test-sfh-for-load.h5")
-        self.assertTrue(it_broke)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            g.save(os.path.join(tmpdir, "test-sfh-for-load"))
 
-        p = pop.Population(2, processes=1, use_default_BSE_settings=True)
-        p.create_population()
-        p.save("test-pop-for-load", overwrite=True)
-        it_broke = False
-        try:
-            sfh.load("test-pop-for-load")
-        except ValueError:
-            it_broke = True
-        os.remove("test-pop-for-load.h5")
-        self.assertTrue(it_broke)
+            it_broke = False
+            try:
+                pop.load(os.path.join(tmpdir, "test-sfh-for-load"))
+            except ValueError:
+                it_broke = True
+            self.assertTrue(it_broke)
+
+            p = pop.Population(2, processes=1, use_default_BSE_settings=True)
+            p.create_population()
+            p.save(os.path.join(tmpdir, "test-pop-for-load"), overwrite=True)
+            it_broke = False
+            try:
+                sfh.load(os.path.join(tmpdir, "test-pop-for-load"))
+            except ValueError:
+                it_broke = True
+            self.assertTrue(it_broke)
 
     def test_orbit_storage(self):
         """Test that we can control how orbits are stored"""
@@ -265,14 +266,14 @@ class Test(unittest.TestCase):
             p.observables
         except ValueError:
             pass
-        p.get_observables(filters=["G", "BP", "RP", "J", "H", "K"],
+        p.get_observables(filters=["Gaia_G_EDR3", "Gaia_BP_EDR3", "Gaia_RP_EDR3"],
                           assume_mw_galactocentric=True, ignore_extinction=True)
-        obs.get_photometry(filters=["G", "BP", "RP", "J", "H", "K"], final_bpp=p.final_bpp,
+        obs.get_photometry(filters=["Gaia_G_EDR3", "Gaia_BP_EDR3", "Gaia_RP_EDR3"], final_bpp=p.final_bpp,
                            final_pos=p.final_pos, assume_mw_galactocentric=True, ignore_extinction=True)
         p.observables
 
         # cheat and make sure at least one binary is bright enough
-        p.observables["G_app_1"].iloc[0] = 18.0
+        p.observables["Gaia_G_EDR3_app_1"].iloc[0] = 18.0
         p.get_gaia_observed_bin_nums(ra="auto", dec="auto")
 
         it_worked = True

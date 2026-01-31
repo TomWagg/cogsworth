@@ -4,6 +4,22 @@ Full changelog
 
 This page tracks all of the changes that have been made to ``cogsworth``. We follow the standard versioning convention of A.B.C, where C is a patch/bugfix, B is a large bugfix or new feature and A is a major new breaking change. B/C are backwards compatible but A changes may be breaking.
 
+3.6.1
+=====
+- Enhancement: Allow users to specify a directory for saving bad orbits when integrating populations by adding an `error_file_path` argument to the Population class. If set, bad orbits will be saved to this directory instead of the current working directory. If set to None, bad orbits will not be saved. This provides more flexibility in managing output files.
+- Development: Default BSE settings are drawn directly from the COSMIC cosmic-settings.json data file
+- Development: Use new initC IO functions from COSMIC that compress the data a LOT
+- Development: Add testing for Python 3.11, 3.12, and 3.13
+- New feature: added optional key word arguments `integrator` and `integrator_kwargs` to `Population` class to allow users to specify the integrator settings for `gala`
+
+3.6.0
+=====
+- New feature: Move observables to obs module and added obs.mist module to interpolate MIST bolometric corrections. This means we can avoid depending on isochrones which is largely unmaintained at this point.
+
+3.5.1
+=====
+- Enhancement: Avoid pickling static arguments unnecessarily when evolving orbits, this should speed things up and reduce memory usage.
+
 3.5.0
 =====
 - New feature: Added support for the latest version of Gala (v1.11.0). This means time-evolving potentials can now be used when integrating orbits for populations, as well as connections to EXP and new interface with the MilkyWayPotential class.

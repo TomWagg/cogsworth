@@ -16,10 +16,12 @@ import matplotlib.pyplot as plt
 from cosmic.sample.initialbinarytable import InitialBinaryTable
 from cosmic.evolve import Evolve
 from cosmic.checkstate import set_checkstates
+from cosmic.output import save_initC, load_initC
 from cosmic.utils import parse_inifile
 from cosmic import __version__ as cosmic_version
 import gala.potential as gp
 import gala.dynamics as gd
+import gala.integrate as gi
 from gala.potential.potential.io import to_dict as potential_to_dict, from_dict as potential_from_dict
 from gala import __version__ as gala_version
 
@@ -28,7 +30,7 @@ from cogsworth._version import __version__
 from cogsworth.kicks import integrate_orbit_with_events
 from cogsworth.events import identify_events
 from cogsworth.classify import determine_final_classes
-from cogsworth.observables import get_photometry
+from cogsworth.obs.observables import get_photometry
 from cogsworth.tests.optional_deps import check_dependencies
 from cogsworth.plot import plot_cartoon_evolution, plot_galactic_orbit
 from cogsworth.utils import translate_COSMIC_tables, get_default_BSE_settings
@@ -36,6 +38,7 @@ from cogsworth.utils import translate_COSMIC_tables, get_default_BSE_settings
 from cogsworth.citations import CITATIONS
 
 __all__ = ["Population", "EvolvedPopulation", "load", "concat"]
+_GLOBAL = {}
 
 
 class Population():
@@ -91,13 +94,22 @@ class Population():
     bcm_columns : `list`, optional
         Which columns COSMIC should store in the `bcm` table. If None, default columns are used.
         See https://cosmic-popsynth.github.io/COSMIC/pages/output_info.html for a list of columns.
+    error_file_path : `str`, optional
+        Path to a folder in which to store any error files generated during evolution, by default "./"
+    integrator : :class:`~gala.integrate.Integrator`, optional
+        The integrator used by gala for evolving the orbits of binaries in the galactic potential
+        (default is :class:`~gala.integrate.DOPRI853Integrator`).
+    integrator_kwargs : `dict`, optional
+        Any additional keyword arguments to pass to the gala integrator, by default an empty dict
     """
     def __init__(self, n_binaries, processes=8, m1_cutoff=0, final_kstar1=list(range(16)),
                  final_kstar2=list(range(16)), sfh_model=sfh.Wagg2022, sfh_params={},
                  galactic_potential=gp.MilkyWayPotential(version='v2'), v_dispersion=5 * u.km / u.s,
                  max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, ini_file=None,
-                 use_default_BSE_settings=False, sampling_params={}, bcm_timestep_conditions=[],
-                 store_entire_orbits=True, bpp_columns=None, bcm_columns=None):
+                 use_default_BSE_settings=False, sampling_params={},
+                 bcm_timestep_conditions=[], store_entire_orbits=True,
+                 bpp_columns=None, bcm_columns=None, error_file_path="./",
+                 integrator=gi.DOPRI853Integrator, integrator_kwargs={}):
 
         # require a sensible number of binaries if you are not targetting total mass
         if not ("sampling_target" in sampling_params and sampling_params["sampling_target"] == "total_mass"):
@@ -129,9 +141,13 @@ class Population():
         self.max_ev_time = max_ev_time
         self.timestep_size = timestep_size
         self.pool = None
+        self.pool_config = None
         self.store_entire_orbits = store_entire_orbits
         self.bpp_columns = bpp_columns
         self.bcm_columns = bcm_columns
+        self.error_file_path = error_file_path
+        self.integrator = integrator
+        self.integrator_kwargs = integrator_kwargs
 
         self._file = None
         self._initial_binaries = None
@@ -247,8 +263,10 @@ class Population():
                                  bcm_timestep_conditions=self.bcm_timestep_conditions,
                                  store_entire_orbits=self.store_entire_orbits,
                                  bpp_columns=self.bpp_columns,
-                                 bcm_columns=self.bcm_columns)
-
+                                 bcm_columns=self.bcm_columns,
+                                 error_file_path=self.error_file_path,
+                                 integrator=self.integrator,
+                                 integrator_kwargs=self.integrator_kwargs)
         new_pop.n_binaries_match = new_pop.n_binaries
 
         # proxy for checking whether sampling has been done
@@ -598,12 +616,12 @@ class Population():
             If no stellar evolution has been performed yet.
         """
         if self._initC is None and self._file is not None:
-            self._initC = pd.read_hdf(self._file, key="initC")
+            self._initC = load_initC(self._file, key="initC", settings_key="initC_settings")
         elif self._initC is None:
             raise ValueError("No stellar evolution performed yet, run `perform_stellar_evolution` to do so.")
         return self._initC
 
-    @property
+    @property 
     def kick_info(self):
         """A table of the kicks that occur for each binary.
 
@@ -803,7 +821,7 @@ class Population():
         -------
         observables : :class:`~pandas.DataFrame`
             The observable properties of each binary. Columns are defined in
-            :func:`~cogsworth.observables.get_observables`.
+            :func:`~cogsworth.obs.observables.get_observables`.
 
         Raises
         ------
@@ -814,6 +832,27 @@ class Population():
             raise ValueError("Observables not yet calculated, run `get_observables` to do so")
         else:
             return self._observables
+
+    def _close_pool(self):
+        """Close the multiprocessing pool if it exists."""
+        if self.pool is not None:
+            self.pool.close()
+            self.pool.join()
+            self.pool = None
+            self.pool_config = None
+
+    def _ensure_pool(self, quiet):
+        """Ensure the multiprocessing pool is set up."""
+        # if the config has changed and an old pool exists, close the old pool
+        config = (self.galactic_potential, self.max_ev_time, self.store_entire_orbits, quiet,
+                  self.integrator, self.integrator_kwargs)
+        if self.pool is not None and self.pool_config != config:        # pragma: no cover
+            self._close_pool()
+
+        # set up a new pool if needed
+        if self.processes > 1 and self.pool is None:
+            self.pool = Pool(self.processes, initializer=_init_pool, initargs=(*config,))
+            self.pool_config = config
 
     def create_population(self, with_timing=True):
         """Create an entirely evolved population of binaries.
@@ -839,7 +878,7 @@ class Population():
         if self.bcm_timestep_conditions != []:
             set_checkstates(self.bcm_timestep_conditions)
 
-        self.pool = Pool(self.processes) if self.processes > 1 else None
+        self._ensure_pool(quiet=False)
         self.perform_stellar_evolution()
         if with_timing:
             print(f"[{time.time() - lap:1.1f}s] Evolve binaries (run COSMIC)")
@@ -849,10 +888,7 @@ class Population():
         if with_timing:
             print(f"[{time.time() - lap:1.1f}s] Get orbits (run gala)")
 
-        if self.pool is not None:
-            self.pool.close()
-            self.pool.join()
-            self.pool = None
+        self._close_pool()
 
         if with_timing:
             print(f"Overall: {time.time() - start:1.1f}s")
@@ -982,7 +1018,7 @@ class Population():
 
         no_pool_existed = self.pool is None and self.processes > 1
         if no_pool_existed:
-            self.pool = Pool(self.processes)
+            self._ensure_pool(quiet=False)
 
         # catch any warnings about overwrites
         with warnings.catch_warnings():
@@ -1010,9 +1046,7 @@ class Population():
                 self._bcm = bcm
 
         if no_pool_existed:
-            self.pool.close()
-            self.pool.join()
-            self.pool = None
+            self._close_pool()
 
         # check if there are any NaNs in the final bpp table rows or the kick_info
         nans = np.isnan(self.final_bpp["sep"])
@@ -1116,34 +1150,26 @@ class Population():
         if self.pool is not None or self.processes > 1:
             # track whether a pool already existed
             pool_existed = self.pool is not None
-
-            # if not, create one
-            if not pool_existed:
-                self.pool = Pool(self.processes)
+            self._ensure_pool(quiet=quiet)
 
             # setup arguments to combine primary and secondaries into a single list
-            primary_args = [(w0s[i], self.max_ev_time - self.initial_galaxy.tau[i], self.max_ev_time,
-                             copy(self.timestep_size), self.galactic_potential,
-                             primary_events[i], self.store_entire_orbits, quiet)
+            primary_args = [(w0s[i], self.max_ev_time - self.initial_galaxy.tau[i],
+                             copy(self.timestep_size), primary_events[i])
                             for i in range(self.n_binaries_match)]
-            secondary_args = [(w0s[i], self.max_ev_time - self.initial_galaxy.tau[i], self.max_ev_time,
-                               copy(self.timestep_size), self.galactic_potential,
-                               secondary_events[i], self.store_entire_orbits, quiet)
+            secondary_args = [(w0s[i], self.max_ev_time - self.initial_galaxy.tau[i],
+                               copy(self.timestep_size), secondary_events[i])
                               for i in range(self.n_binaries_match) if secondary_events[i] is not None]
             args = primary_args + secondary_args
 
             # evolve the orbits from birth until present day
             if progress_bar:
-                orbits = self.pool.starmap(integrate_orbit_with_events,
-                                           tqdm(args, total=self.n_binaries_match))
+                orbits = self.pool.starmap(_orbit_worker, tqdm(args, total=self.n_binaries_match))
             else:
-                orbits = self.pool.starmap(integrate_orbit_with_events, args)
+                orbits = self.pool.starmap(_orbit_worker, args)
 
             # if a pool didn't exist before then close the one just created
             if not pool_existed:
-                self.pool.close()
-                self.pool.join()
-                self.pool = None
+                self._close_pool()
         else:
             # otherwise just use a for loop to evolve the orbits from birth until present day
             orbits = []
@@ -1152,7 +1178,9 @@ class Population():
                                                           t1=self.max_ev_time - self.initial_galaxy.tau[i],
                                                           t2=self.max_ev_time, dt=copy(self.timestep_size),
                                                           events=primary_events[i], quiet=quiet,
-                                                          store_all=self.store_entire_orbits))
+                                                          store_all=self.store_entire_orbits,
+                                                          integrator=self.integrator,
+                                                          integrator_kwargs=self.integrator_kwargs))
             for i in range(self.n_binaries_match):
                 if secondary_events[i] is None:
                     continue
@@ -1160,34 +1188,46 @@ class Population():
                                                           t1=self.max_ev_time - self.initial_galaxy.tau[i],
                                                           t2=self.max_ev_time, dt=copy(self.timestep_size),
                                                           events=secondary_events[i], quiet=quiet,
-                                                          store_all=self.store_entire_orbits))
+                                                          store_all=self.store_entire_orbits,
+                                                          integrator=self.integrator,
+                                                          integrator_kwargs=self.integrator_kwargs))
 
         # check for bad orbits
         bad_orbits = np.array([orbit is None for orbit in orbits])
 
         # if there are any bad orbits then warn the user and remove them from the population
         if any(bad_orbits):             # pragma: no cover
-            warnings.warn(f"{bad_orbits.sum()} bad orbit(s) detected, removing them from the population" +
-                          " (initial conditions for these systems were saved to `bad_orbits.h5` file)")
+            # start a warning message
             bad_bin_nums = np.concatenate((self.bin_nums, self.bin_nums[self.disrupted]))[bad_orbits]
+            warning_message = (
+                f"cogsworth warning: {bad_orbits.sum()} orbit(s) failed numerical integration, removing them."
+                " This can occur due to NaNs in stellar evolution or extreme orbits that Gala cannot handle."
+            )
 
-            # decide on file name (avoid overwriting existing file)
-            file_num = 1
-            file_name = "bad_orbits.h5"
-            while os.path.exists(file_name):
-                file_name = f"bad_orbits_{file_num}.h5"
-                file_num += 1
+            # if we're going to save them then find a file name
+            if self.error_file_path is not None:
+                # decide on file name (avoid overwriting existing file)
+                file_num = 1
+                file_name = os.path.join(self.error_file_path, "bad_orbits.h5")
+                while os.path.exists(file_name):
+                    file_name = os.path.join(self.error_file_path, f"bad_orbits_{file_num}.h5")
+                    file_num += 1
 
-            # save the bad orbits population
-            self.initC.loc[bad_bin_nums].to_hdf(file_name, key="initC")
-            self.bpp.loc[bad_bin_nums].to_hdf(file_name, key="bpp")
-            self.kick_info.loc[bad_bin_nums].to_hdf(file_name, key="kick_info")
-            self.initial_galaxy[np.isin(self.bin_nums, bad_bin_nums)].save(file_name, key="sfh")
+                # save the bad orbits population
+                self.initC.loc[bad_bin_nums].to_hdf(file_name, key="initC")
+                self.bpp.loc[bad_bin_nums].to_hdf(file_name, key="bpp")
+                self.kick_info.loc[bad_bin_nums].to_hdf(file_name, key="kick_info")
+                self.initial_galaxy[np.isin(self.bin_nums, bad_bin_nums)].save(file_name, key="sfh")
+        
+                warning_message += f" Information for these systems was saved to `{file_name}`."
+                warning_message += " This includes their initC, bpp, kick_info, and initial galaxy objects."
+            logging.getLogger("cogsworth").warning(warning_message)
 
             # mask them out from the main population
             new_self = self[~np.isin(self.bin_nums, bad_bin_nums)]
             self.__dict__.update(new_self.__dict__)
 
+            # also mask them out from the orbits
             orbits = np.array(orbits, dtype="object")[~bad_orbits]
 
         self._orbits = np.array(orbits, dtype="object")
@@ -1240,13 +1280,13 @@ class Population():
 
         Parameters
         ----------
-        **kwargs to pass to :func:`~cogsworth.observables.get_photometry`
+        **kwargs to pass to :func:`~cogsworth.obs.observables.get_photometry`
         """
         self.__citations__.extend(["MIST", "MESA", "bayestar2019"])
         self._observables = get_photometry(population=self, **kwargs)
         return self._observables
 
-    def get_gaia_observed_bin_nums(self, ra=None, dec=None):
+    def get_gaia_observed_bin_nums(self, ra=None, dec=None, gaia_G_filter="Gaia_G_EDR3"):
         """Get a list of ``bin_nums`` of systems that are bright enough to be observed by Gaia.
 
         This is calculated based on the Gaia selection function provided by :mod:`gaiaunlimited`. This
@@ -1256,6 +1296,17 @@ class Population():
         E.g. if Gaia's completeness is 0 for a source of a given magnitude and location then it will never be
         included. Similarly, if the completeness is 1 then it will always be included. However, if the
         completeness is 0.5 then it will only be included in the list of ``bin_nums`` half of the time.
+
+        Parameters
+        ----------
+        ra : :class:`~numpy.ndarray` or `None`
+            Right ascension of the binaries. Either supply value or set to "auto" to use the RA from the
+            population's observables.
+        dec : :class:`~numpy.ndarray` or `None`
+            Declination of the binaries. Either supply value or set to "auto" to use the Dec from the
+            population's observables.
+        gaia_G_filter : str
+            The name of the Gaia G-band filter to use for apparent magnitude (e.g. "Gaia_G_EDR3").
 
         Returns
         -------
@@ -1284,8 +1335,8 @@ class Population():
         # and then (secondaries from disrupted binaries)
         observed = []
         for pix, g_mags, bin_nums in zip([pix_inds[:len(self)], pix_inds[len(self):]],
-                                         [self.observables["G_app_1"].values,
-                                          self.observables["G_app_2"][self.disrupted].values],
+                                         [self.observables[f"{gaia_G_filter}_app_1"].values,
+                                          self.observables[f"{gaia_G_filter}_app_2"][self.disrupted].values],
                                          [self.bin_nums, self.bin_nums[self.disrupted]]):
             # get the coordinates of the corresponding pixels
             comp_coords = coords_of_centers[pix]
@@ -1659,7 +1710,7 @@ class Population():
 
         # save initial binaries, preferably the initC table
         if self._initC is not None:
-            self._initC.to_hdf(file_name, key="initC")
+            save_initC(file_name, self._initC, key="initC", settings_key="initC_settings")
         elif self._initial_binaries is not None:
             self._initial_binaries.to_hdf(file_name, key="initial_binaries")
 
@@ -1673,6 +1724,7 @@ class Population():
         with h5.File(file_name, "a") as f:
             f.attrs["potential_dict"] = yaml.dump(potential_to_dict(self.galactic_potential),
                                                   default_flow_style=None)
+            
         if self._initial_galaxy is not None:
             self.initial_galaxy.save(file_name, key="initial_galaxy")
 
@@ -1715,6 +1767,7 @@ class Population():
             num_par.attrs["timestep_conditions"] = self.bcm_timestep_conditions
             num_par.attrs["bpp_columns"] = np.array(self.bpp_columns, dtype="S")
             num_par.attrs["bcm_columns"] = np.array(self.bcm_columns, dtype="S")
+            num_par.attrs["error_file_path"] = self.error_file_path
 
             # save BSE settings
             d = file.create_dataset("BSE_settings", data=[])
@@ -1724,6 +1777,11 @@ class Population():
             # save sampling params
             d = file.create_dataset("sampling_params", data=[])
             d.attrs["dict"] = yaml.dump(self.sampling_params, default_flow_style=None)
+            
+            # save integrator settings
+            d = file.create_dataset("integrator_settings", data=[])
+            d.attrs["integrator"] = self.integrator.__name__
+            d.attrs["integrator_kwargs"] = yaml.dump(self.integrator_kwargs, default_flow_style=None)
 
             # save the version of cogsworth, COSMIC, and gala that was used
             file.attrs["cogsworth_version"] = __version__
@@ -1778,6 +1836,8 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
         bcm_tc = file["numeric_params"].attrs["timestep_conditions"].tolist()
         bpp_columns = file["numeric_params"].attrs["bpp_columns"]
         bcm_columns = file["numeric_params"].attrs["bcm_columns"]
+        error_file_path = (file["numeric_params"].attrs["error_file_path"]
+                           if "error_file_path" in file["numeric_params"].attrs else None)
 
         # convert columns to None if empty
         bpp_columns = None if isinstance(bpp_columns, bytes) and bpp_columns == b'None' else bpp_columns
@@ -1793,6 +1853,10 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
 
         sampling_params = yaml.load(file["sampling_params"].attrs["dict"], Loader=yaml.Loader)
 
+        integrator_name = file.get("integrator", None)
+        integrator_kwargs = file.get("integrator_kwargs", {})
+        integrator = gi.DOPRI853Integrator if integrator_name is None else getattr(gi, integrator_name)
+
     with h5.File(file_name, 'r') as f:
         galactic_potential = potential_from_dict(yaml.load(f.attrs["potential_dict"], Loader=yaml.Loader))
 
@@ -1802,7 +1866,9 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
                    v_dispersion=numeric_params[4] * u.km / u.s, max_ev_time=numeric_params[5] * u.Gyr,
                    timestep_size=numeric_params[6] * u.Myr, BSE_settings=BSE_settings,
                    sampling_params=sampling_params, store_entire_orbits=store_entire_orbits,
-                   bcm_timestep_conditions=bcm_tc, bpp_columns=bpp_columns, bcm_columns=bcm_columns)
+                   bcm_timestep_conditions=bcm_tc, bpp_columns=bpp_columns, bcm_columns=bcm_columns,
+                   error_file_path=error_file_path,
+                   integrator=integrator, integrator_kwargs=integrator_kwargs)
 
     p._file = file_name
     p.n_binaries_match = int(numeric_params[1])
@@ -1949,6 +2015,20 @@ def concat(*pops):
     return final_pop
 
 
+def _init_pool(potential, t2, store_all, quiet, integrator, integrator_kwargs):
+    _GLOBAL["potential"] = potential
+    _GLOBAL["t2"] = t2
+    _GLOBAL["store_all"] = store_all
+    _GLOBAL["quiet"] = quiet
+    _GLOBAL["integrator"] = integrator
+    _GLOBAL["integrator_kwargs"] = integrator_kwargs
+
+def _orbit_worker(w0, t1, dt, events):
+    return integrate_orbit_with_events(
+        w0, t1, _GLOBAL["t2"], dt, _GLOBAL["potential"], events, _GLOBAL["store_all"], _GLOBAL["quiet"],
+        _GLOBAL["integrator"], _GLOBAL["integrator_kwargs"]
+    )
+
 class EvolvedPopulation(Population):
     def __init__(self, n_binaries, mass_singles=None, mass_binaries=None, n_singles_req=None, n_bin_req=None,
                  bpp=None, bcm=None, initC=None, kick_info=None, **pop_kwargs):
@@ -1988,15 +2068,11 @@ class EvolvedPopulation(Population):
             print(f"[{time.time() - start:1.0e}s] Sample initial galaxy")
             lap = time.time()
 
-        self.pool = Pool(self.processes) if self.processes > 1 else None
+        self._ensure_pool(quiet=False)
         self.perform_galactic_evolution(progress_bar=with_timing)
         if with_timing:
             print(f"[{time.time() - lap:1.1f}s] Get orbits (run gala)")
-
-        if self.pool is not None:
-            self.pool.close()
-            self.pool.join()
-            self.pool = None
+        self._close_pool()
 
         if with_timing:
             print(f"Overall: {time.time() - start:1.1f}s")

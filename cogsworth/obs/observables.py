@@ -7,6 +7,7 @@ from copy import copy
 
 import logging
 from cogsworth.tests.optional_deps import check_dependencies
+from cogsworth.obs.mist import MISTBolometricCorrectionGrid
 
 import sys
 import os
@@ -230,13 +231,14 @@ def get_extinction(coords):     # pragma: no cover
 
 
 def get_photometry(filters, population=None, final_bpp=None, final_pos=None, distances=None,
-                   ignore_extinction=False, assume_mw_galactocentric=False):
+                   ignore_extinction=False, assume_mw_galactocentric=False,
+                   main_filter=None, silence_bounds_warning=False):
     """Computes photometry subject to dust extinction using the MIST boloemtric correction grid
 
     Parameters
     ----------
     filters : `list` of `str`
-        Which filters to compute photometry for (e.g. ['J', 'H', 'K', 'G', 'BP', 'RP'])
+        Which filters to compute photometry for (e.g. ['Gaia_G_EDR3', 'Gaia_BP_EDR3', 'Gaia_RP_EDR3'])
     population : :class:`~cogsworth.pop.Population`
         The population for which to compute photometry (either supply this or a final_bpp and final_pos)
     final_bpp : :class:`~pandas.DataFrame`
@@ -249,18 +251,19 @@ def get_photometry(filters, population=None, final_bpp=None, final_pos=None, dis
         will be set to `np.inf` for ease of masking.
     ignore_extinction : `bool`
         Whether to ignore extinction
+    assume_mw_galactocentric : `bool`
+        Whether to assume the population positions/distances are in the Milky Way galactocentric frame
+    main_filter : `str`
+        The main filter to use for calculating which star is observed as the brighter one
+    silence_bounds_warning : `bool`
+        Whether to silence the out-of-bounds warning from the MIST bolometric correction grid
+
 
     Returns
     -------
     photometry : :class:`~pandas.DataFrame`
         Photometry and extinction information for supplied COSMIC binaries in desired `filters`
     """
-    assert check_dependencies(["isochrones", "nose", "tables"])
-    # HACK around the isochrone import to ignore warnings about Holoview and Multinest
-    logging.getLogger("isochrones").setLevel("ERROR")
-    from isochrones.mist.bc import MISTBolometricCorrectionGrid
-    logging.getLogger("isochrones").setLevel("WARNING")
-
     # check that the input is valid
     if population is None and (final_bpp is None or final_pos is None):
         raise ValueError("Either a population or final_bpp and final_pos must be supplied")
@@ -268,6 +271,7 @@ def get_photometry(filters, population=None, final_bpp=None, final_pos=None, dis
         raise ValueError("Must supply either distances or have `assume_mw_galactocentric=True`")
     if not ignore_extinction and not assume_mw_galactocentric:
         raise ValueError("Cannot calculate extinction due to dust without `assume_mw_galactocentric=True`")
+    main_filter = filters[0] if main_filter is None else main_filter
 
     if population is not None:
         final_bpp = population.final_bpp
@@ -326,12 +330,14 @@ def get_photometry(filters, population=None, final_bpp=None, final_pos=None, dis
                                        radius=final_bpp[f"rad_{ind}"].values * u.Rsun))
 
         # get the bolometric corrections from MIST isochrones
-        bc["app"][ind - 1] = bc_grid.interp([final_bpp[f"teff_{ind}"].values,
-                                             final_bpp[f"log_g_{ind}"].values,
-                                             FeH, photometry[f"Av_{ind}"]], filters)
-        bc["abs"][ind - 1] = bc_grid.interp([final_bpp[f"teff_{ind}"].values,
-                                             final_bpp[f"log_g_{ind}"].values,
-                                             FeH, np.zeros(len(final_bpp))], filters)
+        bc["app"][ind - 1] = bc_grid.interp(teff=final_bpp[f"teff_{ind}"].values,
+                                            logg=final_bpp[f"log_g_{ind}"].values,
+                                            feh=FeH, av=photometry[f"Av_{ind}"], bands=filters,
+                                            silence_bounds_warning=silence_bounds_warning).values
+        bc["abs"][ind - 1] = bc_grid.interp(teff=final_bpp[f"teff_{ind}"].values,
+                                            logg=final_bpp[f"log_g_{ind}"].values,
+                                            feh=FeH, av=np.zeros(len(final_bpp)), bands=filters,
+                                            silence_bounds_warning=silence_bounds_warning).values
 
         # calculate the absolute bolometric magnitude and set any BH or massless remnants to invisible
         photometry[f"M_abs_{ind}"] = get_absolute_bol_mag(lum=final_bpp[f"lum_{ind}"].values * u.Lsun)
@@ -361,7 +367,7 @@ def get_photometry(filters, population=None, final_bpp=None, final_pos=None, dis
                 photometry.loc[disrupted, f"{filter}_{mag_type}_{ind}"] = filter_mags[ind - 1][disrupted]
 
             # for the G filter in particular, see which temperature/log-g is getting measured
-            if filter == "G" and mag_type == "app":
+            if filter == main_filter and mag_type == "app":
                 # by default assume the primary is dominant
                 photometry["teff_obs"] = final_bpp["teff_1"].values
                 photometry["log_g_obs"] = final_bpp["log_g_1"].values

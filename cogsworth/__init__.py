@@ -1,4 +1,4 @@
-from . import kicks, pop, events, classify, observables, plot, sfh, utils, hydro, interop
+from . import kicks, pop, events, classify, obs, plot, sfh, utils, hydro, interop
 from ._version import __version__
 from .citations import CITATIONS
 
