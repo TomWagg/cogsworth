@@ -21,6 +21,7 @@ from cosmic.utils import parse_inifile
 from cosmic import __version__ as cosmic_version
 import gala.potential as gp
 import gala.dynamics as gd
+import gala.integrate as gi
 from gala.potential.potential.io import to_dict as potential_to_dict, from_dict as potential_from_dict
 from gala import __version__ as gala_version
 
@@ -95,13 +96,20 @@ class Population():
         See https://cosmic-popsynth.github.io/COSMIC/pages/output_info.html for a list of columns.
     error_file_path : `str`, optional
         Path to a folder in which to store any error files generated during evolution, by default "./"
+    integrator : :class:`~gala.integrate.Integrator`, optional
+        The integrator used by gala for evolving the orbits of binaries in the galactic potential
+        (default is :class:`~gala.integrate.DOPRI853Integrator`).
+    integrator_kwargs : `dict`, optional
+        Any additional keyword arguments to pass to the gala integrator, by default an empty dict
     """
     def __init__(self, n_binaries, processes=8, m1_cutoff=0, final_kstar1=list(range(16)),
                  final_kstar2=list(range(16)), sfh_model=sfh.Wagg2022, sfh_params={},
                  galactic_potential=gp.MilkyWayPotential(version='v2'), v_dispersion=5 * u.km / u.s,
                  max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, ini_file=None,
-                 use_default_BSE_settings=False, sampling_params={}, bcm_timestep_conditions=[],
-                 store_entire_orbits=True, bpp_columns=None, bcm_columns=None, error_file_path="./"):
+                 use_default_BSE_settings=False, sampling_params={},
+                 bcm_timestep_conditions=[], store_entire_orbits=True,
+                 bpp_columns=None, bcm_columns=None, error_file_path="./",
+                 integrator=gi.DOPRI853Integrator, integrator_kwargs={}):
 
         # require a sensible number of binaries if you are not targetting total mass
         if not ("sampling_target" in sampling_params and sampling_params["sampling_target"] == "total_mass"):
@@ -138,6 +146,8 @@ class Population():
         self.bpp_columns = bpp_columns
         self.bcm_columns = bcm_columns
         self.error_file_path = error_file_path
+        self.integrator = integrator
+        self.integrator_kwargs = integrator_kwargs
 
         self._file = None
         self._initial_binaries = None
@@ -254,8 +264,9 @@ class Population():
                                  store_entire_orbits=self.store_entire_orbits,
                                  bpp_columns=self.bpp_columns,
                                  bcm_columns=self.bcm_columns,
-                                 error_file_path=self.error_file_path)
-
+                                 error_file_path=self.error_file_path,
+                                 integrator=self.integrator,
+                                 integrator_kwargs=self.integrator_kwargs)
         new_pop.n_binaries_match = new_pop.n_binaries
 
         # proxy for checking whether sampling has been done
@@ -831,7 +842,8 @@ class Population():
     def _ensure_pool(self, quiet):
         """Ensure the multiprocessing pool is set up."""
         # if the config has changed and an old pool exists, close the old pool
-        config = (self.galactic_potential, self.max_ev_time, self.store_entire_orbits, quiet)
+        config = (self.galactic_potential, self.max_ev_time, self.store_entire_orbits, quiet,
+                  self.integrator, self.integrator_kwargs)
         if self.pool is not None and self.pool_config != config:        # pragma: no cover
             self._close_pool()
 
@@ -1164,7 +1176,9 @@ class Population():
                                                           t1=self.max_ev_time - self.initial_galaxy.tau[i],
                                                           t2=self.max_ev_time, dt=copy(self.timestep_size),
                                                           events=primary_events[i], quiet=quiet,
-                                                          store_all=self.store_entire_orbits))
+                                                          store_all=self.store_entire_orbits,
+                                                          integrator=self.integrator,
+                                                          integrator_kwargs=self.integrator_kwargs))
             for i in range(self.n_binaries_match):
                 if secondary_events[i] is None:
                     continue
@@ -1172,7 +1186,9 @@ class Population():
                                                           t1=self.max_ev_time - self.initial_galaxy.tau[i],
                                                           t2=self.max_ev_time, dt=copy(self.timestep_size),
                                                           events=secondary_events[i], quiet=quiet,
-                                                          store_all=self.store_entire_orbits))
+                                                          store_all=self.store_entire_orbits,
+                                                          integrator=self.integrator,
+                                                          integrator_kwargs=self.integrator_kwargs))
 
         # check for bad orbits
         bad_orbits = np.array([orbit is None for orbit in orbits])
@@ -1706,6 +1722,7 @@ class Population():
         with h5.File(file_name, "a") as f:
             f.attrs["potential_dict"] = yaml.dump(potential_to_dict(self.galactic_potential),
                                                   default_flow_style=None)
+            
         if self._initial_galaxy is not None:
             self.initial_galaxy.save(file_name, key="initial_galaxy")
 
@@ -1758,6 +1775,11 @@ class Population():
             # save sampling params
             d = file.create_dataset("sampling_params", data=[])
             d.attrs["dict"] = yaml.dump(self.sampling_params, default_flow_style=None)
+            
+            # save integrator settings
+            d = file.create_dataset("integrator_settings", data=[])
+            d.attrs["integrator"] = self.integrator.__name__
+            d.attrs["integrator_kwargs"] = yaml.dump(self.integrator_kwargs, default_flow_style=None)
 
             # save the version of cogsworth, COSMIC, and gala that was used
             file.attrs["cogsworth_version"] = __version__
@@ -1829,6 +1851,10 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
 
         sampling_params = yaml.load(file["sampling_params"].attrs["dict"], Loader=yaml.Loader)
 
+        integrator_name = file.get("integrator", None)
+        integrator_kwargs = file.get("integrator_kwargs", {})
+        integrator = gi.DOPRI853Integrator if integrator_name is None else getattr(gi, integrator_name)
+
     with h5.File(file_name, 'r') as f:
         galactic_potential = potential_from_dict(yaml.load(f.attrs["potential_dict"], Loader=yaml.Loader))
 
@@ -1839,7 +1865,8 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
                    timestep_size=numeric_params[6] * u.Myr, BSE_settings=BSE_settings,
                    sampling_params=sampling_params, store_entire_orbits=store_entire_orbits,
                    bcm_timestep_conditions=bcm_tc, bpp_columns=bpp_columns, bcm_columns=bcm_columns,
-                   error_file_path=error_file_path)
+                   error_file_path=error_file_path,
+                   integrator=integrator, integrator_kwargs=integrator_kwargs)
 
     p._file = file_name
     p.n_binaries_match = int(numeric_params[1])
@@ -1986,15 +2013,18 @@ def concat(*pops):
     return final_pop
 
 
-def _init_pool(potential, t2, store_all, quiet):
+def _init_pool(potential, t2, store_all, quiet, integrator, integrator_kwargs):
     _GLOBAL["potential"] = potential
     _GLOBAL["t2"] = t2
     _GLOBAL["store_all"] = store_all
     _GLOBAL["quiet"] = quiet
+    _GLOBAL["integrator"] = integrator
+    _GLOBAL["integrator_kwargs"] = integrator_kwargs
 
 def _orbit_worker(w0, t1, dt, events):
     return integrate_orbit_with_events(
         w0, t1, _GLOBAL["t2"], dt, _GLOBAL["potential"], events, _GLOBAL["store_all"], _GLOBAL["quiet"],
+        _GLOBAL["integrator"], _GLOBAL["integrator_kwargs"]
     )
 
 class EvolvedPopulation(Population):

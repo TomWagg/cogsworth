@@ -10,6 +10,7 @@ This page tracks all of the changes that have been made to ``cogsworth``. We fol
 - Development: Default BSE settings are drawn directly from the COSMIC cosmic-settings.json data file
 - Development: Use new initC IO functions from COSMIC that compress the data a LOT
 - Development: Add testing for Python 3.11, 3.12, and 3.13
+- New feature: added optional key word arguments `integrator` and `integrator_kwargs` to `Population` class to allow users to specify the integrator settings for `gala`
 
 3.6.0
 =====
