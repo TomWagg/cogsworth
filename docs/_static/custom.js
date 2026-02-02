@@ -49,7 +49,9 @@ document.addEventListener("DOMContentLoaded", function() {
     // Hack to minimise dropdowns when in a tutorial
     let nav = document.querySelector('.bd-docs-nav[aria-label="Section Navigation"]');
     if (nav.querySelector("a").innerText == "Tutorials") {
-        nav.querySelector("label").click();
+        setTimeout(() => {
+            nav.querySelector(".toctree-toggle").click();
+        }, 1000);
     }
 
     if (document.querySelector(".navbar-nav .active").innerText == "User Guide") {
