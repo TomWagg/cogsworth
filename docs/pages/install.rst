@@ -213,6 +213,10 @@ Dependencies
 
             - :mod:`agama` for action-based galactic potentials
 
+            **Population synthesis**
+
+            - :mod:`COMPAS` for alternative binary population synthesis code
+
 
 Data downloads for observables
 ==============================
@@ -245,3 +249,24 @@ to run the following to ensure there's a directory for the files::
     gaia_unlimited_path = os.path.join(os.path.expanduser('~'), ".gaiaunlimited")
     if not os.path.isdir(gaia_unlimited_path):
         os.mkdir(gaia_unlimited_path)
+
+
+Alternative population synthesis codes
+======================================
+
+By default, ``cogsworth`` uses ``COSMIC`` as its population synthesis code. Currently, we additionally have options to use ``COMPAS``.
+
+COMPAS
+------
+If you'd like to use ``COMPAS`` then you'll need to install it separately. You can find instructions for installing ``COMPAS`` `here <https://compas.readthedocs.io/en/latest/pages/Getting%20started/getting-started.html>`_, or use the page inset below.
+
+.. raw:: html
+
+    <iframe
+        src="https://compas.readthedocs.io/en/latest/pages/Getting%20started/getting-started.html"
+        style="width: 100%; height: 600px; border: none;">
+    </iframe>
+
+.. note::
+
+    If you have issues installing ``COMPAS`` please refer to their documentation or `open an issue on their GitHub repository <https://github.com/TeamCOMPAS/COMPAS/issues/new>`_.
