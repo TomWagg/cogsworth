@@ -3,9 +3,6 @@ import subprocess
 import tempfile
 import os
 
-import numpy as np
-import pandas as pd
-
 from ...pop import Population
 from .runner import pythonProgramOptions as COMPAS_command_creator
 from .file import get_bpp, get_kick_info, get_initial_binaries
@@ -163,7 +160,8 @@ class COMPASPopulation(Population):
                          "_escaped", "_observables", "_bin_nums", "BSE_settings",
                          "sampling_params", "bcm_timestep_conditions"]
         for attr in attrs_to_copy:
-            setattr(pop, attr, getattr(self, attr))
+            if attr not in kwargs:
+                setattr(pop, attr, getattr(self, attr))
 
         # check whether kicks were calculated from COMPAS and whether they might be overwritten
         kick_cols = ["natal_kick_1", "natal_kick_2", "phi_1", "theta_1", "phi_2", "theta_2",
@@ -174,7 +172,7 @@ class COMPASPopulation(Population):
                 any_were_present = True
         
         # for defaults, just remove any natal kick settings so that COSMIC uses the table
-        if any_were_present and use_defaults:
+        if any_were_present and use_defaults and "natal_kick_array" in pop.BSE_settings:
             del pop.BSE_settings["natal_kick_array"]
 
         # if not using defaults, warn the user that their settings will overwrite COMPAS kicks
