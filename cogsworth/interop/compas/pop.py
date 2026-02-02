@@ -2,6 +2,7 @@ import logging
 import subprocess
 import tempfile
 import os
+import numpy as np
 
 from ...pop import Population
 from .runner import pythonProgramOptions as COMPAS_command_creator
@@ -89,6 +90,7 @@ class COMPASPopulation(Population):
         initial_binaries = get_initial_binaries(compas_output_file, tphysf=lookback_times)
         pop = cls(n_binaries=len(initial_binaries), **kwargs)
         pop._initial_binaries = initial_binaries
+        pop._initC = initial_binaries.copy()
         pop._bpp = get_bpp(compas_output_file)
         pop._kick_info = get_kick_info(compas_output_file)
         pop._append_kicks()
@@ -111,6 +113,9 @@ class COMPASPopulation(Population):
             The path to the grid file to write the initial binaries to
         """
         with open(grid_filename, "w") as f:
+            if "bin_num" not in self.initial_binaries.columns:
+                self.initial_binaries["bin_num"] = np.arange(1, len(self.initial_binaries) + 1, dtype=int)
+                self.initial_binaries.index = self.initial_binaries["bin_num"].values
             f.write('\n'.join(self.initial_binaries.apply(_stringify_initC, axis=1).values))
 
     def perform_stellar_evolution(self):
@@ -193,4 +198,6 @@ def _stringify_initC(df):
         f'--orbital-period {df["porb"]}',
         f'--eccentricity {df["ecc"]}',
         f'--metallicity {df["metallicity"]}',
-        f'--maximum-evolution-time {df["tphysf"]}'])
+        f'--maximum-evolution-time {df["tphysf"]}',
+        f"--random-seed {int(df['bin_num'])}"
+    ])
