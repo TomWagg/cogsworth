@@ -51,10 +51,35 @@ If you're new to ``cogsworth`` I recommend going through the whole basics sectio
 
         .. toctree::
             :titlesonly:
+            :caption: More on galactic potentials
+
+            ../tutorials/potentials/evolving_potentials.ipynb
+
+    .. grid-item-card::
+
+        .. toctree::
+            :titlesonly:
+            :caption: More on star formation histories
+
+            ../tutorials/more_sfh/other_sfhs.ipynb
+            ../tutorials/more_sfh/dfs.ipynb
+
+    .. grid-item-card::
+
+        .. toctree::
+            :titlesonly:
             :caption: Observables
 
             ../tutorials/observables/photometry.ipynb
             ../tutorials/observables/gaia.ipynb
+
+    .. grid-item-card::
+
+        .. toctree::
+            :titlesonly:
+            :caption: Different population synthesis codes
+
+            ../tutorials/pop_synth_codes/compas.ipynb
 
     .. grid-item-card::
 
@@ -65,15 +90,6 @@ If you're new to ``cogsworth`` I recommend going through the whole basics sectio
             ../tutorials/visualisation/binary_evolution.ipynb
             ../tutorials/visualisation/sky_plots.ipynb
             ../tutorials/visualisation/gala.ipynb
-
-    .. grid-item-card::
-
-        .. toctree::
-            :titlesonly:
-            :caption: More on star formation histories
-
-            ../tutorials/more_sfh/other_sfhs.ipynb
-            ../tutorials/more_sfh/dfs.ipynb
 
     .. grid-item-card::
 

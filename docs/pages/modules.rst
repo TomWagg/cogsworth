@@ -17,6 +17,7 @@ then you can also use the search box above!
     ../modules/events
     ../modules/kicks
     ../modules/hydro
+    ../modules/interop
     ../modules/plot
     ../modules/utils
 
