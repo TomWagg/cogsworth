@@ -741,6 +741,33 @@ class Population():
         if self._final_pos is None:
             self._final_pos, self._final_vel = self._get_final_coords()
         return self._final_pos
+    
+    @property
+    def final_primary_pos(self):
+        """The final position of each primary star in the galaxy.
+
+        Returns
+        -------
+        final_primary_pos : :class:`~numpy.ndarray`, shape (len(self), 3)
+            The final position of each primary star in the galaxy.
+        """
+        return self.final_pos[:len(self)]
+    
+    @property
+    def final_secondary_pos(self):
+        """The final position of each secondary star in the galaxy.
+
+        Returns
+        -------
+        final_secondary_pos : :class:`~numpy.ndarray`, shape (len(self), 3)
+            The final position of each secondary star in the galaxy.
+        """
+        # for most things the secondary is in the same place as the primary
+        pos = self.final_pos[:len(self)]
+
+        # overwrite for disrupted binaries where the secondary is somewhere else
+        pos[self.disrupted] = self.final_pos[len(self):]
+        return pos
 
     @property
     def final_vel(self):
@@ -754,6 +781,33 @@ class Population():
         if self._final_vel is None:
             self._final_pos, self._final_vel = self._get_final_coords()
         return self._final_vel
+    
+    @property
+    def final_primary_vel(self):
+        """The final velocity of each primary star in the galaxy.
+
+        Returns
+        -------
+        final_primary_vel : :class:`~numpy.ndarray`, shape (len(self), 3)
+            The final velocity of each primary star in the galaxy.
+        """
+        return self.final_vel[:len(self)]
+    
+    @property
+    def final_secondary_vel(self):
+        """The final velocity of each secondary star in the galaxy.
+
+        Returns
+        -------
+        final_secondary_vel : :class:`~numpy.ndarray`, shape (len(self), 3)
+            The final velocity of each secondary star in the galaxy.
+        """
+        # for most things the secondary is moving with the same velocity as the primary
+        vel = self.final_vel[:len(self)]
+
+        # overwrite for disrupted binaries where the secondary is moving with a different velocity to the primary
+        vel[self.disrupted] = self.final_vel[len(self):]
+        return vel
 
     @property
     def final_bpp(self):
