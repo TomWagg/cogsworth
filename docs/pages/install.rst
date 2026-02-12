@@ -15,7 +15,7 @@ Package installation
 
         #. Create a new empty conda environment for ``cogsworth``::
 
-                conda create --name cogsworth python=3.10
+                conda create --name cogsworth python=3.11
 
         #. Activate the environment by running::
 
@@ -91,7 +91,7 @@ Package installation
         Next, we recommend that you create a Conda environment for working with ``cogsworth``.
         You can do this by running::
 
-            conda create --name cogsworth python=3.10
+            conda create --name cogsworth python=3.11
 
         And then activate the environment by running::
 
