@@ -762,12 +762,11 @@ class Population():
         final_secondary_pos : :class:`~numpy.ndarray`, shape (len(self), 3)
             The final position of each secondary star in the galaxy.
         """
-        # for most things the secondary is in the same place as the primary
-        pos = self.final_pos[:len(self)]
-
-        # overwrite for disrupted binaries where the secondary is somewhere else
-        pos[self.disrupted] = self.final_pos[len(self):]
-        return pos
+        # for most things the secondary has the same position as the primary
+        # but for disrupted binaries we need to overwrite this
+        inds = np.arange(len(self))
+        inds[self.disrupted] = np.arange(len(self), len(self) + self.disrupted.sum())
+        return self.final_pos[inds]
 
     @property
     def final_vel(self):
@@ -802,12 +801,11 @@ class Population():
         final_secondary_vel : :class:`~numpy.ndarray`, shape (len(self), 3)
             The final velocity of each secondary star in the galaxy.
         """
-        # for most things the secondary is moving with the same velocity as the primary
-        vel = self.final_vel[:len(self)]
-
-        # overwrite for disrupted binaries where the secondary is moving with a different velocity to the primary
-        vel[self.disrupted] = self.final_vel[len(self):]
-        return vel
+        # for most things the secondary has the same velocity as the primary
+        # but for disrupted binaries we need to overwrite this
+        inds = np.arange(len(self))
+        inds[self.disrupted] = np.arange(len(self), len(self) + self.disrupted.sum())
+        return self.final_vel[inds]
 
     @property
     def final_bpp(self):
