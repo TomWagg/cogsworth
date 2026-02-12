@@ -833,3 +833,28 @@ class Test(unittest.TestCase):
         except ValueError:
             it_worked = False
         self.assertFalse(it_worked)
+
+    def test_primary_secondary_pos_vel(self):
+        """Check that primary and secondary orbits and can be accessed via properties"""
+        p = pop.Population(100, final_kstar1=[13, 14], use_default_BSE_settings=True, processes=1,
+                           store_entire_orbits=False)
+        p.create_population()
+
+        self.assertTrue(
+            np.allclose(p.final_primary_pos, p.final_pos[:len(p)])
+        )
+        secondary_pos = p.final_pos[:len(p)]
+        secondary_pos[p.disrupted] = p.final_pos[len(p):]
+        self.assertTrue(
+            np.allclose(p.final_secondary_pos, secondary_pos)
+        )
+
+        # same for velocities
+        self.assertTrue(
+            np.allclose(p.final_primary_vel, p.final_vel[:len(p)])
+        )
+        secondary_vel = p.final_vel[:len(p)]
+        secondary_vel[p.disrupted] = p.final_vel[len(p):]
+        self.assertTrue(
+            np.allclose(p.final_secondary_vel, secondary_vel)
+        )
