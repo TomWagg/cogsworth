@@ -309,6 +309,9 @@ def get_bpp(filename):
 
     # reduce to just the columns we want
     cols = BPP_COLUMNS + ["evol_type", "RRLO(1)", "RRLO(2)"]
+    if "RLOF(1)" not in bpp.columns and "RLOF(2)" not in bpp.columns:
+        bpp["RRLO(1)"] = np.nan
+        bpp["RRLO(2)"] = np.nan
     bpp = bpp.loc[:, cols]
 
     # delete any duplicate rows that may have been created
