@@ -4,6 +4,10 @@ Full changelog
 
 This page tracks all of the changes that have been made to ``cogsworth``. We follow the standard versioning convention of A.B.C, where C is a patch/bugfix, B is a large bugfix or new feature and A is a major new breaking change. B/C are backwards compatible but A changes may be breaking.
 
+3.6.3
+=====
+- Bug fix: When loading populations, ensure that `error_file_path` is properly converted back to `None` if it was saved as the string 'None'. Same for saving.
+
 3.6.2
 =====
 - Enhancement: Added properties to the `Population` class to allow users to easily access the final positions and velocities of primary and secondary stars in the population. These properties are `final_pos_primary`, `final_vel_primary`, `final_pos_secondary`, and `final_vel_secondary`. They return the final positions and velocities of the primary and secondary stars as numpy arrays, which can be useful for analysis and plotting without needing to access the full orbit data.
