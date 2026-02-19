@@ -1817,7 +1817,8 @@ class Population():
             num_par.attrs["timestep_conditions"] = self.bcm_timestep_conditions
             num_par.attrs["bpp_columns"] = np.array(self.bpp_columns, dtype="S")
             num_par.attrs["bcm_columns"] = np.array(self.bcm_columns, dtype="S")
-            num_par.attrs["error_file_path"] = self.error_file_path
+            num_par.attrs["error_file_path"] = (self.error_file_path if self.error_file_path is not None
+                                                else "None")
 
             # save BSE settings
             d = file.create_dataset("BSE_settings", data=[])
@@ -1888,6 +1889,7 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
         bcm_columns = file["numeric_params"].attrs["bcm_columns"]
         error_file_path = (file["numeric_params"].attrs["error_file_path"]
                            if "error_file_path" in file["numeric_params"].attrs else None)
+        error_file_path = None if error_file_path == 'None' else error_file_path
 
         # convert columns to None if empty
         bpp_columns = None if isinstance(bpp_columns, bytes) and bpp_columns == b'None' else bpp_columns
