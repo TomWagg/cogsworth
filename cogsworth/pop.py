@@ -49,7 +49,7 @@ class Population():
     n_binaries : `int`
         How many binaries to sample for the population
     processes : `int`, optional
-        How many processes to run if you want multithreading, by default 8
+        How many processes to run if you want multithreading, by default all cores available on machine
     m1_cutoff : `float`, optional
         The minimum allowed primary mass, by default 0
     final_kstar1 : `list`, optional
@@ -102,7 +102,7 @@ class Population():
     integrator_kwargs : `dict`, optional
         Any additional keyword arguments to pass to the gala integrator, by default an empty dict
     """
-    def __init__(self, n_binaries, processes=8, m1_cutoff=0, final_kstar1=list(range(16)),
+    def __init__(self, n_binaries, processes=None, m1_cutoff=0, final_kstar1=list(range(16)),
                  final_kstar2=list(range(16)), sfh_model=sfh.Wagg2022, sfh_params={},
                  galactic_potential=gp.MilkyWayPotential(version='v2'), v_dispersion=5 * u.km / u.s,
                  max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, ini_file=None,
@@ -128,9 +128,13 @@ class Population():
                                                     "have made.\nRun `cogsworth.utils.list_BSE_defaults()` "
                                                     "to see these."))
 
+        # work out how many CPUs are available for multiprocessing, fallback to 1
+        max_cpus = os.cpu_count() if os.cpu_count() is not None else 1
+
         self.n_binaries = n_binaries
         self.n_binaries_match = n_binaries
-        self.processes = processes
+        # use max CPUs if user doesn't specify
+        self.processes = processes if processes is not None else max_cpus
         self.m1_cutoff = m1_cutoff
         self.final_kstar1 = final_kstar1
         self.final_kstar2 = final_kstar2
@@ -1145,8 +1149,23 @@ class Population():
                                                     "and kick_info tables"))
 
     def _iter_orbit_args(self, w0s, primary_events, secondary_events):
-        """A generator that yields the arguments to be passed to the orbit worker for each binary, such that
-        primaries are yielded first and then secondaries from disrupted binaries are yielded after.
+        """A generator that yields the arguments to be passed to the orbit worker for each binary.
+        
+        Primaries are yielded first and then secondaries from disrupted binaries are yielded after.
+        
+        Parameters
+        ----------
+        w0s : array-like
+            Initial phase space positions for each binary
+        primary_events : pandas.DataFrame
+            DataFrame containing primary events for each binary
+        secondary_events : pandas.DataFrame
+            DataFrame containing secondary events for each binary
+
+        Yields
+        ------
+        tuple
+            A tuple of (w0, t1, dt, events) for each binary to be passed to the orbit worker
         """
         # yield all primaries first
         for i in range(self.n_binaries_match):
@@ -1159,14 +1178,14 @@ class Population():
             )
 
         # then all secondaries in disrupted binaries
-        for i in range(self.n_binaries_match):
-            if self.disrupted[i]:
-                yield (
-                    w0s[i],
-                    self.max_ev_time - self.initial_galaxy.tau[i],
-                    copy(self.timestep_size),
-                    secondary_events.loc[[self.bin_nums[i]]],
-                )
+        disrupted_range = np.arange(self.n_binaries_match)[self.disrupted]
+        for i in disrupted_range:
+            yield (
+                w0s[i],
+                self.max_ev_time - self.initial_galaxy.tau[i],
+                copy(self.timestep_size),
+                secondary_events.loc[[self.bin_nums[i]]],
+            )
 
     def perform_galactic_evolution(self, quiet=False, progress_bar=True):
         """Use :py:mod:`gala` to perform the orbital integration for each evolved binary
