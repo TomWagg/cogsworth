@@ -1261,31 +1261,14 @@ class Population():
                 self._close_pool()
         else:
             # otherwise just use a for loop to evolve the orbits from birth until present day
-            orbits = []
-            for i in range(self.n_binaries_match):
-                has_sn = self.bin_nums[i] in primary_events.index
-                events = primary_events.loc[[self.bin_nums[i]]] if has_sn else None
-                orbits.append(integrate_orbit_with_events(
-                    w0=w0s[i], potential=self.galactic_potential,
-                    t1=self.max_ev_time - self.initial_galaxy.tau[i],
-                    t2=self.max_ev_time, dt=copy(self.timestep_size),
-                    events=events,
-                    quiet=quiet,
-                    store_all=self.store_entire_orbits,
-                    integrator=self.integrator,
-                    integrator_kwargs=self.integrator_kwargs)
-                )
-            disrupted_range = np.arange(self.n_binaries_match)[self.disrupted]
-            for i in disrupted_range:
-                orbits.append(integrate_orbit_with_events(
-                    w0=w0s[i], potential=self.galactic_potential,
-                    t1=self.max_ev_time - self.initial_galaxy.tau[i],
-                    t2=self.max_ev_time, dt=copy(self.timestep_size),
-                    events=secondary_events.loc[[self.bin_nums[i]]], quiet=quiet,
-                    store_all=self.store_entire_orbits,
-                    integrator=self.integrator,
-                    integrator_kwargs=self.integrator_kwargs)
-                )
+            orbits = [
+                integrate_orbit_with_events(
+                    w0=w0, potential=self.galactic_potential,
+                    t1=t1, t2=self.max_ev_time, dt=dt,
+                    events=events, quiet=quiet, store_all=self.store_entire_orbits,
+                    integrator=self.integrator, integrator_kwargs=self.integrator_kwargs
+                ) for w0, t1, dt, events in self._iter_orbit_args(w0s, primary_events, secondary_events)
+            ]
 
         # check for bad orbits
         bad_orbits = np.array([orbit is None for orbit in orbits])
