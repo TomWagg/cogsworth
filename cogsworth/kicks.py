@@ -183,7 +183,11 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential(v
             break
 
         except Exception as e:   # pragma: no cover
-            print(e)
+            # if the error is not a runtime error that starts with "Integration failed" then raise it
+            if not (isinstance(e, RuntimeError) and str(e).startswith("Integration failed")):
+                raise e
+
+            # otherwise, try again with a smaller timestep
             dt /= 8.
 
     # if the orbit failed event after resizing then just return None
