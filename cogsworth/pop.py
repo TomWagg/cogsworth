@@ -1264,7 +1264,7 @@ class Population():
             orbits = []
             for i in range(self.n_binaries_match):
                 has_sn = self.bin_nums[i] in primary_events.index
-                events = primary_events.loc[self.bin_nums[i]] if has_sn else None
+                events = primary_events.loc[[self.bin_nums[i]]] if has_sn else None
                 orbits.append(integrate_orbit_with_events(
                     w0=w0s[i], potential=self.galactic_potential,
                     t1=self.max_ev_time - self.initial_galaxy.tau[i],
@@ -1281,7 +1281,7 @@ class Population():
                     w0=w0s[i], potential=self.galactic_potential,
                     t1=self.max_ev_time - self.initial_galaxy.tau[i],
                     t2=self.max_ev_time, dt=copy(self.timestep_size),
-                    events=secondary_events.loc[self.bin_nums[i]], quiet=quiet,
+                    events=secondary_events.loc[[self.bin_nums[i]]], quiet=quiet,
                     store_all=self.store_entire_orbits,
                     integrator=self.integrator,
                     integrator_kwargs=self.integrator_kwargs)
