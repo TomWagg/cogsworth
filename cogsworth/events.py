@@ -1,4 +1,3 @@
-import astropy.units as u
 import numpy as np
 
 __all__ = ["identify_events"]
