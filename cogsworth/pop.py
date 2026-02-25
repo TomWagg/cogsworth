@@ -1155,17 +1155,17 @@ class Population():
                 w0s[i],
                 self.max_ev_time - self.initial_galaxy.tau[i],
                 copy(self.timestep_size),
-                primary_events.loc[self.bin_nums[i]] if has_sn else None,
+                primary_events.loc[[self.bin_nums[i]]] if has_sn else None,
             )
 
         # then all secondaries in disrupted binaries
         for i in range(self.n_binaries_match):
-            if self.disrupted[i] is not None:
+            if self.disrupted[i]:
                 yield (
                     w0s[i],
                     self.max_ev_time - self.initial_galaxy.tau[i],
                     copy(self.timestep_size),
-                    secondary_events.loc[self.bin_nums[i]],
+                    secondary_events.loc[[self.bin_nums[i]]],
                 )
 
     def perform_galactic_evolution(self, quiet=False, progress_bar=True):
@@ -1233,7 +1233,7 @@ class Population():
                 orbits = self.pool.starmap(
                     _orbit_worker, tqdm(args, total=self.n_binaries_match + self.disrupted.sum(),
                                         desc="Integrating orbits")
-    )
+                )
             else:
                 orbits = self.pool.starmap(_orbit_worker, args)
 
