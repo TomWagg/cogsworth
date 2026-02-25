@@ -1144,6 +1144,30 @@ class Population():
                                                     "binaries to a `nan.h5` file with their initC, bpp, "
                                                     "and kick_info tables"))
 
+    def _iter_orbit_args(self, w0s, primary_events, secondary_events):
+        """A generator that yields the arguments to be passed to the orbit worker for each binary, such that
+        primaries are yielded first and then secondaries from disrupted binaries are yielded after.
+        """
+        # yield all primaries first
+        for i in range(self.n_binaries_match):
+            has_sn = self.bin_nums[i] in primary_events.index
+            yield (
+                w0s[i],
+                self.max_ev_time - self.initial_galaxy.tau[i],
+                copy(self.timestep_size),
+                primary_events.loc[self.bin_nums[i]] if has_sn else None,
+            )
+
+        # then all secondaries in disrupted binaries
+        for i in range(self.n_binaries_match):
+            if self.disrupted[i] is not None:
+                yield (
+                    w0s[i],
+                    self.max_ev_time - self.initial_galaxy.tau[i],
+                    copy(self.timestep_size),
+                    secondary_events.loc[self.bin_nums[i]],
+                )
+
     def perform_galactic_evolution(self, quiet=False, progress_bar=True):
         """Use :py:mod:`gala` to perform the orbital integration for each evolved binary
 
@@ -1202,18 +1226,14 @@ class Population():
             pool_existed = self.pool is not None
             self._ensure_pool(quiet=quiet)
 
-            # setup arguments to combine primary and secondaries into a single list
-            primary_args = [(w0s[i], self.max_ev_time - self.initial_galaxy.tau[i],
-                             copy(self.timestep_size), primary_events[i])
-                            for i in range(self.n_binaries_match)]
-            secondary_args = [(w0s[i], self.max_ev_time - self.initial_galaxy.tau[i],
-                               copy(self.timestep_size), secondary_events[i])
-                              for i in range(self.n_binaries_match) if secondary_events[i] is not None]
-            args = primary_args + secondary_args
+            args = self._iter_orbit_args(w0s, primary_events, secondary_events)
 
             # evolve the orbits from birth until present day
             if progress_bar:
-                orbits = self.pool.starmap(_orbit_worker, tqdm(args, total=self.n_binaries_match))
+                orbits = self.pool.starmap(
+                    _orbit_worker, tqdm(args, total=self.n_binaries_match + self.disrupted.sum(),
+                                        desc="Integrating orbits")
+    )
             else:
                 orbits = self.pool.starmap(_orbit_worker, args)
 
@@ -1224,23 +1244,29 @@ class Population():
             # otherwise just use a for loop to evolve the orbits from birth until present day
             orbits = []
             for i in range(self.n_binaries_match):
-                orbits.append(integrate_orbit_with_events(w0=w0s[i], potential=self.galactic_potential,
-                                                          t1=self.max_ev_time - self.initial_galaxy.tau[i],
-                                                          t2=self.max_ev_time, dt=copy(self.timestep_size),
-                                                          events=primary_events[i], quiet=quiet,
-                                                          store_all=self.store_entire_orbits,
-                                                          integrator=self.integrator,
-                                                          integrator_kwargs=self.integrator_kwargs))
-            for i in range(self.n_binaries_match):
-                if secondary_events[i] is None:
-                    continue
-                orbits.append(integrate_orbit_with_events(w0=w0s[i], potential=self.galactic_potential,
-                                                          t1=self.max_ev_time - self.initial_galaxy.tau[i],
-                                                          t2=self.max_ev_time, dt=copy(self.timestep_size),
-                                                          events=secondary_events[i], quiet=quiet,
-                                                          store_all=self.store_entire_orbits,
-                                                          integrator=self.integrator,
-                                                          integrator_kwargs=self.integrator_kwargs))
+                has_sn = self.bin_nums[i] in primary_events.index
+                events = primary_events.loc[self.bin_nums[i]] if has_sn else None
+                orbits.append(integrate_orbit_with_events(
+                    w0=w0s[i], potential=self.galactic_potential,
+                    t1=self.max_ev_time - self.initial_galaxy.tau[i],
+                    t2=self.max_ev_time, dt=copy(self.timestep_size),
+                    events=events,
+                    quiet=quiet,
+                    store_all=self.store_entire_orbits,
+                    integrator=self.integrator,
+                    integrator_kwargs=self.integrator_kwargs)
+                )
+            disrupted_range = np.arange(self.n_binaries_match)[self.disrupted]
+            for i in disrupted_range:
+                orbits.append(integrate_orbit_with_events(
+                    w0=w0s[i], potential=self.galactic_potential,
+                    t1=self.max_ev_time - self.initial_galaxy.tau[i],
+                    t2=self.max_ev_time, dt=copy(self.timestep_size),
+                    events=secondary_events.loc[self.bin_nums[i]], quiet=quiet,
+                    store_all=self.store_entire_orbits,
+                    integrator=self.integrator,
+                    integrator_kwargs=self.integrator_kwargs)
+                )
 
         # check for bad orbits
         bad_orbits = np.array([orbit is None for orbit in orbits])
