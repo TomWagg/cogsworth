@@ -244,7 +244,7 @@ class Test(unittest.TestCase):
 
     def test_interface(self):
         """Test the interface of this class with the other modules"""
-        p = pop.Population(10, processes=1, final_kstar1=[13, 14], store_entire_orbits=False,
+        p = pop.Population(10, processes=2, final_kstar1=[13, 14], store_entire_orbits=False,
                            use_default_BSE_settings=True)
         p.create_population()
 
@@ -252,7 +252,8 @@ class Test(unittest.TestCase):
         MAX_REPS = 5
         i = 0
         while not p.disrupted.any() and i < MAX_REPS:
-            p = pop.Population(10, processes=1, final_kstar1=[13, 14], use_default_BSE_settings=True)
+            p = pop.Population(10, processes=2, final_kstar1=[13, 14], store_entire_orbits=False,
+                               use_default_BSE_settings=True)
             p.create_population()
             i += 1
         if i == MAX_REPS:

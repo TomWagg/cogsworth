@@ -152,3 +152,5 @@ paper/ApJS/*
 !paper/ApJS/styles
 
 scratch/
+
+sg_execution_times.rst
