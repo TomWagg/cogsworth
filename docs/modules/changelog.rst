@@ -4,6 +4,13 @@ Full changelog
 
 This page tracks all of the changes that have been made to ``cogsworth``. We follow the standard versioning convention of A.B.C, where C is a patch/bugfix, B is a large bugfix or new feature and A is a major new breaking change. B/C are backwards compatible but A changes may be breaking.
 
+3.7.0
+=====
+
+- Development: Vastly speed up event identification for large populations through vectorisation
+- Development: Use a generator to yield orbits one at a time when integrating populations, this should reduce memory usage and allow for much larger populations to be integrated without issues
+- Default change: Update default processes from 8 to the max CPUs available on a machine
+
 3.6.3
 =====
 - Bug fix: When loading populations, ensure that `error_file_path` is properly converted back to `None` if it was saved as the string 'None'. Same for saving.
