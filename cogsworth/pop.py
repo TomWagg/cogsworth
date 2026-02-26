@@ -977,7 +977,7 @@ class Population():
         self._initial_galaxy.v_T = v_T
         self._initial_galaxy.v_z = v_z
 
-    def sample_initial_binaries(self, initC=None, overwrite_initC_settings=True, reset_sampled_kicks=True):
+    def sample_initial_binaries(self, initC=None, overwrite_initC_settings=False, reset_sampled_kicks=False):
         """Sample the initial binary parameters for the population.
 
         Alternatively, copy initial conditions from another population
@@ -988,9 +988,10 @@ class Population():
             Initial conditions from a different Population, by default None (new sampling performed)
         overwrite_initC_settings : `bool`, optional
             Whether to overwrite initC settings in the case where the new population has a different set of
-            `BSE_settings`, by default True
+            `BSE_settings`, by default False
         reset_sampled_kicks : `bool`, optional
-            Whether to reset any sampled kicks in the population to ensure new ones are drawn, by default True
+            Whether to reset any sampled kicks in the population to ensure new ones are drawn,
+            by default False
         """
         self._bin_nums = None
         self._final_bpp = None
