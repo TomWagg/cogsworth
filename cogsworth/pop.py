@@ -925,7 +925,7 @@ class Population():
 
         self.sample_initial_binaries()
         if with_timing:
-            print(f"Ended up with {self.n_binaries_match} binaries with m1 > {self.m1_cutoff} solar masses")
+            print(f"Sampled {self.n_binaries_match} binaries")
             print(f"[{time.time() - start:1.0e}s] Sample initial binaries")
             lap = time.time()
 
@@ -940,7 +940,7 @@ class Population():
 
         self.perform_galactic_evolution(progress_bar=with_timing)
         if with_timing:
-            print(f"[{time.time() - lap:1.1f}s] Get orbits (run gala)")
+            print(f"[{time.time() - lap:1.1f}s] Integrate galactic orbits (run gala)")
 
         self._close_pool()
 
