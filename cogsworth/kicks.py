@@ -113,6 +113,10 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential(v
             # work out what the timesteps would be without kicks
             timesteps = gi.parse_time_specification(units=[u.s], t1=t1, t2=t2, dt=dt) * u.s
 
+            # ensure final timestep always hits exactly t2 (important for SN that happen right before t2)
+            if timesteps[-1] < t2:
+                timesteps = np.append(timesteps, t2.to(u.s))
+
             # start the cursor at the first timestep
             time_cursor = timesteps[0]
             current_w0 = w0
@@ -176,9 +180,16 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential(v
 
             data = coords.concatenate_representations(orbit_data) if len(orbit_data) > 1 else orbit_data[0]
 
-            full_orbit = gd.orbit.Orbit(
-                pos=data.without_differentials(), vel=data.differentials["s"], t=timesteps.to(u.Myr)
-            )
+            try:
+                full_orbit = gd.orbit.Orbit(
+                    pos=data.without_differentials(), vel=data.differentials["s"], t=timesteps.to(u.Myr)
+                )
+            except Exception as e:   # pragma: no cover
+                print("pos", data.without_differentials())
+                print("vel", data.differentials["s"])
+                print("t", timesteps.to(u.Myr))
+                print(events)
+                raise e
             success = True
             break
 

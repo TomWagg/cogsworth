@@ -925,7 +925,7 @@ class Population():
 
         self.sample_initial_binaries()
         if with_timing:
-            print(f"Ended up with {self.n_binaries_match} binaries with m1 > {self.m1_cutoff} solar masses")
+            print(f"Sampled {self.n_binaries_match} binaries")
             print(f"[{time.time() - start:1.0e}s] Sample initial binaries")
             lap = time.time()
 
@@ -940,7 +940,7 @@ class Population():
 
         self.perform_galactic_evolution(progress_bar=with_timing)
         if with_timing:
-            print(f"[{time.time() - lap:1.1f}s] Get orbits (run gala)")
+            print(f"[{time.time() - lap:1.1f}s] Integrate galactic orbits (run gala)")
 
         self._close_pool()
 
@@ -977,7 +977,7 @@ class Population():
         self._initial_galaxy.v_T = v_T
         self._initial_galaxy.v_z = v_z
 
-    def sample_initial_binaries(self, initC=None, overwrite_initC_settings=True, reset_sampled_kicks=True):
+    def sample_initial_binaries(self, initC=None, overwrite_initC_settings=False, reset_sampled_kicks=False):
         """Sample the initial binary parameters for the population.
 
         Alternatively, copy initial conditions from another population
@@ -988,9 +988,10 @@ class Population():
             Initial conditions from a different Population, by default None (new sampling performed)
         overwrite_initC_settings : `bool`, optional
             Whether to overwrite initC settings in the case where the new population has a different set of
-            `BSE_settings`, by default True
+            `BSE_settings`, by default False
         reset_sampled_kicks : `bool`, optional
-            Whether to reset any sampled kicks in the population to ensure new ones are drawn, by default True
+            Whether to reset any sampled kicks in the population to ensure new ones are drawn,
+            by default False
         """
         self._bin_nums = None
         self._final_bpp = None

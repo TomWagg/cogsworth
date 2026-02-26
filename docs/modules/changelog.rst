@@ -4,6 +4,12 @@ Full changelog
 
 This page tracks all of the changes that have been made to ``cogsworth``. We follow the standard versioning convention of A.B.C, where C is a patch/bugfix, B is a large bugfix or new feature and A is a major new breaking change. B/C are backwards compatible but A changes may be breaking.
 
+3.7.1
+=====
+
+- Bug fix: When integrating orbits with kicks, ensure that the final timestep always hits exactly `t2` by appending `t2` to the timesteps if it is not already included (previously t2 could be a fraction of dt before t2). This is important for correctly handling SN events that occur right before `t2`, ensuring they are included in the integration and event identification.
+- Default change: sample_initial_binaries won't overwrite initC settings by default anymore, or reset sampled kicks (when initC is explicitly passed to the function).
+
 3.7.0
 =====
 
