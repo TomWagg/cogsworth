@@ -2076,7 +2076,7 @@ def concat(*pops):
     
     # warn about orbits if necessary
     if any([pop._orbits is not None for pop in pops]):
-        pop._warn(
+        pops[0]._warn(
             "Concatenating populations with orbits is not supported yet - "
             "the final population will not have orbits. PRs are welcome!"
         )
