@@ -242,10 +242,12 @@ class Population():
             missing_parts = [p for i, p in enumerate(parts) if (masks[f"has_{p}"] and vars[i] is None)]
 
             if len(missing_parts) > 0:
-                raise ValueError(("This population was loaded from a file but you haven't loaded all parts "
-                                  "yet. You need to do this before indexing it. The missing parts are: "
-                                  f"{missing_parts}. You either need to access each of these variables or "
-                                  "reload the entire population using all parts."))
+                logging.getLogger("cogsworth").warning(
+                    ("cogsworth warning: You've just masked a population that wasn't fully loaded from a "
+                     "file. This means that the masked population won't have access to the parts that "
+                     "were not loaded. If you don't need the missing parts then this is fine, for reference "
+                     f" those are: {missing_parts}.")
+                )
 
         # ensure indexing with the right type
         ALLOWED_TYPES = (int, slice, list, np.ndarray, tuple)
