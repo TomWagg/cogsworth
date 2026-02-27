@@ -109,7 +109,19 @@ class Population():
                  use_default_BSE_settings=False, sampling_params={},
                  bcm_timestep_conditions=[], store_entire_orbits=True,
                  bpp_columns=None, bcm_columns=None, error_file_path="./",
-                 integrator=gi.DOPRI853Integrator, integrator_kwargs={}):
+                 integrator=gi.DOPRI853Integrator, integrator_kwargs={},
+            orbit_integration_retry_settings={
+                
+            }
+        ):
+
+        if m1_cutoff != 0:
+            warnings.warn(
+                "cogsworth warning: m1_cutoff will be deprecated in v3.8+ of cogsworth. This can be achieved "
+                "by just masking the initial binary table after sampling.",
+                FutureWarning,
+                stacklevel=2
+            )
 
         # require a sensible number of binaries if you are not targetting total mass
         if not ("sampling_target" in sampling_params and sampling_params["sampling_target"] == "total_mass"):
