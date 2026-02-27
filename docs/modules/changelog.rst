@@ -4,10 +4,18 @@ Full changelog
 
 This page tracks all of the changes that have been made to ``cogsworth``. We follow the standard versioning convention of A.B.C, where C is a patch/bugfix, B is a large bugfix or new feature and A is a major new breaking change. B/C are backwards compatible but A changes may be breaking.
 
+3.7.2
+=====
+
+- Bug fix: In the very rare case where a binary disrupts and one star's orbit integration but the other's doesn't, previously only one orbit was removed, leading to shape mismatches. This release fixes that issue.
+- Bug fix (https://github.com/TomWagg/cogsworth/issues/197): Citations are saved and loaded correctly from files, previously they were not being saved at all, and when loading they were being set to an empty list instead of the correct citations.
+- New feature (https://github.com/TomWagg/cogsworth/issues/193): Allow user to specify ``orbit_integration_retry_settings`` when creating a Population, which is a dictionary with keys ``max_retries`` and ``timestep_multiplier`` that control how many times to retry an orbit integration if it fails and how much to reduce the timestep by for each retry. This gives the user control and flexibility over how to handle orbit integration failures.
+- Deprecation: The ``m1_cutoff`` argument to ``Population`` is now deprecated and will be removed in v3.8+. This can be achieved with a mask and more general cases can be handled with that.
+
 3.7.1
 =====
 
-- Bug fix: When integrating orbits with kicks, ensure that the final timestep always hits exactly `t2` by appending `t2` to the timesteps if it is not already included (previously t2 could be a fraction of dt before t2). This is important for correctly handling SN events that occur right before `t2`, ensuring they are included in the integration and event identification.
+- Bug fix: When integrating orbits with kicks, ensure that the final timestep always hits exactly ``t2`` by appending ``t2`` to the timesteps if it is not already included (previously t2 could be a fraction of dt before t2). This is important for correctly handling SN events that occur right before ``t2``, ensuring they are included in the integration and event identification.
 - Default change: sample_initial_binaries won't overwrite initC settings by default anymore, or reset sampled kicks (when initC is explicitly passed to the function).
 
 3.7.0
@@ -19,19 +27,19 @@ This page tracks all of the changes that have been made to ``cogsworth``. We fol
 
 3.6.3
 =====
-- Bug fix: When loading populations, ensure that `error_file_path` is properly converted back to `None` if it was saved as the string 'None'. Same for saving.
+- Bug fix: When loading populations, ensure that ``error_file_path`` is properly converted back to ``None`` if it was saved as the string 'None'. Same for saving.
 
 3.6.2
 =====
-- Enhancement: Added properties to the `Population` class to allow users to easily access the final positions and velocities of primary and secondary stars in the population. These properties are `final_pos_primary`, `final_vel_primary`, `final_pos_secondary`, and `final_vel_secondary`. They return the final positions and velocities of the primary and secondary stars as numpy arrays, which can be useful for analysis and plotting without needing to access the full orbit data.
+- Enhancement: Added properties to the ``Population`` class to allow users to easily access the final positions and velocities of primary and secondary stars in the population. These properties are ``final_pos_primary``, ``final_vel_primary``, ``final_pos_secondary``, and ``final_vel_secondary``. They return the final positions and velocities of the primary and secondary stars as numpy arrays, which can be useful for analysis and plotting without needing to access the full orbit data.
 
 3.6.1
 =====
-- Enhancement: Allow users to specify a directory for saving bad orbits when integrating populations by adding an `error_file_path` argument to the Population class. If set, bad orbits will be saved to this directory instead of the current working directory. If set to None, bad orbits will not be saved. This provides more flexibility in managing output files.
+- Enhancement: Allow users to specify a directory for saving bad orbits when integrating populations by adding an ``error_file_path`` argument to the ``Population`` class. If set, bad orbits will be saved to this directory instead of the current working directory. If set to None, bad orbits will not be saved. This provides more flexibility in managing output files.
 - Development: Default BSE settings are drawn directly from the COSMIC cosmic-settings.json data file
 - Development: Use new initC IO functions from COSMIC that compress the data a LOT
 - Development: Add testing for Python 3.11, 3.12, and 3.13
-- New feature: added optional key word arguments `integrator` and `integrator_kwargs` to `Population` class to allow users to specify the integrator settings for `gala`
+- New feature: added optional key word arguments ``integrator`` and ``integrator_kwargs`` to ``Population`` class to allow users to specify the integrator settings for ``gala``
 
 3.6.0
 =====
@@ -44,31 +52,31 @@ This page tracks all of the changes that have been made to ``cogsworth``. We fol
 3.5.0
 =====
 - New feature: Added support for the latest version of Gala (v1.11.0). This means time-evolving potentials can now be used when integrating orbits for populations, as well as connections to EXP and new interface with the MilkyWayPotential class.
-- New feature: When saving populations, the versions of `cogsworth`, `COSMIC`, and `gala` used to create the population are now stored as attributes in the saved file. This allows for better tracking of software versions for reproducibility.
-- Bug fix: When loading populations, ensure that `bpp_columns` and `bcm_columns` are properly decoded from byte strings to regular strings. This resolves issues when these attributes were not of the expected type after loading a saved population.
+- New feature: When saving populations, the versions of ``cogsworth``, ``COSMIC``, and ``gala`` used to create the population are now stored as attributes in the saved file. This allows for better tracking of software versions for reproducibility.
+- Bug fix: When loading populations, ensure that ``bpp_columns`` and ``bcm_columns`` are properly decoded from byte strings to regular strings. This resolves issues when these attributes were not of the expected type after loading a saved population.
 
 3.4.0
 =====
-- New feature: Populations that have had orbits integrated can now be concatenated together using the `pop.concat` function or simply the `+` operator. Note that the resulting population will not have orbits, as combining orbits from different populations is non-trivial and not yet implemented. However, the final positions and velocities are available as `.final_pos` and `.final_vel` attributes if they were loaded for the original populations.
+- New feature: Populations that have had orbits integrated can now be concatenated together using the ``pop.concat`` function or simply the ``+`` operator. Note that the resulting population will not have orbits, as combining orbits from different populations is non-trivial and not yet implemented. However, the final positions and velocities are available as ``.final_pos`` and ``.final_vel``   attributes if they were loaded for the original populations.
 - Bug fix: Ensure that when concatenating populations, the bin_nums are updated correctly to avoid overlaps and that everything remains unique.
 
 3.3.1
 =====
-- Bug fix: Change `ConstantPlummerSphere` to directly accept the Plummer scale radius and mass rather than a Gala potential instance. This avoids indexing issues
+- Bug fix: Change ``ConstantPlummerSphere`` to directly accept the Plummer scale radius and mass rather than a Gala potential instance. This avoids indexing issues
 
 3.3.0
 =====
-- New feature: Added a new star formation history in the `cogsworth.sfh` module called `ConstantPlummerSphere`, which allows users to create a population of stars formed at a constant rate within a Plummer sphere potential. This SFH samples stellar positions and velocities according to the Plummer model, providing a more realistic spatial and kinematic distribution for certain astrophysical scenarios.
+- New feature: Added a new star formation history in the ``cogsworth.sfh`` module called ``ConstantPlummerSphere``, which allows users to create a population of stars formed at a constant rate within a Plummer sphere potential. This SFH samples stellar positions and velocities according to the Plummer model, providing a more realistic spatial and kinematic distribution for certain astrophysical scenarios.
 
 3.2.3
 =====
-- Bug fix: When indexing or copying populations, ensure that `bpp_columns` and `bcm_timestep_conditions` are preserved correctly. This resolves issues where these attributes were lost or incorrectly set after such operations.
-- Bug fix: When loading populations, ensure that `bpp_columns` and `bcm_columns` are only converted to `None` if they are explicitly set to the string 'None'. Don't perform check on lists.
+- Bug fix: When indexing or copying populations, ensure that ``bpp_columns`` and ``bcm_timestep_conditions`` are preserved correctly. This resolves issues where these attributes were lost or incorrectly set after such operations.
+- Bug fix: When loading populations, ensure that ``bpp_columns`` and ``bcm_columns`` are only converted to ``None`` if they are explicitly set to the string 'None'. Don't perform check on lists.
 - Bug fix: Saving/loading a SandersBinney2015 sfh now works correctly, previously failed due to bad saving of precomputed interpolations and potential.
 
 3.2.2
 =====
-- Bug fix: When loading populations, ensure that `bpp_columns` and `bcm_timestep_conditions` are properly converted back to lists from numpy arrays. This resolves issues when these attributes were not of the expected type after loading a saved population.
+- Bug fix: When loading populations, ensure that ``bpp_columns`` and ``bcm_timestep_conditions`` are properly converted back to lists from numpy arrays. This resolves issues when these attributes were not of the expected type after loading a saved population.
 
 3.2.1
 =====
@@ -76,7 +84,7 @@ This page tracks all of the changes that have been made to ``cogsworth``. We fol
 
 3.2.0
 =====
-- New feature: Added distribution function based star formation histories in the `cogsworth.sfh` module, allowing users to create more realistic SFHs based on analytic distribution functions for stellar systems in equilibrium.
+- New feature: Added distribution function based star formation histories in the ``cogsworth.sfh`` module, allowing users to create more realistic SFHs based on analytic distribution functions for stellar systems in equilibrium.
 
 3.1.0
 =====
@@ -84,28 +92,28 @@ This page tracks all of the changes that have been made to ``cogsworth``. We fol
 
 3.0.0
 =====
-- Major breaking change: `cogsworth` no longer allows you to use the default BSE settings unless you explicitly set `use_default_BSE_settings=True` when creating a Population. This is to avoid users passing settings without acknowledging that they are making choices about the binary physics.
+- Major breaking change: ``cogsworth`` no longer allows you to use the default BSE settings unless you explicitly set ``use_default_BSE_settings=True`` when creating a Population. This is to avoid users passing settings without acknowledging that they are making choices about the binary physics.
     - This also fixes an issue where the settings in an initC table were being overwritten by BSE_settings
-- Update default `kickflag` to match COSMIC `v3.6.1` with the Disberg distribution instead of Hobbs
+- Update default ``kickflag`` to match COSMIC ``v3.6.1`` with the Disberg distribution instead of Hobbs
 
 2.1.1
 =====
-- Allow choice of `bpp` and `bcm` columns as I implemented in COSMIC (see [#86](https://github.com/TomWagg/cogsworth/issues/86))
+- Allow choice of ``bpp`` and ``bcm`` columns as I implemented in COSMIC (see https://github.com/TomWagg/cogsworth/issues/86)
 
 2.1.0
 =====
 
-- New feature: `plot_orbit` now shows the location of mergers (either stellar or GW), this can be turned off with the `show_merger` argument
-- Bug fix: `plot_orbit` hides the SN/merger locations if they occur after `t_max` (previously they were shown even though the orbit might not reach them)
-- Bug fix ([#154](https://github.com/TomWagg/cogsworth/issues/154)): Ensure secondary SNe are still shown for bound binaries in `plot_orbit`
+- New feature: ``plot_orbit`` now shows the location of mergers (either stellar or GW), this can be turned off with the ``show_merger`` argument
+- Bug fix: ``plot_orbit`` hides the SN/merger locations if they occur after ``t_max`` (previously they were shown even though the orbit might not reach them)
+- Bug fix (https://github.com/TomWagg/cogsworth/issues/154): Ensure secondary SNe are still shown for bound binaries in ``plot_orbit``
 
 2.0.4
 =====
-- `cogsworth` is now published 🎉 Citations are updated to match
+- ``cogsworth`` is now published 🎉 Citations are updated to match
 
 2.0.3
 =====
-- Update default `kickflag` to match COSMIC `v3.5.0`
+- Update default ``kickflag`` to match COSMIC ``v3.5.0``
 
 2.0.2
 =====
@@ -146,7 +154,7 @@ Major release to go with the release paper submission! 🎉
 1.1.0
 =====
 
-- New feature: Concatenate multiple populations together with ``pop.concat`` or simply `+` (see #116)
+- New feature: Concatenate multiple populations together with ``pop.concat`` or simply ``+`` (see https://github.com/TomWagg/cogsworth/pull/116)
 
 1.0.0
 =====

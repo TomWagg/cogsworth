@@ -524,22 +524,20 @@ class Test(unittest.TestCase):
         self.assertFalse(it_worked)
 
     def test_indexing_loaded_pop(self):
-        """Test indexing fails when trying to slice a half-loaded population"""
+        """Test indexing warns when trying to slice a half-loaded population"""
         p = pop.Population(10, use_default_BSE_settings=True)
         p.perform_stellar_evolution()
 
-        with h5.File("DUMMY.h5", "w") as f:
-            f.create_dataset("orbits", data=[])
-        p._file = "DUMMY.h5"
-        p._orbits = None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with h5.File(os.path.join(tmpdir, "DUMMY.h5"), "w") as f:
+                f.create_dataset("orbits", data=[])
+            p._file = os.path.join(tmpdir, "DUMMY.h5")
+            p._orbits = None
 
-        it_worked = True
-        try:
-            p[:5]
-        except ValueError:
-            it_worked = False
-        self.assertFalse(it_worked)
-        os.remove("DUMMY.h5")
+            # ensure a warning is raised about missing parts
+            with self.assertLogs("cogsworth", level="WARNING") as cm:
+                p[:5]
+            self.assertIn("You've just masked a population that wasn't fully loaded", cm.output[0])
 
     def test_evolved_pop(self):
         """Check that the EvolvedPopulation class works as it should"""

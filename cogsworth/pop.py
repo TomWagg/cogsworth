@@ -101,15 +101,33 @@ class Population():
         (default is :class:`~gala.integrate.DOPRI853Integrator`).
     integrator_kwargs : `dict`, optional
         Any additional keyword arguments to pass to the gala integrator, by default an empty dict
+    orbit_integration_retry_settings : `dict`, optional
+        Settings for retrying orbit integrations that fail on the first attempt. Potential settings are:
+        - "max_retries": `int`
+            The maximum number of times to retry an orbit integration that fails (default is 2)
+        - "timestep_multiplier": `float`
+            The factor by which to multiply the timestep size for each retry
+            (default is 0.1, i.e. reduce the timestep by a factor of 10 for each retry)
     """
-    def __init__(self, n_binaries, processes=None, m1_cutoff=0, final_kstar1=list(range(16)),
-                 final_kstar2=list(range(16)), sfh_model=sfh.Wagg2022, sfh_params={},
-                 galactic_potential=gp.MilkyWayPotential(version='v2'), v_dispersion=5 * u.km / u.s,
-                 max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, ini_file=None,
-                 use_default_BSE_settings=False, sampling_params={},
-                 bcm_timestep_conditions=[], store_entire_orbits=True,
-                 bpp_columns=None, bcm_columns=None, error_file_path="./",
-                 integrator=gi.DOPRI853Integrator, integrator_kwargs={}):
+    def __init__(
+            self, n_binaries, processes=None, m1_cutoff=0, final_kstar1=list(range(16)),
+            final_kstar2=list(range(16)), sfh_model=sfh.Wagg2022, sfh_params={},
+            galactic_potential=gp.MilkyWayPotential(version='v2'), v_dispersion=5 * u.km / u.s,
+            max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, ini_file=None,
+            use_default_BSE_settings=False, sampling_params={},
+            bcm_timestep_conditions=[], store_entire_orbits=True,
+            bpp_columns=None, bcm_columns=None, error_file_path="./",
+            integrator=gi.DOPRI853Integrator, integrator_kwargs={},
+            orbit_integration_retry_settings={}
+        ):
+
+        if m1_cutoff != 0:
+            warnings.warn(
+                "cogsworth warning: m1_cutoff will be deprecated in v3.8+ of cogsworth. This can be achieved "
+                "by just masking the initial binary table after sampling.",
+                FutureWarning,
+                stacklevel=2
+            )
 
         # require a sensible number of binaries if you are not targetting total mass
         if not ("sampling_target" in sampling_params and sampling_params["sampling_target"] == "total_mass"):
@@ -118,15 +136,13 @@ class Population():
 
         # warn users that everything will soon explode without settings
         if not use_default_BSE_settings and ini_file is None and BSE_settings == {}:
-            logging.getLogger("cogsworth").warning(("cogsworth warning: You have not provided any binary "
-                                                    "stellar evolution (BSE) settings. You must provide "
-                                                    "either `BSE_settings` or an `ini_file` in order to "
-                                                    "perform stellar evolution with COSMIC. You may set "
-                                                    "`use_default_BSE_settings=True` to use the default "
-                                                    "settings listed in cogsworth, but do so at your own "
-                                                    "risk and be sure to understand the choices that you "
-                                                    "have made.\nRun `cogsworth.utils.list_BSE_defaults()` "
-                                                    "to see these."))
+            self._warn(
+                "You have not provided any binary stellar evolution (BSE) settings. You must provide "
+                "either `BSE_settings` or an `ini_file` in order to perform stellar evolution with COSMIC. "
+                "You may set `use_default_BSE_settings=True` to use the default settings listed in "
+                "cogsworth, but do so at your own risk and be sure to understand the choices that you have "
+                "made.\nRun `cogsworth.utils.list_BSE_defaults()` to see these."
+            )
 
         # work out how many CPUs are available for multiprocessing, fallback to 1
         max_cpus = os.cpu_count() if os.cpu_count() is not None else 1
@@ -179,9 +195,18 @@ class Population():
         self.BSE_settings = get_default_BSE_settings() if use_default_BSE_settings else {}
         self.BSE_settings.update(BSE_settings if ini_file is None else parse_inifile(ini_file)[0])
 
-        self.sampling_params = {'primary_model': 'kroupa01', 'ecc_model': 'sana12', 'porb_model': 'sana12',
-                                'qmin': -1, 'keep_singles': False}
+        self.sampling_params = {
+            'primary_model': 'kroupa01', 'ecc_model': 'sana12', 'porb_model': 'sana12',
+            'qmin': -1, 'keep_singles': False
+        }
         self.sampling_params.update(sampling_params)
+
+        self.orbit_integration_retry_settings = {
+            "max_retries": 2,
+            "timestep_multiplier": 0.1,
+        }
+        self.orbit_integration_retry_settings.update(orbit_integration_retry_settings)
+
         self.bcm_timestep_conditions = bcm_timestep_conditions
 
     def __repr__(self):
@@ -215,10 +240,12 @@ class Population():
             missing_parts = [p for i, p in enumerate(parts) if (masks[f"has_{p}"] and vars[i] is None)]
 
             if len(missing_parts) > 0:
-                raise ValueError(("This population was loaded from a file but you haven't loaded all parts "
-                                  "yet. You need to do this before indexing it. The missing parts are: "
-                                  f"{missing_parts}. You either need to access each of these variables or "
-                                  "reload the entire population using all parts."))
+                self._warn(
+                    ("You've just masked a population that wasn't fully loaded from a "
+                     "file. This means that the masked population won't have access to the parts that "
+                     "were not loaded. If you don't need the missing parts then this is fine, for reference "
+                     f"those are: {missing_parts}.")
+                )
 
         # ensure indexing with the right type
         ALLOWED_TYPES = (int, slice, list, np.ndarray, tuple)
@@ -257,21 +284,25 @@ class Population():
                               f"The first bin_num I couldn't find was {bin_nums[~check_nums][0]}"))
 
         # start a new population with the same parameters
-        new_pop = self.__class__(n_binaries=len(bin_nums), processes=self.processes,
-                                 m1_cutoff=self.m1_cutoff, final_kstar1=self.final_kstar1,
-                                 final_kstar2=self.final_kstar2, sfh_model=self.sfh_model,
-                                 sfh_params=self.sfh_params, galactic_potential=self.galactic_potential,
-                                 v_dispersion=self.v_dispersion, max_ev_time=self.max_ev_time,
-                                 timestep_size=self.timestep_size, BSE_settings=self.BSE_settings,
-                                 sampling_params=self.sampling_params,
-                                 bcm_timestep_conditions=self.bcm_timestep_conditions,
-                                 store_entire_orbits=self.store_entire_orbits,
-                                 bpp_columns=self.bpp_columns,
-                                 bcm_columns=self.bcm_columns,
-                                 error_file_path=self.error_file_path,
-                                 integrator=self.integrator,
-                                 integrator_kwargs=self.integrator_kwargs)
+        new_pop = self.__class__(
+            n_binaries=len(bin_nums), processes=self.processes,
+            m1_cutoff=self.m1_cutoff, final_kstar1=self.final_kstar1,
+            final_kstar2=self.final_kstar2, sfh_model=self.sfh_model,
+            sfh_params=self.sfh_params, galactic_potential=self.galactic_potential,
+            v_dispersion=self.v_dispersion, max_ev_time=self.max_ev_time,
+            timestep_size=self.timestep_size, BSE_settings=self.BSE_settings,
+            sampling_params=self.sampling_params,
+            bcm_timestep_conditions=self.bcm_timestep_conditions,
+            store_entire_orbits=self.store_entire_orbits,
+            bpp_columns=self.bpp_columns,
+            bcm_columns=self.bcm_columns,
+            error_file_path=self.error_file_path,
+            integrator=self.integrator,
+            integrator_kwargs=self.integrator_kwargs,
+            orbit_integration_retry_settings=self.orbit_integration_retry_settings
+        )
         new_pop.n_binaries_match = new_pop.n_binaries
+        new_pop.__citations__ = copy(self.__citations__)
 
         # proxy for checking whether sampling has been done
         if self._mass_binaries is not None:
@@ -594,10 +625,10 @@ class Population():
             self._bcm = pd.read_hdf(self._file, key="bcm") if has_bcm else None
         elif self._bcm is None:
             if len(np.ravel(self.bcm_timestep_conditions)) == 0:        # pragma: no cover
-                logging.getLogger("cogsworth").warning(("cogsworth warning: You haven't set any timestep "
-                                                        "conditions for the BCM table, so it is not "
-                                                        "calculated. Set `bcm_timestep_conditions` to get a "
-                                                        "BCM table."))
+                self._warn(
+                    ("You haven't set any timestep conditions for the BCM table, so it is not "
+                     "calculated. Set `bcm_timestep_conditions` to get a BCM table.")
+                )
             else:
                 raise ValueError("No stellar evolution performed yet, run `perform_stellar_evolution` to do so.")
         return self._bcm
@@ -895,11 +926,14 @@ class Population():
             self.pool = None
             self.pool_config = None
 
-    def _ensure_pool(self, quiet):
+    def _ensure_pool(self):
         """Ensure the multiprocessing pool is set up."""
         # if the config has changed and an old pool exists, close the old pool
-        config = (self.galactic_potential, self.max_ev_time, self.store_entire_orbits, quiet,
-                  self.integrator, self.integrator_kwargs)
+        config = (
+            self.galactic_potential, self.max_ev_time, self.store_entire_orbits, self.integrator,
+            self.integrator_kwargs, self.orbit_integration_retry_settings["max_retries"],
+            self.orbit_integration_retry_settings["timestep_multiplier"]
+        )
         if self.pool is not None and self.pool_config != config:        # pragma: no cover
             self._close_pool()
 
@@ -932,7 +966,7 @@ class Population():
         if self.bcm_timestep_conditions != []:
             set_checkstates(self.bcm_timestep_conditions)
 
-        self._ensure_pool(quiet=False)
+        self._ensure_pool()
         self.perform_stellar_evolution()
         if with_timing:
             print(f"[{time.time() - lap:1.1f}s] Evolve binaries (run COSMIC)")
@@ -1067,13 +1101,12 @@ class Population():
 
         # if no initial binaries have been sampled then we need to create some
         if self._initial_binaries is None and self._initC is None:
-            logging.getLogger("cogsworth").warning(("cogsworth warning: Initial binaries not yet sampled, "
-                                                    "performing sampling now."))
+            self._warn(("Initial binaries not yet sampled, performing sampling now."))
             self.sample_initial_binaries()
 
         no_pool_existed = self.pool is None and self.processes > 1
         if no_pool_existed:
-            self._ensure_pool(quiet=False)
+            self._ensure_pool()
 
         # catch any warnings about overwrites
         with warnings.catch_warnings():
@@ -1084,10 +1117,11 @@ class Population():
             BSEDict = self.BSE_settings
             if "kickflag" in ibt.columns and BSEDict != {}:
                 BSEDict = {}
-                logging.getLogger("cogsworth").warning("cogsworth warning: You passed settings for BSE (in `Population.BSE_settings`) but "
-                                                       "your initial binary table already has settings saved "
-                                                       "in its columns. cogsworth will use the settings "
-                                                       "found in the table.")
+                self._warn(
+                    ("You passed settings for BSE (in `Population.BSE_settings`) but your initial binary "
+                     "table already has settings saved in its columns. cogsworth will use the settings found "
+                     "in the table.")
+                )
 
             # perform the evolution!
             self._bpp, bcm, self._initC, \
@@ -1188,13 +1222,13 @@ class Population():
                 secondary_events.loc[[self.bin_nums[i]]],
             )
 
-    def perform_galactic_evolution(self, quiet=False, progress_bar=True):
+    def perform_galactic_evolution(self, progress_bar=True):
         """Use :py:mod:`gala` to perform the orbital integration for each evolved binary
 
         Parameters
         ----------
-        quiet : `bool`, optional
-            Whether to silence any warnings about failing orbits, by default False
+        progress_bar : `bool`, optional
+            Whether to show a progress bar for the orbital integration, by default True
         """
         # delete any cached variables that are based on orbits
         self._final_pos = None
@@ -1202,18 +1236,15 @@ class Population():
         self._observables = None
 
         if self._initial_galaxy is None:            # pragma: no cover
-            logging.getLogger("cogsworth").warning(("cogsworth warning: Initial galaxy not yet sampled, "
-                                                    "performing sampling now."))
+            self._warn(("Initial galaxy not yet sampled, performing sampling now."))
             self.sample_initial_galaxy()
 
         if self._initC is None and self._initial_binaries is None:          # pragma: no cover
-            logging.getLogger("cogsworth").warning(("cogsworth warning: Initial binaries not yet sampled, "
-                                                    "performing sampling now."))
+            self._warn(("Initial binaries not yet sampled, performing sampling now."))
             self.sample_initial_binaries()
 
         if self._bpp is None:           # pragma: no cover
-            logging.getLogger("cogsworth").warning(("cogsworth warning: Stellar evolution not yet performed, "
-                                                    "performing evolution now."))
+            self._warn(("Stellar evolution not yet performed, performing evolution now."))
             self.perform_stellar_evolution()
 
         v_phi = (self.initial_galaxy.v_T / self.initial_galaxy.rho)
@@ -1244,18 +1275,14 @@ class Population():
         if self.pool is not None or self.processes > 1:
             # track whether a pool already existed
             pool_existed = self.pool is not None
-            self._ensure_pool(quiet=quiet)
+            self._ensure_pool()
 
             args = self._iter_orbit_args(w0s, primary_events, secondary_events)
+            iterable = tqdm(args, total=self.n_binaries_match + self.disrupted.sum(),
+                            desc="Integrating orbits") if progress_bar else args
 
             # evolve the orbits from birth until present day
-            if progress_bar:
-                orbits = self.pool.starmap(
-                    _orbit_worker, tqdm(args, total=self.n_binaries_match + self.disrupted.sum(),
-                                        desc="Integrating orbits")
-                )
-            else:
-                orbits = self.pool.starmap(_orbit_worker, args)
+            orbits = self.pool.starmap(_orbit_worker, iterable)
 
             # if a pool didn't exist before then close the one just created
             if not pool_existed:
@@ -1266,48 +1293,56 @@ class Population():
                 integrate_orbit_with_events(
                     w0=w0, potential=self.galactic_potential,
                     t1=t1, t2=self.max_ev_time, dt=dt,
-                    events=events, quiet=quiet, store_all=self.store_entire_orbits,
-                    integrator=self.integrator, integrator_kwargs=self.integrator_kwargs
+                    events=events, store_all=self.store_entire_orbits,
+                    integrator=self.integrator, integrator_kwargs=self.integrator_kwargs,
+                    max_retries=self.orbit_integration_retry_settings["max_retries"],
+                    timestep_multiplier=self.orbit_integration_retry_settings["timestep_multiplier"]
                 ) for w0, t1, dt, events in self._iter_orbit_args(w0s, primary_events, secondary_events)
             ]
 
-        # check for bad orbits
-        bad_orbits = np.array([orbit is None for orbit in orbits])
+        # check for any orbits that we failed to integrate
+        failed_integration = np.array([orbit is None for orbit in orbits])
 
         # if there are any bad orbits then warn the user and remove them from the population
-        if any(bad_orbits):             # pragma: no cover
+        if any(failed_integration):             # pragma: no cover
             # start a warning message
-            bad_bin_nums = np.concatenate((self.bin_nums, self.bin_nums[self.disrupted]))[bad_orbits]
+            bad_bin_nums = np.concatenate((self.bin_nums, self.bin_nums[self.disrupted]))[failed_integration]
             warning_message = (
-                f"cogsworth warning: {bad_orbits.sum()} orbit(s) failed numerical integration, removing them."
-                " This can occur due to NaNs in stellar evolution or extreme orbits that Gala cannot handle."
+                f"{failed_integration.sum()} orbit(s) failed numerical integration, "
+                "removing them. This can occur due to NaNs in stellar evolution or extreme orbits (e.g. "
+                "passing directly through the galactic centre) that Gala cannot handle."
             )
 
             # if we're going to save them then find a file name
             if self.error_file_path is not None:
                 # decide on file name (avoid overwriting existing file)
                 file_num = 1
-                file_name = os.path.join(self.error_file_path, "bad_orbits.h5")
+                file_name = os.path.join(self.error_file_path, "failed_integration_binaries.h5")
                 while os.path.exists(file_name):
-                    file_name = os.path.join(self.error_file_path, f"bad_orbits_{file_num}.h5")
+                    file_name = os.path.join(self.error_file_path,
+                                             f"failed_integration_binaries_{file_num}.h5")
                     file_num += 1
 
-                # save the bad orbits population
+                # save the failed integration population
                 self.initC.loc[bad_bin_nums].to_hdf(file_name, key="initC")
                 self.bpp.loc[bad_bin_nums].to_hdf(file_name, key="bpp")
                 self.kick_info.loc[bad_bin_nums].to_hdf(file_name, key="kick_info")
                 self.initial_galaxy[np.isin(self.bin_nums, bad_bin_nums)].save(file_name, key="sfh")
         
-                warning_message += f" Information for these systems was saved to `{file_name}`."
-                warning_message += " This includes their initC, bpp, kick_info, and initial galaxy objects."
-            logging.getLogger("cogsworth").warning(warning_message)
+                warning_message += (f" Information for these systems was saved to `{file_name}`."
+                                    " This includes their initC, bpp, kick_info, and initial galaxy objects.")
+            else:
+                warning_message += (" Not saving information for these systems because `error_file_path` "
+                                    "is set to `None`.")
+            self._warn(warning_message)
 
-            # mask them out from the main population
+            # work out which orbits to remove (failed integration + companions if disruption occurred)
+            orbit_bin_nums = np.concatenate((self.bin_nums, self.bin_nums[self.disrupted]))
+            orbits = np.array(orbits, dtype="object")[~np.isin(orbit_bin_nums, bad_bin_nums)]
+
+            # mask the rest of the the main population
             new_self = self[~np.isin(self.bin_nums, bad_bin_nums)]
             self.__dict__.update(new_self.__dict__)
-
-            # also mask them out from the orbits
-            orbits = np.array(orbits, dtype="object")[~bad_orbits]
 
         self._orbits = np.array(orbits, dtype="object")
 
@@ -1863,10 +1898,21 @@ class Population():
             d.attrs["integrator"] = self.integrator.__name__
             d.attrs["integrator_kwargs"] = yaml.dump(self.integrator_kwargs, default_flow_style=None)
 
+            # save retry settings
+            file.attrs["max_retries"] = self.orbit_integration_retry_settings["max_retries"]
+            file.attrs["timestep_multiplier"] = self.orbit_integration_retry_settings["timestep_multiplier"]
+
+            # save citations array
+            file.attrs["citations"] = np.array(self.__citations__, dtype="S")
+
             # save the version of cogsworth, COSMIC, and gala that was used
             file.attrs["cogsworth_version"] = __version__
             file.attrs["COSMIC_version"] = cosmic_version
             file.attrs["gala_version"] = gala_version
+
+    def _warn(self, message):
+        BOLD, YELLOW, END = '\033[1m', '\033[93m', '\033[0m'
+        logging.getLogger("cogsworth").warning(f"{BOLD}{YELLOW}cogsworth warning: {END}{message}")
 
 
 def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolution"]):
@@ -1889,6 +1935,8 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
     if file_name[-3:] != ".h5":
         file_name += ".h5"
 
+    version_warning = None
+
     BSE_settings = {}
     sampling_params = {}
     with h5.File(file_name, "r") as file:
@@ -1903,8 +1951,8 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
             if key in file.attrs:
                 saved_version = file.attrs[key]
                 if saved_version != version:
-                    logging.getLogger("cogsworth").warning(
-                        f"cogsworth warning: file was saved with {key.split('_')[0]} v{saved_version} "
+                    version_warning = (
+                        f"file was saved with {key.split('_')[0]} v{saved_version} "
                         f"but you are using v{version}"
                     )
 
@@ -1932,24 +1980,39 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
         for key in file["BSE_settings"].attrs:
             BSE_settings[key] = file["BSE_settings"].attrs[key]
 
+        # load in sampling parameters
         sampling_params = yaml.load(file["sampling_params"].attrs["dict"], Loader=yaml.Loader)
 
+        # load in integrator settings
         integrator_name = file.get("integrator", None)
         integrator_kwargs = file.get("integrator_kwargs", {})
         integrator = gi.DOPRI853Integrator if integrator_name is None else getattr(gi, integrator_name)
 
+        # get the orbit integration retry settings
+        orbit_integration_retry_settings = {}
+        if "max_retries" in file.attrs:
+            orbit_integration_retry_settings["max_retries"] = file.attrs["max_retries"]
+        if "timestep_multiplier" in file.attrs:
+            orbit_integration_retry_settings["timestep_multiplier"] = file.attrs["timestep_multiplier"]
+
+        # retrieve citations
+        citations = file.attrs.get("citations", [])
+        citations = [c.decode('utf-8') for c in citations]
+
     with h5.File(file_name, 'r') as f:
         galactic_potential = potential_from_dict(yaml.load(f.attrs["potential_dict"], Loader=yaml.Loader))
 
-    p = Population(n_binaries=int(numeric_params[0]), processes=int(numeric_params[2]),
-                   m1_cutoff=numeric_params[3], final_kstar1=final_kstars[0], final_kstar2=final_kstars[1],
-                   sfh_model=sfh.StarFormationHistory, galactic_potential=galactic_potential,
-                   v_dispersion=numeric_params[4] * u.km / u.s, max_ev_time=numeric_params[5] * u.Gyr,
-                   timestep_size=numeric_params[6] * u.Myr, BSE_settings=BSE_settings,
-                   sampling_params=sampling_params, store_entire_orbits=store_entire_orbits,
-                   bcm_timestep_conditions=bcm_tc, bpp_columns=bpp_columns, bcm_columns=bcm_columns,
-                   error_file_path=error_file_path,
-                   integrator=integrator, integrator_kwargs=integrator_kwargs)
+    p = Population(
+        n_binaries=int(numeric_params[0]), processes=int(numeric_params[2]),
+        m1_cutoff=numeric_params[3], final_kstar1=final_kstars[0], final_kstar2=final_kstars[1],
+        sfh_model=sfh.StarFormationHistory, galactic_potential=galactic_potential,
+        v_dispersion=numeric_params[4] * u.km / u.s, max_ev_time=numeric_params[5] * u.Gyr,
+        timestep_size=numeric_params[6] * u.Myr, BSE_settings=BSE_settings,
+        sampling_params=sampling_params, store_entire_orbits=store_entire_orbits,
+        bcm_timestep_conditions=bcm_tc, bpp_columns=bpp_columns, bcm_columns=bcm_columns,
+        error_file_path=error_file_path, integrator=integrator, integrator_kwargs=integrator_kwargs,
+        orbit_integration_retry_settings=orbit_integration_retry_settings
+    )
 
     p._file = file_name
     p.n_binaries_match = int(numeric_params[1])
@@ -1957,6 +2020,10 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
     p._mass_binaries = numeric_params[8]
     p._n_singles_req = numeric_params[9]
     p._n_bin_req = numeric_params[10]
+    p.__citations__ = citations
+
+    if version_warning is not None:
+        p._warn(version_warning)
 
     # load parts as necessary
     if "initial_binaries" in parts:
@@ -2009,8 +2076,8 @@ def concat(*pops):
     
     # warn about orbits if necessary
     if any([pop._orbits is not None for pop in pops]):
-        logging.getLogger("cogsworth").warning(
-            "cogsworth warning: Concatenating populations with orbits is not supported yet - "
+        pops[0]._warn(
+            "Concatenating populations with orbits is not supported yet - "
             "the final population will not have orbits. PRs are welcome!"
         )
 
@@ -2096,18 +2163,20 @@ def concat(*pops):
     return final_pop
 
 
-def _init_pool(potential, t2, store_all, quiet, integrator, integrator_kwargs):
+def _init_pool(potential, t2, store_all, integrator, integrator_kwargs, max_retries, timestep_multiplier):
     _GLOBAL["potential"] = potential
     _GLOBAL["t2"] = t2
     _GLOBAL["store_all"] = store_all
-    _GLOBAL["quiet"] = quiet
     _GLOBAL["integrator"] = integrator
     _GLOBAL["integrator_kwargs"] = integrator_kwargs
+    _GLOBAL["max_retries"] = max_retries
+    _GLOBAL["timestep_multiplier"] = timestep_multiplier
 
 def _orbit_worker(w0, t1, dt, events):
     return integrate_orbit_with_events(
-        w0, t1, _GLOBAL["t2"], dt, _GLOBAL["potential"], events, _GLOBAL["store_all"], _GLOBAL["quiet"],
-        _GLOBAL["integrator"], _GLOBAL["integrator_kwargs"]
+        w0, t1, _GLOBAL["t2"], dt, _GLOBAL["potential"], events, _GLOBAL["store_all"],
+        _GLOBAL["integrator"], _GLOBAL["integrator_kwargs"],
+        _GLOBAL["max_retries"], _GLOBAL["timestep_multiplier"]
     )
 
 class EvolvedPopulation(Population):
@@ -2149,7 +2218,7 @@ class EvolvedPopulation(Population):
             print(f"[{time.time() - start:1.0e}s] Sample initial galaxy")
             lap = time.time()
 
-        self._ensure_pool(quiet=False)
+        self._ensure_pool()
         self.perform_galactic_evolution(progress_bar=with_timing)
         if with_timing:
             print(f"[{time.time() - lap:1.1f}s] Get orbits (run gala)")
