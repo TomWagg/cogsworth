@@ -205,7 +205,7 @@ class Population():
 
         self.orbit_integration_retry_settings = {
             "max_retries": 2,
-            "timestep_multipler": 0.1,
+            "timestep_multiplier": 0.1,
         }
         self.orbit_integration_retry_settings.update(orbit_integration_retry_settings)
 
