@@ -101,18 +101,24 @@ class Population():
         (default is :class:`~gala.integrate.DOPRI853Integrator`).
     integrator_kwargs : `dict`, optional
         Any additional keyword arguments to pass to the gala integrator, by default an empty dict
+    orbit_integration_retry_settings : `dict`, optional
+        Settings for retrying orbit integrations that fail on the first attempt. Potential settings are:
+        - "max_retries": `int`
+            The maximum number of times to retry an orbit integration that fails (default is 2)
+        - "timestep_multiplier": `float`
+            The factor by which to multiply the timestep size for each retry
+            (default is 0.1, i.e. reduce the timestep by a factor of 10 for each retry)
     """
-    def __init__(self, n_binaries, processes=None, m1_cutoff=0, final_kstar1=list(range(16)),
-                 final_kstar2=list(range(16)), sfh_model=sfh.Wagg2022, sfh_params={},
-                 galactic_potential=gp.MilkyWayPotential(version='v2'), v_dispersion=5 * u.km / u.s,
-                 max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, ini_file=None,
-                 use_default_BSE_settings=False, sampling_params={},
-                 bcm_timestep_conditions=[], store_entire_orbits=True,
-                 bpp_columns=None, bcm_columns=None, error_file_path="./",
-                 integrator=gi.DOPRI853Integrator, integrator_kwargs={},
-            orbit_integration_retry_settings={
-                
-            }
+    def __init__(
+            self, n_binaries, processes=None, m1_cutoff=0, final_kstar1=list(range(16)),
+            final_kstar2=list(range(16)), sfh_model=sfh.Wagg2022, sfh_params={},
+            galactic_potential=gp.MilkyWayPotential(version='v2'), v_dispersion=5 * u.km / u.s,
+            max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, ini_file=None,
+            use_default_BSE_settings=False, sampling_params={},
+            bcm_timestep_conditions=[], store_entire_orbits=True,
+            bpp_columns=None, bcm_columns=None, error_file_path="./",
+            integrator=gi.DOPRI853Integrator, integrator_kwargs={},
+            orbit_integration_retry_settings={}
         ):
 
         if m1_cutoff != 0:
@@ -191,9 +197,18 @@ class Population():
         self.BSE_settings = get_default_BSE_settings() if use_default_BSE_settings else {}
         self.BSE_settings.update(BSE_settings if ini_file is None else parse_inifile(ini_file)[0])
 
-        self.sampling_params = {'primary_model': 'kroupa01', 'ecc_model': 'sana12', 'porb_model': 'sana12',
-                                'qmin': -1, 'keep_singles': False}
+        self.sampling_params = {
+            'primary_model': 'kroupa01', 'ecc_model': 'sana12', 'porb_model': 'sana12',
+            'qmin': -1, 'keep_singles': False
+        }
         self.sampling_params.update(sampling_params)
+
+        self.orbit_integration_retry_settings = {
+            "max_retries": 2,
+            "timestep_multipler": 0.1,
+        }
+        self.orbit_integration_retry_settings.update(orbit_integration_retry_settings)
+
         self.bcm_timestep_conditions = bcm_timestep_conditions
 
     def __repr__(self):
