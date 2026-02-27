@@ -136,15 +136,13 @@ class Population():
 
         # warn users that everything will soon explode without settings
         if not use_default_BSE_settings and ini_file is None and BSE_settings == {}:
-            logging.getLogger("cogsworth").warning(("cogsworth warning: You have not provided any binary "
-                                                    "stellar evolution (BSE) settings. You must provide "
-                                                    "either `BSE_settings` or an `ini_file` in order to "
-                                                    "perform stellar evolution with COSMIC. You may set "
-                                                    "`use_default_BSE_settings=True` to use the default "
-                                                    "settings listed in cogsworth, but do so at your own "
-                                                    "risk and be sure to understand the choices that you "
-                                                    "have made.\nRun `cogsworth.utils.list_BSE_defaults()` "
-                                                    "to see these."))
+            self._warn(
+                "You have not provided any binary stellar evolution (BSE) settings. You must provide "
+                "either `BSE_settings` or an `ini_file` in order to perform stellar evolution with COSMIC. "
+                "You may set `use_default_BSE_settings=True` to use the default settings listed in "
+                "cogsworth, but do so at your own risk and be sure to understand the choices that you have "
+                "made.\nRun `cogsworth.utils.list_BSE_defaults()` to see these."
+            )
 
         # work out how many CPUs are available for multiprocessing, fallback to 1
         max_cpus = os.cpu_count() if os.cpu_count() is not None else 1
@@ -242,8 +240,8 @@ class Population():
             missing_parts = [p for i, p in enumerate(parts) if (masks[f"has_{p}"] and vars[i] is None)]
 
             if len(missing_parts) > 0:
-                logging.getLogger("cogsworth").warning(
-                    ("cogsworth warning: You've just masked a population that wasn't fully loaded from a "
+                self._warn(
+                    ("You've just masked a population that wasn't fully loaded from a "
                      "file. This means that the masked population won't have access to the parts that "
                      "were not loaded. If you don't need the missing parts then this is fine, for reference "
                      f" those are: {missing_parts}.")
@@ -627,10 +625,10 @@ class Population():
             self._bcm = pd.read_hdf(self._file, key="bcm") if has_bcm else None
         elif self._bcm is None:
             if len(np.ravel(self.bcm_timestep_conditions)) == 0:        # pragma: no cover
-                logging.getLogger("cogsworth").warning(("cogsworth warning: You haven't set any timestep "
-                                                        "conditions for the BCM table, so it is not "
-                                                        "calculated. Set `bcm_timestep_conditions` to get a "
-                                                        "BCM table."))
+                self._warn(
+                    ("You haven't set any timestep conditions for the BCM table, so it is not "
+                     "calculated. Set `bcm_timestep_conditions` to get a BCM table.")
+                )
             else:
                 raise ValueError("No stellar evolution performed yet, run `perform_stellar_evolution` to do so.")
         return self._bcm
@@ -1103,8 +1101,7 @@ class Population():
 
         # if no initial binaries have been sampled then we need to create some
         if self._initial_binaries is None and self._initC is None:
-            logging.getLogger("cogsworth").warning(("cogsworth warning: Initial binaries not yet sampled, "
-                                                    "performing sampling now."))
+            self._warn(("Initial binaries not yet sampled, performing sampling now."))
             self.sample_initial_binaries()
 
         no_pool_existed = self.pool is None and self.processes > 1
@@ -1120,10 +1117,11 @@ class Population():
             BSEDict = self.BSE_settings
             if "kickflag" in ibt.columns and BSEDict != {}:
                 BSEDict = {}
-                logging.getLogger("cogsworth").warning("cogsworth warning: You passed settings for BSE (in `Population.BSE_settings`) but "
-                                                       "your initial binary table already has settings saved "
-                                                       "in its columns. cogsworth will use the settings "
-                                                       "found in the table.")
+                self._warn(
+                    ("You passed settings for BSE (in `Population.BSE_settings`) but your initial binary "
+                     "table already has settings saved in its columns. cogsworth will use the settings found "
+                     "in the table.")
+                )
 
             # perform the evolution!
             self._bpp, bcm, self._initC, \
@@ -1238,18 +1236,15 @@ class Population():
         self._observables = None
 
         if self._initial_galaxy is None:            # pragma: no cover
-            logging.getLogger("cogsworth").warning(("cogsworth warning: Initial galaxy not yet sampled, "
-                                                    "performing sampling now."))
+            self._warn(("Initial galaxy not yet sampled, performing sampling now."))
             self.sample_initial_galaxy()
 
         if self._initC is None and self._initial_binaries is None:          # pragma: no cover
-            logging.getLogger("cogsworth").warning(("cogsworth warning: Initial binaries not yet sampled, "
-                                                    "performing sampling now."))
+            self._warn(("Initial binaries not yet sampled, performing sampling now."))
             self.sample_initial_binaries()
 
         if self._bpp is None:           # pragma: no cover
-            logging.getLogger("cogsworth").warning(("cogsworth warning: Stellar evolution not yet performed, "
-                                                    "performing evolution now."))
+            self._warn(("Stellar evolution not yet performed, performing evolution now."))
             self.perform_stellar_evolution()
 
         v_phi = (self.initial_galaxy.v_T / self.initial_galaxy.rho)
@@ -1313,7 +1308,7 @@ class Population():
             # start a warning message
             bad_bin_nums = np.concatenate((self.bin_nums, self.bin_nums[self.disrupted]))[failed_integration]
             warning_message = (
-                f"cogsworth warning: {failed_integration.sum()} orbit(s) failed numerical integration, "
+                f"{failed_integration.sum()} orbit(s) failed numerical integration, "
                 "removing them. This can occur due to NaNs in stellar evolution or extreme orbits (e.g. "
                 "passing directly through the galactic centre) that Gala cannot handle."
             )
@@ -1339,7 +1334,7 @@ class Population():
             else:
                 warning_message += (" Not saving information for these systems because `error_file_path` "
                                     "is set to `None`.")
-            logging.getLogger("cogsworth").warning(warning_message)
+            self._warn(warning_message)
 
             # work out which orbits to remove (failed integration + companions if disruption occurred)
             orbit_bin_nums = np.concatenate((self.bin_nums, self.bin_nums[self.disrupted]))
@@ -1915,6 +1910,10 @@ class Population():
             file.attrs["COSMIC_version"] = cosmic_version
             file.attrs["gala_version"] = gala_version
 
+    def _warn(self, message):
+        BOLD, YELLOW, END = '\033[1m', '\033[93m', '\033[0m'
+        logging.getLogger("cogsworth").warning(f"{BOLD}{YELLOW}cogsworth warning: {END}{message}")
+
 
 def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolution"]):
     """Load a Population from a series of files
@@ -1936,6 +1935,8 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
     if file_name[-3:] != ".h5":
         file_name += ".h5"
 
+    version_warning = None
+
     BSE_settings = {}
     sampling_params = {}
     with h5.File(file_name, "r") as file:
@@ -1950,8 +1951,8 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
             if key in file.attrs:
                 saved_version = file.attrs[key]
                 if saved_version != version:
-                    logging.getLogger("cogsworth").warning(
-                        f"cogsworth warning: file was saved with {key.split('_')[0]} v{saved_version} "
+                    version_warning = (
+                        f"file was saved with {key.split('_')[0]} v{saved_version} "
                         f"but you are using v{version}"
                     )
 
@@ -2021,6 +2022,9 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
     p._n_bin_req = numeric_params[10]
     p.__citations__ = citations
 
+    if version_warning is not None:
+        p._warn(version_warning)
+
     # load parts as necessary
     if "initial_binaries" in parts:
         try:
@@ -2072,8 +2076,8 @@ def concat(*pops):
     
     # warn about orbits if necessary
     if any([pop._orbits is not None for pop in pops]):
-        logging.getLogger("cogsworth").warning(
-            "cogsworth warning: Concatenating populations with orbits is not supported yet - "
+        pop._warn(
+            "Concatenating populations with orbits is not supported yet - "
             "the final population will not have orbits. PRs are welcome!"
         )
 
