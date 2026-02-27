@@ -7,9 +7,9 @@ This page tracks all of the changes that have been made to ``cogsworth``. We fol
 3.7.2
 =====
 
-- Bug fix (https://github.com/TomWagg/cogsworth/issues/197): In the very rare case where a binary disrupts and one star's orbit integration but the other's doesn't, previously only one orbit was removed, leading to shape mismatches. This release fixes that issue.
-- Bug fix: Citations are saved and loaded correctly from files, previously they were not being saved at all, and when loading they were being set to an empty list instead of the correct citations.
-- New feature: Allow user to specify ``orbit_integration_retry_settings`` when creating a Population, which is a dictionary with keys ``max_retries`` and ``timestep_multiplier`` that control how many times to retry an orbit integration if it fails and how much to reduce the timestep by for each retry. This gives the user control and flexibility over how to handle orbit integration failures.
+- Bug fix: In the very rare case where a binary disrupts and one star's orbit integration but the other's doesn't, previously only one orbit was removed, leading to shape mismatches. This release fixes that issue.
+- Bug fix (https://github.com/TomWagg/cogsworth/issues/197): Citations are saved and loaded correctly from files, previously they were not being saved at all, and when loading they were being set to an empty list instead of the correct citations.
+- New feature (https://github.com/TomWagg/cogsworth/issues/193): Allow user to specify ``orbit_integration_retry_settings`` when creating a Population, which is a dictionary with keys ``max_retries`` and ``timestep_multiplier`` that control how many times to retry an orbit integration if it fails and how much to reduce the timestep by for each retry. This gives the user control and flexibility over how to handle orbit integration failures.
 - Deprecation: The ``m1_cutoff`` argument to ``Population`` is now deprecated and will be removed in v3.8+. This can be achieved with a mask and more general cases can be handled with that.
 
 3.7.1
