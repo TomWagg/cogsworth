@@ -101,7 +101,6 @@ def integrate_orbit_with_events(
         try:
             full_orbit = potential.integrate_orbit(
                 w0, t1=t1, t2=t2, dt=dt, Integrator=integrator, Integrator_kwargs=integrator_kwargs,
-                save_all=store_all
             )
         except RuntimeError:            # pragma: no cover
             return None
@@ -143,7 +142,6 @@ def integrate_orbit_with_events(
                         current_w0, t=matching_timesteps,
                         Integrator=integrator,
                         Integrator_kwargs=integrator_kwargs,
-                        save_all=store_all
                     )
 
                     # save the orbit data (minus the last timestep to avoid duplicates)
@@ -181,7 +179,6 @@ def integrate_orbit_with_events(
                     current_w0, t=matching_timesteps,
                     Integrator=integrator,
                     Integrator_kwargs=integrator_kwargs,
-                    save_all=store_all
                 )
                 orbit_data.append(orbit.data)
 
