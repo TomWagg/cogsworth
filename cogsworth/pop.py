@@ -922,11 +922,14 @@ class Population():
             self.pool = None
             self.pool_config = None
 
-    def _ensure_pool(self, quiet):
+    def _ensure_pool(self):
         """Ensure the multiprocessing pool is set up."""
         # if the config has changed and an old pool exists, close the old pool
-        config = (self.galactic_potential, self.max_ev_time, self.store_entire_orbits, quiet,
-                  self.integrator, self.integrator_kwargs)
+        config = (
+            self.galactic_potential, self.max_ev_time, self.store_entire_orbits, self.integrator,
+            self.integrator_kwargs, self.orbit_integration_retry_settings["max_retries"],
+            self.orbit_integration_retry_settings["timestep_multiplier"]
+        )
         if self.pool is not None and self.pool_config != config:        # pragma: no cover
             self._close_pool()
 
@@ -959,7 +962,7 @@ class Population():
         if self.bcm_timestep_conditions != []:
             set_checkstates(self.bcm_timestep_conditions)
 
-        self._ensure_pool(quiet=False)
+        self._ensure_pool()
         self.perform_stellar_evolution()
         if with_timing:
             print(f"[{time.time() - lap:1.1f}s] Evolve binaries (run COSMIC)")
@@ -1100,7 +1103,7 @@ class Population():
 
         no_pool_existed = self.pool is None and self.processes > 1
         if no_pool_existed:
-            self._ensure_pool(quiet=False)
+            self._ensure_pool()
 
         # catch any warnings about overwrites
         with warnings.catch_warnings():
@@ -1215,13 +1218,13 @@ class Population():
                 secondary_events.loc[[self.bin_nums[i]]],
             )
 
-    def perform_galactic_evolution(self, quiet=False, progress_bar=True):
+    def perform_galactic_evolution(self, progress_bar=True):
         """Use :py:mod:`gala` to perform the orbital integration for each evolved binary
 
         Parameters
         ----------
-        quiet : `bool`, optional
-            Whether to silence any warnings about failing orbits, by default False
+        progress_bar : `bool`, optional
+            Whether to show a progress bar for the orbital integration, by default True
         """
         # delete any cached variables that are based on orbits
         self._final_pos = None
@@ -1271,18 +1274,14 @@ class Population():
         if self.pool is not None or self.processes > 1:
             # track whether a pool already existed
             pool_existed = self.pool is not None
-            self._ensure_pool(quiet=quiet)
+            self._ensure_pool()
 
             args = self._iter_orbit_args(w0s, primary_events, secondary_events)
+            iterable = tqdm(args, total=self.n_binaries_match + self.disrupted.sum(),
+                            desc="Integrating orbits") if progress_bar else args
 
             # evolve the orbits from birth until present day
-            if progress_bar:
-                orbits = self.pool.starmap(
-                    _orbit_worker, tqdm(args, total=self.n_binaries_match + self.disrupted.sum(),
-                                        desc="Integrating orbits")
-                )
-            else:
-                orbits = self.pool.starmap(_orbit_worker, args)
+            orbits = self.pool.starmap(_orbit_worker, iterable)
 
             # if a pool didn't exist before then close the one just created
             if not pool_existed:
@@ -1293,8 +1292,10 @@ class Population():
                 integrate_orbit_with_events(
                     w0=w0, potential=self.galactic_potential,
                     t1=t1, t2=self.max_ev_time, dt=dt,
-                    events=events, quiet=quiet, store_all=self.store_entire_orbits,
-                    integrator=self.integrator, integrator_kwargs=self.integrator_kwargs
+                    events=events, store_all=self.store_entire_orbits,
+                    integrator=self.integrator, integrator_kwargs=self.integrator_kwargs,
+                    max_retries=self.orbit_integration_retry_settings["max_retries"],
+                    timestep_multiplier=self.orbit_integration_retry_settings["timestep_multiplier"]
                 ) for w0, t1, dt, events in self._iter_orbit_args(w0s, primary_events, secondary_events)
             ]
 
@@ -2129,18 +2130,20 @@ def concat(*pops):
     return final_pop
 
 
-def _init_pool(potential, t2, store_all, quiet, integrator, integrator_kwargs):
+def _init_pool(potential, t2, store_all, integrator, integrator_kwargs, max_retries, timestep_multiplier):
     _GLOBAL["potential"] = potential
     _GLOBAL["t2"] = t2
     _GLOBAL["store_all"] = store_all
-    _GLOBAL["quiet"] = quiet
     _GLOBAL["integrator"] = integrator
     _GLOBAL["integrator_kwargs"] = integrator_kwargs
+    _GLOBAL["max_retries"] = max_retries
+    _GLOBAL["timestep_multiplier"] = timestep_multiplier
 
 def _orbit_worker(w0, t1, dt, events):
     return integrate_orbit_with_events(
-        w0, t1, _GLOBAL["t2"], dt, _GLOBAL["potential"], events, _GLOBAL["store_all"], _GLOBAL["quiet"],
-        _GLOBAL["integrator"], _GLOBAL["integrator_kwargs"]
+        w0, t1, _GLOBAL["t2"], dt, _GLOBAL["potential"], events, _GLOBAL["store_all"],
+        _GLOBAL["integrator"], _GLOBAL["integrator_kwargs"],
+        _GLOBAL["max_retries"], _GLOBAL["timestep_multiplier"]
     )
 
 class EvolvedPopulation(Population):
@@ -2182,7 +2185,7 @@ class EvolvedPopulation(Population):
             print(f"[{time.time() - start:1.0e}s] Sample initial galaxy")
             lap = time.time()
 
-        self._ensure_pool(quiet=False)
+        self._ensure_pool()
         self.perform_galactic_evolution(progress_bar=with_timing)
         if with_timing:
             print(f"[{time.time() - lap:1.1f}s] Get orbits (run gala)")

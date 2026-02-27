@@ -49,9 +49,11 @@ def get_kick_differential(delta_v_sys_x, delta_v_sys_y, delta_v_sys_z, phase=Non
     return kick_differential
 
 
-def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential(version='v2'), events=None, 
-                                store_all=True, quiet=False, 
-                                integrator=gi.DOPRI853Integrator, integrator_kwargs={}):
+def integrate_orbit_with_events(
+        w0, t1, t2, dt, potential=gp.MilkyWayPotential(version='v2'), events=None, 
+        store_all=True, integrator=gi.DOPRI853Integrator, integrator_kwargs={},
+        max_retries=2, timestep_multiplier=0.1
+    ):
     """Integrate :class:`~gala.dynamics.PhaseSpacePosition` in a 
     :class:`Potential <gala.potential.potential.PotentialBase>` with events that occur at certain times
 
@@ -77,10 +79,13 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential(v
     store_all : `bool`, optional
         Whether to store the entire orbit, by default True. If not then only the final
         PhaseSpacePosition will be stored - this cuts down on memory usage.
-    quiet : `bool`, optional
-        Whether to silence warning messages about failing orbits
     integrator : :class:`~gala.integrate.Integrator`, optional
         The integrator used by gala for evolving the orbits of binaries in the galactic potential
+    max_retries : `int`, optional
+        The maximum number of times to retry an orbit integration that fails (default is 2)
+    timestep_multiplier : `float`, optional
+        The factor by which to multiply the timestep size for each retry
+        (default is 0.1, i.e. reduce the timestep by a factor of 10 for each retry)
 
     Returns
     -------
@@ -95,7 +100,8 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential(v
     if events is None:
         try:
             full_orbit = potential.integrate_orbit(
-                w0, t1=t1, t2=t2, dt=dt, Integrator=integrator, Integrator_kwargs=integrator_kwargs
+                w0, t1=t1, t2=t2, dt=dt, Integrator=integrator, Integrator_kwargs=integrator_kwargs,
+                save_all=store_all
             )
         except RuntimeError:            # pragma: no cover
             return None
@@ -105,8 +111,7 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential(v
         return full_orbit
 
     # allow two retries with smaller timesteps
-    MAX_DT_RESIZE = 2
-    for n in range(MAX_DT_RESIZE):
+    for _ in range(max_retries):
         try:
             success = False
 
@@ -137,7 +142,8 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential(v
                     orbit = potential.integrate_orbit(
                         current_w0, t=matching_timesteps,
                         Integrator=integrator,
-                        Integrator_kwargs=integrator_kwargs
+                        Integrator_kwargs=integrator_kwargs,
+                        save_all=store_all
                     )
 
                     # save the orbit data (minus the last timestep to avoid duplicates)
@@ -174,22 +180,16 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential(v
                 orbit = potential.integrate_orbit(
                     current_w0, t=matching_timesteps,
                     Integrator=integrator,
-                    Integrator_kwargs=integrator_kwargs
+                    Integrator_kwargs=integrator_kwargs,
+                    save_all=store_all
                 )
                 orbit_data.append(orbit.data)
 
             data = coords.concatenate_representations(orbit_data) if len(orbit_data) > 1 else orbit_data[0]
 
-            try:
-                full_orbit = gd.orbit.Orbit(
-                    pos=data.without_differentials(), vel=data.differentials["s"], t=timesteps.to(u.Myr)
-                )
-            except Exception as e:   # pragma: no cover
-                print("pos", data.without_differentials())
-                print("vel", data.differentials["s"])
-                print("t", timesteps.to(u.Myr))
-                print(events)
-                raise e
+            full_orbit = gd.orbit.Orbit(
+                pos=data.without_differentials(), vel=data.differentials["s"], t=timesteps.to(u.Myr)
+            )
             success = True
             break
 
@@ -199,7 +199,7 @@ def integrate_orbit_with_events(w0, t1, t2, dt, potential=gp.MilkyWayPotential(v
                 raise e
 
             # otherwise, try again with a smaller timestep
-            dt /= 8.
+            dt *= timestep_multiplier
 
     # if the orbit failed event after resizing then just return None
     if not success:   # pragma: no cover
