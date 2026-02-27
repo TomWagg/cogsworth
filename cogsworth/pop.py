@@ -1279,17 +1279,19 @@ class Population():
             # start a warning message
             bad_bin_nums = np.concatenate((self.bin_nums, self.bin_nums[self.disrupted]))[failed_integration]
             warning_message = (
-                f"cogsworth warning: {failed_integration.sum()} orbit(s) failed numerical integration, removing them."
-                " This can occur due to NaNs in stellar evolution or extreme orbits that Gala cannot handle."
+                f"cogsworth warning: {failed_integration.sum()} orbit(s) failed numerical integration, "
+                "removing them. This can occur due to NaNs in stellar evolution or extreme orbits (e.g. "
+                "passing directly through the galactic centre) that Gala cannot handle."
             )
 
             # if we're going to save them then find a file name
             if self.error_file_path is not None:
                 # decide on file name (avoid overwriting existing file)
                 file_num = 1
-                file_name = os.path.join(self.error_file_path, "bad_orbits.h5")
+                file_name = os.path.join(self.error_file_path, "failed_integration_binaries.h5")
                 while os.path.exists(file_name):
-                    file_name = os.path.join(self.error_file_path, f"bad_orbits_{file_num}.h5")
+                    file_name = os.path.join(self.error_file_path,
+                                             f"failed_integration_binaries_{file_num}.h5")
                     file_num += 1
 
                 # save the bad orbits population
