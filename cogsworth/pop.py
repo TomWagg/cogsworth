@@ -286,21 +286,25 @@ class Population():
                               f"The first bin_num I couldn't find was {bin_nums[~check_nums][0]}"))
 
         # start a new population with the same parameters
-        new_pop = self.__class__(n_binaries=len(bin_nums), processes=self.processes,
-                                 m1_cutoff=self.m1_cutoff, final_kstar1=self.final_kstar1,
-                                 final_kstar2=self.final_kstar2, sfh_model=self.sfh_model,
-                                 sfh_params=self.sfh_params, galactic_potential=self.galactic_potential,
-                                 v_dispersion=self.v_dispersion, max_ev_time=self.max_ev_time,
-                                 timestep_size=self.timestep_size, BSE_settings=self.BSE_settings,
-                                 sampling_params=self.sampling_params,
-                                 bcm_timestep_conditions=self.bcm_timestep_conditions,
-                                 store_entire_orbits=self.store_entire_orbits,
-                                 bpp_columns=self.bpp_columns,
-                                 bcm_columns=self.bcm_columns,
-                                 error_file_path=self.error_file_path,
-                                 integrator=self.integrator,
-                                 integrator_kwargs=self.integrator_kwargs)
+        new_pop = self.__class__(
+            n_binaries=len(bin_nums), processes=self.processes,
+            m1_cutoff=self.m1_cutoff, final_kstar1=self.final_kstar1,
+            final_kstar2=self.final_kstar2, sfh_model=self.sfh_model,
+            sfh_params=self.sfh_params, galactic_potential=self.galactic_potential,
+            v_dispersion=self.v_dispersion, max_ev_time=self.max_ev_time,
+            timestep_size=self.timestep_size, BSE_settings=self.BSE_settings,
+            sampling_params=self.sampling_params,
+            bcm_timestep_conditions=self.bcm_timestep_conditions,
+            store_entire_orbits=self.store_entire_orbits,
+            bpp_columns=self.bpp_columns,
+            bcm_columns=self.bcm_columns,
+            error_file_path=self.error_file_path,
+            integrator=self.integrator,
+            integrator_kwargs=self.integrator_kwargs,
+            orbit_integration_retry_settings=self.orbit_integration_retry_settings
+        )
         new_pop.n_binaries_match = new_pop.n_binaries
+        new_pop.__citations__ = copy(self.__citations__)
 
         # proxy for checking whether sampling has been done
         if self._mass_binaries is not None:
@@ -1899,6 +1903,13 @@ class Population():
             d.attrs["integrator"] = self.integrator.__name__
             d.attrs["integrator_kwargs"] = yaml.dump(self.integrator_kwargs, default_flow_style=None)
 
+            # save retry settings
+            file.attrs["max_retries"] = self.orbit_integration_retry_settings["max_retries"]
+            file.attrs["timestep_multiplier"] = self.orbit_integration_retry_settings["timestep_multiplier"]
+
+            # save citations array
+            file.attrs["citations"] = np.array(self.__citations__, dtype="S")
+
             # save the version of cogsworth, COSMIC, and gala that was used
             file.attrs["cogsworth_version"] = __version__
             file.attrs["COSMIC_version"] = cosmic_version
@@ -1968,24 +1979,39 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
         for key in file["BSE_settings"].attrs:
             BSE_settings[key] = file["BSE_settings"].attrs[key]
 
+        # load in sampling parameters
         sampling_params = yaml.load(file["sampling_params"].attrs["dict"], Loader=yaml.Loader)
 
+        # load in integrator settings
         integrator_name = file.get("integrator", None)
         integrator_kwargs = file.get("integrator_kwargs", {})
         integrator = gi.DOPRI853Integrator if integrator_name is None else getattr(gi, integrator_name)
 
+        # get the orbit integration retry settings
+        orbit_integration_retry_settings = {}
+        if "max_retries" in file.attrs:
+            orbit_integration_retry_settings["max_retries"] = file.attrs["max_retries"]
+        if "timestep_multiplier" in file.attrs:
+            orbit_integration_retry_settings["timestep_multiplier"] = file.attrs["timestep_multiplier"]
+
+        # retrieve citations
+        citations = file.attrs.get("citations", [])
+        citations = [c.decode('utf-8') for c in citations]
+
     with h5.File(file_name, 'r') as f:
         galactic_potential = potential_from_dict(yaml.load(f.attrs["potential_dict"], Loader=yaml.Loader))
 
-    p = Population(n_binaries=int(numeric_params[0]), processes=int(numeric_params[2]),
-                   m1_cutoff=numeric_params[3], final_kstar1=final_kstars[0], final_kstar2=final_kstars[1],
-                   sfh_model=sfh.StarFormationHistory, galactic_potential=galactic_potential,
-                   v_dispersion=numeric_params[4] * u.km / u.s, max_ev_time=numeric_params[5] * u.Gyr,
-                   timestep_size=numeric_params[6] * u.Myr, BSE_settings=BSE_settings,
-                   sampling_params=sampling_params, store_entire_orbits=store_entire_orbits,
-                   bcm_timestep_conditions=bcm_tc, bpp_columns=bpp_columns, bcm_columns=bcm_columns,
-                   error_file_path=error_file_path,
-                   integrator=integrator, integrator_kwargs=integrator_kwargs)
+    p = Population(
+        n_binaries=int(numeric_params[0]), processes=int(numeric_params[2]),
+        m1_cutoff=numeric_params[3], final_kstar1=final_kstars[0], final_kstar2=final_kstars[1],
+        sfh_model=sfh.StarFormationHistory, galactic_potential=galactic_potential,
+        v_dispersion=numeric_params[4] * u.km / u.s, max_ev_time=numeric_params[5] * u.Gyr,
+        timestep_size=numeric_params[6] * u.Myr, BSE_settings=BSE_settings,
+        sampling_params=sampling_params, store_entire_orbits=store_entire_orbits,
+        bcm_timestep_conditions=bcm_tc, bpp_columns=bpp_columns, bcm_columns=bcm_columns,
+        error_file_path=error_file_path, integrator=integrator, integrator_kwargs=integrator_kwargs,
+        orbit_integration_retry_settings=orbit_integration_retry_settings
+    )
 
     p._file = file_name
     p.n_binaries_match = int(numeric_params[1])
@@ -1993,6 +2019,7 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
     p._mass_binaries = numeric_params[8]
     p._n_singles_req = numeric_params[9]
     p._n_bin_req = numeric_params[10]
+    p.__citations__ = citations
 
     # load parts as necessary
     if "initial_binaries" in parts:
