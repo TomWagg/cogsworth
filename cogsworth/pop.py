@@ -1294,7 +1294,7 @@ class Population():
                                              f"failed_integration_binaries_{file_num}.h5")
                     file_num += 1
 
-                # save the bad orbits population
+                # save the failed integration population
                 self.initC.loc[bad_bin_nums].to_hdf(file_name, key="initC")
                 self.bpp.loc[bad_bin_nums].to_hdf(file_name, key="bpp")
                 self.kick_info.loc[bad_bin_nums].to_hdf(file_name, key="kick_info")
@@ -1307,12 +1307,13 @@ class Population():
                                     "is set to `None`.")
             logging.getLogger("cogsworth").warning(warning_message)
 
-            # mask them out from the main population
+            # work out which orbits to remove (failed integration + companions if disruption occurred)
+            orbit_bin_nums = np.concatenate((self.bin_nums, self.bin_nums[self.disrupted]))
+            orbits = np.array(orbits, dtype="object")[~np.isin(orbit_bin_nums, bad_bin_nums)]
+
+            # mask the rest of the the main population
             new_self = self[~np.isin(self.bin_nums, bad_bin_nums)]
             self.__dict__.update(new_self.__dict__)
-
-            # also mask them out from the orbits
-            orbits = np.array(orbits, dtype="object")[~bad_orbits]
 
         self._orbits = np.array(orbits, dtype="object")
 
