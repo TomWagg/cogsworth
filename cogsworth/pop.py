@@ -1271,15 +1271,15 @@ class Population():
                 ) for w0, t1, dt, events in self._iter_orbit_args(w0s, primary_events, secondary_events)
             ]
 
-        # check for bad orbits
-        bad_orbits = np.array([orbit is None for orbit in orbits])
+        # check for any orbits that we failed to integrate
+        failed_integration = np.array([orbit is None for orbit in orbits])
 
         # if there are any bad orbits then warn the user and remove them from the population
-        if any(bad_orbits):             # pragma: no cover
+        if any(failed_integration):             # pragma: no cover
             # start a warning message
-            bad_bin_nums = np.concatenate((self.bin_nums, self.bin_nums[self.disrupted]))[bad_orbits]
+            bad_bin_nums = np.concatenate((self.bin_nums, self.bin_nums[self.disrupted]))[failed_integration]
             warning_message = (
-                f"cogsworth warning: {bad_orbits.sum()} orbit(s) failed numerical integration, removing them."
+                f"cogsworth warning: {failed_integration.sum()} orbit(s) failed numerical integration, removing them."
                 " This can occur due to NaNs in stellar evolution or extreme orbits that Gala cannot handle."
             )
 
@@ -1298,8 +1298,11 @@ class Population():
                 self.kick_info.loc[bad_bin_nums].to_hdf(file_name, key="kick_info")
                 self.initial_galaxy[np.isin(self.bin_nums, bad_bin_nums)].save(file_name, key="sfh")
         
-                warning_message += f" Information for these systems was saved to `{file_name}`."
-                warning_message += " This includes their initC, bpp, kick_info, and initial galaxy objects."
+                warning_message += (f" Information for these systems was saved to `{file_name}`."
+                                    " This includes their initC, bpp, kick_info, and initial galaxy objects.")
+            else:
+                warning_message += (" Not saving information for these systems because `error_file_path` "
+                                    "is set to `None`.")
             logging.getLogger("cogsworth").warning(warning_message)
 
             # mask them out from the main population
