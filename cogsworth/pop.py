@@ -244,7 +244,7 @@ class Population():
                     ("You've just masked a population that wasn't fully loaded from a "
                      "file. This means that the masked population won't have access to the parts that "
                      "were not loaded. If you don't need the missing parts then this is fine, for reference "
-                     f" those are: {missing_parts}.")
+                     f"those are: {missing_parts}.")
                 )
 
         # ensure indexing with the right type
