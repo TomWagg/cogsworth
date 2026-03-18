@@ -2,30 +2,43 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import astropy.units as u
+import astropy.constants as const
 
 from .utils import kstar_translator, evol_type_translator
 
-__all__ = ["plot_cmd", "plot_cartoon_evolution", "plot_galactic_orbit"]
+__all__ = ["plot_cmd", "plot_cartoon_evolution", "plot_galactic_orbit", "plot_hrd"]
 
-
-plt.rc('font', family='serif')
-plt.rcParams['text.usetex'] = False
+# some styles to be used in all cogsworth plots
 fs = 24
+style_params = {
+    'font.family': 'serif',
+    'text.usetex': False,
+    'figure.figsize': (12, 8),
+    'axes.titlesize': 24,
+    'legend.title_fontsize': 18,
+    'legend.fontsize': 16,
+    'axes.labelsize': 24,
+    'xtick.labelsize': 21,
+    'ytick.labelsize': 21,
+    'axes.linewidth': 1.1,
+    'xtick.major.size': 7,
+    'xtick.minor.size': 4,
+    'ytick.major.size': 7,
+    'ytick.minor.size': 4,
+    'xtick.minor.visible': True,
+    'ytick.minor.visible': True,
+}
 
-# update various fontsizes to match
-params = {'figure.figsize': (12, 8),
-          'legend.fontsize': fs,
-          'axes.labelsize': fs,
-          'xtick.labelsize': 0.9 * fs,
-          'ytick.labelsize': 0.9 * fs,
-          'axes.linewidth': 1.1,
-          'xtick.major.size': 7,
-          'xtick.minor.size': 4,
-          'ytick.major.size': 7,
-          'ytick.minor.size': 4}
-plt.rcParams.update(params)
+# define a decorator for plotting functions which applies the style params in a context environment so that
+# the style is only applied to plots made by cogsworth and not to any other plots the user might make
+def cogsworth_plot_style(func):
+    def wrapper(*args, **kwargs):
+        with plt.rc_context(style_params):
+            return func(*args, **kwargs)
+    return wrapper
 
 
+@cogsworth_plot_style
 def plot_cmd(pop, m_filter="Gaia_G_EDR3", c_filter_1="Gaia_BP_EDR3", c_filter_2="Gaia_RP_EDR3",
              fig=None, ax=None, show=True, **kwargs):
     """Plot a colour-magnitude diagram for a population.
@@ -166,6 +179,7 @@ def _rlof_path(centre, width, height, m=1.5, flip=False):
     return x, y
 
 
+@cogsworth_plot_style
 def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon Binary Evolution",
                            y_sep_mult=1.5, offset=0.2, s_base=1000,
                            time_fs_mult=1.0, mass_fs_mult=1.0, kstar_fs_mult=1.0,
@@ -450,6 +464,7 @@ def plot_cartoon_evolution(bpp, bin_num, label_type="long", plot_title="Cartoon 
     return fig, ax
 
 
+@cogsworth_plot_style
 def plot_galactic_orbit(primary_orbit, secondary_orbit=None,
                         t_min=0 * u.Myr, t_max=np.inf * u.Myr, show_start=True,
                         primary_kwargs={}, secondary_kwargs={}, start_kwargs={},
@@ -538,3 +553,131 @@ def plot_galactic_orbit(primary_orbit, secondary_orbit=None,
         plt.show()
 
     return fig, fig.axes
+
+
+def _LBV_limit(T_eff):
+    """Compute the luminosity of the LBV limit given a certain temperature
+    
+    Parameters
+    ----------
+    T_eff : :class:`~astropy.units.Quantity` [temperature]
+        Effective temperature(s) at which to compute the LBV limit
+
+    Returns
+    -------
+    L_LBV : :class:`~astropy.units.Quantity` [luminosity]
+        Luminosity of the LBV limit at the given temperature(s)
+    """
+    return np.maximum(
+        np.sqrt(1e10 * u.Rsun**2 * u.Lsun * (4 * np.pi * const.sigma_sb * (T_eff * u.K)**4)).to(u.Lsun),
+        np.repeat(6e5, len(T_eff)) * u.Lsun
+    )
+
+
+@cogsworth_plot_style
+def plot_hrd(bcm, bin_num, show_primary=True, show_secondary=True,
+             max_kstar=10, shade_LBV_regime=False, fig=None, ax=None, show=True, **ax_settings):
+    """Plot the HR diagram of a binary evolution
+
+    Parameters
+    ----------
+    bcm : `pandas.DataFrame`
+        COSMIC bcm table
+    bin_num : `int`
+        Binary number of the binary to plot
+    show_primary : `bool`, optional
+        Whether to show the primary star, by default True
+    show_secondary : `bool`, optional
+        Whether to show the secondary star, by default True
+    max_kstar : `int`, optional
+        Maximum kstar value to plot, by default 10
+    shade_LBV_regime : `bool`, optional
+        Whether to shade the LBV regime, by default False
+    fig : :class:`~matplotlib.figure.Figure`, optional
+        Figure on which to plot, by default will create a new one
+    ax : :class:`~matplotlib.axes.Axes`, optional
+        Axis on which to plot, by default will create a new one
+    show : `bool`, optional
+        Whether to immediately show the plot, by default True
+    **ax_settings : dict
+        Additional keyword arguments for the axis settings (e.g. limits, ticks, etc.)
+
+    Returns
+    -------
+    fig, ax : :class:`~matplotlib.figure.Figure`, :class:`~matplotlib.axes.Axes`
+        Figure and axis of the plot
+    """
+
+    if fig is None or ax is None:
+        fig, ax = plt.subplots(figsize=(10, 16))
+
+    kstars = set()
+    min_log_teff, max_log_teff = np.inf, -np.inf
+
+    if isinstance(bin_num, (int, np.int64)):
+        bin_num = [bin_num]
+    
+    for bn in bin_num:
+        for k, show_k in [(1, show_primary), (2, show_secondary)]:
+            if not show_k:
+                continue
+
+            log_teff = np.log10(bcm[bcm["bin_num"] == bn][f"teff_{k}"].values)
+            log_lum = np.log10(bcm[bcm["bin_num"] == bn][f"lum_{k}"].values)
+            kstar = bcm[bcm["bin_num"] == bn][f"kstar_{k}"].values
+
+            mask = kstar < max_kstar
+
+            ax.scatter(log_teff[mask], log_lum[mask], c=[kstar_translator[k]["colour"] for k in kstar[mask]], s=5)
+            ax.plot(log_teff[mask], log_lum[mask], color='grey', alpha=0.5, lw=0.5, zorder=-1)
+            
+            # add a marker to the start and end of the track
+            ax.scatter(log_teff[mask][0], log_lum[mask][0], color="k" if k == 1 else "grey", marker="o", s=50)
+            ax.scatter(log_teff[mask][-1], log_lum[mask][-1], color="k" if k == 1 else "grey", marker="o", s=50)
+
+            kstars.update(set(kstar[mask]))
+            min_log_teff = min(min_log_teff, log_teff[mask].min())
+            max_log_teff = max(max_log_teff, log_teff[mask].max())
+
+    # annotate the various kstar types
+    for k in kstars:
+        if k < max_kstar:
+            ax.scatter([], [], color=kstar_translator[k]["colour"], label=kstar_translator[k]["short"], s=50)
+
+    if show_primary:
+        ax.scatter([], [], color="k", label=f"Start/end of primary", s=50)
+    if show_secondary:
+        ax.scatter([], [], color="grey", label=f"Start/end of secondary", s=50)
+    ax.legend()
+
+    ax.set(
+        xlabel=r"$\log_{10}(T_{\rm eff} \, [\rm K])$",
+        ylabel=r"$\log_{10}(L \, [\rm L_{\odot}])$",
+        **ax_settings
+    )
+
+    if shade_LBV_regime:
+        ylims = ax.get_ylim()
+
+        # make some fairly reasonable temperature range
+        T_eff_range = np.logspace(min_log_teff - 0.1, max_log_teff + 0.1, 1000)
+        LBV_log_L = np.log10(_LBV_limit(T_eff_range).value)
+
+        if ylims[0] < LBV_log_L.min() < ylims[1]:
+            # plot a line at the HD limit and fill the area
+            ax.plot(np.log10(T_eff_range), LBV_log_L, color="grey", linestyle="dotted")
+            ax.fill_between(np.log10(T_eff_range), LBV_log_L, 9, color="black", lw=2, alpha=0.03)
+
+            # annotate the regime with a custom location
+            ax.annotate("LBV Regime", xy=(0.77, 0.93), xycoords="axes fraction", ha="center", va="center",
+                        fontsize=20, color="grey", zorder=10)
+            ax.set_ylim(ylims)
+
+    
+    # flip x-axis if necessary
+    if ax.get_xlim()[0] < ax.get_xlim()[1]:
+        ax.invert_xaxis()
+
+    if show:
+        plt.show()
+    return fig, ax
