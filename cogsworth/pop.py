@@ -193,6 +193,7 @@ class Population():
 
         self.sampling_params = {
             'primary_model': 'kroupa01', 'ecc_model': 'sana12', 'porb_model': 'sana12',
+            'binfrac_model': 1.0,
             'qmin': -1, 'keep_singles': False
         }
         self.sampling_params.update(sampling_params)
@@ -1046,20 +1047,16 @@ class Population():
                 for col in cols:
                     self._initial_binaries[col] = -100.0
         else:
-            if "binfrac" not in self.BSE_settings:
-                raise ValueError("You must specify a binary fraction (e.g. `binfrac: 0.5`) in "
-                                 "`Population.BSE_settings` to sample binaries")
-            if self.BSE_settings["binfrac"] == 0.0 and not self.sampling_params["keep_singles"]:
+            if self.sampling_params["binfrac_model"] == 0.0 and not self.sampling_params["keep_singles"]:
                 raise ValueError(("You've chosen a binary fraction of 0.0 but set `keep_singles=False` (in "
                                   "self.sampling_params), so you'll draw 0 samples...I don't think you "
                                   "wanted to do that?"))
             self._initial_binaries, self._mass_singles, self._mass_binaries, self._n_singles_req, \
-                self._n_bin_req = InitialBinaryTable.sampler('independent',
-                                                             self.final_kstar1, self.final_kstar2,
-                                                             binfrac_model=self.BSE_settings["binfrac"],
-                                                             SF_start=self.max_ev_time.to(u.Myr).value,
-                                                             SF_duration=0.0, met=0.02, size=self.n_binaries,
-                                                             **self.sampling_params)
+                self._n_bin_req = InitialBinaryTable.sampler(
+                    'independent', self.final_kstar1, self.final_kstar2,
+                    SF_start=self.max_ev_time.to(u.Myr).value, SF_duration=0.0, met=0.02,
+                    size=self.n_binaries, **self.sampling_params
+                )
 
         # reset index to match new `bin_num`s
         self._initial_binaries.reset_index(inplace=True)
@@ -1886,7 +1883,7 @@ class Population():
             num_par.attrs["final_kstar1"] = self.final_kstar1
             num_par.attrs["final_kstar2"] = self.final_kstar2
             num_par.attrs["timestep_conditions"] = self.bcm_timestep_conditions
-            num_par.attrs["bcm_default_timestep"] = self.bcm_default_timestep
+            num_par.attrs["bcm_default_timestep"] = self.bcm_default_timestep if self.bcm_default_timestep is not None else -1
             num_par.attrs["bpp_columns"] = np.array(self.bpp_columns, dtype="S")
             num_par.attrs["bcm_columns"] = np.array(self.bcm_columns, dtype="S")
             num_par.attrs["error_file_path"] = (self.error_file_path if self.error_file_path is not None
@@ -1971,7 +1968,7 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
                         file["numeric_params"].attrs["final_kstar2"]]
         bcm_tc = file["numeric_params"].attrs["timestep_conditions"].tolist()
         bcm_default_timestep = file["numeric_params"].attrs.get("bcm_default_timestep", None)
-        bcm_default_timestep = None if bcm_default_timestep == 'None' else bcm_default_timestep
+        bcm_default_timestep = None if bcm_default_timestep == -1 else bcm_default_timestep
         bpp_columns = file["numeric_params"].attrs["bpp_columns"]
         bcm_columns = file["numeric_params"].attrs["bcm_columns"]
         error_file_path = (file["numeric_params"].attrs["error_file_path"]
