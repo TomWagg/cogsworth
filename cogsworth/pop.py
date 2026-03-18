@@ -75,6 +75,12 @@ class Population():
     use_default_BSE_settings : `bool`, optional
         Whether to use the default COSMIC BSE settings, by default False. If False then at least one of
         `BSE_settings` or `ini_file` must be provided.
+    bcm_default_timestep : float, optional
+        If provided, this will be used as the default timestep for the BCM output in COSMIC (i.e. in cases
+        where the conditions in `bcm_timestep_conditions` are not met). By default, this is set to None
+        and the default COSMIC behaviour is used, which only outputs the first and last timesteps. Setting a
+        small number here will significantly slow down the evolution, but give you more resolved evolution
+        for each binary.
     bcm_timestep_conditions : List of lists, optional
         Any timestep conditions to pass to COSMIC evolution. This will affect the rows that are output in the
         the BCM table, by default only the first and last timesteps are output. For more details check out the
@@ -197,6 +203,7 @@ class Population():
         }
         self.orbit_integration_retry_settings.update(orbit_integration_retry_settings)
 
+        self.bcm_default_timestep = bcm_default_timestep
         self.bcm_timestep_conditions = bcm_timestep_conditions
 
     def __repr__(self):
@@ -282,6 +289,7 @@ class Population():
             v_dispersion=self.v_dispersion, max_ev_time=self.max_ev_time,
             timestep_size=self.timestep_size, BSE_settings=self.BSE_settings,
             sampling_params=self.sampling_params,
+            bcm_default_timestep=self.bcm_default_timestep,
             bcm_timestep_conditions=self.bcm_timestep_conditions,
             store_entire_orbits=self.store_entire_orbits,
             bpp_columns=self.bpp_columns,
@@ -590,15 +598,15 @@ class Population():
         """A table of the evolutionary history of each binary at dynamically chosen timesteps.
 
         Each row of this table corresponds to a timestep in the evolution of a binary. Timesteps are set
-        based on user-defined ``bcm_timestep_conditions``. The columns of the table are described in
-        detail
+        based on user-defined ``bcm_default_timestep`` and ``bcm_timestep_conditions``.
+        The columns of the table are described in detail
         `in the COSMIC documentation <https://cosmic-popsynth.github.io/docs/stable/output_info/index.html#bcm>`__.
 
         Returns
         -------
         bcm : :class:`~pandas.DataFrame`
             The evolutionary history of each binary at dynamically chosen timesteps. Note this will be
-            ``None`` if no timestep conditions have been set (in ``bcm_timestep_conditions``).
+            ``None`` if no timestep conditions have been set (in ``bcm_default_timestep`` or ``bcm_timestep_conditions``).
 
         Raises
         ------
@@ -614,10 +622,10 @@ class Population():
                 has_bcm = "bcm" in f
             self._bcm = pd.read_hdf(self._file, key="bcm") if has_bcm else None
         elif self._bcm is None:
-            if len(np.ravel(self.bcm_timestep_conditions)) == 0:        # pragma: no cover
+            if self.bcm_default_timestep is None and len(np.ravel(self.bcm_timestep_conditions)) == 0:        # pragma: no cover
                 self._warn(
-                    ("You haven't set any timestep conditions for the BCM table, so it is not "
-                     "calculated. Set `bcm_timestep_conditions` to get a BCM table.")
+                    ("You haven't set any default timestep or timestep conditions for the BCM table, so it is not "
+                     "calculated. Set `bcm_default_timestep` or `bcm_timestep_conditions` to get a BCM table.")
                 )
             else:
                 raise ValueError("No stellar evolution performed yet, run `perform_stellar_evolution` to do so.")
@@ -1105,15 +1113,17 @@ class Population():
                      "in the table.")
                 )
 
+            evolve_kwargs = {"initialbinarytable": ibt, "BSEDict": BSEDict, "pool": self.pool,
+                             "dtp": self.timestep_size, "timestep_conditions": self.bcm_timestep_conditions,
+                             "bpp_columns": self.bpp_columns, "bcm_columns": self.bcm_columns}
+            if self.bcm_default_timestep is not None:
+                evolve_kwargs["dtp"] = self.bcm_default_timestep
+
             # perform the evolution!
-            self._bpp, bcm, self._initC, \
-                self._kick_info = Evolve.evolve(initialbinarytable=ibt,
-                                                BSEDict=BSEDict, pool=self.pool,
-                                                timestep_conditions=self.bcm_timestep_conditions,
-                                                bpp_columns=self.bpp_columns, bcm_columns=self.bcm_columns)
+            self._bpp, bcm, self._initC, self._kick_info = Evolve.evolve(**evolve_kwargs)
 
             # only save BCM when it has interesting timesteps
-            if self.bcm_timestep_conditions != []:
+            if self.bcm_timestep_conditions != [] or self.bcm_default_timestep is not None:
                 self._bcm = bcm
 
         if no_pool_existed:
@@ -1861,6 +1871,7 @@ class Population():
             num_par.attrs["final_kstar1"] = self.final_kstar1
             num_par.attrs["final_kstar2"] = self.final_kstar2
             num_par.attrs["timestep_conditions"] = self.bcm_timestep_conditions
+            num_par.attrs["bcm_default_timestep"] = self.bcm_default_timestep
             num_par.attrs["bpp_columns"] = np.array(self.bpp_columns, dtype="S")
             num_par.attrs["bcm_columns"] = np.array(self.bcm_columns, dtype="S")
             num_par.attrs["error_file_path"] = (self.error_file_path if self.error_file_path is not None
@@ -1944,6 +1955,8 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
         final_kstars = [file["numeric_params"].attrs["final_kstar1"],
                         file["numeric_params"].attrs["final_kstar2"]]
         bcm_tc = file["numeric_params"].attrs["timestep_conditions"].tolist()
+        bcm_default_timestep = file["numeric_params"].attrs.get("bcm_default_timestep", None)
+        bcm_default_timestep = None if bcm_default_timestep == 'None' else bcm_default_timestep
         bpp_columns = file["numeric_params"].attrs["bpp_columns"]
         bcm_columns = file["numeric_params"].attrs["bcm_columns"]
         error_file_path = (file["numeric_params"].attrs["error_file_path"]
@@ -1991,6 +2004,7 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
         v_dispersion=numeric_params[3] * u.km / u.s, max_ev_time=numeric_params[4] * u.Gyr,
         timestep_size=numeric_params[5] * u.Myr, BSE_settings=BSE_settings,
         sampling_params=sampling_params, store_entire_orbits=store_entire_orbits,
+        bcm_default_timestep=bcm_default_timestep,
         bcm_timestep_conditions=bcm_tc, bpp_columns=bpp_columns, bcm_columns=bcm_columns,
         error_file_path=error_file_path, integrator=integrator, integrator_kwargs=integrator_kwargs,
         orbit_integration_retry_settings=orbit_integration_retry_settings
