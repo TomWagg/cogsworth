@@ -50,8 +50,6 @@ class Population():
         How many binaries to sample for the population
     processes : `int`, optional
         How many processes to run if you want multithreading, by default all cores available on machine
-    m1_cutoff : `float`, optional
-        The minimum allowed primary mass, by default 0
     final_kstar1 : `list`, optional
         Desired final types for primary star, by default list(range(16))
     final_kstar2 : `list`, optional
@@ -110,24 +108,17 @@ class Population():
             (default is 0.1, i.e. reduce the timestep by a factor of 10 for each retry)
     """
     def __init__(
-            self, n_binaries, processes=None, m1_cutoff=0, final_kstar1=list(range(16)),
+            self, n_binaries, processes=None, final_kstar1=list(range(16)),
             final_kstar2=list(range(16)), sfh_model=sfh.Wagg2022, sfh_params={},
             galactic_potential=gp.MilkyWayPotential(version='v2'), v_dispersion=5 * u.km / u.s,
             max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, ini_file=None,
             use_default_BSE_settings=False, sampling_params={},
+            bcm_default_timestep=None,
             bcm_timestep_conditions=[], store_entire_orbits=True,
             bpp_columns=None, bcm_columns=None, error_file_path="./",
             integrator=gi.DOPRI853Integrator, integrator_kwargs={},
             orbit_integration_retry_settings={}
         ):
-
-        if m1_cutoff != 0:
-            warnings.warn(
-                "cogsworth warning: m1_cutoff will be deprecated in v3.8+ of cogsworth. This can be achieved "
-                "by just masking the initial binary table after sampling.",
-                FutureWarning,
-                stacklevel=2
-            )
 
         # require a sensible number of binaries if you are not targetting total mass
         if not ("sampling_target" in sampling_params and sampling_params["sampling_target"] == "total_mass"):
@@ -151,7 +142,6 @@ class Population():
         self.n_binaries_match = n_binaries
         # use max CPUs if user doesn't specify
         self.processes = processes if processes is not None else max_cpus
-        self.m1_cutoff = m1_cutoff
         self.final_kstar1 = final_kstar1
         self.final_kstar2 = final_kstar2
         self.sfh_model = sfh_model
@@ -286,7 +276,7 @@ class Population():
         # start a new population with the same parameters
         new_pop = self.__class__(
             n_binaries=len(bin_nums), processes=self.processes,
-            m1_cutoff=self.m1_cutoff, final_kstar1=self.final_kstar1,
+            final_kstar1=self.final_kstar1,
             final_kstar2=self.final_kstar2, sfh_model=self.sfh_model,
             sfh_params=self.sfh_params, galactic_potential=self.galactic_potential,
             v_dispersion=self.v_dispersion, max_ev_time=self.max_ev_time,
@@ -1063,19 +1053,11 @@ class Population():
                                                              SF_duration=0.0, met=0.02, size=self.n_binaries,
                                                              **self.sampling_params)
 
-        # apply the mass cutoff
-        self._initial_binaries = self._initial_binaries[self._initial_binaries["mass_1"] >= self.m1_cutoff]
-
         # reset index to match new `bin_num`s
         self._initial_binaries.reset_index(inplace=True)
 
         # count how many binaries actually match the criteria (may be larger than `n_binaries` due to sampler)
         self.n_binaries_match = len(self._initial_binaries)
-
-        # check that any binaries remain
-        if self.n_binaries_match == 0:
-            raise ValueError(("Your choice of `m1_cutoff` resulted in all samples being thrown out. Consider"
-                              " a larger sample size or a less stringent mass cut"))
 
         self.sample_initial_galaxy()
 
@@ -1868,7 +1850,7 @@ class Population():
                     orbits[key] = orbits_data[key]
 
         with h5.File(file_name, "a") as file:
-            numeric_params = np.array([self.n_binaries, self.n_binaries_match, self.processes, self.m1_cutoff,
+            numeric_params = np.array([self.n_binaries, self.n_binaries_match, self.processes,
                                        self.v_dispersion.to(u.km / u.s).value,
                                        self.max_ev_time.to(u.Gyr).value, self.timestep_size.to(u.Myr).value,
                                        self.mass_singles, self.mass_binaries, self.n_singles_req,
@@ -2004,10 +1986,10 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
 
     p = Population(
         n_binaries=int(numeric_params[0]), processes=int(numeric_params[2]),
-        m1_cutoff=numeric_params[3], final_kstar1=final_kstars[0], final_kstar2=final_kstars[1],
+        final_kstar1=final_kstars[0], final_kstar2=final_kstars[1],
         sfh_model=sfh.StarFormationHistory, galactic_potential=galactic_potential,
-        v_dispersion=numeric_params[4] * u.km / u.s, max_ev_time=numeric_params[5] * u.Gyr,
-        timestep_size=numeric_params[6] * u.Myr, BSE_settings=BSE_settings,
+        v_dispersion=numeric_params[3] * u.km / u.s, max_ev_time=numeric_params[4] * u.Gyr,
+        timestep_size=numeric_params[5] * u.Myr, BSE_settings=BSE_settings,
         sampling_params=sampling_params, store_entire_orbits=store_entire_orbits,
         bcm_timestep_conditions=bcm_tc, bpp_columns=bpp_columns, bcm_columns=bcm_columns,
         error_file_path=error_file_path, integrator=integrator, integrator_kwargs=integrator_kwargs,
@@ -2016,10 +1998,10 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
 
     p._file = file_name
     p.n_binaries_match = int(numeric_params[1])
-    p._mass_singles = numeric_params[7]
-    p._mass_binaries = numeric_params[8]
-    p._n_singles_req = numeric_params[9]
-    p._n_bin_req = numeric_params[10]
+    p._mass_singles = numeric_params[6]
+    p._mass_binaries = numeric_params[7]
+    p._n_singles_req = numeric_params[8]
+    p._n_bin_req = numeric_params[9]
     p.__citations__ = citations
 
     if version_warning is not None:
