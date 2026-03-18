@@ -32,7 +32,7 @@ from cogsworth.events import identify_events
 from cogsworth.classify import determine_final_classes
 from cogsworth.obs.observables import get_photometry
 from cogsworth.tests.optional_deps import check_dependencies
-from cogsworth.plot import plot_cartoon_evolution, plot_galactic_orbit
+from cogsworth.plot import plot_cartoon_evolution, plot_galactic_orbit, plot_hrd
 from cogsworth.utils import translate_COSMIC_tables, get_default_BSE_settings
 
 from cogsworth.citations import CITATIONS
@@ -1745,6 +1745,21 @@ class Population():
             plt.show()
 
         return fig, axes
+    
+    def plot_hrd(self, **kwargs):
+        """Plot the HR diagram for the population at present day
+
+        Parameters
+        ----------
+        **kwargs : `various`
+            Keyword arguments to pass, see :func:`~cogsworth.plot.plot_hrd` for options
+
+        Returns
+        -------
+        fig, ax : :class:`~matplotlib.pyplot.figure`, :class:`~matplotlib.pyplot.axis`
+            Figure and axis of the plot
+        """
+        return plot_hrd(self.bcm, **kwargs)
 
     def to_legwork_sources(self, distances=None, assume_mw_galactocentric=False):
         """Convert the final state of the population to a LEGWORK Source class (only including bound binaries)
