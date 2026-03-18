@@ -89,10 +89,6 @@ def get_default_BSE_settings():
             defaults[setting] = [float(p.split("/")[0]) / float(p.split("/")[1]) for p in parts]
         else:
             defaults[setting] = json.loads(defaults[setting])
-
-    # set binfrac default if not present
-    if "binfrac" not in defaults:
-        defaults["binfrac"] = 0.5
     return defaults
 
 
