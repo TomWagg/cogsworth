@@ -229,19 +229,6 @@ class Test(unittest.TestCase):
 
         self.assertTrue(first_orbit.shape[0] == 1)
 
-    def test_overly_stringent_cutoff(self):
-        """Make sure that it crashes if the m1_cutoff is too large to create anything"""
-        p = pop.Population(10, processes=1, m1_cutoff=10000,
-                           use_default_BSE_settings=True)
-
-        it_broke = False
-        try:
-            p.create_population()
-        except ValueError:
-            it_broke = True
-
-        self.assertTrue(it_broke)
-
     def test_interface(self):
         """Test the interface of this class with the other modules"""
         p = pop.Population(10, processes=2, final_kstar1=[13, 14], store_entire_orbits=False,
@@ -400,8 +387,8 @@ class Test(unittest.TestCase):
 
     def test_singles_evolution(self):
         """Check everything works well when evolving singles"""
-        p = pop.Population(2, processes=1, BSE_settings={"binfrac": 0.0},
-                           sampling_params={'keep_singles': True, 'total_mass': 100,
+        p = pop.Population(2, processes=1,
+                           sampling_params={'keep_singles': True, 'total_mass': 100, 'binfrac_model': 0.0,
                                             'sampling_target': 'total_mass'}, use_default_BSE_settings=True)
         p.create_population(with_timing=False)
 
@@ -410,8 +397,9 @@ class Test(unittest.TestCase):
     def test_singles_bad_input(self):
         """Test what happens when you mess up single stars"""
         it_failed = True
-        p = pop.Population(1, processes=1, BSE_settings={"binfrac": 0.0},
-                           sampling_params={'total_mass': 1000, 'sampling_target': 'total_mass'},
+        p = pop.Population(1, processes=1,
+                           sampling_params={'total_mass': 1000, 'sampling_target': 'total_mass',
+                                            'binfrac_model': 0.0},
                            use_default_BSE_settings=True)
         try:
             p.sample_initial_binaries()

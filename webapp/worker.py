@@ -1,12 +1,3 @@
-#!/usr/bin/env python
-"""
-cogsworth job worker — processes evolution jobs from the queue one at a time.
-
-Usage:
-    python webapp/worker.py            # normal operation
-    python webapp/worker.py --reset-only   # reset stale jobs then exit
-"""
-
 import json
 import logging
 import os
@@ -115,7 +106,7 @@ def run_single_binary(mass_1, mass_ratio, porb, ecc, metallicity,
         final_kstar2=list(range(16)),
         store_entire_orbits=evolve_orbits,
         processes=1,
-        BSE_settings={"binfrac": 1.0, "dtp": 0.0, **bse_overrides},
+        BSE_settings=bse_overrides,
         use_default_BSE_settings=True,
         bcm_default_timestep=0.0
     )
