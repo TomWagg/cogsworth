@@ -872,3 +872,22 @@ class Test(unittest.TestCase):
         self.assertTrue(
             np.allclose(p.final_secondary_vel, secondary_vel)
         )
+
+    def test_sampling_mask(self):
+        """Check that sampling mask works as expected"""
+        p = pop.Population(10000, use_default_BSE_settings=True, processes=1, sampling_mask="mass_1 > 5")
+        p.create_population()
+
+        self.assertTrue(min(p._initial_binaries["mass_1"]) > 5)
+
+    def test_bad_sampling_mask(self):
+        """Check that sampling mask works as expected"""
+        p = pop.Population(10, use_default_BSE_settings=True, processes=1, sampling_mask="mass_1 > 5000")
+
+        it_worked = True
+        try:
+            p.create_population()
+        except ValueError:
+            it_worked = False
+        self.assertFalse(it_worked)
+

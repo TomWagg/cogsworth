@@ -88,6 +88,13 @@ class Population():
     sampling_params : `dict`, optional
         Any additional parameters to pass to the COSMIC sampling
         (see `COSMIC docs <https://cosmic-popsynth.github.io/COSMIC/pages/inifile.html#sampling>`_ for the full list)
+    sampling_mask : `str`, optional
+        A query string to apply as a mask to the sampled binaries after sampling, only binaries matching the
+        mask are retained. This is applied before sampling the galaxy, and any evolution.
+        Syntax is the same as for pandas query strings, see :meth:`pandas.DataFrame.query` for details,
+        and the columns available are the same as those in the `initial_binaries` table.
+        For example, you could set this to "mass_1 > 7" to only keep binaries where the primary mass is
+        greater than 7 solar masses. Or something more complex like "(mass_1 > 7) or (mass_2 > 2 and ecc > 0.5)"
     store_entire_orbits : `bool`, optional
         Whether to store the entire orbit for each binary, by default True. If not then only the final
         PhaseSpacePosition will be stored. This cuts down on both memory usage and disk space used if you
@@ -119,7 +126,7 @@ class Population():
             final_kstar2=list(range(16)), sfh_model=sfh.Wagg2022, sfh_params={},
             galactic_potential=gp.MilkyWayPotential(version='v2'), v_dispersion=5 * u.km / u.s,
             max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, ini_file=None,
-            use_default_BSE_settings=False, sampling_params={},
+            use_default_BSE_settings=False, sampling_params={}, sampling_mask="",
             bcm_default_timestep=None,
             bcm_timestep_conditions=[], store_entire_orbits=True,
             bpp_columns=None, bcm_columns=None, error_file_path="./",
@@ -198,6 +205,7 @@ class Population():
             'qmin': -1, 'keep_singles': False
         }
         self.sampling_params.update(sampling_params)
+        self.sampling_mask = sampling_mask
 
         self.orbit_integration_retry_settings = {
             "max_retries": 2,
@@ -291,6 +299,7 @@ class Population():
             v_dispersion=self.v_dispersion, max_ev_time=self.max_ev_time,
             timestep_size=self.timestep_size, BSE_settings=self.BSE_settings,
             sampling_params=self.sampling_params,
+            sampling_mask=self.sampling_mask,
             bcm_default_timestep=self.bcm_default_timestep,
             bcm_timestep_conditions=self.bcm_timestep_conditions,
             store_entire_orbits=self.store_entire_orbits,
@@ -959,7 +968,10 @@ class Population():
 
         self.sample_initial_binaries()
         if with_timing:
-            print(f"Sampled {self.n_binaries_match} binaries")
+            sampling_msg = f"Sampled {self.n_binaries_match} binaries"
+            if self.sampling_mask != "":
+                sampling_msg += f" matching criteria: {self.sampling_mask}"
+            print(sampling_msg)
             print(f"[{time.time() - start:1.0e}s] Sample initial binaries")
             lap = time.time()
 
@@ -1063,6 +1075,17 @@ class Population():
         self._initial_binaries.reset_index(inplace=True)
 
         # count how many binaries actually match the criteria (may be larger than `n_binaries` due to sampler)
+        if self.sampling_mask != "":
+            self._initial_binaries.query(self.sampling_mask, inplace=True)
+            self._initial_binaries.reset_index(inplace=True, drop=True)
+
+        if len(self._initial_binaries) < 1:
+            raise ValueError(
+                "No binaries were sampled with the current sampling criteria, you likely have overly "
+                "restrictive sampling criteria. Change you ``sampling_mask`` to be less restrictive, or "
+                "sample a larger number of binaries to get more that match the criteria."
+            )
+        
         self.n_binaries_match = len(self._initial_binaries)
 
         self.sample_initial_galaxy()
@@ -1885,6 +1908,7 @@ class Population():
             num_par.attrs["final_kstar1"] = self.final_kstar1
             num_par.attrs["final_kstar2"] = self.final_kstar2
             num_par.attrs["timestep_conditions"] = self.bcm_timestep_conditions
+            num_par.attrs["sampling_mask"] = self.sampling_mask
             num_par.attrs["bcm_default_timestep"] = self.bcm_default_timestep if self.bcm_default_timestep is not None else -1
             num_par.attrs["bpp_columns"] = np.array(self.bpp_columns, dtype="S")
             num_par.attrs["bcm_columns"] = np.array(self.bcm_columns, dtype="S")
@@ -1969,6 +1993,7 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
         final_kstars = [file["numeric_params"].attrs["final_kstar1"],
                         file["numeric_params"].attrs["final_kstar2"]]
         bcm_tc = file["numeric_params"].attrs["timestep_conditions"].tolist()
+        sampling_mask = file["numeric_params"].attrs.get("sampling_mask", "")
         bcm_default_timestep = file["numeric_params"].attrs.get("bcm_default_timestep", None)
         bcm_default_timestep = None if bcm_default_timestep == -1 else bcm_default_timestep
         bpp_columns = file["numeric_params"].attrs["bpp_columns"]
@@ -2017,7 +2042,7 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
         sfh_model=sfh.StarFormationHistory, galactic_potential=galactic_potential,
         v_dispersion=numeric_params[3] * u.km / u.s, max_ev_time=numeric_params[4] * u.Gyr,
         timestep_size=numeric_params[5] * u.Myr, BSE_settings=BSE_settings,
-        sampling_params=sampling_params, store_entire_orbits=store_entire_orbits,
+        sampling_params=sampling_params, sampling_mask=sampling_mask, store_entire_orbits=store_entire_orbits,
         bcm_default_timestep=bcm_default_timestep,
         bcm_timestep_conditions=bcm_tc, bpp_columns=bpp_columns, bcm_columns=bcm_columns,
         error_file_path=error_file_path, integrator=integrator, integrator_kwargs=integrator_kwargs,
