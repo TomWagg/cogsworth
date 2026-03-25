@@ -50,3 +50,14 @@ class Test(unittest.TestCase):
         self.assertTrue(should_fail, "Plotting an orbit with t_min > t_max should fail")
 
         plt.close('all')
+
+    def test_plot_hrd(self):
+        """Test you can plot an HR diagram of a single binary"""
+        p = cogsworth.pop.Population(50, final_kstar1=[13, 14], use_default_BSE_settings=True,
+                                     bcm_default_timestep=0.0)
+        p.create_population()
+
+        p.plot_hrd(bin_num=p.bin_nums[0], show=False, shade_LBV_regime=True, ylim=(-20, 20))
+        p.plot_hrd(bin_num=p.bin_nums[0], show=False, show_secondary=False)
+
+        plt.close('all')

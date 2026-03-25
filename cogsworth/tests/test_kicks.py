@@ -41,7 +41,7 @@ class Test(unittest.TestCase):
         """Test that the inclination and phase are saved correctly in the kick events - such that the same
         population at present day is fully recreated"""
 
-        p = cogsworth.pop.Population(5, final_kstar1=[13, 14], processes=1, BSE_settings={"binfrac": 1.0},
+        p = cogsworth.pop.Population(5, final_kstar1=[13, 14], processes=1,
                                      use_default_BSE_settings=True)
         p.create_population()
         first_pos = p.final_pos.copy()

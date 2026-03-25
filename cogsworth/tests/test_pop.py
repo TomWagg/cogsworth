@@ -229,19 +229,6 @@ class Test(unittest.TestCase):
 
         self.assertTrue(first_orbit.shape[0] == 1)
 
-    def test_overly_stringent_cutoff(self):
-        """Make sure that it crashes if the m1_cutoff is too large to create anything"""
-        p = pop.Population(10, processes=1, m1_cutoff=10000,
-                           use_default_BSE_settings=True)
-
-        it_broke = False
-        try:
-            p.create_population()
-        except ValueError:
-            it_broke = True
-
-        self.assertTrue(it_broke)
-
     def test_interface(self):
         """Test the interface of this class with the other modules"""
         p = pop.Population(10, processes=2, final_kstar1=[13, 14], store_entire_orbits=False,
@@ -400,8 +387,8 @@ class Test(unittest.TestCase):
 
     def test_singles_evolution(self):
         """Check everything works well when evolving singles"""
-        p = pop.Population(2, processes=1, BSE_settings={"binfrac": 0.0},
-                           sampling_params={'keep_singles': True, 'total_mass': 100,
+        p = pop.Population(2, processes=1,
+                           sampling_params={'keep_singles': True, 'total_mass': 100, 'binfrac_model': 0.0,
                                             'sampling_target': 'total_mass'}, use_default_BSE_settings=True)
         p.create_population(with_timing=False)
 
@@ -410,8 +397,9 @@ class Test(unittest.TestCase):
     def test_singles_bad_input(self):
         """Test what happens when you mess up single stars"""
         it_failed = True
-        p = pop.Population(1, processes=1, BSE_settings={"binfrac": 0.0},
-                           sampling_params={'total_mass': 1000, 'sampling_target': 'total_mass'},
+        p = pop.Population(1, processes=1,
+                           sampling_params={'total_mass': 1000, 'sampling_target': 'total_mass',
+                                            'binfrac_model': 0.0},
                            use_default_BSE_settings=True)
         try:
             p.sample_initial_binaries()
@@ -705,7 +693,7 @@ class Test(unittest.TestCase):
         """Check that we can't concatenate populations with different stuff"""
         p = pop.Population(10, use_default_BSE_settings=True)
         q = pop.Population(10, use_default_BSE_settings=True)
-        p.perform_stellar_evolution()
+        p.create_population()
 
         it_failed = False
         try:
@@ -731,16 +719,43 @@ class Test(unittest.TestCase):
             it_failed = True
         self.assertTrue(it_failed)
 
-    def test_concat_no_orbits(self):
-        """Check that a warning is raised when concatenating populations with orbits"""
-        p = pop.Population(10, use_default_BSE_settings=True)
-        q = pop.Population(10, use_default_BSE_settings=True)
+        q.perform_stellar_evolution()
+        it_failed = False
+        try:
+            p + q
+        except ValueError:
+            it_failed = True
+        self.assertTrue(it_failed)
+
+    def test_concat_orbits(self):
+        """Check that orbits are correctly concatenated"""
+        p = pop.Population(25, use_default_BSE_settings=True, final_kstar1=[14], processes=1)
+        q = pop.Population(25, use_default_BSE_settings=True, final_kstar1=[14], processes=1)
         p.create_population()
         q.create_population()
 
-        with self.assertLogs("cogsworth", level="WARNING") as cm:
-            r = pop.concat(p, q)
-        self.assertIn("Concatenating populations with orbits is not supported yet", cm.output[0])
+        r = p + q
+
+        self.assertTrue(len(r.orbits) == len(p.orbits) + len(q.orbits))
+        
+        n_p_dis = p.disrupted.sum()
+        n_q_dis = q.disrupted.sum()
+
+        # the first len(p) orbits should be from the first len(p) orbits in p
+        # the next len(q) orbits should be from the first len(q) orbits in q
+        # the next n_p_dis orbits should be from the disrupted orbits in p
+        # the next n_q_dis orbits should be from the disrupted orbits in q
+        for i in range(len(p)):
+            self.assertTrue(np.array_equal(r.orbits[i].pos.xyz.value, p.orbits[i].pos.xyz.value))
+        for i in range(len(q)):
+            self.assertTrue(np.array_equal(r.orbits[len(p) + i].pos.xyz.value, q.orbits[i].pos.xyz.value))
+        for i in range(n_p_dis):
+            self.assertTrue(np.array_equal(r.orbits[len(p) + len(q) + i].pos.xyz.value,
+                                           p.orbits[len(p) + i].pos.xyz.value))
+        for i in range(n_q_dis):
+            self.assertTrue(np.array_equal(r.orbits[len(p) + len(q) + n_p_dis + i].pos.xyz.value,
+                                           q.orbits[len(q) + i].pos.xyz.value))
+
 
     def test_concat_bin_nums_consistent(self):
         """Check that bin_nums are consistent after concatenation"""

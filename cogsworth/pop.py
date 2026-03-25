@@ -32,7 +32,7 @@ from cogsworth.events import identify_events
 from cogsworth.classify import determine_final_classes
 from cogsworth.obs.observables import get_photometry
 from cogsworth.tests.optional_deps import check_dependencies
-from cogsworth.plot import plot_cartoon_evolution, plot_galactic_orbit
+from cogsworth.plot import plot_cartoon_evolution, plot_galactic_orbit, plot_hrd
 from cogsworth.utils import translate_COSMIC_tables, get_default_BSE_settings
 
 from cogsworth.citations import CITATIONS
@@ -50,8 +50,6 @@ class Population():
         How many binaries to sample for the population
     processes : `int`, optional
         How many processes to run if you want multithreading, by default all cores available on machine
-    m1_cutoff : `float`, optional
-        The minimum allowed primary mass, by default 0
     final_kstar1 : `list`, optional
         Desired final types for primary star, by default list(range(16))
     final_kstar2 : `list`, optional
@@ -77,13 +75,19 @@ class Population():
     use_default_BSE_settings : `bool`, optional
         Whether to use the default COSMIC BSE settings, by default False. If False then at least one of
         `BSE_settings` or `ini_file` must be provided.
+    bcm_default_timestep : float, optional
+        If provided, this will be used as the default timestep for the BCM output in COSMIC (i.e. in cases
+        where the conditions in `bcm_timestep_conditions` are not met). By default, this is set to None
+        and the default COSMIC behaviour is used, which only outputs the first and last timesteps. Setting a
+        small number here will significantly slow down the evolution, but give you more resolved evolution
+        for each binary.
     bcm_timestep_conditions : List of lists, optional
         Any timestep conditions to pass to COSMIC evolution. This will affect the rows that are output in the
         the BCM table, by default only the first and last timesteps are output. For more details check out the
         `relevant COSMIC docs <https://cosmic-popsynth.github.io/COSMIC/examples/index.html#dynamically-set-time-resolution-for-bcm-array>`_
     sampling_params : `dict`, optional
-        Any additional parameters to pass to the COSMIC sampling (see
-        :meth:`~cosmic.sample.sampler.independent.get_independent_sampler`)
+        Any additional parameters to pass to the COSMIC sampling
+        (see `COSMIC docs <https://cosmic-popsynth.github.io/COSMIC/pages/inifile.html#sampling>`_ for the full list)
     store_entire_orbits : `bool`, optional
         Whether to store the entire orbit for each binary, by default True. If not then only the final
         PhaseSpacePosition will be stored. This cuts down on both memory usage and disk space used if you
@@ -103,6 +107,7 @@ class Population():
         Any additional keyword arguments to pass to the gala integrator, by default an empty dict
     orbit_integration_retry_settings : `dict`, optional
         Settings for retrying orbit integrations that fail on the first attempt. Potential settings are:
+
         - "max_retries": `int`
             The maximum number of times to retry an orbit integration that fails (default is 2)
         - "timestep_multiplier": `float`
@@ -110,24 +115,17 @@ class Population():
             (default is 0.1, i.e. reduce the timestep by a factor of 10 for each retry)
     """
     def __init__(
-            self, n_binaries, processes=None, m1_cutoff=0, final_kstar1=list(range(16)),
+            self, n_binaries, processes=None, final_kstar1=list(range(16)),
             final_kstar2=list(range(16)), sfh_model=sfh.Wagg2022, sfh_params={},
             galactic_potential=gp.MilkyWayPotential(version='v2'), v_dispersion=5 * u.km / u.s,
             max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, ini_file=None,
             use_default_BSE_settings=False, sampling_params={},
+            bcm_default_timestep=None,
             bcm_timestep_conditions=[], store_entire_orbits=True,
             bpp_columns=None, bcm_columns=None, error_file_path="./",
             integrator=gi.DOPRI853Integrator, integrator_kwargs={},
             orbit_integration_retry_settings={}
         ):
-
-        if m1_cutoff != 0:
-            warnings.warn(
-                "cogsworth warning: m1_cutoff will be deprecated in v3.8+ of cogsworth. This can be achieved "
-                "by just masking the initial binary table after sampling.",
-                FutureWarning,
-                stacklevel=2
-            )
 
         # require a sensible number of binaries if you are not targetting total mass
         if not ("sampling_target" in sampling_params and sampling_params["sampling_target"] == "total_mass"):
@@ -151,7 +149,6 @@ class Population():
         self.n_binaries_match = n_binaries
         # use max CPUs if user doesn't specify
         self.processes = processes if processes is not None else max_cpus
-        self.m1_cutoff = m1_cutoff
         self.final_kstar1 = final_kstar1
         self.final_kstar2 = final_kstar2
         self.sfh_model = sfh_model
@@ -197,6 +194,7 @@ class Population():
 
         self.sampling_params = {
             'primary_model': 'kroupa01', 'ecc_model': 'sana12', 'porb_model': 'sana12',
+            'binfrac_model': 1.0,
             'qmin': -1, 'keep_singles': False
         }
         self.sampling_params.update(sampling_params)
@@ -207,6 +205,7 @@ class Population():
         }
         self.orbit_integration_retry_settings.update(orbit_integration_retry_settings)
 
+        self.bcm_default_timestep = bcm_default_timestep
         self.bcm_timestep_conditions = bcm_timestep_conditions
 
     def __repr__(self):
@@ -286,12 +285,13 @@ class Population():
         # start a new population with the same parameters
         new_pop = self.__class__(
             n_binaries=len(bin_nums), processes=self.processes,
-            m1_cutoff=self.m1_cutoff, final_kstar1=self.final_kstar1,
+            final_kstar1=self.final_kstar1,
             final_kstar2=self.final_kstar2, sfh_model=self.sfh_model,
             sfh_params=self.sfh_params, galactic_potential=self.galactic_potential,
             v_dispersion=self.v_dispersion, max_ev_time=self.max_ev_time,
             timestep_size=self.timestep_size, BSE_settings=self.BSE_settings,
             sampling_params=self.sampling_params,
+            bcm_default_timestep=self.bcm_default_timestep,
             bcm_timestep_conditions=self.bcm_timestep_conditions,
             store_entire_orbits=self.store_entire_orbits,
             bpp_columns=self.bpp_columns,
@@ -600,15 +600,15 @@ class Population():
         """A table of the evolutionary history of each binary at dynamically chosen timesteps.
 
         Each row of this table corresponds to a timestep in the evolution of a binary. Timesteps are set
-        based on user-defined ``bcm_timestep_conditions``. The columns of the table are described in
-        detail
+        based on user-defined ``bcm_default_timestep`` and ``bcm_timestep_conditions``.
+        The columns of the table are described in detail
         `in the COSMIC documentation <https://cosmic-popsynth.github.io/docs/stable/output_info/index.html#bcm>`__.
 
         Returns
         -------
         bcm : :class:`~pandas.DataFrame`
             The evolutionary history of each binary at dynamically chosen timesteps. Note this will be
-            ``None`` if no timestep conditions have been set (in ``bcm_timestep_conditions``).
+            ``None`` if no timestep conditions have been set (in ``bcm_default_timestep`` or ``bcm_timestep_conditions``).
 
         Raises
         ------
@@ -624,10 +624,10 @@ class Population():
                 has_bcm = "bcm" in f
             self._bcm = pd.read_hdf(self._file, key="bcm") if has_bcm else None
         elif self._bcm is None:
-            if len(np.ravel(self.bcm_timestep_conditions)) == 0:        # pragma: no cover
+            if self.bcm_default_timestep is None and len(np.ravel(self.bcm_timestep_conditions)) == 0:        # pragma: no cover
                 self._warn(
-                    ("You haven't set any timestep conditions for the BCM table, so it is not "
-                     "calculated. Set `bcm_timestep_conditions` to get a BCM table.")
+                    ("You haven't set any default timestep or timestep conditions for the BCM table, so it is not "
+                     "calculated. Set `bcm_default_timestep` or `bcm_timestep_conditions` to get a BCM table.")
                 )
             else:
                 raise ValueError("No stellar evolution performed yet, run `perform_stellar_evolution` to do so.")
@@ -1048,34 +1048,22 @@ class Population():
                 for col in cols:
                     self._initial_binaries[col] = -100.0
         else:
-            if "binfrac" not in self.BSE_settings:
-                raise ValueError("You must specify a binary fraction (e.g. `binfrac: 0.5`) in "
-                                 "`Population.BSE_settings` to sample binaries")
-            if self.BSE_settings["binfrac"] == 0.0 and not self.sampling_params["keep_singles"]:
+            if self.sampling_params["binfrac_model"] == 0.0 and not self.sampling_params["keep_singles"]:
                 raise ValueError(("You've chosen a binary fraction of 0.0 but set `keep_singles=False` (in "
                                   "self.sampling_params), so you'll draw 0 samples...I don't think you "
                                   "wanted to do that?"))
             self._initial_binaries, self._mass_singles, self._mass_binaries, self._n_singles_req, \
-                self._n_bin_req = InitialBinaryTable.sampler('independent',
-                                                             self.final_kstar1, self.final_kstar2,
-                                                             binfrac_model=self.BSE_settings["binfrac"],
-                                                             SF_start=self.max_ev_time.to(u.Myr).value,
-                                                             SF_duration=0.0, met=0.02, size=self.n_binaries,
-                                                             **self.sampling_params)
-
-        # apply the mass cutoff
-        self._initial_binaries = self._initial_binaries[self._initial_binaries["mass_1"] >= self.m1_cutoff]
+                self._n_bin_req = InitialBinaryTable.sampler(
+                    'independent', self.final_kstar1, self.final_kstar2,
+                    SF_start=self.max_ev_time.to(u.Myr).value, SF_duration=0.0, met=0.02,
+                    size=self.n_binaries, **self.sampling_params
+                )
 
         # reset index to match new `bin_num`s
         self._initial_binaries.reset_index(inplace=True)
 
         # count how many binaries actually match the criteria (may be larger than `n_binaries` due to sampler)
         self.n_binaries_match = len(self._initial_binaries)
-
-        # check that any binaries remain
-        if self.n_binaries_match == 0:
-            raise ValueError(("Your choice of `m1_cutoff` resulted in all samples being thrown out. Consider"
-                              " a larger sample size or a less stringent mass cut"))
 
         self.sample_initial_galaxy()
 
@@ -1123,15 +1111,18 @@ class Population():
                      "in the table.")
                 )
 
+            evolve_kwargs = {"initialbinarytable": ibt, "BSEDict": BSEDict, "pool": self.pool,
+                             "bpp_columns": self.bpp_columns, "bcm_columns": self.bcm_columns}
+            if self.bcm_timestep_conditions != []:
+                evolve_kwargs["timestep_conditions"] = self.bcm_timestep_conditions
+            if self.bcm_default_timestep is not None:
+                evolve_kwargs["dtp"] = self.bcm_default_timestep
+
             # perform the evolution!
-            self._bpp, bcm, self._initC, \
-                self._kick_info = Evolve.evolve(initialbinarytable=ibt,
-                                                BSEDict=BSEDict, pool=self.pool,
-                                                timestep_conditions=self.bcm_timestep_conditions,
-                                                bpp_columns=self.bpp_columns, bcm_columns=self.bcm_columns)
+            self._bpp, bcm, self._initC, self._kick_info = Evolve.evolve(**evolve_kwargs)
 
             # only save BCM when it has interesting timesteps
-            if self.bcm_timestep_conditions != []:
+            if self.bcm_timestep_conditions != [] or self.bcm_default_timestep is not None:
                 self._bcm = bcm
 
         if no_pool_existed:
@@ -1753,6 +1744,21 @@ class Population():
             plt.show()
 
         return fig, axes
+    
+    def plot_hrd(self, **kwargs):
+        """Plot the HR diagram for the population at present day
+
+        Parameters
+        ----------
+        **kwargs : `various`
+            Keyword arguments to pass, see :func:`~cogsworth.plot.plot_hrd` for options
+
+        Returns
+        -------
+        fig, ax : :class:`~matplotlib.pyplot.figure`, :class:`~matplotlib.pyplot.axis`
+            Figure and axis of the plot
+        """
+        return plot_hrd(self.bcm, **kwargs)
 
     def to_legwork_sources(self, distances=None, assume_mw_galactocentric=False):
         """Convert the final state of the population to a LEGWORK Source class (only including bound binaries)
@@ -1868,7 +1874,7 @@ class Population():
                     orbits[key] = orbits_data[key]
 
         with h5.File(file_name, "a") as file:
-            numeric_params = np.array([self.n_binaries, self.n_binaries_match, self.processes, self.m1_cutoff,
+            numeric_params = np.array([self.n_binaries, self.n_binaries_match, self.processes,
                                        self.v_dispersion.to(u.km / u.s).value,
                                        self.max_ev_time.to(u.Gyr).value, self.timestep_size.to(u.Myr).value,
                                        self.mass_singles, self.mass_binaries, self.n_singles_req,
@@ -1879,6 +1885,7 @@ class Population():
             num_par.attrs["final_kstar1"] = self.final_kstar1
             num_par.attrs["final_kstar2"] = self.final_kstar2
             num_par.attrs["timestep_conditions"] = self.bcm_timestep_conditions
+            num_par.attrs["bcm_default_timestep"] = self.bcm_default_timestep if self.bcm_default_timestep is not None else -1
             num_par.attrs["bpp_columns"] = np.array(self.bpp_columns, dtype="S")
             num_par.attrs["bcm_columns"] = np.array(self.bcm_columns, dtype="S")
             num_par.attrs["error_file_path"] = (self.error_file_path if self.error_file_path is not None
@@ -1962,6 +1969,8 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
         final_kstars = [file["numeric_params"].attrs["final_kstar1"],
                         file["numeric_params"].attrs["final_kstar2"]]
         bcm_tc = file["numeric_params"].attrs["timestep_conditions"].tolist()
+        bcm_default_timestep = file["numeric_params"].attrs.get("bcm_default_timestep", None)
+        bcm_default_timestep = None if bcm_default_timestep == -1 else bcm_default_timestep
         bpp_columns = file["numeric_params"].attrs["bpp_columns"]
         bcm_columns = file["numeric_params"].attrs["bcm_columns"]
         error_file_path = (file["numeric_params"].attrs["error_file_path"]
@@ -2004,11 +2013,12 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
 
     p = Population(
         n_binaries=int(numeric_params[0]), processes=int(numeric_params[2]),
-        m1_cutoff=numeric_params[3], final_kstar1=final_kstars[0], final_kstar2=final_kstars[1],
+        final_kstar1=final_kstars[0], final_kstar2=final_kstars[1],
         sfh_model=sfh.StarFormationHistory, galactic_potential=galactic_potential,
-        v_dispersion=numeric_params[4] * u.km / u.s, max_ev_time=numeric_params[5] * u.Gyr,
-        timestep_size=numeric_params[6] * u.Myr, BSE_settings=BSE_settings,
+        v_dispersion=numeric_params[3] * u.km / u.s, max_ev_time=numeric_params[4] * u.Gyr,
+        timestep_size=numeric_params[5] * u.Myr, BSE_settings=BSE_settings,
         sampling_params=sampling_params, store_entire_orbits=store_entire_orbits,
+        bcm_default_timestep=bcm_default_timestep,
         bcm_timestep_conditions=bcm_tc, bpp_columns=bpp_columns, bcm_columns=bcm_columns,
         error_file_path=error_file_path, integrator=integrator, integrator_kwargs=integrator_kwargs,
         orbit_integration_retry_settings=orbit_integration_retry_settings
@@ -2016,10 +2026,10 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
 
     p._file = file_name
     p.n_binaries_match = int(numeric_params[1])
-    p._mass_singles = numeric_params[7]
-    p._mass_binaries = numeric_params[8]
-    p._n_singles_req = numeric_params[9]
-    p._n_bin_req = numeric_params[10]
+    p._mass_singles = numeric_params[6]
+    p._mass_binaries = numeric_params[7]
+    p._n_singles_req = numeric_params[8]
+    p._n_bin_req = numeric_params[9]
     p.__citations__ = citations
 
     if version_warning is not None:
@@ -2073,13 +2083,6 @@ def concat(*pops):
         return pops[0]
     elif len(pops) == 0:
         raise ValueError("No populations provided to concatenate")
-    
-    # warn about orbits if necessary
-    if any([pop._orbits is not None for pop in pops]):
-        pops[0]._warn(
-            "Concatenating populations with orbits is not supported yet - "
-            "the final population will not have orbits. PRs are welcome!"
-        )
 
     # get the offset for the bin numbers
     bin_num_offset = max(pops[0].bin_nums) + 1
@@ -2096,6 +2099,12 @@ def concat(*pops):
         bound_vel = final_pop._final_vel[:len(final_pop)]
         disrupted_pos = final_pop._final_pos[len(final_pop):]
         disrupted_vel = final_pop._final_vel[len(final_pop):]
+
+    # same with orbits
+    bound_orbits, disrupted_orbits = None, None
+    if final_pop._orbits is not None:
+        bound_orbits = final_pop._orbits[:len(final_pop)]
+        disrupted_orbits = final_pop._orbits[len(final_pop):]
 
     # reset auto-calculated class variables
     final_pop._bin_nums = None
@@ -2152,6 +2161,13 @@ def concat(*pops):
             disrupted_pos = np.vstack((disrupted_pos, pop._final_pos[len(pop):]))
             disrupted_vel = np.vstack((disrupted_vel, pop._final_vel[len(pop):]))
 
+        # same for orbits
+        if bound_orbits is not None:
+            if pop._orbits is None:
+                raise ValueError(f"Population {pop} does not have orbits, but the first does")
+            bound_orbits = np.concatenate((bound_orbits, pop._orbits[:len(pop)]))
+            disrupted_orbits = np.concatenate((disrupted_orbits, pop._orbits[len(pop):]))
+
         final_pop._bin_nums = None
         bin_num_offset = max(final_pop.bin_nums) + 1
 
@@ -2159,6 +2175,10 @@ def concat(*pops):
     if bound_pos is not None:
         final_pop._final_pos = np.vstack((bound_pos, disrupted_pos))
         final_pop._final_vel = np.vstack((bound_vel, disrupted_vel))
+
+    # same for orbits
+    if bound_orbits is not None:
+        final_pop._orbits = np.concatenate((bound_orbits, disrupted_orbits))
 
     return final_pop
 

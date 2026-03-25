@@ -1,0 +1,14 @@
+[client]
+toolbarMode = "viewer"
+
+[theme.dark]
+primaryColor = "#905cc4"
+borderColor = "#905cc4"
+redColor = "#905cc4"
+greenColor = "#905cc4"
+
+[theme.light]
+primaryColor = "#905cc4"
+borderColor = "#905cc4"
+redColor = "#905cc4"
+greenColor = "#905cc4"

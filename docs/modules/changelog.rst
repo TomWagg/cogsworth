@@ -4,6 +4,16 @@ Full changelog
 
 This page tracks all of the changes that have been made to ``cogsworth``. We follow the standard versioning convention of A.B.C, where C is a patch/bugfix, B is a large bugfix or new feature and A is a major new breaking change. B/C are backwards compatible but A changes may be breaking.
 
+3.8.0
+=====
+
+- Remove ``m1_cutoff`` (see below)
+- Add ``bcm_default_timestep`` as a parameter for ``Population`` to allow users to specify a default timestep for the detailed output table
+- Move ``binfrac`` from being a BSE setting to a parameter in the ``sampling_params`` of ``Population`` to allow users to specify the binary fraction when sampling initial conditions without needing to worry about BSE settings (it really should have been here from the start)
+- Add ``plot_hrd`` method to ``Population``, which uses the function from ``cogsworth.plot`` to create HR diagrams for individual binaries
+- Changed cogsworth plotting routines to apply rcParams as a context decorator rather than globally, no more messing with people's other plots!
+- Allow concatenation of populations with orbits (https://github.com/TomWagg/cogsworth/issues/199)
+
 3.7.2
 =====
 
