@@ -86,8 +86,8 @@ class Population():
         the BCM table, by default only the first and last timesteps are output. For more details check out the
         `relevant COSMIC docs <https://cosmic-popsynth.github.io/COSMIC/examples/index.html#dynamically-set-time-resolution-for-bcm-array>`_
     sampling_params : `dict`, optional
-        Any additional parameters to pass to the COSMIC sampling (see
-        :meth:`~cosmic.sample.sampler.independent.get_independent_sampler`)
+        Any additional parameters to pass to the COSMIC sampling
+        (see `COSMIC docs <https://cosmic-popsynth.github.io/COSMIC/pages/inifile.html#sampling>`_ for the full list)
     store_entire_orbits : `bool`, optional
         Whether to store the entire orbit for each binary, by default True. If not then only the final
         PhaseSpacePosition will be stored. This cuts down on both memory usage and disk space used if you
@@ -107,6 +107,7 @@ class Population():
         Any additional keyword arguments to pass to the gala integrator, by default an empty dict
     orbit_integration_retry_settings : `dict`, optional
         Settings for retrying orbit integrations that fail on the first attempt. Potential settings are:
+
         - "max_retries": `int`
             The maximum number of times to retry an orbit integration that fails (default is 2)
         - "timestep_multiplier": `float`
