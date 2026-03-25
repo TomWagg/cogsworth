@@ -33,11 +33,13 @@ class COMPASPopulation(Population):
     output_directory : str, optional
         The directory to output the COMPAS results to. If the directory already exists, a suffix
         _1, _2 etc. will be appended to create a new directory. By default, "./COMPAS_Output" is used.
+    hide_COMPAS_output : bool, optional
+        Whether to hide the COMPAS output in the terminal when running the simulations. By default, True.
     **kwargs : dict
         Additional keyword arguments to pass to the Population class constructor
     """
     def __init__(self, n_binaries, config_file=None, logfile_definitions=None,
-                 output_directory="./COMPAS_Output", **kwargs):
+                 output_directory="./COMPAS_Output", hide_COMPAS_output=True, **kwargs):
         # set to the default file, which is in the same directory as this file
         if config_file is None:
             config_file = os.path.join(os.path.dirname(__file__), 'compas_config.yaml')
@@ -56,6 +58,7 @@ class COMPASPopulation(Population):
             output_directory = f"{output_directory}_{counter}"
             counter += 1
         self.output_directory = output_directory
+        self.hide_COMPAS_output = hide_COMPAS_output
 
         if "use_default_BSE_settings" not in kwargs:
             kwargs["use_default_BSE_settings"] = True
@@ -137,11 +140,15 @@ class COMPASPopulation(Population):
         with tempfile.TemporaryDirectory() as tmpdir:
             grid_filename = f"{tmpdir}/temp_grid_file.txt"
             self.initial_binaries_to_gridfile(grid_filename)
-            self.COMPAS_command = COMPAS_command_creator(config_file=self.config_file,
-                                                         grid_filename=grid_filename,
-                                                         logfile_definitions=self.logfile_definitions,
-                                                         output_directory=self.output_directory).shellCommand
-            subprocess.call(self.COMPAS_command + " > /dev/null", shell=True)
+            self.COMPAS_command = COMPAS_command_creator(
+                config_file=self.config_file,
+                grid_filename=grid_filename,
+                logfile_definitions=self.logfile_definitions,
+                output_directory=self.output_directory
+            ).shellCommand
+            if self.hide_COMPAS_output:
+                self.COMPAS_command += " > /dev/null"
+            subprocess.call(self.COMPAS_command, shell=True)
 
         self._bpp = get_bpp(f"{self.output_directory}/COMPAS_Output.h5")
         self._kick_info = get_kick_info(f"{self.output_directory}/COMPAS_Output.h5")
