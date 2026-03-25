@@ -678,6 +678,6 @@ def plot_hrd(bcm, bin_num, show_primary=True, show_secondary=True,
     if ax.get_xlim()[0] < ax.get_xlim()[1]:
         ax.invert_xaxis()
 
-    if show:
+    if show:        # pragma: no cover
         plt.show()
     return fig, ax
