@@ -4,6 +4,8 @@ import tempfile
 import os
 import numpy as np
 
+from importlib.resources import files
+
 from ...pop import Population
 from .runner import pythonProgramOptions as COMPAS_command_creator
 from .file import get_bpp, get_kick_info, get_initial_binaries
@@ -42,12 +44,12 @@ class COMPASPopulation(Population):
                  output_directory="./COMPAS_Output", hide_COMPAS_output=True, **kwargs):
         # set to the default file, which is in the same directory as this file
         if config_file is None:
-            config_file = os.path.join(os.path.dirname(__file__), 'compas_config.yaml')
-        self.config_file = config_file
+            config_file = files("cogsworth") / "interop" / "compas" / "compas_config.yaml"
+        self.config_file = str(config_file)
 
         if logfile_definitions is None:
-            logfile_definitions = os.path.join(os.path.dirname(__file__), 'switchdefs.txt')
-        self.logfile_definitions = logfile_definitions
+            logfile_definitions = files("cogsworth") / "interop" / "compas" / "switchdefs.txt"
+        self.logfile_definitions = str(logfile_definitions)
 
         # check if the output directory exists, if so need to append _1, _2 etc.
         counter = 1
