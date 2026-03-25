@@ -1111,8 +1111,9 @@ class Population():
                 )
 
             evolve_kwargs = {"initialbinarytable": ibt, "BSEDict": BSEDict, "pool": self.pool,
-                             "dtp": self.timestep_size, "timestep_conditions": self.bcm_timestep_conditions,
                              "bpp_columns": self.bpp_columns, "bcm_columns": self.bcm_columns}
+            if self.bcm_timestep_conditions != []:
+                evolve_kwargs["timestep_conditions"] = self.bcm_timestep_conditions
             if self.bcm_default_timestep is not None:
                 evolve_kwargs["dtp"] = self.bcm_default_timestep
 

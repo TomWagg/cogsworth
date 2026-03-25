@@ -693,7 +693,7 @@ class Test(unittest.TestCase):
         """Check that we can't concatenate populations with different stuff"""
         p = pop.Population(10, use_default_BSE_settings=True)
         q = pop.Population(10, use_default_BSE_settings=True)
-        p.perform_stellar_evolution()
+        p.create_population()
 
         it_failed = False
         try:
@@ -712,6 +712,14 @@ class Test(unittest.TestCase):
         self.assertTrue(it_failed)
 
         q.sample_initial_binaries()
+        it_failed = False
+        try:
+            p + q
+        except ValueError:
+            it_failed = True
+        self.assertTrue(it_failed)
+
+        q.perform_stellar_evolution()
         it_failed = False
         try:
             p + q
