@@ -2081,13 +2081,6 @@ def concat(*pops):
         return pops[0]
     elif len(pops) == 0:
         raise ValueError("No populations provided to concatenate")
-    
-    # warn about orbits if necessary
-    if any([pop._orbits is not None for pop in pops]):
-        pops[0]._warn(
-            "Concatenating populations with orbits is not supported yet - "
-            "the final population will not have orbits. PRs are welcome!"
-        )
 
     # get the offset for the bin numbers
     bin_num_offset = max(pops[0].bin_nums) + 1
@@ -2104,6 +2097,12 @@ def concat(*pops):
         bound_vel = final_pop._final_vel[:len(final_pop)]
         disrupted_pos = final_pop._final_pos[len(final_pop):]
         disrupted_vel = final_pop._final_vel[len(final_pop):]
+
+    # same with orbits
+    bound_orbits, disrupted_orbits = None, None
+    if final_pop._orbits is not None:
+        bound_orbits = final_pop._orbits[:len(final_pop)]
+        disrupted_orbits = final_pop._orbits[len(final_pop):]
 
     # reset auto-calculated class variables
     final_pop._bin_nums = None
@@ -2160,6 +2159,13 @@ def concat(*pops):
             disrupted_pos = np.vstack((disrupted_pos, pop._final_pos[len(pop):]))
             disrupted_vel = np.vstack((disrupted_vel, pop._final_vel[len(pop):]))
 
+        # same for orbits
+        if bound_orbits is not None:
+            if pop._orbits is None:
+                raise ValueError(f"Population {pop} does not have orbits, but the first does")
+            bound_orbits = np.concatenate((bound_orbits, pop._orbits[:len(pop)]))
+            disrupted_orbits = np.concatenate((disrupted_orbits, pop._orbits[len(pop):]))
+
         final_pop._bin_nums = None
         bin_num_offset = max(final_pop.bin_nums) + 1
 
@@ -2167,6 +2173,10 @@ def concat(*pops):
     if bound_pos is not None:
         final_pop._final_pos = np.vstack((bound_pos, disrupted_pos))
         final_pop._final_vel = np.vstack((bound_vel, disrupted_vel))
+
+    # same for orbits
+    if bound_orbits is not None:
+        final_pop._orbits = np.concatenate((bound_orbits, disrupted_orbits))
 
     return final_pop
 

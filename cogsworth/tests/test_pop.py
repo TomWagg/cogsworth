@@ -719,16 +719,35 @@ class Test(unittest.TestCase):
             it_failed = True
         self.assertTrue(it_failed)
 
-    def test_concat_no_orbits(self):
-        """Check that a warning is raised when concatenating populations with orbits"""
-        p = pop.Population(10, use_default_BSE_settings=True)
-        q = pop.Population(10, use_default_BSE_settings=True)
+    def test_concat_orbits(self):
+        """Check that orbits are correctly concatenated"""
+        p = pop.Population(25, use_default_BSE_settings=True, final_kstar1=[14], processes=1)
+        q = pop.Population(25, use_default_BSE_settings=True, final_kstar1=[14], processes=1)
         p.create_population()
         q.create_population()
 
-        with self.assertLogs("cogsworth", level="WARNING") as cm:
-            r = pop.concat(p, q)
-        self.assertIn("Concatenating populations with orbits is not supported yet", cm.output[0])
+        r = p + q
+
+        self.assertTrue(len(r.orbits) == len(p.orbits) + len(q.orbits))
+        
+        n_p_dis = p.disrupted.sum()
+        n_q_dis = q.disrupted.sum()
+
+        # the first len(p) orbits should be from the first len(p) orbits in p
+        # the next len(q) orbits should be from the first len(q) orbits in q
+        # the next n_p_dis orbits should be from the disrupted orbits in p
+        # the next n_q_dis orbits should be from the disrupted orbits in q
+        for i in range(len(p)):
+            self.assertTrue(np.array_equal(r.orbits[i].pos.xyz.value, p.orbits[i].pos.xyz.value))
+        for i in range(len(q)):
+            self.assertTrue(np.array_equal(r.orbits[len(p) + i].pos.xyz.value, q.orbits[i].pos.xyz.value))
+        for i in range(n_p_dis):
+            self.assertTrue(np.array_equal(r.orbits[len(p) + len(q) + i].pos.xyz.value,
+                                           p.orbits[len(p) + i].pos.xyz.value))
+        for i in range(n_q_dis):
+            self.assertTrue(np.array_equal(r.orbits[len(p) + len(q) + n_p_dis + i].pos.xyz.value,
+                                           q.orbits[len(q) + i].pos.xyz.value))
+
 
     def test_concat_bin_nums_consistent(self):
         """Check that bin_nums are consistent after concatenation"""
