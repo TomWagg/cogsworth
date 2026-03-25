@@ -307,7 +307,7 @@ class MISTBolometricCorrectionGrid:
 
         # scalar -> Series
         if teff_b.shape == () and logg_b.shape == () and feh_b.shape == () and av_b.shape == ():
-            return pd.Series({b: float(out[b]) for b in use_bands})
+            return pd.Series({b: float(out[b][0]) for b in use_bands})
 
         # vectorised -> DataFrame
         return pd.DataFrame(out)

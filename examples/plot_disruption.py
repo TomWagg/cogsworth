@@ -12,7 +12,7 @@ import numpy as np
 import gala.dynamics as gd
 
 p = cogsworth.pop.Population(100, final_kstar1=[13, 14], timestep_size=0.2 * u.Myr,
-                             processes=1, BSE_settings={"binfrac": 1.0},
+                             processes=1,
                              use_default_BSE_settings=True)
 p.create_population()
 

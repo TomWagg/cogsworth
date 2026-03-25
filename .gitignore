@@ -143,6 +143,12 @@ how_much_code.sh
 *.out
 *.npy
 
+# cogsworth online-interface runtime files
+online-interface/cogsworth_queue.db
+online-interface/cogsworth_queue.db-wal
+online-interface/cogsworth_queue.db-shm
+online-interface/results/
+
 paper/ApJS/*
 !paper/ApJS/*.tex
 !paper/ApJS/*.cls
@@ -154,3 +160,4 @@ paper/ApJS/*
 scratch/
 
 COMPAS_Output*/
+sg_execution_times.rst

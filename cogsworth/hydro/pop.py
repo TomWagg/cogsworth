@@ -123,7 +123,7 @@ class HydroPopulation(Population):
 
         # start a new population with the same parameters
         new_pop = self.__class__(star_particles=self.star_particles, processes=self.processes,
-                                 m1_cutoff=self.m1_cutoff, final_kstar1=self.final_kstar1,
+                                 final_kstar1=self.final_kstar1,
                                  final_kstar2=self.final_kstar2, sfh_model=self.sfh_model,
                                  sfh_params=self.sfh_params, galactic_potential=self.galactic_potential,
                                  v_dispersion=self.v_dispersion, max_ev_time=self.max_ev_time,
@@ -200,7 +200,6 @@ class HydroPopulation(Population):
         for ibl_ind, i in enumerate(self._subset_inds):
             particle = self.star_particles.loc[i]
             samples = InitialBinaryTable.sampler('independent', self.final_kstar1, self.final_kstar2,
-                                                 binfrac_model=self.BSE_settings["binfrac"],
                                                  SF_start=(self.max_ev_time - particle["t_form"] * u.Gyr).to(u.Myr).value,
                                                  SF_duration=0.0, met=particle["Z"],
                                                  total_mass=particle["mass"],
@@ -209,7 +208,6 @@ class HydroPopulation(Population):
 
             # apply the mass cutoff and record particle ID
             samples[0].reset_index(inplace=True)
-            samples[0].drop(samples[0][samples[0]["mass_1"] < self.m1_cutoff].index, inplace=True)
             samples[0]["particle_id"] = np.repeat(i, len(samples[0]))
 
             # save samples
@@ -220,9 +218,6 @@ class HydroPopulation(Population):
             self._n_bin_req += samples[4]
 
         self._initial_binaries = pd.concat(initial_binaries_list, ignore_index=True)
-
-        # just in case, probably unnecessary
-        self._initial_binaries = self._initial_binaries[self._initial_binaries["mass_1"] >= self.m1_cutoff]
 
         # these are the same for this class
         self.n_binaries = len(self._initial_binaries)

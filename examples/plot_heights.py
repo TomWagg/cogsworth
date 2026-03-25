@@ -33,7 +33,7 @@ plt.rcParams.update(params)
 # sphinx_gallery_end_ignore
 
 p = cogsworth.pop.Population(500, final_kstar1=[13, 14], processes=1,
-                             BSE_settings={"binfrac": 1.0}, use_default_BSE_settings=True)
+                             use_default_BSE_settings=True)
 p.create_population(with_timing=False)
 
 # find any binary that experienced a kick from a supernova

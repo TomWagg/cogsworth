@@ -24,7 +24,7 @@ class Test(unittest.TestCase):
             "bin_num": [0, 1, 2, 2, 3, 3, 3],
         }
         bpp = pd.DataFrame(data=bpp_dict)
-        bpp.set_index("bin_num", drop=False, inplace=True)
+        bpp.index = bpp["bin_num"].values
 
         kick_info_dict = {
             "star": [0, 1, 1, 1, 2],
@@ -38,19 +38,32 @@ class Test(unittest.TestCase):
             "bin_num": [0, 1, 2, 3, 3],
         }
         kick_info = pd.DataFrame(data=kick_info_dict)
-        kick_info.set_index("bin_num", drop=False, inplace=True)
+        kick_info.index = kick_info["bin_num"].values
 
         p = cogsworth.pop.Population(4, use_default_BSE_settings=True)
         p._bpp = bpp
         p._kick_info = kick_info
-        p._initC = pd.DataFrame(data={"metallicity": [1e-2, 1e-2, 1e-2, 1e-2]})
+        p._initC = pd.DataFrame(
+            data={"metallicity": [1e-2, 1e-2, 1e-2, 1e-2],
+                  "bin_num": [0, 1, 2, 3]}
+        )
+        p._initC.index = p._initC["bin_num"].values
         p.final_bpp
 
         primary_events, secondary_events = cogsworth.events.identify_events(p)
 
+        # 4 supernovae occurred
         self.assertTrue(len(primary_events) == 4)
-        self.assertTrue(len(secondary_events) == 4)
-        self.assertTrue(primary_events[0] is None)
-        self.assertTrue(secondary_events[1] is None)
-        self.assertTrue(secondary_events[2] is not None)
-        self.assertTrue(len(secondary_events[3]) > len(secondary_events[2]))
+
+        # 3 supernovae occurred in bound binaries
+        self.assertTrue(len(secondary_events) == 3)
+
+        # the first binary had no events so should not be present in either
+        self.assertTrue(0 not in primary_events.index)
+        self.assertTrue(0 not in secondary_events.index)
+
+        # the secondary binary didn't disrupt, so shouldn't be in the secondary events table
+        self.assertTrue(1 not in secondary_events.index)
+        
+        # the last binary had two supernovae so should have two events in the secondary table
+        self.assertTrue(len(secondary_events.loc[[3]]) > len(secondary_events.loc[[2]]))
