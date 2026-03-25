@@ -89,9 +89,9 @@ class Population():
         Any additional parameters to pass to the COSMIC sampling
         (see `COSMIC docs <https://cosmic-popsynth.github.io/COSMIC/pages/inifile.html#sampling>`_ for the full list)
     sampling_mask : `str`, optional
-        A query string to apply as a mask to the sampled binaries after sampling. This is applied before
-        sampling the galaxy, and any evolution. Syntax is the same as for pandas query strings,
-        see :meth:`pandas.DataFrame.query` for details,
+        A query string to apply as a mask to the sampled binaries after sampling, only binaries matching the
+        mask are retained. This is applied before sampling the galaxy, and any evolution.
+        Syntax is the same as for pandas query strings, see :meth:`pandas.DataFrame.query` for details,
         and the columns available are the same as those in the `initial_binaries` table.
         For example, you could set this to "mass_1 > 7" to only keep binaries where the primary mass is
         greater than 7 solar masses. Or something more complex like "(mass_1 > 7) or (mass_2 > 2 and ecc > 0.5)"
