@@ -143,11 +143,11 @@ how_much_code.sh
 *.out
 *.npy
 
-# cogsworth webapp runtime files
-webapp/cogsworth_queue.db
-webapp/cogsworth_queue.db-wal
-webapp/cogsworth_queue.db-shm
-webapp/results/
+# cogsworth online-interface runtime files
+online-interface/cogsworth_queue.db
+online-interface/cogsworth_queue.db-wal
+online-interface/cogsworth_queue.db-shm
+online-interface/results/
 
 paper/ApJS/*
 !paper/ApJS/*.tex
