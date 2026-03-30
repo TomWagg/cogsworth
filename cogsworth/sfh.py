@@ -515,6 +515,41 @@ class StarFormationHistory():
                 file[key].attrs["potential"] = yaml.dump(pot_dict, default_flow_style=None)
 
 
+
+class CompositeStarFormationHistory():
+    """A star formation history that is a combination of multiple other star formation histories.
+
+    This class allows you to combine multiple star formation histories together, for example to create a
+    composite star formation history for the Milky Way with a disc and a bulge. You can also use this to
+    combine multiple instances of the same star formation history, for example to create a composite star
+    formation history for the Milky Way with a thin and thick disc.
+
+    Parameters
+    ----------
+    components : `list` of :class:`~StarFormationHistory`
+        The star formation histories to combine. These will be sampled in proportion to their size.
+    """
+    def __init__(self, components, component_ratios, **kwargs):
+        self.components = components
+
+        # normalise component ratios to sum to 1
+        component_ratios = np.array(component_ratios)
+        component_ratios /= component_ratios.sum()
+
+        self.component_ratios = component_ratios
+        
+    def sample(self, size):
+        """Sample from the distributions for each component, combine and save in class attributes"""
+
+        # convert the component ratios to a number of binaries
+        sizes = np.zeros(len(self.component_ratios)).astype(int)
+        for i in range(len(self.components) - 1):
+            sizes[i] = np.round(self.component_ratios[i] * size)
+        sizes[-1] = size - np.sum(sizes)
+
+        for i, component in enumerate(self.components):
+            component.sample(sizes[i])
+
 class BurstUniformDisc(StarFormationHistory):
     """An extremely simple star formation history, with all stars formed at ``t_burst`` in a uniform disc with
     height ``z_max`` and radius ``R_max`` disc, all with metallicity ``Z``.
