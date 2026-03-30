@@ -1261,17 +1261,12 @@ class Population():
             self._warn(("Stellar evolution not yet performed, performing evolution now."))
             self.perform_stellar_evolution()
 
-        v_phi = (self.initial_galaxy.v_T / self.initial_galaxy.rho)
-        v_X = (self.initial_galaxy.v_R * np.cos(self.initial_galaxy.phi)
-               - self.initial_galaxy.rho * np.sin(self.initial_galaxy.phi) * v_phi)
-        v_Y = (self.initial_galaxy.v_R * np.sin(self.initial_galaxy.phi)
-               + self.initial_galaxy.rho * np.cos(self.initial_galaxy.phi) * v_phi)
-
         # combine the representation and differentials into a Gala PhaseSpacePosition
         w0s = gd.PhaseSpacePosition(pos=[a.to(u.kpc).value for a in [self.initial_galaxy.x,
                                                                      self.initial_galaxy.y,
                                                                      self.initial_galaxy.z]] * u.kpc,
-                                    vel=[a.to(u.km/u.s).value for a in [v_X, v_Y,
+                                    vel=[a.to(u.km/u.s).value for a in [self.initial_galaxy.v_x,
+                                                                        self.initial_galaxy.v_y,
                                                                         self.initial_galaxy.v_z]] * u.km/u.s)
 
         # randomly drawn phase and inclination angles as necessary

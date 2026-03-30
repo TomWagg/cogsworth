@@ -40,31 +40,21 @@ class StarFormationHistory():
     All attributes listed below are a given value for the sampled points in the galaxy. If one hasn't been
     sampled/calculated when accessed then it will be automatically sampled/calculated. If sampling, ALL values
     will be sampled.
-
-    Parameters
-    ----------
-    size : `int`
-        Number of points to sample from the model
-    components : `list`, optional
-        List of component names, by default None
-    component_masses : `list`, optional
-        List of masses associated with each component (must be the same length as `components`),
-        by default None
-    immediately_sample : `bool`, optional
-        Whether to immediately sample the points, by default True
-
     """
-    def __init__(self, size, components=None, component_masses=None,
-                 immediately_sample=True, **kwargs):
-        self._components = components
-        self._component_masses = component_masses
-        self._size = size
+    def __init__(self, **kwargs):
         self._tau = None
         self._Z = None
+        
         self._x = None
         self._y = None
         self._z = None
-        self._which_comp = None
+
+        self._v_R = None
+        self._v_T = None
+        self._v_z = None
+
+        self._v_x = None
+        self._v_y = None
 
         # check for any extra parameters that have been passed
         # this may occur when loading from a file and the user was writing a custom class
@@ -74,14 +64,17 @@ class StarFormationHistory():
 
         self.__citations__ = ["cogsworth"]
 
-        if immediately_sample:
-            self.sample()
-
     def __len__(self):
-        return self.size
+        if self._tau is not None:
+            return len(self._tau)
+        else:
+            return 0
 
     def __repr__(self):
-        return f"<{self.__class__.__name__}, size={len(self)}>"
+        if self._tau is not None:
+            return f"<{self.__class__.__name__}, size={len(self)}>"
+        else:
+            return f"<{self.__class__.__name__}, [not yet sampled]>"
 
     def __add__(self, other):
         return concat(self, other)
@@ -130,41 +123,6 @@ class StarFormationHistory():
             setattr(new_sfh, attr, saved_attributes[attr])
 
         return new_sfh
-
-    @property
-    def size(self):
-        """The number of points in the star formation history model"""
-        return self._size
-
-    @size.setter
-    def size(self, value):
-        if not isinstance(value, int):
-            raise ValueError("Size must be an integer")
-        if value <= 0:
-            raise ValueError("Size must be greater than 0")
-        self._size = value
-
-    @property
-    def components(self):
-        """A list of the components in the star formation history model
-
-        Returns
-        -------
-        components : ``list`` of ``str``
-            The list of the components in the star formation history model
-        """
-        return self._components
-
-    @property
-    def component_masses(self):
-        """The masses of the components in the star formation history model
-
-        Returns
-        -------
-        component_masses : ``list`` of ``float``, [Msun]
-            The masses of the components in the star formation history model
-        """
-        return self._component_masses
 
     @property
     def tau(self):
@@ -267,19 +225,55 @@ class StarFormationHistory():
             The galactocentric positions of the sampled points
         """
         return [self.x.to(u.kpc).value, self.y.to(u.kpc).value, self.z.to(u.kpc).value] * u.kpc
-
+    
     @property
-    def which_comp(self):
-        """The component each point belongs to
+    def v_R(self):
+        r"""The galactocentric radial velocity of the sampled points"""
+        if self.v_R is None:
+            raise ValueError("This star formation history model does not have radial velocities sampled.")
+        return self.v_R
+    
+    @property
+    def v_T(self):
+        r"""The galactocentric tangential velocity of the sampled points"""
+        if self.v_T is None:
+            raise ValueError("This star formation history model does not have tangential velocities sampled.")
+        return self.v_T
+    
+    @property
+    def v_z(self):
+        r"""The galactocentric vertical velocity of the sampled points"""
+        if self.v_z is None:
+            raise ValueError("This star formation history model does not have vertical velocities sampled.")
+        return self.v_z
+    
+    @property
+    def v_phi(self):
+        r"""The galactocentric azimuthal velocity of the sampled points
 
-        Returns
-        -------
-        which_comp : ``numpy.ndarray`` of ``str``
-            The component each point belongs to
+        A shortcut for :math:`(v_T / \rho)`
         """
-        if self._which_comp is None:
-            self.sample()
-        return self._which_comp
+        return self.v_T / self.rho
+    
+    @property
+    def v_x(self):
+        r"""The galactocentric x velocity of the sampled points
+        
+        A shortcut for :math:`v_R \cos(\phi) - v_T \sin(\phi)`
+        """
+        if self._v_x is not None:
+            return self._v_x
+        return self.v_R * np.cos(self.phi) - self.v_T * np.sin(self.phi)
+    
+    @property
+    def v_y(self):
+        r"""The galactocentric y velocity of the sampled points
+        
+        A shortcut for :math:`v_R \sin(\phi) + v_T \cos(\phi)`
+        """
+        if self._v_y is not None:
+            return self._v_y
+        return self.v_R * np.sin(self.phi) + self.v_T * np.cos(self.phi)
 
     def get_citations(self, filename=None):
         """Print the citations for the packages/papers used in the star formation history"""
@@ -322,48 +316,22 @@ class StarFormationHistory():
             print(f"{BOLD}{GREEN}And paste this bibtex into your .bib file - happy writing!{RESET}")
             print(bibtex_str)
 
-    def sample(self):
+    def sample(self, size):
         """Sample from the distributions for each component, combine and save in class attributes"""
-        if self.size is None:
-            raise ValueError("`self.size` has not been set")
 
-        if self._component_masses is None or self._components is None:
-            raise ValueError("`self.components` or `self.component_masses` has not been set")
+        self._tau = np.zeros(size) * u.Gyr
+        rho = np.zeros(size) * u.kpc
+        z = np.zeros(size) * u.kpc
 
-        # work out the weight to assign to each component
-        total_mass = np.sum(self._component_masses)
-        mass_fractions = np.divide(self._component_masses, total_mass)
-
-        # convert these weights to a number of binaries
-        sizes = np.zeros(len(mass_fractions)).astype(int)
-        for i in range(len(self._components) - 1):
-            sizes[i] = np.round(mass_fractions[i] * self._size)
-        sizes[-1] = self._size - np.sum(sizes)
-
-        # create an array of which component each point belongs to
-        self._which_comp = np.concatenate([[com] * sizes[i] for i, com in enumerate(self._components)])
-
-        self._tau = np.zeros(self._size) * u.Gyr
-        rho = np.zeros(self._size) * u.kpc
-        z = np.zeros(self._size) * u.kpc
-
-        # go through each component and get lookback time, radius and height
-        for i, com in enumerate(self._components):
-            com_mask = self._which_comp == com
-            self._tau[com_mask] = self.draw_lookback_times(sizes[i], component=com)
-            rho[com_mask] = self.draw_radii(sizes[i], component=com)
-            z[com_mask] = self.draw_heights(sizes[i], component=com)
-
-        # shuffle the samples so components are well mixed (mostly for plotting)
-        random_order = np.random.permutation(self._size)
-        self._tau = self._tau[random_order]
-        rho = rho[random_order]
-        z = z[random_order]
-        self._which_comp = self._which_comp[random_order]
+        # get lookback time, radius and height
+        self._tau = self.draw_lookback_times(size)
+        rho = self.draw_radii(size)
+        z = self.draw_heights(size)
 
         # draw a random azimuthal angle
         phi = self.draw_phi()
 
+        # set cartesian values
         self._x = rho * np.sin(phi)
         self._y = rho * np.cos(phi)
         self._z = z
@@ -371,18 +339,16 @@ class StarFormationHistory():
         # compute the metallicity given the other values
         self._Z = self.get_metallicity()
 
-        return self._tau, self.positions, self.Z
-
-    def draw_lookback_times(self, size=None, component=None):
+    def draw_lookback_times(self, size=None):
         raise NotImplementedError("This StarFormationHistory model has not implemented this method")
 
-    def draw_radii(self, size=None, component=None):
+    def draw_radii(self, size=None):
         raise NotImplementedError("This StarFormationHistory model has not implemented this method")
 
-    def draw_heights(self, size=None, component=None):
+    def draw_heights(self, size=None):
         raise NotImplementedError("This StarFormationHistory model has not implemented this method")
 
-    def draw_phi(self, size=None, component=None):
+    def draw_phi(self, size=None):
         raise NotImplementedError("This StarFormationHistory model has not implemented this method")
 
     def get_metallicity(self):
@@ -391,6 +357,7 @@ class StarFormationHistory():
     def plot(self, coordinates="cartesian", component=None, colour_by=None, show=True, cbar_norm=LogNorm(),
              cbar_label=r"Metallicity, $Z$", cmap="plasma", xlim=None, ylim=None, zlim=None,
              fig=None, axes=None, **kwargs):
+        # TODO:
         if fig is None or axes is None:
             fig, axes = plt.subplots(2, 1, figsize=(10 * 1.2475, 14),
                                      gridspec_kw={'height_ratios': [4, 14]},
@@ -472,14 +439,13 @@ class StarFormationHistory():
             "Z": self.Z,
             "x": self.x.to(u.kpc),
             "y": self.y.to(u.kpc),
-            "z": self.z.to(u.kpc),
-            "which_comp": self.which_comp
+            "z": self.z.to(u.kpc)
         }
 
         # additionally store velocity components if they exist
         for attr in ["v_R", "v_T", "v_z"]:
-            if hasattr(self, attr):
-                data[attr] = getattr(self, attr).to(u.km / u.s).value
+            if hasattr(self, attr) and getattr(self, attr) is not None:
+                data[attr] = getattr(self, attr).to(u.km / u.s)
 
         df = pd.DataFrame(data=data)
         df.to_hdf(file_name, key=key)
@@ -537,6 +503,17 @@ class CompositeStarFormationHistory():
         component_ratios /= component_ratios.sum()
 
         self.component_ratios = component_ratios
+
+    def __getattr__(self, name):
+        """When we try to access an attribute, if it's one that needs combining from the components"""
+        COMBINE_ATTRS = ["tau", "Z", "x", "y", "z", "v_x", "v_y", "v_z", "v_R", "v_T"]
+        if name in COMBINE_ATTRS:
+            return np.concatenate([getattr(component, name) for component in self.components])
+        else:
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+        
+    def __len__(self):
+        return len(self.x)
         
     def sample(self, size):
         """Sample from the distributions for each component, combine and save in class attributes"""
@@ -721,14 +698,12 @@ class ConstantPlummerSphere(StarFormationHistory):
         phi_v = np.random.uniform(0.0, 2.0 * np.pi, self.size)
 
         # save and convert velocities
-        self.v_x = v_phys * sin_theta_v * np.cos(phi_v)
-        self.v_y = v_phys * sin_theta_v * np.sin(phi_v)
-        self.v_z = v_phys * cos_theta_v
+        self._v_x = v_phys * sin_theta_v * np.cos(phi_v)
+        self._v_y = v_phys * sin_theta_v * np.sin(phi_v)
+        self._v_z = v_phys * cos_theta_v
 
-        self.v_T = np.sqrt(((-self.x * self.v_y + self.y * self.v_x)**2) / (self.x**2 + self.y**2))
-        self.v_R = (self.x * self.v_x + self.y * self.v_y) / np.sqrt(self.x**2 + self.y**2)
-
-        return self._tau, self.positions, self.Z
+        self._v_T = np.sqrt(((-self.x * self.v_y + self.y * self.v_x)**2) / (self.x**2 + self.y**2))
+        self._v_R = (self.x * self.v_x + self.y * self.v_y) / np.sqrt(self.x**2 + self.y**2)
 
 
 class Wagg2022(StarFormationHistory):
@@ -958,12 +933,12 @@ class DistributionFunctionBasedSFH(StarFormationHistory):
         self._y = np.zeros(self._size) * u.kpc
         self._z = np.zeros(self._size) * u.kpc
 
-        self.v_x = np.zeros(self._size) * u.km / u.s
-        self.v_y = np.zeros(self._size) * u.km / u.s
-        self.v_z = np.zeros(self._size) * u.km / u.s
+        self._v_x = np.zeros(self._size) * u.km / u.s
+        self._v_y = np.zeros(self._size) * u.km / u.s
+        self._v_z = np.zeros(self._size) * u.km / u.s
 
-        self.v_R = np.zeros(self._size) * u.km / u.s
-        self.v_T = np.zeros(self._size) * u.km / u.s
+        self._v_R = np.zeros(self._size) * u.km / u.s
+        self._v_T = np.zeros(self._size) * u.km / u.s
 
         if self._which_comp is None and self.components is None:
             self._which_comp = np.array(["main"] * self._size)
@@ -981,18 +956,18 @@ class DistributionFunctionBasedSFH(StarFormationHistory):
             self._x[com_mask] = xv[:, 0] * u.kpc
             self._y[com_mask] = xv[:, 1] * u.kpc
             self._z[com_mask] = xv[:, 2] * u.kpc
-            self.v_x[com_mask] = xv[:, 3] * u.km / u.s
-            self.v_y[com_mask] = xv[:, 4] * u.km / u.s
-            self.v_z[com_mask] = xv[:, 5] * u.km / u.s
+            self._v_x[com_mask] = xv[:, 3] * u.km / u.s
+            self._v_y[com_mask] = xv[:, 4] * u.km / u.s
+            self._v_z[com_mask] = xv[:, 5] * u.km / u.s
 
         # work out the velocities by rotating using SkyCoord
-        full_coord = SkyCoord(x=self._x, y=self._y, z=self._z, v_x=self.v_x, v_y=self.v_y, v_z=self.v_z,
+        full_coord = SkyCoord(x=self._x, y=self._y, z=self._z, v_x=self._v_x, v_y=self._v_y, v_z=self._v_z,
                               frame="galactocentric").represent_as("cylindrical")
 
         with u.set_enabled_equivalencies(u.dimensionless_angles()):
-            self.v_R = full_coord.differentials['s'].d_rho
-            self.v_T = (full_coord.differentials['s'].d_phi * full_coord.rho).to(u.km / u.s)
-            self.v_z = full_coord.differentials['s'].d_z
+            self._v_R = full_coord.differentials['s'].d_rho
+            self._v_T = (full_coord.differentials['s'].d_phi * full_coord.rho).to(u.km / u.s)
+            self._v_z = full_coord.differentials['s'].d_z
 
         # compute the metallicity given the other values
         self.get_metallicity()
@@ -1259,12 +1234,12 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
         self._y = np.zeros(self._size) * u.kpc
         self._z = np.zeros(self._size) * u.kpc
 
-        self.v_x = np.zeros(self._size) * u.km / u.s
-        self.v_y = np.zeros(self._size) * u.km / u.s
-        self.v_z = np.zeros(self._size) * u.km / u.s
+        self._v_x = np.zeros(self._size) * u.km / u.s
+        self._v_y = np.zeros(self._size) * u.km / u.s
+        self._v_z = np.zeros(self._size) * u.km / u.s
 
-        self.v_R = np.zeros(self._size) * u.km / u.s
-        self.v_T = np.zeros(self._size) * u.km / u.s
+        self._v_R = np.zeros(self._size) * u.km / u.s
+        self._v_T = np.zeros(self._size) * u.km / u.s
 
         for size, com in zip(sizes, self.components):
             if size == 0:          # pragma: no cover
@@ -1300,18 +1275,18 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
                 self._x[in_bin] = xv[:, 0] * u.kpc
                 self._y[in_bin] = xv[:, 1] * u.kpc
                 self._z[in_bin] = xv[:, 2] * u.kpc
-                self.v_x[in_bin] = xv[:, 3] * u.km / u.s
-                self.v_y[in_bin] = xv[:, 4] * u.km / u.s
-                self.v_z[in_bin] = xv[:, 5] * u.km / u.s
+                self._v_x[in_bin] = xv[:, 3] * u.km / u.s
+                self._v_y[in_bin] = xv[:, 4] * u.km / u.s
+                self._v_z[in_bin] = xv[:, 5] * u.km / u.s
 
         # work out the velocities by rotating using SkyCoord
-        full_coord = SkyCoord(x=self._x, y=self._y, z=self._z, v_x=self.v_x, v_y=self.v_y, v_z=self.v_z,
+        full_coord = SkyCoord(x=self._x, y=self._y, z=self._z, v_x=self._v_x, v_y=self._v_y, v_z=self._v_z,
                               frame="galactocentric").represent_as("cylindrical")
 
         with u.set_enabled_equivalencies(u.dimensionless_angles()):
-            self.v_R = full_coord.differentials['s'].d_rho
-            self.v_T = (full_coord.differentials['s'].d_phi * full_coord.rho).to(u.km / u.s)
-            self.v_z = full_coord.differentials['s'].d_z
+            self._v_R = full_coord.differentials['s'].d_rho
+            self._v_T = (full_coord.differentials['s'].d_phi * full_coord.rho).to(u.km / u.s)
+            self._v_z = full_coord.differentials['s'].d_z
 
         # compute the metallicity given the other values
         self.get_metallicity()
@@ -1534,8 +1509,8 @@ def concat(*sfhs):
     return new_sfh
 
 
-def simplify_params(params, dont_save=["_tau", "_Z", "_x", "_y", "_z", "_which_comp", "v_R", "v_T", "v_z",
-                                       "v_x", "v_y", "_df", "_agama_pot", "potential", "__citations__",
+def simplify_params(params, dont_save=["_tau", "_Z", "_x", "_y", "_z", "_which_comp", "_v_R", "_v_T", "_v_z",
+                                       "_v_x", "_v_y", "_df", "_agama_pot", "potential", "__citations__",
                                        "sfh_params", "_guiding_radius_interp", "_omega_interp",
                                        "_kappa_interp", "_nu_interp", "_inv_cdf"]):
     # delete any keys that we don't want to save
