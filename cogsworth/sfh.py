@@ -31,6 +31,47 @@ __all__ = ["StarFormationHistory", "CompositeStarFormationHistory",
            "SandersBinney2015", "SpheroidalDwarf", "CarinaDwarf", "load", "concat"]
 
 
+def _exponential_disc(size, scale_height):
+    """Inverse CDF sampling of heights using
+    `McMillan 2011 <https://ui.adsabs.harvard.edu/abs/2011MNRAS.414.2446M/abstract>`_ Eq. 3
+    and various scale lengths.
+
+    Parameters
+    ----------
+    size : `int`
+        How many heights to draw
+    scale_height: :class:`~astropy.units.Quantity` [length]
+        Scale height for the exponential disc
+
+    Returns
+    -------
+    z : :class:`~astropy.units.Quantity` [length]
+        Random heights
+    """
+    return np.random.choice([-1, 1], size) * scale_height * np.log(1 - np.random.rand(size))
+
+def _frankel2018_metallicity_relation(sfh):
+    """Convert radius and time to metallicity using
+    `Frankel+2018 <https://ui.adsabs.harvard.edu/abs/2018ApJ...865...96F/abstract>`_ Eq. 7 and
+    `Bertelli+1994 <https://ui.adsabs.harvard.edu/abs/1994A%26AS..106..275B/abstract>`_ Eq. 9 but
+    assuming all stars have the solar abundance pattern (so no factor of 0.977)
+
+    Parameters
+    ----------
+    sfh : :class:`~cogsworth.sfh.StarFormationHistory`
+        The star formation history for which to calculate the metallicity relation
+    
+    Returns
+    -------
+    Z : :class:`~astropy.units.Quantity` [dimensionless]
+        Metallicities corresponding to radii and times
+    """
+    FeH = (
+        sfh.Fm + sfh.gradient * sfh.rho - (sfh.Fm + sfh.gradient * sfh.Rnow) *
+        (1 - (sfh._tau / sfh.galaxy_age))**sfh.gamma
+    )
+    return np.power(10, FeH + np.log10(sfh.zsun))
+
 class StarFormationHistory():
     """Class for a generic galactic star formation history model from which to sample
 
@@ -705,7 +746,177 @@ class ConstantPlummerSphere(StarFormationHistory):
         self._v_R = (self.x * self.v_x + self.y * self.v_y) / np.sqrt(self.x**2 + self.y**2)
 
 
-class Wagg2022(StarFormationHistory):
+class Frankel2018SFH(StarFormationHistory):
+    """A star formation history for a component of the Milky Way, based on
+    `Frankel+2018 <https://ui.adsabs.harvard.edu/abs/2018ApJ...865...96F/abstract>`_.
+
+    Parameters are the same as :class:`StarFormationHistory` but additionally with the following:
+
+    Parameters
+    ----------
+    scale_height : :class:`~astropy.units.Quantity` [length], optional
+        Scale height of the disc, by default 0.3*u.kpc
+    tsfr : :class:`~astropy.units.Quantity` [time], optional
+        Star formation timescale, by default 6.8*u.Gyr
+    alpha : `float`, optional
+        Disc inside-out growth parameter, by default 0.3
+    Fm : `int`, optional
+        Metallicity at centre of disc at tm, by default -1
+    gradient : :class:`~astropy.units.Quantity` [1/length], optional
+        Metallicity gradient, by default -0.075/u.kpc
+    Rnow : :class:`~astropy.units.Quantity` [length], optional
+        Radius at which present day metallicity is solar, by default 8.7*u.kpc
+    gamma : `float`, optional
+        Time dependence of chemical enrichment, by default 0.3
+    zsun : `float`, optional
+        Solar metallicity, by default 0.0142
+    galaxy_age : :class:`~astropy.units.Quantity` [time], optional
+        Maximum lookback time, by default 12*u.Gyr
+    """
+    def __init__(self, tsfr=6.8 * u.Gyr, alpha=0.3, Fm=-1, gradient=-0.075 / u.kpc, Rnow=8.7 * u.kpc,
+                 gamma=0.3, zsun=0.0142, galaxy_age=12 * u.Gyr):
+        self.tsfr = tsfr
+        self.alpha = alpha
+        self.Fm = Fm
+        self.gradient = gradient
+        self.Rnow = Rnow
+        self.gamma = gamma
+        self.zsun = zsun
+        self.galaxy_age = galaxy_age
+        super().__init__()
+        self.__citations__.extend(["Frankel+2018", "McMillan+2011"])
+
+    def draw_radii(self, size):
+        """Inverse CDF sampling of galactocentric radii using
+        `Frankel+2018 <https://ui.adsabs.harvard.edu/abs/2018ApJ...865...96F/abstract>`_ Eq. 5.
+        The scale length is calculated using Eq. 6.
+
+        Parameters
+        ----------
+        size : `int`
+            How many radii to draw
+
+        Returns
+        -------
+        rho : :class:`~astropy.units.Quantity` [length]
+            Random Galactocentric radius
+        """
+        return -self.scale_length * (lambertw((np.random.rand(size) - 1) / np.exp(1), k=-1).real + 1)
+
+    def draw_heights(self, size):
+        """Draw heights from an exponential distribution with scale height given by the class attribute.
+
+        Parameters
+        ----------
+        size : `int`
+            How many heights to draw
+
+        Returns
+        -------
+        z : :class:`~astropy.units.Quantity` [length]
+            Random heights above the plane
+        """
+        return _exponential_disc(size, self.scale_height)
+
+    def draw_phi(self, size):
+        return np.random.uniform(0, 2 * np.pi, size) * u.rad
+
+    def get_metallicity(self):
+        return _frankel2018_metallicity_relation(self)
+
+class LowAlphaDiscWagg2022(Frankel2018SFH):
+    """A star formation history for the low-alpha disc of the Milky Way, used in Wagg+2022
+
+    Parameters are the same as :class:`Frankel2018SFH`
+    """
+    def __init__(self, **kwargs):
+        self.scale_height = 0.3 * u.kpc
+        super().__init__(**kwargs)
+
+    def draw_lookback_times(self, size):
+        """Inverse CDF sampling of lookback times using
+        `Frankel+2018 <https://ui.adsabs.harvard.edu/abs/2018ApJ...865...96F/abstract>`_ Eq. 4,
+        separated and normalised at 8 Gyr.
+
+        Parameters
+        ----------
+        size : `int`
+            How many times to draw
+
+        Returns
+        -------
+        tau : :class:`~astropy.units.Quantity` [time]
+            Random lookback times
+        """
+        U = np.random.rand(size)
+        norm = 1 / quad(lambda x: np.exp(-(self.galaxy_age.value - x) / self.tsfr.value), 0, 8)[0]
+        return self.tsfr * np.log((U * np.exp(self.galaxy_age / self.tsfr)) / (norm * self.tsfr.value) + 1)
+
+    def draw_radii(self, size):
+        self.scale_length = 4 * u.kpc * (1 - self.alpha * (self._tau / (8 * u.Gyr)))
+        return super().draw_radii(size)
+    
+class HighAlphaDiscWagg2022(Frankel2018SFH):
+    """A star formation history for the high-alpha disc of the Milky Way, used in Wagg+2022
+
+    Parameters are the same as :class:`Frankel2018SFH`
+    """
+    def __init__(self, **kwargs):
+        self.scale_height = 0.95 * u.kpc
+        self.scale_length = 1 / 0.43 * u.kpc
+
+        super().__init__(**kwargs)
+
+    def draw_lookback_times(self, size):
+        """Inverse CDF sampling of lookback times using
+        `Frankel+2018 <https://ui.adsabs.harvard.edu/abs/2018ApJ...865...96F/abstract>`_ Eq. 4,
+        separated and normalised at 8 Gyr.
+
+        Parameters
+        ----------
+        size : `int`
+            How many times to draw
+
+        Returns
+        -------
+        tau : :class:`~astropy.units.Quantity` [time]
+            Random lookback times
+        """
+        U = np.random.rand(size)
+        norm = 1 / quad(lambda x: np.exp(-(self.galaxy_age.value - x) / self.tsfr.value), 8, 12)[0]
+        return self.tsfr * np.log((U * np.exp(self.galaxy_age / self.tsfr)) / (norm * self.tsfr.value)
+                                  + np.exp(8 * u.Gyr / self.tsfr))
+    
+
+class BulgeWagg2022(Frankel2018SFH):
+    """A star formation history for the bulge of the Milky Way used in Wagg+2022
+
+    Parameters are the same as :class:`Frankel2018SFH`
+    """
+    def __init__(self, **kwargs):
+        self.scale_height = 0.2 * u.kpc
+        self.scale_length = 1.5 * u.kpc
+        super().__init__(**kwargs)
+        self.__citations__.extend(["Bovy+2019", "Bovy+2016"])
+
+    def draw_lookback_times(self, size):
+        """Inverse CDF sampling of lookback times using a beta distribution, fit to match the distribution 
+        in Fig. 7 of `Bovy+19 <https://ui.adsabs.harvard.edu/abs/2019MNRAS.490.4740B/abstract>`_ but
+        accounting for the sample's bias.
+
+        Parameters
+        ----------
+        size : `int`
+            How many times to draw
+
+        Returns
+        -------
+        tau : :class:`~astropy.units.Quantity` [time]
+            Random lookback times
+        """
+        return beta.rvs(a=2, b=3, loc=6, scale=6, size=size) * u.Gyr
+
+class Wagg2022(CompositeStarFormationHistory):
     """A semi-empirical model defined in
     `Wagg+2022 <https://ui.adsabs.harvard.edu/abs/2021arXiv211113704W/abstract>`_
     (see Figure 1 and Section 2.2.1 for a detailed explanation.), heavily based on
@@ -732,149 +943,20 @@ class Wagg2022(StarFormationHistory):
     zsun : `float`, optional
         Solar metallicity, by default 0.0142
     """
-    def __init__(self, size, components=["low_alpha_disc", "high_alpha_disc", "bulge"],
-                 component_masses=[2.585e10, 2.585e10, 0.91e10],
-                 tsfr=6.8 * u.Gyr, alpha=0.3, Fm=-1, gradient=-0.075 / u.kpc, Rnow=8.7 * u.kpc,
+    def __init__(self, tsfr=6.8 * u.Gyr, alpha=0.3, Fm=-1, gradient=-0.075 / u.kpc, Rnow=8.7 * u.kpc,
                  gamma=0.3, zsun=0.0142, galaxy_age=12 * u.Gyr, **kwargs):
-        self.tsfr = tsfr
-        self.alpha = alpha
-        self.Fm = Fm
-        self.gradient = gradient
-        self.Rnow = Rnow
-        self.gamma = gamma
-        self.zsun = zsun
-        self.galaxy_age = galaxy_age
-        super().__init__(size=size, components=components, component_masses=component_masses, **kwargs)
-        self.__citations__.extend(["Wagg+2022", "Frankel+2018", "Bovy+2016", "Bovy+2019", "McMillan+2011"])
 
-    def draw_lookback_times(self, size=None, component="low_alpha_disc"):
-        """Inverse CDF sampling of lookback times. low_alpha and high_alpha discs uses
-        `Frankel+2018 <https://ui.adsabs.harvard.edu/abs/2018ApJ...865...96F/abstract>`_ Eq. 4,
-        separated and normalised at 8 Gyr. The bulge matches the distribution in Fig. 7 of
-        `Bovy+19 <https://ui.adsabs.harvard.edu/abs/2019MNRAS.490.4740B/abstract>`_ but accounts
-        for sample's bias.
+        components = [
+            LowAlphaDiscWagg2022(tsfr=tsfr, alpha=alpha, Fm=Fm, gradient=gradient, Rnow=Rnow,
+                                 gamma=gamma, zsun=zsun, galaxy_age=galaxy_age),
+            HighAlphaDiscWagg2022(tsfr=tsfr, alpha=alpha, Fm=Fm, gradient=gradient, Rnow=Rnow,
+                                  gamma=gamma, zsun=zsun, galaxy_age=galaxy_age),
+            BulgeWagg2022(tsfr=tsfr, alpha=alpha, Fm=Fm, gradient=gradient, Rnow=Rnow,
+                          gamma=gamma, zsun=zsun, galaxy_age=galaxy_age)
+        ]
+        component_ratios = [2.585e10, 2.585e10, 0.91e10]
 
-        Parameters
-        ----------
-        size : `int`
-            How many times to draw
-        component : `str`
-            Which component of the Milky Way
-
-        Returns
-        -------
-        tau : :class:`~astropy.units.Quantity` [time]
-            Random lookback times
-        """
-        # if no size is given then use the class value
-        size = self._size if size is None else size
-        if component == "low_alpha_disc":
-            U = np.random.rand(size)
-            norm = 1 / quad(lambda x: np.exp(-(self.galaxy_age.value - x) / self.tsfr.value), 0, 8)[0]
-            tau = self.tsfr * np.log((U * np.exp(self.galaxy_age / self.tsfr)) / (norm * self.tsfr.value) + 1)
-        elif component == "high_alpha_disc":
-            U = np.random.rand(size)
-            norm = 1 / quad(lambda x: np.exp(-(self.galaxy_age.value - x) / self.tsfr.value), 8, 12)[0]
-            tau = self.tsfr * np.log((U * np.exp(self.galaxy_age / self.tsfr)) / (norm * self.tsfr.value)
-                                     + np.exp(8 * u.Gyr / self.tsfr))
-        elif component == "bulge":
-            tau = beta.rvs(a=2, b=3, loc=6, scale=6, size=size) * u.Gyr
-        return tau
-
-    def draw_radii(self, size=None, component="low_alpha_disc"):
-        """Inverse CDF sampling of galactocentric radii using
-        `Frankel+2018 <https://ui.adsabs.harvard.edu/abs/2018ApJ...865...96F/abstract>`_ Eq. 5.
-        The scale length is calculated using Eq. 6 the low_alpha disc and is fixed at 1/0.43 and 1.5 kpc
-        respectively for the high_alpha disc and bulge.
-
-        Parameters
-        ----------
-        size : `int`
-            How many radii to draw
-        component : `str`
-            Which component of the Milky Way
-
-        Returns
-        -------
-        rho : :class:`~astropy.units.Quantity` [length]
-            Random Galactocentric radius
-        """
-        # if no size is given then use the class value
-        size = self._size if size is None else size
-
-        if component == "low_alpha_disc":
-            R_0 = 4 * u.kpc * (1 - self.alpha * (self._tau[self._which_comp == component] / (8 * u.Gyr)))
-        elif component == "high_alpha_disc":
-            R_0 = 1 / 0.43 * u.kpc
-        else:
-            R_0 = 1.5 * u.kpc
-
-        U = np.random.rand(size)
-        rho = - R_0 * (lambertw((U - 1) / np.exp(1), k=-1).real + 1)
-        return rho
-
-    def draw_heights(self, size=None, component="low_alpha_disc"):
-        """Inverse CDF sampling of heights using
-        `McMillan 2011 <https://ui.adsabs.harvard.edu/abs/2011MNRAS.414.2446M/abstract>`_ Eq. 3
-        and various scale lengths.
-
-        Parameters
-        ----------
-        size : `int`
-            How many heights to draw
-        component : `str`
-            Which component of the Milky Way
-
-        Returns
-        -------
-        z : :class:`~astropy.units.Quantity` [length]
-            Random heights
-        """
-        # if no size is given then use the class value
-        size = self._size if size is None else size
-
-        if component == "low_alpha_disc":
-            z_d = 0.3 * u.kpc
-        elif component == "high_alpha_disc":
-            z_d = 0.95 * u.kpc
-        else:
-            z_d = 0.2 * u.kpc
-        U = np.random.rand(size)
-        z = np.random.choice([-1, 1], size) * z_d * np.log(1 - U)
-        return z
-
-    def draw_phi(self, size=None):
-        """Draw random azimuthal angles
-
-        Parameters
-        ----------
-        size : `int`, optional
-            How many angles to draw, by default self._size
-
-        Returns
-        -------
-        phi : :class:`~astropy.units.Quantity` [angle]
-            Azimuthal angles
-        """
-        # if no size is given then use the class value
-        size = self._size if size is None else size
-        return np.random.uniform(0, 2 * np.pi, size) * u.rad
-
-    def get_metallicity(self):
-        """Convert radius and time to metallicity using
-        `Frankel+2018 <https://ui.adsabs.harvard.edu/abs/2018ApJ...865...96F/abstract>`_ Eq. 7 and
-        `Bertelli+1994 <https://ui.adsabs.harvard.edu/abs/1994A%26AS..106..275B/abstract>`_ Eq. 9 but
-        assuming all stars have the solar abundance pattern (so no factor of 0.977)
-
-        Returns
-        -------
-        Z : :class:`~astropy.units.Quantity` [dimensionless]
-            Metallicities corresponding to radii and times
-        """
-        rho = (self.x**2 + self.y**2)**(0.5)
-        FeH = self.Fm + self.gradient * rho - (self.Fm + self.gradient * self.Rnow)\
-            * (1 - (self._tau / self.galaxy_age))**self.gamma
-        return np.power(10, FeH + np.log10(self.zsun))
+        super().__init__(components=components, component_ratios=component_ratios, **kwargs)
 
 
 class DistributionFunctionBasedSFH(StarFormationHistory):
