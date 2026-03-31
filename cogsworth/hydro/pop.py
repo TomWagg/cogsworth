@@ -74,12 +74,12 @@ class HydroPopulation(Population):
         if self._orbits is None:
             return (f"<{self.__class__.__name__} - {len(self._subset_inds)} star particles - "
                     f"galactic_potential={self.galactic_potential.__class__.__name__}, "
-                    f"SFH={self.sfh_model.__name__}>")
+                    f"SFH={self.sfh_model.__class__.__name__}>")
         else:
             return (f"<{self.__class__.__name__} - {len(self._subset_inds)} star particles - "
                     f"{self.n_binaries_match} evolved systems - "
                     f"galactic_potential={self.galactic_potential.__class__.__name__}, "
-                    f"SFH={self.sfh_model.__name__}>")
+                    f"SFH={self.sfh_model.__class__.__name__}>")
 
     def __getitem__(self, ind):
         # convert any Pandas Series to numpy arrays
@@ -125,7 +125,7 @@ class HydroPopulation(Population):
         new_pop = self.__class__(star_particles=self.star_particles, processes=self.processes,
                                  final_kstar1=self.final_kstar1,
                                  final_kstar2=self.final_kstar2, sfh_model=self.sfh_model,
-                                 sfh_params=self.sfh_params, galactic_potential=self.galactic_potential,
+                                 galactic_potential=self.galactic_potential,
                                  v_dispersion=self.v_dispersion, max_ev_time=self.max_ev_time,
                                  timestep_size=self.timestep_size, BSE_settings=self.BSE_settings,
                                  sampling_params=self.sampling_params,
@@ -253,7 +253,7 @@ class HydroPopulation(Population):
                                          dispersion.to(vel_units).value / np.sqrt(3),
                                          size=(3, self.n_binaries_match)) * vel_units
 
-        self._initial_galaxy = StarFormationHistory(self.n_binaries_match, immediately_sample=False)
+        self._initial_galaxy = StarFormationHistory()
         self._initial_galaxy._tau = self._initial_binaries["tphysf"].values * u.Myr
         self._initial_galaxy._Z = self._initial_binaries["metallicity"].values
         self._initial_galaxy._which_comp = np.repeat("FIRE", len(self.initial_galaxy._tau))
@@ -261,9 +261,9 @@ class HydroPopulation(Population):
         self._initial_galaxy._x = pos[0]
         self._initial_galaxy._y = pos[1]
         self._initial_galaxy._z = pos[2]
-        self._initial_galaxy.v_R = v_R
-        self._initial_galaxy.v_T = v_T
-        self._initial_galaxy.v_z = v_z
+        self._initial_galaxy._v_R = v_R
+        self._initial_galaxy._v_T = v_T
+        self._initial_galaxy._v_z = v_z
 
     def perform_stellar_evolution(self, **kwargs):
         """Perform stellar evolution on systems sampled from the star particles

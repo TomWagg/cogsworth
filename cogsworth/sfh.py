@@ -345,22 +345,30 @@ class StarFormationHistory():
             return self._v_y
         return self.v_R * np.sin(self.phi) + self.v_T * np.cos(self.phi)
 
-    def get_citations(self, filename=None):
-        """Print the citations for the packages/papers used in the star formation history"""
-        if not hasattr(self, "__citations__") or len(self.__citations__) == 0:
+    @staticmethod
+    def sfh_citation_statement(citations, filename=None):
+        """Print the citations for the packages/papers used in the star formation history
+
+        Parameters
+        ----------
+        citations : `list` of `str`
+            The list of citations to include in the statement, these should be keys in the `CITATIONS` dict
+        filename : `str`, optional
+            Filename for generating a bibtex file (leave blank to just print to terminal), by default None
+        """
+        if len(citations) == 0:
             print("No citations need for this star formation history model")
             return
 
         # ask users for a filename to save the bibtex to
         if filename is None:
             filename = input("Filename for generating a bibtex file (leave blank to just print to terminal): ")
-        filename = filename + ".bib" if not filename.endswith(".bib") and filename != "" else filename
 
         # construct citation string
         cite_tags = []
         bibtex = []
         for section in CITATIONS:
-            for citation in self.__citations__:
+            for citation in citations:
                 if citation in CITATIONS[section]:
                     if citation != "cogsworth":
                         cite_tags.extend(CITATIONS[section][citation]["tags"])
@@ -385,6 +393,14 @@ class StarFormationHistory():
         else:
             print(f"{BOLD}{GREEN}And paste this bibtex into your .bib file - happy writing!{RESET}")
             print(bibtex_str)
+
+    def get_citations(self, filename=None):
+        """Print the citations for the packages/papers used in the star formation history"""
+        if not hasattr(self, "__citations__") or len(self.__citations__) == 0:
+            print("No citations needed for this star formation history model")
+            return
+        
+        self.sfh_citation_statement(self.__citations__, filename=filename)
 
     def sample(self, size):
         """Sample from the distributions for each component, combine and save in class attributes"""
@@ -542,11 +558,6 @@ class CompositeStarFormationHistory():
         n_components = 0
         component_ratios = []
         with h5.File(file_name, "r") as file:
-            if not file[key].attrs.get("is_composite", False):
-                raise ValueError(
-                    f"The data stored under key `{key}` in file `{file_name}` is not a composite star "
-                    "formation history"
-                )
             while f"{key}_{n_components}" in file:
                 n_components += 1
                 component_ratios.append(file[f"{key}_{n_components - 1}"].attrs.get("component_ratio", 1.0))
@@ -681,6 +692,10 @@ class CompositeStarFormationHistory():
         key : `str`, optional
             The key under which to store the data in the hdf5 file, by default "sfh"
         """
+        # append file extension if necessary
+        if file_name[-3:] != ".h5":
+            file_name += ".h5"
+
         for i, component in enumerate(self.components):
             component.save(file_name, key=f"{key}_{i}")
 
@@ -688,9 +703,13 @@ class CompositeStarFormationHistory():
             for i, cr in enumerate(self.component_ratios):
                 file[f"{key}_{i}"].attrs["component_ratio"] = cr
 
-            # empty dataset and attributes with tracker for the fact that it's composite
-            if key not in file:
-                file.create_dataset(key, data=np.array([]))
+    def get_citations(self, filename=None):
+        """Print the citations for the packages/papers used in the star formation history"""
+        if not hasattr(self, "__citations__") or len(self.__citations__) == 0:
+            print("No citations needed for this star formation history model")
+            return
+
+        StarFormationHistory.sfh_citation_statement(self.__citations__, filename=filename)
 
 class BurstUniformDisc(StarFormationHistory):
     """An extremely simple star formation history, with all stars formed at ``t_burst`` in a uniform disc with
@@ -893,8 +912,11 @@ class Frankel2018SFH(StarFormationHistory):
     galaxy_age : :class:`~astropy.units.Quantity` [time], optional
         Maximum lookback time, by default 12*u.Gyr
     """
-    def __init__(self, tsfr=6.8 * u.Gyr, alpha=0.3, Fm=-1, gradient=-0.075 / u.kpc, Rnow=8.7 * u.kpc,
-                 gamma=0.3, zsun=0.0142, galaxy_age=12 * u.Gyr):
+    def __init__(self, scale_length=None, scale_height=None,
+                 tsfr=6.8 * u.Gyr, alpha=0.3, Fm=-1, gradient=-0.075 / u.kpc, Rnow=8.7 * u.kpc,
+                 gamma=0.3, zsun=0.0142, galaxy_age=12 * u.Gyr, **kwargs):
+        self.scale_length = scale_length
+        self.scale_height = scale_height
         self.tsfr = tsfr
         self.alpha = alpha
         self.Fm = Fm
@@ -903,7 +925,7 @@ class Frankel2018SFH(StarFormationHistory):
         self.gamma = gamma
         self.zsun = zsun
         self.galaxy_age = galaxy_age
-        super().__init__()
+        super().__init__(**kwargs)
         self.__citations__.extend(["Frankel+2018", "McMillan+2011"])
 
     def draw_radii(self, size):
@@ -950,7 +972,7 @@ class LowAlphaDiscWagg2022(Frankel2018SFH):
     Parameters are the same as :class:`Frankel2018SFH`
     """
     def __init__(self, **kwargs):
-        self.scale_height = 0.3 * u.kpc
+        kwargs.setdefault("scale_height", 0.3 * u.kpc)
         super().__init__(**kwargs)
 
     def draw_lookback_times(self, size):
@@ -982,9 +1004,8 @@ class HighAlphaDiscWagg2022(Frankel2018SFH):
     Parameters are the same as :class:`Frankel2018SFH`
     """
     def __init__(self, **kwargs):
-        self.scale_height = 0.95 * u.kpc
-        self.scale_length = 1 / 0.43 * u.kpc
-
+        kwargs.setdefault("scale_height", 0.95 * u.kpc)
+        kwargs.setdefault("scale_length", 1/0.43 * u.kpc)
         super().__init__(**kwargs)
 
     def draw_lookback_times(self, size):
@@ -1014,8 +1035,8 @@ class BulgeWagg2022(Frankel2018SFH):
     Parameters are the same as :class:`Frankel2018SFH`
     """
     def __init__(self, **kwargs):
-        self.scale_height = 0.2 * u.kpc
-        self.scale_length = 1.5 * u.kpc
+        kwargs.setdefault("scale_height", 0.2 * u.kpc)
+        kwargs.setdefault("scale_length", 1.5 * u.kpc)
         super().__init__(**kwargs)
         self.__citations__.extend(["Bovy+2019", "Bovy+2016"])
 
@@ -1065,6 +1086,14 @@ class Wagg2022(CompositeStarFormationHistory):
     """
     def __init__(self, tsfr=6.8 * u.Gyr, alpha=0.3, Fm=-1, gradient=-0.075 / u.kpc, Rnow=8.7 * u.kpc,
                  gamma=0.3, zsun=0.0142, galaxy_age=12 * u.Gyr, **kwargs):
+        self.tsfr = tsfr
+        self.alpha = alpha
+        self.Fm = Fm
+        self.gradient = gradient
+        self.Rnow = Rnow
+        self.gamma = gamma
+        self.zsun = zsun
+        self.galaxy_age = galaxy_age
 
         components = [
             LowAlphaDiscWagg2022(tsfr=tsfr, alpha=alpha, Fm=Fm, gradient=gradient, Rnow=Rnow,
@@ -1128,7 +1157,7 @@ class DistributionFunctionBasedSFH(StarFormationHistory):
         import agama
         agama.setUnits(**{k: galactic[k] for k in ['length', 'mass', 'time']})
 
-        self.draw_lookback_times()
+        self.draw_lookback_times(size)
 
         self._x = np.zeros(size) * u.kpc
         self._y = np.zeros(size) * u.kpc

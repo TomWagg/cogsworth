@@ -216,11 +216,11 @@ class Population():
         if self._orbits is None:
             return (f"<{self.__class__.__name__} - {self.n_binaries} systems - "
                     f"galactic_potential={self.galactic_potential.__class__.__name__}, "
-                    f"SFH={self.sfh_model.__name__}>")
+                    f"SFH={self.sfh_model.__class__.__name__}>")
         else:
             return (f"<{self.__class__.__name__} - {self.n_binaries_match} evolved systems - "
                     f"galactic_potential={self.galactic_potential.__class__.__name__}, "
-                    f"sfh_model={self.sfh_model.__name__}>")
+                    f"sfh_model={self.sfh_model.__class__.__name__}>")
 
     def __len__(self):
         return self.n_binaries_match
