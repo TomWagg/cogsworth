@@ -153,7 +153,7 @@ class StarFormationHistory():
         kwargs = self.__dict__
         actual_kwargs = {}
         saved_attributes = {}
-        array_attributes = ["_tau", "_Z", "_x", "_y", "_z", "_which_comp", "v_R", "v_T", "v_z", "v_x", "v_y"]
+        array_attributes = ["_tau", "_Z", "_x", "_y", "_z", "_v_R", "_v_T", "_v_z", "_v_x", "_v_y"]
         for key in list(kwargs.keys()):
             # only keep attributes that have no underscores and aren't velocity components
             if key[0] != "_" and key not in array_attributes:
@@ -168,19 +168,18 @@ class StarFormationHistory():
         # pre-mask tau to get the length easily
         tau = np.atleast_1d(self.tau[ind])
 
-        new_sfh = self.__class__(size=len(tau), immediately_sample=False, **actual_kwargs)
+        new_sfh = self.__class__(**actual_kwargs)
 
         new_sfh._tau = tau
         new_sfh._Z = np.atleast_1d(self._Z[ind])
         new_sfh._x = np.atleast_1d(self._x[ind])
         new_sfh._y = np.atleast_1d(self._y[ind])
         new_sfh._z = np.atleast_1d(self._z[ind])
-        new_sfh._which_comp = np.atleast_1d(self._which_comp[ind])
 
         # if we have any of the velocity components then we need to slice them too
-        vel_comps = ["v_R", "v_T", "v_z", "v_x", "v_y"]
+        vel_comps = ["_v_R", "_v_T", "_v_z", "_v_x", "_v_y"]
         for vel in vel_comps:
-            if hasattr(self, vel):
+            if hasattr(self, vel) and getattr(self, vel) is not None:
                 setattr(new_sfh, vel, np.atleast_1d(getattr(self, vel)[ind]))
 
         for attr in saved_attributes:
@@ -512,6 +511,39 @@ class CompositeStarFormationHistory():
         component_ratios /= component_ratios.sum()
 
         self.component_ratios = component_ratios
+
+    def __getitem__(self, ind):
+        if not isinstance(ind, (int, slice, list, np.ndarray, tuple)):
+            raise ValueError(("Can only index using an `int`, `list`, `ndarray` or `slice`, you supplied a "
+                              f"`{type(ind).__name__}`"))
+        
+        # first we turn `ind` into an array of indices if it isn't already
+        if isinstance(ind, int):
+            ind = np.array([ind])
+        elif isinstance(ind, slice):
+            ind = np.arange(len(self))[ind]
+        elif isinstance(ind, (list, tuple)):
+            ind = np.array(ind)
+
+        # if it's a boolean array, we convert it to indices
+        if ind.dtype == bool:
+            ind = np.where(ind)[0]
+        
+        # now we need to figure out which component each index is in, some components may have nothing with
+        # an index and will be left as length 0 components
+        all_indices = np.arange(len(self))
+        component_ind_ranges = np.cumsum([0] + [len(component) for component in self.components])
+
+        new_components = []
+        for i in range(len(self.components)):
+            component_mask = (ind >= component_ind_ranges[i]) & (ind < component_ind_ranges[i + 1])
+            component_inds = ind[component_mask] - component_ind_ranges[i]
+            new_components.append(self.components[i][component_inds])
+            
+        return CompositeStarFormationHistory(
+            components=new_components,
+            component_ratios=self.component_ratios
+        )
 
     def __getattr__(self, name):
         """When we try to access an attribute, if it's one that needs combining from the components"""
