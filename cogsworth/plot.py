@@ -38,6 +38,20 @@ def cogsworth_plot_style(func):
     return wrapper
 
 
+CBAR_LABEL_CONVERTER = {
+    "Z": r"Metallicity $Z$",
+    "tau": r"Lookback time, $\tau$ [Gyr]",
+    "x": r"$x$ [kpc]",
+    "y": r"$y$ [kpc]",
+    "z": r"$z$ [kpc]",
+    "v_x": r"$v_x$ [km/s]",
+    "v_y": r"$v_y$ [km/s]",
+    "v_z": r"$v_z$ [km/s]",
+    "v_R": r"$v_R$ [km/s]",
+    "v_T": r"$v_T$ [km/s]"
+}
+
+
 @cogsworth_plot_style
 def plot_cmd(pop, m_filter="Gaia_G_EDR3", c_filter_1="Gaia_BP_EDR3", c_filter_2="Gaia_RP_EDR3",
              fig=None, ax=None, show=True, **kwargs):
@@ -728,6 +742,8 @@ def plot_sfh(
                                  gridspec_kw={'height_ratios': [4, 14]}, sharex=True)
 
     if isinstance(colour_by, str):
+        if cbar_label is None:
+            cbar_label = CBAR_LABEL_CONVERTER.get(colour_by, None)
         colour_by = getattr(sfh, colour_by)
 
     random_order = np.random.permutation(len(sfh))
