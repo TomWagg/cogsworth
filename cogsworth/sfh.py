@@ -301,21 +301,21 @@ class StarFormationHistory():
         r"""The galactocentric radial velocity of the sampled points"""
         if self._v_R is None:
             raise ValueError("This star formation history model does not have radial velocities sampled.")
-        return self.v_R
+        return self._v_R
     
     @property
     def v_T(self):
         r"""The galactocentric tangential velocity of the sampled points"""
         if self._v_T is None:
             raise ValueError("This star formation history model does not have tangential velocities sampled.")
-        return self.v_T
+        return self._v_T
     
     @property
     def v_z(self):
         r"""The galactocentric vertical velocity of the sampled points"""
-        if self.v_z is None:
+        if self._v_z is None:
             raise ValueError("This star formation history model does not have vertical velocities sampled.")
-        return self.v_z
+        return self._v_z
     
     @property
     def v_phi(self):
@@ -518,6 +518,9 @@ class CompositeStarFormationHistory():
         component_ratios /= component_ratios.sum()
 
         self.component_ratios = component_ratios
+        self.__citations__ = list(set(
+            citation for component in self.components for citation in component.__citations__
+        ))
 
     @classmethod
     def from_file(cls, file_name, key="sfh"):
@@ -591,10 +594,31 @@ class CompositeStarFormationHistory():
         """When we try to access an attribute, if it's one that needs combining from the components"""
         COMBINE_ATTRS = ["tau", "Z", "x", "y", "z", "positions", "phi", "rho",
                          "v_x", "v_y", "v_z", "v_R", "v_T", "v_phi"]
-        if name in COMBINE_ATTRS:
-            return np.concatenate([getattr(component, name) for component in self.components])
+        if name in COMBINE_ATTRS or (name[0] == "_" and name[1:] in COMBINE_ATTRS):
+            component_vals = [getattr(component, name) for component in self.components]
+            if all(val is not None for val in component_vals):
+                return np.concatenate(component_vals)
+            else:
+                return None
         else:
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+        
+    def __setattr__(self, name, value):
+        """When we try to set an attribute, if it's one that needs combining from the components then we set it on the
+        relevant component instead"""
+        COMBINE_ATTRS = ["_tau", "_Z", "_x", "_y", "_z", "_v_x", "_v_y", "_v_z", "_v_R", "_v_T"]
+        if name in COMBINE_ATTRS:
+            # we need to figure out which component each value is in, some components may have nothing with an index
+            # and will be left as length 0 components
+            all_indices = np.arange(len(self))
+            component_ind_ranges = np.cumsum([0] + [len(component) for component in self.components])
+
+            for i in range(len(self.components)):
+                component_mask = (all_indices >= component_ind_ranges[i]) & (all_indices < component_ind_ranges[i + 1])
+                component_vals = value[component_mask]
+                setattr(self.components[i], name, component_vals)
+        else:
+            super().__setattr__(name, value)
         
     def __len__(self):
         # check if the first component has any ._tau samples yet
@@ -1662,7 +1686,7 @@ def concat(*sfhs):
 
 def simplify_params(params, dont_save=["_tau", "_Z", "_x", "_y", "_z", "_which_comp", "_v_R", "_v_T", "_v_z",
                                        "_v_x", "_v_y", "_df", "_agama_pot", "potential", "__citations__",
-                                       "sfh_params", "_guiding_radius_interp", "_omega_interp",
+                                       "_guiding_radius_interp", "_omega_interp",
                                        "_kappa_interp", "_nu_interp", "_inv_cdf"]):
     # delete any keys that we don't want to save
     delete_keys = [key for key in params.keys() if key in dont_save]

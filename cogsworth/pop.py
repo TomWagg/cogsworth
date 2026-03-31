@@ -54,11 +54,9 @@ class Population():
         Desired final types for primary star, by default list(range(16))
     final_kstar2 : `list`, optional
         Desired final types for secondary star, by default list(range(16))
-    sfh_model : :class:`~cogsworth.sfh.StarFormationHistory`, optional
-        A StarFormationHistory class to use for sampling the initial galaxy parameters, by default
-        :class:`~cogsworth.sfh.Wagg2022`
-    sfh_params : `dict`, optional
-        Any additional parameters to pass to your chosen ``SFH model`` when it is initialised
+    sfh_model : :class:`~cogsworth.sfh.StarFormationHistory` or :class:`~cogsworth.sfh.CompositeStarFormationHistory`, optional
+        A StarFormationHistory or CompositeStarFormationHistory class to use for sampling the initial galaxy
+        parameters, by default :class:`~cogsworth.sfh.Wagg2022`
     galactic_potential : :class:`Potential <gala.potential.potential.PotentialBase>`, optional
         Galactic potential to use for evolving the orbits of binaries, by default
         :class:`~gala.potential.potential.MilkyWayPotential`
@@ -123,7 +121,7 @@ class Population():
     """
     def __init__(
             self, n_binaries, processes=None, final_kstar1=list(range(16)),
-            final_kstar2=list(range(16)), sfh_model=sfh.Wagg2022, sfh_params={},
+            final_kstar2=list(range(16)), sfh_model=sfh.Wagg2022(),
             galactic_potential=gp.MilkyWayPotential(version='v2'), v_dispersion=5 * u.km / u.s,
             max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, ini_file=None,
             use_default_BSE_settings=False, sampling_params={}, sampling_mask="",
@@ -159,7 +157,6 @@ class Population():
         self.final_kstar1 = final_kstar1
         self.final_kstar2 = final_kstar2
         self.sfh_model = sfh_model
-        self.sfh_params = sfh_params
         self.galactic_potential = galactic_potential
         self.v_dispersion = v_dispersion
         self.max_ev_time = max_ev_time
@@ -295,7 +292,7 @@ class Population():
             n_binaries=len(bin_nums), processes=self.processes,
             final_kstar1=self.final_kstar1,
             final_kstar2=self.final_kstar2, sfh_model=self.sfh_model,
-            sfh_params=self.sfh_params, galactic_potential=self.galactic_potential,
+            galactic_potential=self.galactic_potential,
             v_dispersion=self.v_dispersion, max_ev_time=self.max_ev_time,
             timestep_size=self.timestep_size, BSE_settings=self.BSE_settings,
             sampling_params=self.sampling_params,
@@ -457,7 +454,7 @@ class Population():
 
         Returns
         -------
-        initial_galaxy : :class:`~cogsworth.sfh.StarFormationHistory`
+        initial_galaxy : :class:`~cogsworth.sfh.StarFormationHistory` or :class:`~cogsworth.sfh.CompositeStarFormationHistory`
             The initial galaxy that was sampled to generate the population.
 
         Raises
@@ -467,7 +464,7 @@ class Population():
         """
         if self._initial_galaxy is None and self._file is not None:
             self._initial_galaxy = sfh.load(self._file, key="initial_galaxy")
-            self.sfh_model = self._initial_galaxy.__class__
+            self.sfh_model = self._initial_galaxy
         elif self._initial_galaxy is None:
             raise ValueError("No galaxy sampled yet, run `sample_initial_galaxy` to generate one.")
         return self._initial_galaxy
@@ -996,32 +993,33 @@ class Population():
     def sample_initial_galaxy(self):
         """Sample the initial galactic times, positions and velocities"""
         # initialise the initial galaxy class with correct number of binaries
-        self._initial_galaxy = self.sfh_model(size=self.n_binaries_match, **self.sfh_params)
+        self._initial_galaxy = self.sfh_model
+        self._initial_galaxy.sample(size=self.n_binaries_match)
 
         # add relevant citations
         self.__citations__.extend([c for c in self._initial_galaxy.__citations__ if c != "cogsworth"])
 
         # if velocities are already set then just immediately return
-        if all(hasattr(self._initial_galaxy, attr) for attr in ["v_R", "v_T", "v_z"]):   # pragma: no cover
+        if all(getattr(self._initial_galaxy, attr) is not None for attr in ["_v_R", "_v_T", "_v_z"]):   # pragma: no cover
             return
 
         # work out the initial velocities of each binary
         vel_units = u.km / u.s
 
         # calculate the Galactic circular velocity at the initial positions
-        v_circ = self.galactic_potential.circular_velocity(q=[self._initial_galaxy.x,
-                                                              self._initial_galaxy.y,
-                                                              self._initial_galaxy.z],
-                                                           t=(self.max_ev_time - self._initial_galaxy.tau)).to(vel_units)
+        v_circ = self.galactic_potential.circular_velocity(
+            q=[self._initial_galaxy.x, self._initial_galaxy.y, self._initial_galaxy.z],
+            t=(self.max_ev_time - self._initial_galaxy.tau)
+        ).to(vel_units)
 
         # add some velocity dispersion
         v_R, v_T, v_z = np.random.normal([np.zeros_like(v_circ), v_circ, np.zeros_like(v_circ)],
                                          self.v_dispersion.to(vel_units) / np.sqrt(3),
                                          size=(3, self.n_binaries_match))
         v_R, v_T, v_z = v_R * vel_units, v_T * vel_units, v_z * vel_units
-        self._initial_galaxy.v_R = v_R
-        self._initial_galaxy.v_T = v_T
-        self._initial_galaxy.v_z = v_z
+        self._initial_galaxy._v_R = v_R
+        self._initial_galaxy._v_T = v_T
+        self._initial_galaxy._v_z = v_z
 
     def sample_initial_binaries(self, initC=None, overwrite_initC_settings=False, reset_sampled_kicks=False):
         """Sample the initial binary parameters for the population.
@@ -2034,7 +2032,7 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
     p = Population(
         n_binaries=int(numeric_params[0]), processes=int(numeric_params[2]),
         final_kstar1=final_kstars[0], final_kstar2=final_kstars[1],
-        sfh_model=sfh.StarFormationHistory, galactic_potential=galactic_potential,
+        sfh_model=sfh.StarFormationHistory(), galactic_potential=galactic_potential,
         v_dispersion=numeric_params[3] * u.km / u.s, max_ev_time=numeric_params[4] * u.Gyr,
         timestep_size=numeric_params[5] * u.Myr, BSE_settings=BSE_settings,
         sampling_params=sampling_params, sampling_mask=sampling_mask, store_entire_orbits=store_entire_orbits,
