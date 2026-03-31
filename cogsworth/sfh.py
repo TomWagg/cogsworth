@@ -11,6 +11,7 @@ from scipy.stats import beta
 import pandas as pd
 from astropy.coordinates import SkyCoord
 import logging
+import copy
 
 from types import FunctionType
 
@@ -55,6 +56,8 @@ class StarFormationHistory():
         self._v_x = None
         self._v_y = None
 
+        self._composite_weight = 1.0
+
         # check for any extra parameters that have been passed
         # this may occur when loading from a file and the user was writing a custom class
         if len(kwargs) > 0:
@@ -76,7 +79,28 @@ class StarFormationHistory():
             return f"<{self.__class__.__name__}, [not yet sampled]>"
 
     def __add__(self, other):
-        return concat(self, other)
+        if isinstance(other, StarFormationHistory):
+            return CompositeStarFormationHistory(
+                components=[self, other],
+                component_ratios=[self._composite_weight, other._composite_weight]
+            )
+        elif isinstance(other, CompositeStarFormationHistory):
+            return CompositeStarFormationHistory(
+                components=[self] + other.components,
+                component_ratios=np.concatenate([[self._composite_weight], other.component_ratios])
+            )
+        else:
+            return NotImplemented
+    
+    def __mul__(self, other):
+        if not isinstance(other, (int, float)):
+            return NotImplemented
+        new_sfh = copy.deepcopy(self)
+        new_sfh._composite_weight *= other
+        return new_sfh
+    
+    def __rmul__(self, other):
+        return self.__mul__(other)
 
     def __getitem__(self, ind):
         # ensure indexing with the right type
@@ -473,6 +497,20 @@ class CompositeStarFormationHistory():
             f"<{self.__class__.__name__}, {length_str}, {len(self.components)} "
             f"components | {component_string}>"
         )
+    
+    def __add__(self, other):
+        if isinstance(other, StarFormationHistory):
+            return CompositeStarFormationHistory(
+                components=self.components + [other],
+                component_ratios=np.concatenate([self.component_ratios, [other._composite_weight]])
+            )
+        elif isinstance(other, CompositeStarFormationHistory):
+            return CompositeStarFormationHistory(
+                components=self.components + other.components,
+                component_ratios=np.concatenate([self.component_ratios, other.component_ratios])
+            )
+        else:
+            return NotImplemented
 
     def sample(self, size):
         """Sample from the distributions for each component, combine and save in class attributes"""
