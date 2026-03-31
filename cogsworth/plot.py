@@ -750,11 +750,15 @@ def plot_sfh(
 
     # choose cbar norm if necessary
     if cbar_norm is None and colour_by is not None:
+        # remove units if they exist for the purpose of norm calculation
+        if isinstance(colour_by, u.Quantity):
+            colour_by = colour_by.value
+
         # use a log norm if the colour_by values span more than 2 orders of magnitude, otherwise linear norm
-        if np.log10(np.ptp(colour_by.value)) > 2:
-            cbar_norm = mpl.colors.LogNorm(vmin=colour_by.value.min(), vmax=colour_by.value.max())
+        if np.all(colour_by > 0) and np.log10(np.ptp(colour_by)) > 2:
+            cbar_norm = mpl.colors.LogNorm(vmin=colour_by.min(), vmax=colour_by.max())
         else:
-            cbar_norm = mpl.colors.Normalize(vmin=colour_by.value.min(), vmax=colour_by.value.max())
+            cbar_norm = mpl.colors.Normalize(vmin=colour_by.min(), vmax=colour_by.max())
 
     fig.subplots_adjust(hspace=0)
 
