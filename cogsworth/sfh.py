@@ -512,6 +512,41 @@ class CompositeStarFormationHistory():
 
         self.component_ratios = component_ratios
 
+    @classmethod
+    def from_file(cls, file_name, key="sfh"):
+        """Load a composite star formation history from file
+
+        Parameters
+        ----------
+        file_name : `str`
+            The name of the hdf5 file from which to load the star formation history. If this doesn't end in ".h5"
+            then ".h5" will be appended.
+        key : `str`, optional
+            The key under which the data is stored in the hdf5 file, by default "sfh"
+
+        Returns
+        -------
+        sfh : :class:`~CompositeStarFormationHistory`
+            The loaded composite star formation history
+        """
+        n_components = 0
+        component_ratios = []
+        with h5.File(file_name, "r") as file:
+            if not file[key].attrs.get("is_composite", False):
+                raise ValueError(
+                    f"The data stored under key `{key}` in file `{file_name}` is not a composite star "
+                    "formation history"
+                )
+            while f"{key}_{n_components}" in file:
+                n_components += 1
+                component_ratios.append(file[f"{key}_{n_components - 1}"].attrs.get("component_ratio", 1.0))
+
+        return cls(
+            components=[load(file_name, key=f"{key}_{i}") for i in range(n_components)],
+            component_ratios=component_ratios
+        )
+
+
     def __getitem__(self, ind):
         if not isinstance(ind, (int, slice, list, np.ndarray, tuple)):
             raise ValueError(("Can only index using an `int`, `list`, `ndarray` or `slice`, you supplied a "
@@ -603,6 +638,28 @@ class CompositeStarFormationHistory():
         See :func:`~cogsworth.plotting.plot_sfh` for more details and options.
         """
         plot_sfh(self, **kwargs)
+
+    def save(self, file_name, key="sfh"):
+        """Save the entire class to storage.
+
+        Data will be stored in an hdf5 file using `file_name`.
+
+        Parameters
+        ----------
+        file_name : `str`
+        key : `str`, optional
+            The key under which to store the data in the hdf5 file, by default "sfh"
+        """
+        for i, component in enumerate(self.components):
+            component.save(file_name, key=f"{key}_{i}")
+
+        with h5.File(file_name, "a") as file:
+            for i, cr in enumerate(self.component_ratios):
+                file[f"{key}_{i}"].attrs["component_ratio"] = cr
+
+            # empty dataset and attributes with tracker for the fact that it's composite
+            if key not in file:
+                file.create_dataset(key, data=np.array([]))
 
 class BurstUniformDisc(StarFormationHistory):
     """An extremely simple star formation history, with all stars formed at ``t_burst`` in a uniform disc with
@@ -1541,10 +1598,12 @@ def load(file_name, key="sfh"):
     df = pd.read_hdf(file_name, key=key)
     loaded_sfh._tau = df["tau"].values * u.Gyr
     loaded_sfh._Z = df["Z"].values * u.dimensionless_unscaled
-    loaded_sfh._which_comp = df["which_comp"].values
     loaded_sfh._x = df["x"].values * u.kpc
     loaded_sfh._y = df["y"].values * u.kpc
     loaded_sfh._z = df["z"].values * u.kpc
+
+    if "which_comp" in df:
+        loaded_sfh._which_comp = df["which_comp"].values
 
     # additionally read in velocity components if they exist
     for attr in ["v_R", "v_T", "v_z", "v_x", "v_y", "v_z"]:
