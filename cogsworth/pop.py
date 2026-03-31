@@ -179,7 +179,6 @@ class Population():
         self._n_bin_req = None
         self._bpp = None
         self._bcm = None
-        self._initC = None
         self._kick_info = None
         self._orbits = None
         self._classes = None
@@ -324,8 +323,6 @@ class Population():
 
         if self._initial_galaxy is not None:
             new_pop._initial_galaxy = self._initial_galaxy[inds]
-        if self._initC is not None:
-            new_pop._initC = self._initC.loc[bin_nums]
         if self._initial_binaries is not None:
             new_pop._initial_binaries = self._initial_binaries.loc[bin_nums]
 
@@ -437,8 +434,6 @@ class Population():
         if self._bin_nums is None:
             if self._final_bpp is not None:
                 self._bin_nums = self._final_bpp["bin_num"].unique()
-            elif self._initC is not None:
-                self._bin_nums = self._initC["bin_num"].unique()
             elif self._initial_binaries is not None:
                 self._bin_nums = np.unique(self._initial_binaries.index.values)
             else:
@@ -545,10 +540,6 @@ class Population():
     def initial_binaries(self):
         """The initial binaries that were sampled to generate the population.
 
-        This is only used when evolution has not been performed yet. If evolution has been performed, the
-        initial binaries are stored in the :attr:`initC` table instead (since this also includes information
-        on the assumed binary physics).
-
         Returns
         -------
         initial_binaries : :class:`~pandas.DataFrame`
@@ -559,22 +550,26 @@ class Population():
         ValueError
             If no binaries have been sampled yet.
         """
-        # use initC if available
-        if self._initial_binaries is None and self._initC is not None:
-            return self._initC
-
-        # if not, try to load them from the file
+        # try to load them from the file
         if self._initial_binaries is None and self._file is not None:       # pragma: no cover
             try:
-                self._initial_binaries = pd.read_hdf(self._file, key="initial_binaries")
+                
+                self._initial_binaries = load_initC(self._file, key="initial_binaries",
+                                                    settings_key="initial_binaries_settings")
             except KeyError:
                 try:
-                    self._initial_binaries = pd.read_hdf(self._file, key="initC")
+                    self._initial_binaries = load_initC(self._file, key="initC",
+                                                        settings_key="initC_settings")
                 except KeyError:
                     raise ValueError(f"No initial binaries found in population file ({self._file})")
         elif self._initial_binaries is None:        # pragma: no cover
             raise ValueError("No binaries sampled yet, run `sample_initial_binaries` to do so.")
         return self._initial_binaries
+    
+    @property
+    def initC(self):
+        """Alias for :attr:`initial_binaries`"""
+        return self.initial_binaries
 
     @property
     def bpp(self):
@@ -638,29 +633,6 @@ class Population():
             else:
                 raise ValueError("No stellar evolution performed yet, run `perform_stellar_evolution` to do so.")
         return self._bcm
-
-    @property
-    def initC(self):
-        """A table of initial conditions for each binary.
-
-        This table contains the initial conditions for each binary that was sampled. Each row corresponds to
-        a binary and the columns are described in detail in the COSMIC documentation.
-
-        Returns
-        -------
-        initC : :class:`~pandas.DataFrame`
-            The initial conditions for each binary.
-
-        Raises
-        ------
-        ValueError
-            If no stellar evolution has been performed yet.
-        """
-        if self._initC is None and self._file is not None:
-            self._initC = load_initC(self._file, key="initC", settings_key="initC_settings")
-        elif self._initC is None:
-            raise ValueError("No stellar evolution performed yet, run `perform_stellar_evolution` to do so.")
-        return self._initC
 
     @property 
     def kick_info(self):
@@ -862,7 +834,7 @@ class Population():
         if self._final_bpp is None:
             self._final_bpp = self.bpp.drop_duplicates(subset="bin_num", keep="last")
             self._final_bpp.insert(len(self._final_bpp.columns), "metallicity",
-                                   self.initC["metallicity"].values)
+                                   self.initial_binaries["metallicity"].values)
         return self._final_bpp
 
     @property
@@ -1021,53 +993,22 @@ class Population():
         self._initial_galaxy._v_T = v_T
         self._initial_galaxy._v_z = v_z
 
-    def sample_initial_binaries(self, initC=None, overwrite_initC_settings=False, reset_sampled_kicks=False):
-        """Sample the initial binary parameters for the population.
-
-        Alternatively, copy initial conditions from another population
-
-        Parameters
-        ----------
-        initC : :class:`~pandas.DataFrame`, optional
-            Initial conditions from a different Population, by default None (new sampling performed)
-        overwrite_initC_settings : `bool`, optional
-            Whether to overwrite initC settings in the case where the new population has a different set of
-            `BSE_settings`, by default False
-        reset_sampled_kicks : `bool`, optional
-            Whether to reset any sampled kicks in the population to ensure new ones are drawn,
-            by default False
-        """
+    def sample_initial_binaries(self):
+        """Sample the initial binary parameters for the population."""
         self._bin_nums = None
         self._final_bpp = None
-        self._initC = None
         self._initial_binaries = None
 
-        # if an initC table is provided then use that instead of sampling
-        if initC is not None:
-            self._initial_binaries = copy(initC)
-
-            # if we are allowed to overwrite setting then replace columns
-            if overwrite_initC_settings:
-                for key in self.BSE_settings:
-                    if key in self._initial_binaries:
-                        self._initial_binaries[key] = self.BSE_settings[key]
-
-            # reset sampled kicks if desired
-            if reset_sampled_kicks:
-                cols = ["natal_kick_1", "phi_1", "theta_1", "natal_kick_2", "phi_2", "theta_2"]
-                for col in cols:
-                    self._initial_binaries[col] = -100.0
-        else:
-            if self.sampling_params["binfrac_model"] == 0.0 and not self.sampling_params["keep_singles"]:
-                raise ValueError(("You've chosen a binary fraction of 0.0 but set `keep_singles=False` (in "
-                                  "self.sampling_params), so you'll draw 0 samples...I don't think you "
-                                  "wanted to do that?"))
-            self._initial_binaries, self._mass_singles, self._mass_binaries, self._n_singles_req, \
-                self._n_bin_req = InitialBinaryTable.sampler(
-                    'independent', self.final_kstar1, self.final_kstar2,
-                    SF_start=self.max_ev_time.to(u.Myr).value, SF_duration=0.0, met=0.02,
-                    size=self.n_binaries, **self.sampling_params
-                )
+        if self.sampling_params["binfrac_model"] == 0.0 and not self.sampling_params["keep_singles"]:
+            raise ValueError(("You've chosen a binary fraction of 0.0 but set `keep_singles=False` (in "
+                                "self.sampling_params), so you'll draw 0 samples...I don't think you "
+                                "wanted to do that?"))
+        self._initial_binaries, self._mass_singles, self._mass_binaries, self._n_singles_req, \
+            self._n_bin_req = InitialBinaryTable.sampler(
+                'independent', self.final_kstar1, self.final_kstar2,
+                SF_start=self.max_ev_time.to(u.Myr).value, SF_duration=0.0, met=0.02,
+                size=self.n_binaries, **self.sampling_params
+            )
 
         # reset index to match new `bin_num`s
         self._initial_binaries.reset_index(inplace=True)
@@ -1109,7 +1050,7 @@ class Population():
             set_checkstates(self.bcm_timestep_conditions)
 
         # if no initial binaries have been sampled then we need to create some
-        if self._initial_binaries is None and self._initC is None:
+        if self._initial_binaries is None:
             self._warn(("Initial binaries not yet sampled, performing sampling now."))
             self.sample_initial_binaries()
 
@@ -1122,9 +1063,8 @@ class Population():
             warnings.filterwarnings("ignore", message=".*initial binary table is being overwritten.*")
             warnings.filterwarnings("ignore", message=".*to a different value than assumed in the mlwind.*")
 
-            ibt = self.initial_binaries if self._initC is None else self._initC
             BSEDict = self.BSE_settings
-            if "kickflag" in ibt.columns and BSEDict != {}:
+            if "kickflag" in self.initial_binaries.columns and BSEDict != {}:
                 BSEDict = {}
                 self._warn(
                     ("You passed settings for BSE (in `Population.BSE_settings`) but your initial binary "
@@ -1132,15 +1072,18 @@ class Population():
                      "in the table.")
                 )
 
-            evolve_kwargs = {"initialbinarytable": ibt, "BSEDict": BSEDict, "pool": self.pool,
-                             "bpp_columns": self.bpp_columns, "bcm_columns": self.bcm_columns}
+            evolve_kwargs = {
+                "initialbinarytable": self.initial_binaries, "BSEDict": BSEDict, "pool": self.pool,
+                "bpp_columns": self.bpp_columns, "bcm_columns": self.bcm_columns
+            }
+
             if self.bcm_timestep_conditions != []:
                 evolve_kwargs["timestep_conditions"] = self.bcm_timestep_conditions
             if self.bcm_default_timestep is not None:
                 evolve_kwargs["dtp"] = self.bcm_default_timestep
 
             # perform the evolution!
-            self._bpp, bcm, self._initC, self._kick_info = Evolve.evolve(**evolve_kwargs)
+            self._bpp, bcm, self._initial_binaries, self._kick_info = Evolve.evolve(**evolve_kwargs)
 
             # only save BCM when it has interesting timesteps
             if self.bcm_timestep_conditions != [] or self.bcm_default_timestep is not None:
@@ -1156,13 +1099,14 @@ class Population():
         # if we detect NaNs
         if nans.any() or kick_info_nans.any():      # pragma: no cover
             # make sure the user knows bad things have happened
+            self._warn("NaNs detected in COSMIC evolution")
             logging.getLogger("cogsworth").warning("NaNs detected in COSMIC evolution")
 
             # store the bad things for later
             nan_bin_nums = np.unique(np.concatenate((self.final_bpp[nans]["bin_num"].values,
                                                      self._kick_info[kick_info_nans]["bin_num"].values)))
             self._bpp[self._bpp["bin_num"].isin(nan_bin_nums)].to_hdf("nans.h5", key="bpp")
-            self._initC[self._initC["bin_num"].isin(nan_bin_nums)].to_hdf("nans.h5", key="initC")
+            self._initial_binaries[self._initial_binaries["bin_num"].isin(nan_bin_nums)].to_hdf("nans.h5", key="_initial_binaries")
             self._kick_info[self._kick_info["bin_num"].isin(nan_bin_nums)].to_hdf("nans.h5", key="kick_info")
 
             # update the population to delete any bad binaries
@@ -1173,27 +1117,18 @@ class Population():
             if self._bcm is not None:
                 self._bcm = self._bcm[~self._bcm["bin_num"].isin(nan_bin_nums)]
             self._kick_info = self._kick_info[~self._kick_info["bin_num"].isin(nan_bin_nums)]
-            self._initC = self._initC[~self._initC["bin_num"].isin(nan_bin_nums)]
+            self._initial_binaries = self._initial_binaries[~self._initial_binaries["bin_num"].isin(nan_bin_nums)]
 
             not_nan = ~self.final_bpp["bin_num"].isin(nan_bin_nums)
-            self._initial_galaxy._tau = self._initial_galaxy._tau[not_nan]
-            self._initial_galaxy._Z = self._initial_galaxy._Z[not_nan]
-            self._initial_galaxy._x = self._initial_galaxy._x[not_nan]
-            self._initial_galaxy._y = self._initial_galaxy._y[not_nan]
-            self._initial_galaxy._z = self._initial_galaxy._z[not_nan]
-
-            for attr in ["v_R", "v_T", "v_z", "_which_comp"]:
-                if hasattr(self._initial_galaxy, attr):
-                    setattr(self._initial_galaxy, attr, getattr(self._initial_galaxy, attr)[not_nan])
-            self._initial_galaxy._size -= n_nan
+            self._initial_galaxy = self._initial_galaxy[not_nan]
 
             # reset final bpp
             self._final_bpp = None
 
-            logging.getLogger("cogsworth").warning((f"{n_nan} bad binaries removed from tables - but "
-                                                    "normalisation may be off. I've added the offending "
-                                                    "binaries to a `nan.h5` file with their initC, bpp, "
-                                                    "and kick_info tables"))
+            self._warn(
+                (f"{n_nan} bad binaries removed from tables - but normalisation may be off. I've added the "
+                 "offending binaries to a `nan.h5` file with the initial_binaries, bpp, and kick_info tables")
+            )
 
     def _iter_orbit_args(self, w0s, primary_events, secondary_events):
         """A generator that yields the arguments to be passed to the orbit worker for each binary.
@@ -1251,7 +1186,7 @@ class Population():
             self._warn(("Initial galaxy not yet sampled, performing sampling now."))
             self.sample_initial_galaxy()
 
-        if self._initC is None and self._initial_binaries is None:          # pragma: no cover
+        if self._initial_binaries is None:          # pragma: no cover
             self._warn(("Initial binaries not yet sampled, performing sampling now."))
             self.sample_initial_binaries()
 
@@ -1269,11 +1204,11 @@ class Population():
 
         # randomly drawn phase and inclination angles as necessary
         for col in ["phase_sn_1", "phase_sn_2"]:
-            if col not in self.initC:
-                self.initC[col] = np.random.uniform(0, 2 * np.pi, len(self.initC))
+            if col not in self.initial_binaries:
+                self.initial_binaries[col] = np.random.uniform(0, 2 * np.pi, len(self.initial_binaries))
         for col in ["inc_sn_1", "inc_sn_2"]:
-            if col not in self.initC:
-                self.initC[col] = np.arccos(2 * np.random.rand(len(self.initC)) - 1.0)
+            if col not in self.initial_binaries:
+                self.initial_binaries[col] = np.arccos(2 * np.random.rand(len(self.initial_binaries)) - 1.0)
 
         # identify the pertinent events in the evolution
         primary_events, secondary_events = identify_events(p=self)
@@ -1331,13 +1266,14 @@ class Population():
                     file_num += 1
 
                 # save the failed integration population
-                self.initC.loc[bad_bin_nums].to_hdf(file_name, key="initC")
+                self.initial_binaries.loc[bad_bin_nums].to_hdf(file_name, key="initial_binaries")
                 self.bpp.loc[bad_bin_nums].to_hdf(file_name, key="bpp")
                 self.kick_info.loc[bad_bin_nums].to_hdf(file_name, key="kick_info")
                 self.initial_galaxy[np.isin(self.bin_nums, bad_bin_nums)].save(file_name, key="sfh")
         
                 warning_message += (f" Information for these systems was saved to `{file_name}`."
-                                    " This includes their initC, bpp, kick_info, and initial galaxy objects.")
+                                    " This includes their initial_binaries, bpp, kick_info, "
+                                    "and initial galaxy objects.")
             else:
                 warning_message += (" Not saving information for these systems because `error_file_path` "
                                     "is set to `None`.")
@@ -1844,12 +1780,10 @@ class Population():
                 raise FileExistsError((f"{file_name} already exists. Set `overwrite=True` to overwrite "
                                        "the file."))
 
-        # save initial binaries, preferably the initC table
-        if self._initC is not None:
-            save_initC(file_name, self._initC, key="initC", settings_key="initC_settings")
-        elif self._initial_binaries is not None:
-            self._initial_binaries.to_hdf(file_name, key="initial_binaries")
-
+        # save initial binaries
+        if self._initial_binaries is not None:
+            save_initC(file_name, self._initial_binaries, key="initial_binaries",
+                       settings_key="initial_binaries_settings")
         if self._bpp is not None:
             self._bpp.to_hdf(file_name, key="bpp")
         if self._bcm is not None:
@@ -2055,10 +1989,7 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
 
     # load parts as necessary
     if "initial_binaries" in parts:
-        try:
-            p.initC
-        except KeyError:
-            p.initial_binaries
+        p.initial_binaries
 
     if "initial_galaxy" in parts:
         p.initial_galaxy
@@ -2147,7 +2078,7 @@ def concat(*pops):
             final_pop._initial_galaxy += pop._initial_galaxy
 
         # loop through pandas tables that may need to be copied
-        for table in ["_initial_binaries", "_initC", "_bpp", "_bcm", "_kick_info"]:
+        for table in ["_initial_binaries", "_initial_binaries", "_bpp", "_bcm", "_kick_info"]:
             # only copy if the table exists in the main population
             if getattr(final_pop, table) is not None:
                 # if the table doesn't exist in the new population then raise an error
@@ -2219,7 +2150,7 @@ def _orbit_worker(w0, t1, dt, events):
 
 class EvolvedPopulation(Population):
     def __init__(self, n_binaries, mass_singles=None, mass_binaries=None, n_singles_req=None, n_bin_req=None,
-                 bpp=None, bcm=None, initC=None, kick_info=None, **pop_kwargs):
+                 bpp=None, bcm=None, initial_binaries=None, kick_info=None, **pop_kwargs):
         super().__init__(n_binaries=n_binaries, **pop_kwargs)
 
         self._mass_singles = mass_singles
@@ -2228,7 +2159,7 @@ class EvolvedPopulation(Population):
         self._n_bin_req = n_bin_req
         self._bpp = bpp
         self._bcm = bcm
-        self._initC = initC
+        self._initial_binaries = initial_binaries
         self._kick_info = kick_info
 
     def sample_initial_binaries(self):

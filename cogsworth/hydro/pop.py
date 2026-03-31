@@ -164,8 +164,8 @@ class HydroPopulation(Population):
             new_pop._bpp = self._bpp.loc[bin_nums]
             if self._bcm is not None:                   # pragma: no cover
                 new_pop._bcm = self._bcm.loc[bin_nums]
-            if self._initC is not None:
-                new_pop._initC = self._initC.loc[bin_nums]
+            if self._initial_binaries is not None:
+                new_pop._initial_binaries = self._initial_binaries.loc[bin_nums]
             if self._kick_info is not None:
                 new_pop._kick_info = self._kick_info.loc[bin_nums]
             if self._final_bpp is not None:
@@ -269,4 +269,4 @@ class HydroPopulation(Population):
         """Perform stellar evolution on systems sampled from the star particles
         and track their parent particles"""
         super().perform_stellar_evolution(**kwargs)
-        self._initC["particle_id"] = self._initial_binaries["particle_id"]
+

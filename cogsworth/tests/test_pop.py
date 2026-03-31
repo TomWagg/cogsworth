@@ -140,11 +140,11 @@ class Test(unittest.TestCase):
             p.save(os.path.join(tmpdir, "testing-pop-io-sampling"), overwrite=True)
             p_loaded = pop.load(os.path.join(tmpdir, "testing-pop-io-sampling"), parts=["initial_binaries"])
 
-        # sort columns in both initC to ensure they match
-        p._initC = p.initC.reindex(sorted(p.initC.columns), axis=1)
-        p_loaded._initC = p_loaded.initC.reindex(sorted(p_loaded.initC.columns), axis=1)
+        # sort columns in both initial_binaries to ensure they match
+        p._initial_binaries = p.initial_binaries.reindex(sorted(p.initial_binaries.columns), axis=1)
+        p_loaded._initial_binaries = p_loaded.initial_binaries.reindex(sorted(p_loaded.initial_binaries.columns), axis=1)
 
-        self.assertTrue(np.all(p.initC == p_loaded.initC))
+        self.assertTrue(np.all(p.initial_binaries == p_loaded.initial_binaries))
 
     def test_lazy_io(self):
         """Check that a population can be saved and re-loaded lazily"""
@@ -156,11 +156,11 @@ class Test(unittest.TestCase):
             p.save(os.path.join(tmpdir, "testing-lazy-io"), overwrite=True)
             p_loaded = pop.load(os.path.join(tmpdir, "testing-lazy-io"), parts=[])
 
-            # sort columns in both initC to ensure they match
-            p._initC = p.initC.reindex(sorted(p.initC.columns), axis=1)
-            p_loaded._initC = p_loaded.initC.reindex(sorted(p_loaded.initC.columns), axis=1)
+            # sort columns in both initial_binaries to ensure they match
+            p._initial_binaries = p.initial_binaries.reindex(sorted(p.initial_binaries.columns), axis=1)
+            p_loaded._initial_binaries = p_loaded.initial_binaries.reindex(sorted(p_loaded.initial_binaries.columns), axis=1)
 
-            self.assertTrue(np.all(p.initC == p_loaded.initC))
+            self.assertTrue(np.all(p.initial_binaries == p_loaded.initial_binaries))
             self.assertTrue(np.all(p.bpp == p_loaded.bpp))
             self.assertTrue(np.all(p.final_pos == p_loaded.final_pos))
             self.assertTrue(np.all(p.orbits[0].pos == p_loaded.orbits[0].pos))
@@ -281,17 +281,6 @@ class Test(unittest.TestCase):
         p.plot_orbit(bn, t_max=0.1 * u.Myr, show=False)
         plt.close("all")
 
-    def test_initial_binaries_replace_initC(self):
-        """Test that initial binaries returns initC if present and initial_binaries is not"""
-
-        p = pop.Population(2, processes=1, use_default_BSE_settings=True)
-        p.sample_initial_binaries()
-        p.sample_initial_galaxy()
-        p.perform_stellar_evolution()
-
-        p._initial_binaries = None
-        self.assertTrue(p.initial_binaries is p.initC)
-
     def test_getters(self):
         """Test the property getters"""
         p = pop.Population(2, processes=1, store_entire_orbits=False,
@@ -349,10 +338,10 @@ class Test(unittest.TestCase):
         except ValueError:
             pass
 
-        p.initC
-        p._initC = None
+        p.initial_binaries
+        p._initial_binaries = None
         try:
-            p.initC
+            p.initial_binaries
         except ValueError:
             pass
 
@@ -406,14 +395,6 @@ class Test(unittest.TestCase):
         except ValueError:
             it_failed = True
         self.assertTrue(it_failed)
-
-    def test_from_initC(self):
-        """Check it can handle only having an initC rather than initial_binaries"""
-        p = pop.Population(2, use_default_BSE_settings=True)
-        p.sample_initial_binaries()
-        p.perform_stellar_evolution()
-        p._initial_binaries = None
-        p.perform_stellar_evolution()
 
     def test_none_orbits(self):
         """Ensure final_pos/vel still works when there is an Orbit with None"""
@@ -534,7 +515,8 @@ class Test(unittest.TestCase):
 
         ep = pop.EvolvedPopulation(n_binaries=p.n_binaries_match, mass_singles=p.mass_singles,
                                    mass_binaries=p.mass_binaries, n_singles_req=p.n_singles_req,
-                                   n_bin_req=p.n_bin_req, bpp=p.bpp, bcm=p.bcm, initC=p.initC,
+                                   n_bin_req=p.n_bin_req, bpp=p.bpp, bcm=p.bcm,
+                                   initial_binaries=p.initial_binaries,
                                    kick_info=p.kick_info)
 
         cant_do_that = False
@@ -578,10 +560,10 @@ class Test(unittest.TestCase):
         p.bin_nums
         p._bin_nums = None
 
-        initC_bin_nums = p.initC["bin_num"].unique()
+        initial_binaries_bin_nums = p.initial_binaries["bin_num"].unique()
         bpp_bin_nums = p.bpp["bin_num"].unique()
 
-        self.assertTrue(np.all(p.bin_nums == initC_bin_nums))
+        self.assertTrue(np.all(p.bin_nums == initial_binaries_bin_nums))
         self.assertTrue(np.all(p.bin_nums == bpp_bin_nums))
 
         self.assertTrue(len(p) == len(p.bin_nums))
@@ -616,15 +598,6 @@ class Test(unittest.TestCase):
             p.plot_cartoon_binary(bin_num, show=False)
         plt.close("all")
 
-    def test_sampling_with_initC(self):
-        """Check we can sample from an initC table"""
-        p = pop.Population(10, use_default_BSE_settings=True)
-        p.perform_stellar_evolution()
-
-        p.sample_initial_binaries(initC=p.initC,
-                                  overwrite_initC_settings=True,
-                                  reset_sampled_kicks=True)
-
     def test_legwork_conversion(self):
         """Check construction of LEGWORK sources"""
         p = pop.Population(100, processes=1, use_default_BSE_settings=True)
@@ -658,7 +631,7 @@ class Test(unittest.TestCase):
 
         r = p + q
         self.assertTrue(len(r) == len(p) + len(q))
-        self.assertTrue(len(r.initC["bin_num"].unique()) == len(r))
+        self.assertTrue(len(r.initial_binaries["bin_num"].unique()) == len(r))
         self.assertTrue(len(r.initial_galaxy) == len(r))
 
         self.assertTrue(len(pop.concat(p)) == len(p))
@@ -770,8 +743,8 @@ class Test(unittest.TestCase):
         total = pop.concat(*pops)
         
         # there should be the same number of unique bin_nums in total as the sum of the individuals
-        total_unique_bin_nums = total.initC["bin_num"].nunique()
-        sum_individual_unique_bin_nums = sum(p.initC["bin_num"].nunique() for p in pops)
+        total_unique_bin_nums = total.initial_binaries["bin_num"].nunique()
+        sum_individual_unique_bin_nums = sum(p.initial_binaries["bin_num"].nunique() for p in pops)
         self.assertEqual(total_unique_bin_nums, sum_individual_unique_bin_nums)
 
     def test_concat_final_pos(self):
