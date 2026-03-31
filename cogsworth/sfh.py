@@ -575,46 +575,42 @@ class ConstantPlummerSphere(StarFormationHistory):
         Plummer scale radius. So setting r_trunc = 5 a will lose ~6% of the mass, r_trunc = 10 a will
         lose ~0.5% of the mass.
     """
-    def __init__(self, size, tau_min, tau_max, Z_all, M, a, r_trunc=None, **kwargs):
+    def __init__(self, tau_min, tau_max, Z_all, M, a, r_trunc=None, **kwargs):
         self.tau_min = tau_min
         self.tau_max = tau_max
         self.Z_all = Z_all
         self.a = a
         self.M = M
         self.r_trunc = r_trunc
-        super().__init__(size=size, components=kwargs.pop('components', ["sphere"]),
-                         component_masses=kwargs.pop('component_masses', [1]),
-                         **kwargs)
+        super().__init__(**kwargs)
 
-    def draw_lookback_times(self):
+    def draw_lookback_times(self, size):
         """Draw lookback times uniformly between tau_min and tau_max"""
-        return np.random.uniform(self.tau_min.to(u.Gyr).value,
-                                 self.tau_max.to(u.Gyr).value, self.size) * u.Gyr
+        return np.random.uniform(self.tau_min.to(u.Gyr).value, self.tau_max.to(u.Gyr).value, size) * u.Gyr
 
-    def get_metallicity(self):
+    def get_metallicity(self, size):
         """Fix all metallicities to Z_all"""
-        return np.repeat(self.Z_all, self.size) * u.dimensionless_unscaled
+        return np.repeat(self.Z_all, size) * u.dimensionless_unscaled
 
-    def sample(self):
+    def sample(self, size):
         # sample times
-        self._tau = self.draw_lookback_times()
+        self._tau = self.draw_lookback_times(size)
 
         # sample positions in a Plummer sphere
         u_max = 1.0 if self.r_trunc is None else self.r_trunc**3 / (self.r_trunc**2 + self.a**2)**1.5
-        u_rand = np.random.uniform(0, u_max, self.size)
+        u_rand = np.random.uniform(0, u_max, size)
         r = self.a * (u_rand**(-2/3) - 1.0)**(-0.5)
 
         # uniformly sample isotropic directions
-        cos_theta = np.random.uniform(-1, 1, self.size)
+        cos_theta = np.random.uniform(-1, 1, size)
         sin_theta = np.sqrt(1 - cos_theta**2)
-        phi = np.random.uniform(0, 2 * np.pi, self.size)
+        phi = np.random.uniform(0, 2 * np.pi, size)
 
         # set positions, components and metallicities
         self._x = r * sin_theta * np.cos(phi)
         self._y = r * sin_theta * np.sin(phi)
         self._z = r * cos_theta
-        self._which_comp = np.repeat("sphere", self.size)
-        self._Z = self.get_metallicity()
+        self._Z = self.get_metallicity(size)
 
         # radii in Plummer units: r' = r / a
         r_dimless = (r / self.a).decompose().value
@@ -629,8 +625,8 @@ class ConstantPlummerSphere(StarFormationHistory):
         g_max = g(np.sqrt(2.0 / 9.0))
 
         # perform vectorised rejection sampling
-        q = np.empty(self.size)
-        remaining = np.ones(self.size, dtype=bool)
+        q = np.empty(size)
+        remaining = np.ones(size, dtype=bool)
 
         # keep sampling until we have all values
         while np.any(remaining):
@@ -658,9 +654,9 @@ class ConstantPlummerSphere(StarFormationHistory):
         v_phys = v_dimless * np.sqrt(const.G * self.M / self.a).to(u.km / u.s)
 
         # random isotropic velocity directions
-        cos_theta_v = np.random.uniform(-1.0, 1.0, self.size)
+        cos_theta_v = np.random.uniform(-1.0, 1.0, size)
         sin_theta_v = np.sqrt(1.0 - cos_theta_v**2)
-        phi_v = np.random.uniform(0.0, 2.0 * np.pi, self.size)
+        phi_v = np.random.uniform(0.0, 2.0 * np.pi, size)
 
         # save and convert velocities
         self._v_x = v_phys * sin_theta_v * np.cos(phi_v)
