@@ -8,8 +8,6 @@ from scipy.interpolate import interp1d
 from scipy.integrate import quad, cumulative_trapezoid
 from scipy.special import lambertw
 from scipy.stats import beta
-import matplotlib.pyplot as plt
-from matplotlib.colors import LogNorm
 import pandas as pd
 from astropy.coordinates import SkyCoord
 import logging
@@ -22,7 +20,7 @@ from gala.units import galactic
 from gala.potential.potential.io import to_dict as potential_to_dict, from_dict as potential_from_dict
 
 from cogsworth.tests.optional_deps import check_dependencies
-
+from cogsworth.plot import plot_sfh
 from cogsworth.citations import CITATIONS
 
 
@@ -134,7 +132,7 @@ class StarFormationHistory():
             The lookback times of the sampled points
         """
         if self._tau is None:
-            self.sample()
+            raise ValueError("Star formation history has not yet been sampled")
         return self._tau
 
     @property
@@ -147,7 +145,7 @@ class StarFormationHistory():
             The metallicities of the sampled points (absolute metallicity **not** solar metallicity)
         """
         if self._Z is None:
-            self.sample()
+            raise ValueError("Star formation history has not yet been sampled")
         return self._Z
 
     @property
@@ -160,7 +158,7 @@ class StarFormationHistory():
             The galactocentric x positions of the sampled points
         """
         if self._x is None:
-            self.sample()
+            raise ValueError("Star formation history has not yet been sampled")
         return self._x
 
     @property
@@ -173,7 +171,7 @@ class StarFormationHistory():
             The galactocentric y positions of the sampled points
         """
         if self._y is None:
-            self.sample()
+            raise ValueError("Star formation history has not yet been sampled")
         return self._y
 
     @property
@@ -186,7 +184,7 @@ class StarFormationHistory():
             The galactocentric z positions of the sampled points
         """
         if self._z is None:
-            self.sample()
+            raise ValueError("Star formation history has not yet been sampled")
         return self._z
 
     @property
@@ -229,14 +227,14 @@ class StarFormationHistory():
     @property
     def v_R(self):
         r"""The galactocentric radial velocity of the sampled points"""
-        if self.v_R is None:
+        if self._v_R is None:
             raise ValueError("This star formation history model does not have radial velocities sampled.")
         return self.v_R
     
     @property
     def v_T(self):
         r"""The galactocentric tangential velocity of the sampled points"""
-        if self.v_T is None:
+        if self._v_T is None:
             raise ValueError("This star formation history model does not have tangential velocities sampled.")
         return self.v_T
     
@@ -329,7 +327,7 @@ class StarFormationHistory():
         z = self.draw_heights(size)
 
         # draw a random azimuthal angle
-        phi = self.draw_phi()
+        phi = self.draw_phi(size)
 
         # set cartesian values
         self._x = rho * np.sin(phi)
@@ -339,82 +337,27 @@ class StarFormationHistory():
         # compute the metallicity given the other values
         self._Z = self.get_metallicity()
 
-    def draw_lookback_times(self, size=None):
+    def draw_lookback_times(self, size):
         raise NotImplementedError("This StarFormationHistory model has not implemented this method")
 
-    def draw_radii(self, size=None):
+    def draw_radii(self, size):
         raise NotImplementedError("This StarFormationHistory model has not implemented this method")
 
-    def draw_heights(self, size=None):
+    def draw_heights(self, size):
         raise NotImplementedError("This StarFormationHistory model has not implemented this method")
 
-    def draw_phi(self, size=None):
+    def draw_phi(self, size):
         raise NotImplementedError("This StarFormationHistory model has not implemented this method")
 
     def get_metallicity(self):
         raise NotImplementedError("This StarFormationHistory model has not implemented this method")
 
-    def plot(self, coordinates="cartesian", component=None, colour_by=None, show=True, cbar_norm=LogNorm(),
-             cbar_label=r"Metallicity, $Z$", cmap="plasma", xlim=None, ylim=None, zlim=None,
-             fig=None, axes=None, **kwargs):
-        # TODO:
-        if fig is None or axes is None:
-            fig, axes = plt.subplots(2, 1, figsize=(10 * 1.2475, 14),
-                                     gridspec_kw={'height_ratios': [4, 14]},
-                                     sharex=True)
-        if colour_by is None:
-            colour_by = self.Z.value
+    def plot(self, **kwargs):
+        """Plot the star formation history using the default plotting function
 
-        if coordinates == "cylindrical":
-            x = self.rho
-            y1 = self.z
-            y2 = self.phi
-        elif coordinates == "cartesian":
-            x = self.x
-            y1 = self.z
-            y2 = self.y
-            axes[1].set_aspect("equal")
-        else:
-            raise ValueError("Invalid coordinates specified")
-
-        if component is not None:
-            mask = self._which_comp == component
-            x = x[mask]
-            y1 = y1[mask]
-            y2 = y2[mask]
-            colour_by = colour_by[mask]
-
-        fig.subplots_adjust(hspace=0)
-
-        s = kwargs.pop("s", 0.1)
-
-        axes[0].scatter(x, y1, c=colour_by, s=s, cmap=cmap, norm=cbar_norm, **kwargs)
-
-        axes[0].set_xlabel(r"$x$ [kpc]", labelpad=15)
-        axes[0].xaxis.tick_top()
-        axes[0].xaxis.set_label_position("top")
-
-        axes[0].set_ylabel(r"$z$ [kpc]")
-
-        scatt = axes[1].scatter(x.value, y2.value, c=colour_by, s=s, cmap=cmap, norm=cbar_norm, **kwargs)
-        cbar = fig.colorbar(scatt, ax=axes, pad=0.0)
-        cbar.set_label(cbar_label)
-
-        axes[1].set_xlabel(r"$x$ [kpc]")
-        axes[1].set_ylabel(r"$y$ [kpc]")
-
-        if xlim is not None:
-            axes[0].set_xlim(xlim)
-            axes[1].set_xlim(xlim)
-        if ylim is not None:
-            axes[1].set_ylim(ylim)
-        if zlim is not None:
-            axes[0].set_ylim(zlim)
-
-        if show:
-            plt.show()
-
-        return fig, axes
+        See :func:`~cogsworth.plotting.plot_sfh` for more details and options.
+        """
+        plot_sfh(self, **kwargs)
 
     def save(self, file_name, key="sfh"):
         """Save the entire class to storage.
@@ -443,7 +386,7 @@ class StarFormationHistory():
         }
 
         # additionally store velocity components if they exist
-        for attr in ["v_R", "v_T", "v_z"]:
+        for attr in ["_v_R", "_v_T", "_v_z", "_v_x", "_v_y"]:
             if hasattr(self, attr) and getattr(self, attr) is not None:
                 data[attr] = getattr(self, attr).to(u.km / u.s)
 
@@ -506,15 +449,30 @@ class CompositeStarFormationHistory():
 
     def __getattr__(self, name):
         """When we try to access an attribute, if it's one that needs combining from the components"""
-        COMBINE_ATTRS = ["tau", "Z", "x", "y", "z", "v_x", "v_y", "v_z", "v_R", "v_T"]
+        COMBINE_ATTRS = ["tau", "Z", "x", "y", "z", "positions", "phi", "rho",
+                         "v_x", "v_y", "v_z", "v_R", "v_T", "v_phi"]
         if name in COMBINE_ATTRS:
             return np.concatenate([getattr(component, name) for component in self.components])
         else:
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
         
     def __len__(self):
-        return len(self.x)
+        # check if the first component has any ._tau samples yet
+        if self.components[0]._tau is None:
+            return 0
         
+        # otherwise should be safe to count total length of tau
+        return len(self.tau)
+    
+    def __repr__(self):
+        component_string = ', '.join([f"{component.__class__.__name__} ({ratio:.0%})"
+                                      for component, ratio in zip(self.components, self.component_ratios)])
+        length_str = f"size={len(self)}" if len(self) > 0 else "[not yet sampled]"
+        return (
+            f"<{self.__class__.__name__}, {length_str}, {len(self.components)} "
+            f"components | {component_string}>"
+        )
+
     def sample(self, size):
         """Sample from the distributions for each component, combine and save in class attributes"""
 
@@ -526,6 +484,13 @@ class CompositeStarFormationHistory():
 
         for i, component in enumerate(self.components):
             component.sample(sizes[i])
+
+    def plot(self, **kwargs):
+        """Plot the star formation history using the default plotting function
+
+        See :func:`~cogsworth.plotting.plot_sfh` for more details and options.
+        """
+        plot_sfh(self, **kwargs)
 
 class BurstUniformDisc(StarFormationHistory):
     """An extremely simple star formation history, with all stars formed at ``t_burst`` in a uniform disc with
@@ -545,30 +510,29 @@ class BurstUniformDisc(StarFormationHistory):
     Z : `float`, optional
         Metallicity of the disc, by default 0.02
     """
-    def __init__(self, size, t_burst=12 * u.Gyr, z_max=2 * u.kpc, R_max=15 * u.kpc, Z_all=0.02, **kwargs):
+    def __init__(self, t_burst=12 * u.Gyr, z_max=2 * u.kpc, R_max=15 * u.kpc, Z_all=0.02, **kwargs):
         self.t_burst = t_burst
         self.z_max = z_max
         self.R_max = R_max
         self.Z_all = Z_all
-        super().__init__(size=size, components=kwargs.pop("components", ["disc"]),
-                         component_masses=kwargs.pop("component_masses", [1]), **kwargs)
+        super().__init__(**kwargs)
 
-    def draw_lookback_times(self, size=None, component=None):
+    def draw_lookback_times(self, size):
         return np.repeat(self.t_burst.value, size) * self.t_burst.unit
 
-    def draw_radii(self, size=None, component=None):
+    def draw_radii(self, size):
         return np.random.uniform(0, self.R_max.value**2, size)**(0.5) * self.R_max.unit
 
-    def draw_heights(self, size=None, component=None):
+    def draw_heights(self, size):
         return np.random.uniform(-self.z_max.value, self.z_max.value, size) * self.z_max.unit
 
-    def draw_phi(self, size=None):
+    def draw_phi(self, size):
         # if no size is given then use the class value
         size = self._size if size is None else size
         return np.random.uniform(0, 2 * np.pi, size) * u.rad
 
     def get_metallicity(self):
-        return np.repeat(self.Z_all, self.size) * u.dimensionless_unscaled
+        return np.repeat(self.Z_all, len(self)) * u.dimensionless_unscaled
 
 
 class ConstantUniformDisc(BurstUniformDisc):
@@ -578,7 +542,7 @@ class ConstantUniformDisc(BurstUniformDisc):
 
     Based on :class:`BurstUniformDisc`.
     """
-    def draw_lookback_times(self, size=None, component=None):
+    def draw_lookback_times(self, size):
         return np.random.uniform(0, self.t_burst.value, size) * self.t_burst.unit
 
 
