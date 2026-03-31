@@ -24,7 +24,8 @@ from cogsworth.plot import plot_sfh
 from cogsworth.citations import CITATIONS
 
 
-__all__ = ["StarFormationHistory", "DistributionFunctionBasedSFH", "Wagg2022",
+__all__ = ["StarFormationHistory", "CompositeStarFormationHistory",
+           "DistributionFunctionBasedSFH", "Wagg2022",
            "BurstUniformDisc", "ConstantUniformDisc", "ConstantPlummerSphere",
            "SandersBinney2015", "SpheroidalDwarf", "CarinaDwarf", "load", "concat"]
 

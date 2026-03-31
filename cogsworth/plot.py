@@ -730,10 +730,12 @@ def plot_sfh(
     if isinstance(colour_by, str):
         colour_by = getattr(sfh, colour_by)
 
+    random_order = np.random.permutation(len(sfh))
+
     # choose cbar norm if necessary
     if cbar_norm is None and colour_by is not None:
         # use a log norm if the colour_by values span more than 2 orders of magnitude, otherwise linear norm
-        if np.ptp(np.log10(colour_by.value)) > 2:
+        if np.log10(np.ptp(colour_by.value)) > 2:
             cbar_norm = mpl.colors.LogNorm(vmin=colour_by.value.min(), vmax=colour_by.value.max())
         else:
             cbar_norm = mpl.colors.Normalize(vmin=colour_by.value.min(), vmax=colour_by.value.max())
@@ -742,7 +744,8 @@ def plot_sfh(
 
     s = kwargs.pop("s", 0.1)
 
-    axes[0].scatter(sfh.x, sfh.z, c=colour_by, s=s, cmap=cmap, norm=cbar_norm, **kwargs)
+    axes[0].scatter(sfh.x[random_order], sfh.z[random_order], c=colour_by[random_order], 
+                    s=s, cmap=cmap, norm=cbar_norm, **kwargs)
 
     axes[0].set_xlabel(r"$x$ [kpc]", labelpad=15)
     axes[0].xaxis.tick_top()
@@ -750,7 +753,8 @@ def plot_sfh(
 
     axes[0].set_ylabel(r"$z$ [kpc]")
 
-    scatt = axes[1].scatter(sfh.x, sfh.y, c=colour_by, s=s, cmap=cmap, norm=cbar_norm, **kwargs)
+    scatt = axes[1].scatter(sfh.x[random_order], sfh.y[random_order], c=colour_by[random_order],
+                            s=s, cmap=cmap, norm=cbar_norm, **kwargs)
     cbar = fig.colorbar(scatt, ax=axes, pad=0.0)
     cbar.set_label(cbar_label)
 
