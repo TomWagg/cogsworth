@@ -1090,7 +1090,7 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
             if var in kwargs:
                 kwargs.pop(var)
 
-        super().__init__(**kwargs)
+        super().__init__(df=None, components=["thin_disc", "thick_disc"], **kwargs)
         self.__citations__.append("Sanders&Binney2015")
 
     def _precompute_interpolations(self):
