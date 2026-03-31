@@ -11,7 +11,6 @@ from scipy.stats import beta
 import pandas as pd
 from astropy.coordinates import SkyCoord
 import logging
-import copy
 
 from types import FunctionType
 
@@ -136,7 +135,7 @@ class StarFormationHistory():
     def __mul__(self, other):
         if not isinstance(other, (int, float)):
             return NotImplemented
-        new_sfh = copy.deepcopy(self)
+        new_sfh = self.copy()
         new_sfh._composite_weight *= other
         return new_sfh
     
@@ -148,6 +147,10 @@ class StarFormationHistory():
         if not isinstance(ind, (int, slice, list, np.ndarray, tuple)):
             raise ValueError(("Can only index using an `int`, `list`, `ndarray` or `slice`, you supplied a "
                               f"`{type(ind).__name__}`"))
+        
+        # if no sampling has occurred, then indexing is trivial and we just return a copy of the class
+        if self._tau is None:
+            return self.__class__(**self.__dict__)
 
         # work out any extra kwargs we might need to set
         kwargs = self.__dict__
@@ -186,6 +189,10 @@ class StarFormationHistory():
             setattr(new_sfh, attr, saved_attributes[attr])
 
         return new_sfh
+    
+    def copy(self):
+        """Return a copy of this star formation history"""
+        return self[:]
 
     @property
     def tau(self):
@@ -1563,6 +1570,11 @@ def load(file_name, key="sfh"):
     # append file extension if necessary
     if file_name[-3:] != ".h5":
         file_name += ".h5"
+
+    # check whether this might actually be a composite star formation history
+    with h5.File(file_name, "r") as file:
+        if f"{key}_0" in file.keys():
+            return CompositeStarFormationHistory.from_file(file_name, key=key)
 
     # assume no potential unless we find one
     pot = None
