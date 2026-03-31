@@ -976,7 +976,7 @@ class DistributionFunctionBasedSFH(StarFormationHistory):
         distribution function will be used for all components. If a ``list`` of `dict` is
         given then each component will use the corresponding distribution function.
     """
-    def __init__(self, size, potential, df, **kwargs):
+    def __init__(self, potential, df, **kwargs):
         assert check_dependencies("agama")
         import agama
         agama.setUnits(**{k: galactic[k] for k in ['length', 'mass', 'time']})
@@ -992,7 +992,7 @@ class DistributionFunctionBasedSFH(StarFormationHistory):
             self._df = [agama.DistributionFunction(potential=self.agama_pot, **df_kw)
                         if isinstance(df_kw, dict) else df_kw for df_kw in df]
 
-        super().__init__(size=size, **kwargs)
+        super().__init__(**kwargs)
 
     @property
     def agama_pot(self):
@@ -1002,7 +1002,7 @@ class DistributionFunctionBasedSFH(StarFormationHistory):
     def df(self):
         return self._df
     
-    def sample(self):
+    def sample(self, size):
         """Sample from the distributions for each component, combine and save in class attributes"""
         assert check_dependencies("agama")
         import agama
@@ -1010,36 +1010,29 @@ class DistributionFunctionBasedSFH(StarFormationHistory):
 
         self.draw_lookback_times()
 
-        self._x = np.zeros(self._size) * u.kpc
-        self._y = np.zeros(self._size) * u.kpc
-        self._z = np.zeros(self._size) * u.kpc
+        self._x = np.zeros(size) * u.kpc
+        self._y = np.zeros(size) * u.kpc
+        self._z = np.zeros(size) * u.kpc
 
-        self._v_x = np.zeros(self._size) * u.km / u.s
-        self._v_y = np.zeros(self._size) * u.km / u.s
-        self._v_z = np.zeros(self._size) * u.km / u.s
+        self._v_x = np.zeros(size) * u.km / u.s
+        self._v_y = np.zeros(size) * u.km / u.s
+        self._v_z = np.zeros(size) * u.km / u.s
 
-        self._v_R = np.zeros(self._size) * u.km / u.s
-        self._v_T = np.zeros(self._size) * u.km / u.s
+        self._v_R = np.zeros(size) * u.km / u.s
+        self._v_T = np.zeros(size) * u.km / u.s
 
-        if self._which_comp is None and self.components is None:
-            self._which_comp = np.array(["main"] * self._size)
+        xv, _ = agama.GalaxyModel(self.agama_pot, self.df).sample(size)
 
-        for i, com in enumerate(self.components if self.components is not None else ["main"]):
-            com_mask = self._which_comp == com
+        # convert units for velocity
+        xv[:, 3:] *= (u.kpc / u.Myr).to(u.km / u.s)
 
-            df = self.df[i] if isinstance(self.df, list) else self.df
-            xv, _ = agama.GalaxyModel(self.agama_pot, df).sample(com_mask.sum())
-
-            # convert units for velocity
-            xv[:, 3:] *= (u.kpc / u.Myr).to(u.km / u.s)
-
-            # save the positions/velocities
-            self._x[com_mask] = xv[:, 0] * u.kpc
-            self._y[com_mask] = xv[:, 1] * u.kpc
-            self._z[com_mask] = xv[:, 2] * u.kpc
-            self._v_x[com_mask] = xv[:, 3] * u.km / u.s
-            self._v_y[com_mask] = xv[:, 4] * u.km / u.s
-            self._v_z[com_mask] = xv[:, 5] * u.km / u.s
+        # save the positions/velocities
+        self._x = xv[:, 0] * u.kpc
+        self._y = xv[:, 1] * u.kpc
+        self._z = xv[:, 2] * u.kpc
+        self._v_x = xv[:, 3] * u.km / u.s
+        self._v_y = xv[:, 4] * u.km / u.s
+        self._v_z = xv[:, 5] * u.km / u.s
 
         # work out the velocities by rotating using SkyCoord
         full_coord = SkyCoord(x=self._x, y=self._y, z=self._z, v_x=self._v_x, v_y=self._v_y, v_z=self._v_z,
@@ -1075,11 +1068,10 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
     verbose : `bool`, optional
         Whether to print out information about the setup and sampling of the model, by default False
     """
-    def __init__(self, size, time_bins=5, verbose=False,
+    def __init__(self, time_bins=5, verbose=False,
                  tau_m=12 * u.Gyr, tau_S=0.43 * u.Gyr, tau_T=10 * u.Gyr,
                  tau_F=8 * u.Gyr, tau_1=0.11 * u.Gyr,
                  **kwargs):
-        self._size = size
         self.time_bins = time_bins
         self.tau_m = tau_m
         self.tau_S = tau_S
@@ -1098,15 +1090,8 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
             if var in kwargs:
                 kwargs.pop(var)
 
-        # save whether the user wants to immediately sample (we're going to tell super not to either way)
-        immediately_sample = kwargs.pop("immediately_sample", True)
-
-        super().__init__(size=size, components=["thin_disc", "thick_disc"],
-                         df=None, immediately_sample=False, **kwargs)
+        super().__init__(**kwargs)
         self.__citations__.append("Sanders&Binney2015")
-
-        if immediately_sample:
-            self.sample()
 
     def _precompute_interpolations(self):
         interp_needed = (self._inv_cdf is None or self._guiding_radius_interp is None
@@ -1272,7 +1257,7 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
         df_val[valid] = prefactor * np.prod(exp_terms, axis=0)                      # units of Myr^3/kpc^6
         return df_val
 
-    def draw_lookback_times(self):
+    def draw_lookback_times(self, size):
         """Draw lookback times for all stars using inverse CDF sampling
 
         Returns
@@ -1280,7 +1265,7 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
         tau : :class:`~astropy.units.Quantity` [time]
             Random lookback times
         """
-        U = np.random.rand(self._size)
+        U = np.random.rand(size)
         self._tau = self._inv_cdf(U) * u.Gyr
         return self._tau
 
@@ -1293,7 +1278,7 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
         self._Z = np.power(10, FeH + np.log10(0.0142))
         return self._Z
 
-    def sample(self):
+    def sample(self, size):
         """Sample from the distributions for each component, combine and save in class attributes"""
         assert check_dependencies("agama")
         import agama
@@ -1304,26 +1289,26 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
         if self.verbose:
             print("Initiating sampling procedure")
 
-        self.draw_lookback_times()
+        self.draw_lookback_times(size)
 
         is_thin_disc = self.tau < self.tau_T
         sizes = [np.sum(is_thin_disc), np.sum(~is_thin_disc)]
 
         self._which_comp = np.where(self.tau < self.tau_T, "thin_disc", "thick_disc")
 
-        self._x = np.zeros(self._size) * u.kpc
-        self._y = np.zeros(self._size) * u.kpc
-        self._z = np.zeros(self._size) * u.kpc
+        self._x = np.zeros(size) * u.kpc
+        self._y = np.zeros(size) * u.kpc
+        self._z = np.zeros(size) * u.kpc
 
-        self._v_x = np.zeros(self._size) * u.km / u.s
-        self._v_y = np.zeros(self._size) * u.km / u.s
-        self._v_z = np.zeros(self._size) * u.km / u.s
+        self._v_x = np.zeros(size) * u.km / u.s
+        self._v_y = np.zeros(size) * u.km / u.s
+        self._v_z = np.zeros(size) * u.km / u.s
 
-        self._v_R = np.zeros(self._size) * u.km / u.s
-        self._v_T = np.zeros(self._size) * u.km / u.s
+        self._v_R = np.zeros(size) * u.km / u.s
+        self._v_T = np.zeros(size) * u.km / u.s
 
-        for size, com in zip(sizes, self.components):
-            if size == 0:          # pragma: no cover
+        for com_size, com in zip(sizes, self.components):
+            if com_size == 0:          # pragma: no cover
                 continue
             com_mask = self._which_comp == com
 
@@ -1333,7 +1318,7 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
                 time_bin_edges = np.array([self.tau_T.to(u.Gyr).value, self.tau_m.to(u.Gyr).value]) * u.Gyr
 
             if self.verbose:
-                print(f"  Sampling {size} stars from the {com}")
+                print(f"  Sampling {com_size} stars from the {com}")
 
             # loop over each bin of time and sample from the corresponding DF
             for t0, t1 in zip(time_bin_edges[:-1], time_bin_edges[1:]):
@@ -1399,7 +1384,7 @@ class SpheroidalDwarf(DistributionFunctionBasedSFH):
         Total mass of the galactic potential. If not given, a potential must be provided. If given, this will
         be used to create a NFW potential with scale radius 1 kpc and concentration 1. By default None.
     """
-    def __init__(self, size, J_0_star, alpha, eta, fixed_Z, tau_min, galaxy_age, mass=None, **kwargs):
+    def __init__(self, J_0_star, alpha, eta, fixed_Z, tau_min, galaxy_age, mass=None, **kwargs):
         # set mass and, potentially (...hehe), the potential
         self.mass = mass
         if "potential" not in kwargs and self.mass is None:
@@ -1418,15 +1403,10 @@ class SpheroidalDwarf(DistributionFunctionBasedSFH):
         self._agama_pot = None
         self._df = None
 
-        # ensure we don't pass components twice
-        for var in ["components", "component_masses"]:          # pragma: no cover
-            if var in kwargs:
-                kwargs.pop(var)
-
-        super().__init__(size=size, components=None, component_masses=None, **kwargs)
+        super().__init__(**kwargs)
         self.__citations__.append("Pascale+2019")
 
-    def draw_lookback_times(self, size=None):
+    def draw_lookback_times(self, size):
         """Uniform sampling of lookback times between tau_min and tau_max
 
         Parameters
@@ -1441,24 +1421,19 @@ class SpheroidalDwarf(DistributionFunctionBasedSFH):
         tau : :class:`~astropy.units.Quantity` [time]
             Random lookback times
         """
-        # if no size is given then use the class value
-        size = self._size if size is None else size
         self._tau = np.random.uniform(self.tau_min.to(u.Gyr).value,
                                       self.galaxy_age.to(u.Gyr).value, size) * u.Gyr
         return self._tau
 
     def get_metallicity(self):
-        """Convert radius and time to metallicity using
-        `Frankel+2018 <https://ui.adsabs.harvard.edu/abs/2018ApJ...865...96F/abstract>`_ Eq. 7 and
-        `Bertelli+1994 <https://ui.adsabs.harvard.edu/abs/1994A%26AS..106..275B/abstract>`_ Eq. 9 but
-        assuming all stars have the solar abundance pattern (so no factor of 0.977)
+        """Fixed metallicity for all stars in the dwarf galaxy
 
         Returns
         -------
         Z : :class:`~astropy.units.Quantity` [dimensionless]
-            Metallicities corresponding to radii and times
+            Metallicities
         """
-        self._Z = np.repeat(self.fixed_Z, self._size)
+        self._Z = np.repeat(self.fixed_Z, len(self._tau))
         return self._Z
 
     def _generate_df(self, J):
@@ -1478,14 +1453,9 @@ class CarinaDwarf(SpheroidalDwarf):
     `Pascale+2019 <https://ui.adsabs.harvard.edu/abs/2019MNRAS.488.2423P/abstract>`_.
 
     Parameters are the same as :class:`SpheroidalDwarf` but with the following defaults:
-
-    Parameters
-    ----------
-    size : `int`
-        How many stars to simulate
     """
-    def __init__(self, size, **kwargs):
-        super().__init__(size=size, mass=8.69e8 * u.Msun, J_0_star=0.677 * u.kpc*u.km/u.s,
+    def __init__(self, **kwargs):
+        super().__init__(mass=8.69e8 * u.Msun, J_0_star=0.677 * u.kpc*u.km/u.s,
                          alpha=0.946, eta=0.5, **kwargs)
 
 
@@ -1525,9 +1495,6 @@ def load(file_name, key="sfh"):
     sfh_class = getattr(module, params["class_name"])
     del params["class_name"]
 
-    # ensure no samples are taken
-    params["immediately_sample"] = False
-
     # complicate the parameters to add units back in
     complicated_params = complicate_params(params)
 
@@ -1548,9 +1515,9 @@ def load(file_name, key="sfh"):
     loaded_sfh._z = df["z"].values * u.kpc
 
     # additionally read in velocity components if they exist
-    for attr in ["v_R", "v_T", "v_z"]:
+    for attr in ["v_R", "v_T", "v_z", "v_x", "v_y", "v_z"]:
         if attr in df:
-            setattr(loaded_sfh, attr, df[attr].values * u.km / u.s)
+            setattr(loaded_sfh, "_" + attr, df[attr].values * u.km / u.s)
 
     # return the newly created class
     return loaded_sfh
