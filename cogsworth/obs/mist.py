@@ -118,7 +118,7 @@ class MISTBolometricCorrectionGrid:
         if tarball_path.exists() and not self.rebuild:
             return tarball_path
 
-        url = f"https://waps.cfa.harvard.edu/MIST/BC_tables/{filter_set}.txz"
+        url = f"https://waps.cfa.harvard.edu/MIST/BC_tables/v2/{filter_set}.txz"
 
         with requests.get(url, stream=True, timeout=60) as r:
             r.raise_for_status()
