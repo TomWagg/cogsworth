@@ -404,6 +404,9 @@ class StarFormationHistory():
 
     def sample(self, size):
         """Sample from the distributions for each component, combine and save in class attributes"""
+        # erase any existing samples
+        for attr in ["_tau", "_Z", "_x", "_y", "_z", "_v_R", "_v_T", "_v_z", "_v_x", "_v_y"]:
+            setattr(self, attr, None)
 
         self._tau = np.zeros(size) * u.Gyr
         rho = np.zeros(size) * u.kpc
@@ -619,8 +622,11 @@ class CompositeStarFormationHistory():
         relevant component instead"""
         COMBINE_ATTRS = ["_tau", "_Z", "_x", "_y", "_z", "_v_x", "_v_y", "_v_z", "_v_R", "_v_T"]
         if name in COMBINE_ATTRS:
-            # we need to figure out which component each value is in, some components may have nothing with an index
-            # and will be left as length 0 components
+            if not isinstance(value, (np.ndarray, list, int, float)):
+                raise ValueError(f"Can only set attribute `{name}` using an `int`, `float`, `list` or `ndarray`, you supplied a `{type(value).__name__}`")
+            if isinstance(value, list):
+                value = np.array([value])
+            # update the attribute in each individual component
             all_indices = np.arange(len(self))
             component_ind_ranges = np.cumsum([0] + [len(component) for component in self.components])
 
@@ -1694,23 +1700,40 @@ def concat(*sfhs):
     """
     # check that all the objects are of the same type
     sfhs = list(sfhs)
-    assert all([isinstance(sfh, StarFormationHistory) for sfh in sfhs])
     if len(sfhs) == 1:
         return sfhs[0]
     elif len(sfhs) == 0:
         raise ValueError("No objects to concatenate")
 
-    # create a new object with the same parameters as the first
-    new_sfh = sfhs[0][:]
+    if all([isinstance(sfh, CompositeStarFormationHistory) for sfh in sfhs]):
+        # ensure that each composite has the same number of components
+        n_comps = [len(sfh.components) for sfh in sfhs]
+        if len(set(n_comps)) != 1:
+            raise ValueError(("All CompositeStarFormationHistory objects to concatenate must have the "
+                              "same number of components"))
+        components = [concat(*[sfhs[i].components[j] for i in range(len(sfhs))]) for j in range(n_comps[0])]
 
-    # concatenate the velocity components if they exist
-    for attr in ["_tau", "_Z", "_which_comp", "_x", "_y", "_z", "v_R", "v_T", "v_z"]:
-        if hasattr(sfhs[0], attr):
-            setattr(new_sfh, attr, np.concatenate([getattr(sfh, attr) for sfh in sfhs]))
+        return CompositeStarFormationHistory(
+            components=components,
+            component_ratios=sfhs[0].component_ratios       # assume the same ratios as the first
+        )
 
-    new_sfh._size = len(new_sfh._tau)
+    elif all([isinstance(sfh, StarFormationHistory) for sfh in sfhs]):
 
-    return new_sfh
+        # create a new object with the same parameters as the first
+        new_sfh = sfhs[0].copy()
+
+        # concatenate the velocity components if they exist
+        for attr in ["_tau", "_Z", "_x", "_y", "_z", "_v_R", "_v_T", "_v_z"]:
+            if hasattr(sfhs[0], attr) and not getattr(sfhs[0], attr) is None:
+                setattr(new_sfh, attr, np.concatenate([getattr(sfh, attr) for sfh in sfhs]))
+
+        new_sfh._size = len(new_sfh._tau)
+
+        return new_sfh
+    else:
+        raise ValueError(("All SFHs to concatenate must be of the same type, either all "
+                          "CompositeStarFormationHistory or all StarFormationHistory"))
 
 
 def simplify_params(params, dont_save=["_tau", "_Z", "_x", "_y", "_z", "_which_comp", "_v_R", "_v_T", "_v_z",
