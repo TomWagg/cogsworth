@@ -56,7 +56,7 @@ class Population():
         Desired final types for secondary star, by default list(range(16))
     sfh_model : :class:`~cogsworth.sfh.StarFormationHistory` or :class:`~cogsworth.sfh.CompositeStarFormationHistory`, optional
         A StarFormationHistory or CompositeStarFormationHistory class to use for sampling the initial galaxy
-        parameters, by default :class:`~cogsworth.sfh.Wagg2022`
+        parameters, by default None, which uses :class:`~cogsworth.sfh.Wagg2022`
     galactic_potential : :class:`Potential <gala.potential.potential.PotentialBase>`, optional
         Galactic potential to use for evolving the orbits of binaries, by default
         :class:`~gala.potential.potential.MilkyWayPotential`
@@ -121,7 +121,7 @@ class Population():
     """
     def __init__(
             self, n_binaries, processes=None, final_kstar1=list(range(16)),
-            final_kstar2=list(range(16)), sfh_model=sfh.Wagg2022(),
+            final_kstar2=list(range(16)), sfh_model=None,
             galactic_potential=gp.MilkyWayPotential(version='v2'), v_dispersion=5 * u.km / u.s,
             max_ev_time=12.0*u.Gyr, timestep_size=1 * u.Myr, BSE_settings={}, ini_file=None,
             use_default_BSE_settings=False, sampling_params={}, sampling_mask="",
@@ -149,6 +149,10 @@ class Population():
 
         # work out how many CPUs are available for multiprocessing, fallback to 1
         max_cpus = os.cpu_count() if os.cpu_count() is not None else 1
+
+        # by default, use the Wagg+2022 SFH model
+        if sfh_model is None:
+            sfh_model = sfh.Wagg2022()
 
         self.n_binaries = n_binaries
         self.n_binaries_match = n_binaries
