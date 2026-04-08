@@ -61,3 +61,12 @@ class Test(unittest.TestCase):
         p.plot_hrd(bin_num=p.bin_nums[0], show=False, show_secondary=False)
 
         plt.close('all')
+
+    def test_plot_sfh(self):
+        """Test you can plot the star formation history"""
+        g = cogsworth.sfh.Wagg2022()
+        g.sample(10_000)
+        g._Z = np.logspace(-4, 0, len(g))
+        g.plot(show=False, colour_by="Z")
+
+        plt.close('all')

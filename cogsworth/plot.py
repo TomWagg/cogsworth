@@ -755,7 +755,7 @@ def plot_sfh(
             colour_by = colour_by.value
 
         # use a log norm if the colour_by values span more than 2 orders of magnitude, otherwise linear norm
-        if np.all(colour_by > 0) and np.log10(np.ptp(colour_by)) > 2:
+        if np.all(colour_by > 0) and np.diff(np.log10(np.percentile(colour_by, [5, 95]))) > 2:
             cbar_norm = mpl.colors.LogNorm(vmin=colour_by.min(), vmax=colour_by.max())
         else:
             cbar_norm = mpl.colors.Normalize(vmin=colour_by.min(), vmax=colour_by.max())
