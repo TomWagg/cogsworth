@@ -123,7 +123,7 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 addopts = "--cov-report xml:cov.xml --cov cogsworth -n='auto'"
-testpaths = ["src/cogsworth"]
+testpaths = ["tests"]
 
 [tool.coverage.run]
 omit = [

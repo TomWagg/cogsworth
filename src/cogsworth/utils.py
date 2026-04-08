@@ -190,7 +190,7 @@ def check_dependencies(names):
             for module in modules:
                 try:
                     importlib.import_module(module)
-                except (ImportError, ModuleNotFoundError):
+                except (ImportError, ModuleNotFoundError):      # pragma: no cover
                     raise ImportError((f"`{module_name}` required for {purpose} with cogsworth\n"
                                        "Either install this package directly, or install all optional "
                                        "`cogsworth` dependencies with `pip install cogsworth[all]`\n"))
