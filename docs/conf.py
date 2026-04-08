@@ -21,19 +21,21 @@ sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(1, os.path.dirname(os.path.abspath(__file__)))
 import hacks
 
-from configparser import ConfigParser
-conf = ConfigParser()
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 docs_root = pathlib.Path(__file__).parent.resolve()
-conf.read([str(docs_root / '..' / 'setup.cfg')])
-setup_cfg = dict(conf.items('metadata'))
+with open(docs_root / '..' / 'pyproject.toml', 'rb') as f:
+    pyproject = tomllib.load(f)
+project_meta = pyproject['project']
 
 # -- Project information -----------------------------------------------------
 
-project = setup_cfg['name']
-author = setup_cfg['author']
-copyright = '{0}, {1}'.format(
-    datetime.datetime.now().year, setup_cfg['author'])
+project = project_meta['name']
+author = project_meta['authors'][0]['name']
+copyright = '{0}, {1}'.format(datetime.datetime.now().year, author)
 
 
 # -- General configuration ---------------------------------------------------
