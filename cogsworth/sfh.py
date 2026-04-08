@@ -1163,7 +1163,7 @@ class DistributionFunctionBasedSFH(StarFormationHistory):
             self._df = agama.DistributionFunction(potential=self.agama_pot, **df)
         elif isinstance(df, FunctionType):
             self._df = df
-        else:
+        elif df is not None:
             raise ValueError(("`df` must be either a function or a dict of keyword arguments to pass "
                               "to `agama.DistributionFunction`"))
 
