@@ -439,6 +439,8 @@ class Population():
                 self._bin_nums = self._final_bpp["bin_num"].unique()
             elif self._initial_binaries is not None:
                 self._bin_nums = np.unique(self._initial_binaries.index.values)
+            elif self._initC is not None:
+                self._bin_nums = self._initC["bin_num"].unique()
             else:
                 raise ValueError("You need to first sample binaries to get a list of `bin_nums`!")
         return self._bin_nums
@@ -1758,6 +1760,35 @@ class Population():
                                 a=self.final_bpp["sep"].values[binaries] * u.Rsun,
                                 ecc=self.final_bpp["ecc"].values[binaries],
                                 dist=distances[binaries], interpolate_g=binaries.sum() > 1000)
+
+    def to_COMPASPopulation(self, **kwargs):
+        """Convert to a COMPASPopulation object from interop module
+
+        Parameters
+        ----------
+        **kwargs : `various`
+            Any arguments to pass to :class:`~cogsworth.interop.compas.pop.COMPASPopulation`
+        
+        Returns
+        -------
+        cp : :class:`~cogsworth.interop.compas.pop.COMPASPopulation`
+            The COMPASPopulation object
+        """
+        from .interop.compas.pop import COMPASPopulation
+        cp = COMPASPopulation(n_binaries=len(self), **kwargs)
+        attrs_to_copy = ["n_binaries", "n_binaries_match", "processes", "final_kstar1", "final_kstar2",
+                         "sfh_model", "sfh_params", "galactic_potential", "v_dispersion", "max_ev_time",
+                         "timestep_size", "pool", "store_entire_orbits", "bpp_columns", "bcm_columns",
+                         "_file", "_initial_binaries", "_initial_galaxy", "_mass_singles", "_mass_binaries",
+                         "_n_singles_req", "_n_bin_req", "_bpp", "_bcm", "_kick_info",
+                         "_orbits", "_classes", "_final_pos", "_final_vel", "_final_bpp", "_disrupted",
+                         "_escaped", "_observables", "_bin_nums", "BSE_settings",
+                         "sampling_params", "bcm_timestep_conditions"]
+        for attr in attrs_to_copy:
+            if attr not in kwargs:
+                setattr(cp, attr, getattr(self, attr))
+
+        return cp
 
     def save(self, file_name, overwrite=False):
         """Save a Population to disk as an HDF5 file.

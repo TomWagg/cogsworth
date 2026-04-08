@@ -119,7 +119,7 @@ version = {attr = "cogsworth._version.__version__"}
 where = ["src"]
 
 [tool.setuptools.package-data]
-"*" = ["*.npy", "*.npz"]
+"*" = ["*.npy", "*.npz", "*.yaml", "*.txt"]
 
 [tool.pytest.ini_options]
 addopts = "--cov-report xml:cov.xml --cov cogsworth -n='auto'"
