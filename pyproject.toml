@@ -1,0 +1,145 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cogsworth"
+dynamic = ["version"]
+description = "A framework for performing self-consistent population synthesis and orbital integration"
+readme = {file = "README.md", content-type = "text/markdown"}
+license = {file = "LICENSE"}
+authors = [{name = "Tom Wagg", email = "tomjwagg@gmail.com"}]
+requires-python = ">=3.11"
+# NOTE: any changes in the requirements must also be reflected in
+#   - environment.yml
+#   - install.rst
+dependencies = [
+    "numpy >= 1.23",
+    "numba >= 0.58",
+    "pip",
+    "matplotlib >= 3.7",
+    "astropy >= 5.0",
+    "scipy >= 1.8",
+    "pandas >= 2.1",
+    "gala >= 1.11.0",
+    "cosmic-popsynth >= 3.6.2",
+]
+
+[project.urls]
+Homepage = "https://github.com/TomWagg/cogsworth"
+
+[project.optional-dependencies]
+observables = [
+    "dustmaps",
+    "healpy",
+    "gaiaunlimited >= 0.2.0",
+]
+actions = [
+    "agama",
+]
+lisa = [
+    "legwork >= 0.4.6",
+]
+hydro = [
+    "pynbody >= 2.0.0",
+]
+extras = [
+    "dustmaps",
+    "healpy",
+    "gaiaunlimited >= 0.2.0",
+    "agama",
+    "pynbody >= 2.0.0",
+    "legwork >= 0.4.6",
+]
+test = [
+    "dustmaps",
+    "healpy",
+    "gaiaunlimited >= 0.2.0",
+    "agama",
+    "legwork >= 0.4.6",
+    "pynbody >= 2.0.0",
+    "pytest",
+    "flake8",
+    "coverage",
+    "pytest-xdist",
+    "nbmake",
+    "pytest-cov",
+]
+docs = [
+    "dustmaps",
+    "healpy",
+    "gaiaunlimited >= 0.2.0",
+    "pynbody >= 2.0.0",
+    "sphinx < 7.2",
+    "matplotlib < 3.9",
+    "nbsphinx >= 0.8.6",
+    "numpydoc",
+    "pydata-sphinx-theme",
+    "sphinx-automodapi",
+    "sphinxcontrib-bibtex",
+    "IPython",
+    "ipykernel",
+    "sphinx-copybutton",
+    "sphinx-gallery >= 0.13.0",
+    "sphinx-design >= 0.4.1",
+    "sphinx-togglebutton",
+]
+all = [
+    "dustmaps",
+    "healpy",
+    "gaiaunlimited >= 0.2.0",
+    "agama",
+    "legwork >= 0.4.6",
+    "pynbody >= 2.0.0",
+    "pytest",
+    "flake8",
+    "coverage",
+    "pytest-xdist",
+    "nbmake",
+    "pytest-cov",
+    "sphinx < 7.2",
+    "matplotlib < 3.9",
+    "nbsphinx >= 0.8.6",
+    "numpydoc",
+    "pydata-sphinx-theme",
+    "sphinx-automodapi",
+    "sphinxcontrib-bibtex",
+    "IPython",
+    "ipykernel",
+    "sphinx-copybutton",
+    "sphinx-gallery >= 0.13.0",
+    "sphinx-design >= 0.4.1",
+    "sphinx-togglebutton",
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "cogsworth._version.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"*" = ["*.npy", "*.npz"]
+
+[tool.pytest.ini_options]
+addopts = "--cov-report xml:cov.xml --cov cogsworth -n='auto'"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+omit = [
+    "tests/*",
+    "cogsworth/__init__.py",
+]
+concurrency = ["multiprocessing"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "except ImportError",
+    "plt.show()",
+]
+
+[tool.flake8]
+max-line-length = 110
+exclude = ["**__init__.py"]
+extend-ignore = ["E402"]

@@ -6,7 +6,7 @@ import astropy.constants as const
 
 from .utils import kstar_translator, evol_type_translator
 
-__all__ = ["plot_cmd", "plot_cartoon_evolution", "plot_galactic_orbit", "plot_hrd"]
+__all__ = ["plot_cmd", "plot_cartoon_evolution", "plot_galactic_orbit", "plot_hrd", "plot_sfh"]
 
 # some styles to be used in all cogsworth plots
 fs = 24
@@ -36,6 +36,20 @@ def cogsworth_plot_style(func):
         with plt.rc_context(style_params):
             return func(*args, **kwargs)
     return wrapper
+
+
+CBAR_LABEL_CONVERTER = {
+    "Z": r"Metallicity $Z$",
+    "tau": r"Lookback time, $\tau$ [Gyr]",
+    "x": r"$x$ [kpc]",
+    "y": r"$y$ [kpc]",
+    "z": r"$z$ [kpc]",
+    "v_x": r"$v_x$ [km/s]",
+    "v_y": r"$v_y$ [km/s]",
+    "v_z": r"$v_z$ [km/s]",
+    "v_R": r"$v_R$ [km/s]",
+    "v_T": r"$v_T$ [km/s]"
+}
 
 
 @cogsworth_plot_style
@@ -681,3 +695,104 @@ def plot_hrd(bcm, bin_num, show_primary=True, show_secondary=True,
     if show:        # pragma: no cover
         plt.show()
     return fig, ax
+
+
+@cogsworth_plot_style
+def plot_sfh(
+    sfh, colour_by="Z", cbar_norm=None,
+    cbar_label=None, cmap="plasma", xlim=None, ylim=None, zlim=None,
+    fig=None, axes=None, show=True, **kwargs
+):
+    """Plot a StarFormationHistory with two panels (x, y), (x, z), coloured by a custom variable
+
+    Parameters
+    ----------
+    sfh : :class:`~cogsworth.StarFormationHistory`
+        Star formation history to plot
+    colour_by : `str` or :class:`~astropy.units.Quantity`, optional
+        Variable to colour the points by, either a string corresponding to an attribute of sfh or a custom array of the same length as sfh, by default "Z"
+    cbar_norm : :class:`~matplotlib.colors.Normalize`, optional
+        Normalization for the colourbar, by default None (will be automatically chosen based on colour_by)
+    cbar_label : `str`, optional
+        Label for the colourbar, by default None (will be automatically chosen based on colour_by)
+    cmap : `str` or :class:`~matplotlib.colors.Colormap`, optional
+        Colormap to use for the points, by default "plasma"
+    xlim : `tuple`, optional
+        Limits for the x-axis, by default None
+    ylim : `tuple`, optional
+        Limits for the y-axis, by default None
+    zlim : `tuple`, optional
+        Limits for the z-axis, by default None
+    fig : :class:`~matplotlib.figure.Figure`, optional
+        Figure on which to plot, by default will create a new one
+    axes : `array-like` of :class:`~matplotlib.axes.Axes`, optional
+        Axes on which to plot, should be of length 2 for the two panels, by default will create new ones
+    show : `bool`, optional
+        Whether to immediately show the plot, by default True
+    **kwargs
+        Additional keyword arguments to pass to the scatter plot (e.g. size, alpha, etc.)
+
+    Returns
+    -------
+    fig, axes : :class:`~matplotlib.figure.Figure`, `array-like` of :class:`~matplotlib.axes.Axes`
+        Figure and axes of the plot
+    """
+    if fig is None or axes is None:
+        fig, axes = plt.subplots(2, 1, figsize=(10 * 1.2475, 14),
+                                 gridspec_kw={'height_ratios': [4, 14]}, sharex=True)
+
+    if isinstance(colour_by, str):
+        if cbar_label is None:
+            cbar_label = CBAR_LABEL_CONVERTER.get(colour_by, None)
+        colour_by = getattr(sfh, colour_by)
+
+    random_order = np.random.permutation(len(sfh))
+
+    # choose cbar norm if necessary
+    if cbar_norm is None and colour_by is not None:
+        # remove units if they exist for the purpose of norm calculation
+        if isinstance(colour_by, u.Quantity):
+            colour_by = colour_by.value
+
+        # use a log norm if the colour_by values span more than 2 orders of magnitude, otherwise linear norm
+        if np.all(colour_by > 0) and np.diff(np.log10(np.percentile(colour_by, [5, 95]))) > 2:
+            cbar_norm = mpl.colors.LogNorm(vmin=colour_by.min(), vmax=colour_by.max())
+        else:
+            cbar_norm = mpl.colors.Normalize(vmin=colour_by.min(), vmax=colour_by.max())
+
+    fig.subplots_adjust(hspace=0)
+
+    s = kwargs.pop("s", 0.1)
+
+    axes[0].scatter(sfh.x[random_order], sfh.z[random_order], c=colour_by[random_order], 
+                    s=s, cmap=cmap, norm=cbar_norm, **kwargs)
+
+    axes[0].set_xlabel(r"$x$ [kpc]", labelpad=15)
+    axes[0].xaxis.tick_top()
+    axes[0].xaxis.set_label_position("top")
+
+    axes[0].set_ylabel(r"$z$ [kpc]")
+
+    scatt = axes[1].scatter(sfh.x[random_order], sfh.y[random_order], c=colour_by[random_order],
+                            s=s, cmap=cmap, norm=cbar_norm, **kwargs)
+    cbar = fig.colorbar(scatt, ax=axes, pad=0.0)
+    cbar.set_label(cbar_label)
+
+    axes[1].set_xlabel(r"$x$ [kpc]")
+    axes[1].set_ylabel(r"$y$ [kpc]")
+
+    if xlim is not None:
+        axes[0].set_xlim(xlim)
+        axes[1].set_xlim(xlim)
+    if ylim is not None:
+        axes[1].set_ylim(ylim)
+    if zlim is not None:
+        axes[0].set_ylim(zlim)
+
+    for ax in axes:
+        ax.set_aspect("equal", adjustable="datalim")
+
+    if show:
+        plt.show()
+
+    return fig, axes

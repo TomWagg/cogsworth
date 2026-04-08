@@ -43,11 +43,11 @@ class Test(unittest.TestCase):
         p = cogsworth.pop.Population(4, use_default_BSE_settings=True)
         p._bpp = bpp
         p._kick_info = kick_info
-        p._initC = pd.DataFrame(
+        p._initial_binaries = pd.DataFrame(
             data={"metallicity": [1e-2, 1e-2, 1e-2, 1e-2],
                   "bin_num": [0, 1, 2, 3]}
         )
-        p._initC.index = p._initC["bin_num"].values
+        p._initial_binaries.index = p._initial_binaries["bin_num"].values
         p.final_bpp
 
         primary_events, secondary_events = cogsworth.events.identify_events(p)

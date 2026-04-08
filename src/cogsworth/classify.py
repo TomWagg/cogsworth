@@ -20,8 +20,6 @@ def determine_final_classes(population=None, bpp=None, kick_info=None, orbits=No
         A full population class created from the pop module, by default None
     bpp : :class:`~pandas.DataFrame`
         Evolutionary history of each binary
-    initC : :class:`~pandas.DataFrame`
-        Initial conditions for each binary
     kick_info : :class:`~pandas.DataFrame`
         Information about the kicks that occur for each binary
     orbits : `list` of :class:`~gala.dynamics.Orbit`
