@@ -6,7 +6,7 @@ from astropy.coordinates import SkyCoord
 from copy import copy
 
 import logging
-from cogsworth.tests.optional_deps import check_dependencies
+from cogsworth.utils import check_dependencies
 from cogsworth.obs.mist import MISTBolometricCorrectionGrid
 
 import sys

@@ -19,7 +19,7 @@ import gala.potential as gp
 from gala.units import galactic
 from gala.potential.potential.io import to_dict as potential_to_dict, from_dict as potential_from_dict
 
-from cogsworth.tests.optional_deps import check_dependencies
+from cogsworth.utils import check_dependencies
 from cogsworth.plot import plot_sfh
 from cogsworth.citations import CITATIONS
 

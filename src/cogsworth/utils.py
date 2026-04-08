@@ -1,10 +1,12 @@
 import numpy as np
 from importlib.resources import files
 import json
+import importlib
+from collections.abc import Sequence
 
 
 __all__ = ["kstar_translator", "evol_type_translator", "get_default_BSE_settings",
-           "translate_COSMIC_tables", "list_BSE_defaults"]
+           "translate_COSMIC_tables", "list_BSE_defaults", "check_dependencies"]
 
 fs = 24
 
@@ -153,3 +155,45 @@ def list_BSE_defaults():            # pragma: no cover
     default_BSE_settings = get_default_BSE_settings()
     for k, v in default_BSE_settings.items():
         print(f"{k}: {v}")
+
+
+_deps = {
+    "nose": ("nose", "observables predictions"),
+    "tables": ("tables", "observables predictions"),
+    "dustmaps": ("dustmaps", "observables predictions"),
+    "healpy": ("healpy", "healpix maps"),
+    "gaiaunlimited": ("gaiaunlimited", "GAIA observation predictions"),
+    "agama": ("agama", "action-based potentials"),
+    "legwork": ("legwork", "LISA gravitational wave predictions"),
+    "pynbody": ("pynbody", "loading hydrodynamical snapshots"),
+    "matplotlib": (["matplotlib", "matplotlib.pyplot"], "visualisation")
+}
+
+def check_dependencies(names):
+    """Checks for optional dependencies using lazy import from
+    `PEP 562 <https://www.python.org/dev/peps/pep-0562/>`_.
+
+    I brazenly stole this from Gala (see `here
+    <https://github.com/adrn/gala/blob/3d761a9fd1447fbcf0f319c6fe87a0d4f6a5ceed/gala/tests/optional_deps.py>`_)
+    and made some changes to the error message
+    """
+    if isinstance(names, str):
+        names = [names]
+    for name in names:
+        if name in _deps.keys():
+            module_name = name
+            modules, purpose = _deps[module_name]
+
+            if not isinstance(modules, Sequence) or isinstance(modules, str):
+                modules = [modules]
+
+            for module in modules:
+                try:
+                    importlib.import_module(module)
+                except (ImportError, ModuleNotFoundError):
+                    raise ImportError((f"`{module_name}` required for {purpose} with cogsworth\n"
+                                       "Either install this package directly, or install all optional "
+                                       "`cogsworth` dependencies with `pip install cogsworth[all]`\n"))
+        else:
+            raise AttributeError(f"Module {__name__!r} has no attribute {name!r}.")
+    return True

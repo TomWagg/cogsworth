@@ -116,18 +116,18 @@ all = [
 version = {attr = "cogsworth._version.__version__"}
 
 [tool.setuptools.packages.find]
-# equivalent to: packages = find:
+where = ["src"]
 
 [tool.setuptools.package-data]
 "*" = ["*.npy", "*.npz"]
 
 [tool.pytest.ini_options]
 addopts = "--cov-report xml:cov.xml --cov cogsworth -n='auto'"
-testpaths = ["cogsworth"]
+testpaths = ["src/cogsworth"]
 
 [tool.coverage.run]
 omit = [
-    "cogsworth/tests/*",
+    "tests/*",
     "cogsworth/__init__.py",
 ]
 concurrency = ["multiprocessing"]

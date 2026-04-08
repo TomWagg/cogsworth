@@ -5,7 +5,7 @@ import warnings
 import logging
 import os.path
 
-from ..tests.optional_deps import check_dependencies
+from ..utils import check_dependencies
 
 __all__ = ["prepare_snapshot", "dispersion_from_virial_parameter"]
 
