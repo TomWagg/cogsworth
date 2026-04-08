@@ -1068,7 +1068,7 @@ class Population():
             warnings.filterwarnings("ignore", message=".*to a different value than assumed in the mlwind.*")
 
             BSEDict = self.BSE_settings
-            if "kickflag" in self.initial_binaries.columns and BSEDict != {}:
+            if BSEDict != {} and any(col in self.initial_binaries.columns for col in BSEDict.keys()):
                 BSEDict = {}
                 self._warn(
                     ("You passed settings for BSE (in `Population.BSE_settings`) but your initial binary "
