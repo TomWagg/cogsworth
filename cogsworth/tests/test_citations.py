@@ -6,7 +6,7 @@ import os
 class Test(unittest.TestCase):
     def test_cite_galaxy(self):
         """Test citations for Galaxy"""
-        g = cogsworth.sfh.Wagg2022(size=100, immediately_sample=False)
+        g = cogsworth.sfh.Wagg2022()
         g.get_citations(filename="test.bib")
 
         self.assertTrue(os.path.exists("test.bib"))
@@ -18,7 +18,7 @@ class Test(unittest.TestCase):
             def __init__(self, **kwargs):
                 super().__init__(**kwargs)
                 self.__citations__ = []
-        g = DummyGalaxy(size=100, immediately_sample=False)
+        g = DummyGalaxy()
         g.get_citations(filename="test.bib")
 
     def test_cite_pop(self):
@@ -44,5 +44,5 @@ def test_cite_stdin_galaxy(monkeypatch):
     """Test citations when using stdin/stdout (monkeypatch time!)"""
     monkeypatch.setattr('builtins.input', lambda _: "")
 
-    g = cogsworth.sfh.Wagg2022(size=100, immediately_sample=False)
+    g = cogsworth.sfh.Wagg2022()
     g.get_citations(filename=None)

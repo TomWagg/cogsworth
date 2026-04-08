@@ -190,7 +190,8 @@ class Test(unittest.TestCase):
 
     def test_wrong_load_function(self):
         """Check that errors are properly raised when the wrong load function is used"""
-        g = sfh.Wagg2022(10000)
+        g = sfh.Wagg2022()
+        g.sample(10000)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             g.save(os.path.join(tmpdir, "test-sfh-for-load"))
