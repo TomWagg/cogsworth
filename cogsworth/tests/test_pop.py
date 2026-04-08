@@ -865,3 +865,12 @@ class Test(unittest.TestCase):
             it_worked = False
         self.assertFalse(it_worked)
 
+    def test_stellar_evolution_BSEdict_already_initC(self):
+        """Check that passing a BSEdict when the initC already has those columns raises a warning"""
+        p = pop.Population(10, use_default_BSE_settings=True, processes=1)
+        p.sample_initial_binaries()
+        p.perform_stellar_evolution()
+
+        with self.assertLogs("cogsworth", level="WARNING") as cm:
+            p.perform_stellar_evolution()
+        self.assertIn("You passed settings for BSE (in `Population.BSE_settings`)", cm.output[0])
