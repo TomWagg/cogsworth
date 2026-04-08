@@ -356,12 +356,8 @@ class StarFormationHistory():
         filename : `str`, optional
             Filename for generating a bibtex file (leave blank to just print to terminal), by default None
         """
-        if len(citations) == 0:
-            print("No citations need for this star formation history model")
-            return
-
         # ask users for a filename to save the bibtex to
-        if filename is None:
+        if filename is None:            # pragma: no cover
             filename = input("Filename for generating a bibtex file (leave blank to just print to terminal): ")
 
         # construct citation string
@@ -396,7 +392,7 @@ class StarFormationHistory():
 
     def get_citations(self, filename=None):
         """Print the citations for the packages/papers used in the star formation history"""
-        if not hasattr(self, "__citations__") or len(self.__citations__) == 0:
+        if not hasattr(self, "__citations__") or len(self.__citations__) == 0:          # pragma: no cover
             print("No citations needed for this star formation history model")
             return
         
@@ -541,6 +537,8 @@ class CompositeStarFormationHistory():
             citation for component in self.components for citation in component.__citations__
         ))
 
+        self._sort_order = None
+
     @classmethod
     def from_file(cls, file_name, key="sfh"):
         """Load a composite star formation history from file
@@ -587,22 +585,36 @@ class CompositeStarFormationHistory():
         # if it's a boolean array, we convert it to indices
         if ind.dtype == bool:
             ind = np.where(ind)[0]
-        
+
+        # if this object already has a sort order (from a prior indexing), translate logical indices
+        # to internal component indices so subsequent indexing composes correctly
+        if self._sort_order is not None:
+            ind = self._sort_order[ind]
+
+        # get unique sorted indices and the inverse mapping such that unique_ind[inverse] == ind
+        # this handles both unsorted indices and duplicates in one step
+        unique_ind, inverse = np.unique(ind, return_inverse=True)
+
         # now we need to figure out which component each index is in, some components may have nothing with
         # an index and will be left as length 0 components
-        all_indices = np.arange(len(self))
         component_ind_ranges = np.cumsum([0] + [len(component) for component in self.components])
 
         new_components = []
         for i in range(len(self.components)):
-            component_mask = (ind >= component_ind_ranges[i]) & (ind < component_ind_ranges[i + 1])
-            component_inds = ind[component_mask] - component_ind_ranges[i]
+            component_mask = (unique_ind >= component_ind_ranges[i]) & (unique_ind < component_ind_ranges[i + 1])
+            component_inds = unique_ind[component_mask] - component_ind_ranges[i]
             new_components.append(self.components[i][component_inds])
-            
-        return CompositeStarFormationHistory(
+
+        new_csfh = CompositeStarFormationHistory(
             components=new_components,
             component_ratios=self.component_ratios
         )
+
+        # store the inverse mapping so __getattr__ can reorder/duplicate values to match the requested ind
+        if not np.array_equal(inverse, np.arange(len(ind))):
+            new_csfh._sort_order = inverse
+
+        return new_csfh
 
     def __getattr__(self, name):
         """When we try to access an attribute, if it's one that needs combining from the components"""
@@ -611,7 +623,10 @@ class CompositeStarFormationHistory():
         if name in COMBINE_ATTRS or (name[0] == "_" and name[1:] in COMBINE_ATTRS):
             component_vals = [getattr(component, name) for component in self.components]
             if all(val is not None for val in component_vals):
-                return np.concatenate(component_vals)
+                result = np.concatenate(component_vals)
+                if self._sort_order is not None:
+                    return result[self._sort_order]
+                return result
             else:
                 return None
         else:
@@ -625,9 +640,16 @@ class CompositeStarFormationHistory():
             if not isinstance(value, (np.ndarray, list, int, float)):
                 raise ValueError(f"Can only set attribute `{name}` using an `int`, `float`, `list` or `ndarray`, you supplied a `{type(value).__name__}`")
             if isinstance(value, list):
-                value = np.array([value])
+                value = np.array(value)
+
+            # if there's a sort order, undo it so values are in internal component order
+            if self._sort_order is not None:
+                _, first_occurrence = np.unique(self._sort_order, return_index=True)
+                value = value[first_occurrence]
+
             # update the attribute in each individual component
-            all_indices = np.arange(len(self))
+            n_internal = sum(len(c) for c in self.components)
+            all_indices = np.arange(n_internal)
             component_ind_ranges = np.cumsum([0] + [len(component) for component in self.components])
 
             for i in range(len(self.components)):
@@ -1124,12 +1146,10 @@ class DistributionFunctionBasedSFH(StarFormationHistory):
 
     potential : :class:`~agama.Potential` or :class:`Potential <gala.potential.potential.PotentialBase>`
         The gravitational potential in which to sample the distribution function
-    df : `function` or `dict` or ``list`` of either
+    df : `function` or `dict`
         Either a function that represents the distribution function, taking J as an argument,
         or the keyword arguments to pass to the distribution function(s) using
-        :class:`agama.DistributionFunction`. If a `dict` is given then the same
-        distribution function will be used for all components. If a ``list`` of `dict` is
-        given then each component will use the corresponding distribution function.
+        :class:`agama.DistributionFunction`.
     """
     def __init__(self, potential, df, **kwargs):
         assert check_dependencies("agama")
@@ -1143,9 +1163,9 @@ class DistributionFunctionBasedSFH(StarFormationHistory):
             self._df = agama.DistributionFunction(potential=self.agama_pot, **df)
         elif isinstance(df, FunctionType):
             self._df = df
-        elif isinstance(df, list):
-            self._df = [agama.DistributionFunction(potential=self.agama_pot, **df_kw)
-                        if isinstance(df_kw, dict) else df_kw for df_kw in df]
+        else:
+            raise ValueError(("`df` must be either a function or a dict of keyword arguments to pass "
+                              "to `agama.DistributionFunction`"))
 
         super().__init__(**kwargs)
 
@@ -1245,7 +1265,7 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
             if var in kwargs:
                 kwargs.pop(var)
 
-        super().__init__(df=None, components=["thin_disc", "thick_disc"], **kwargs)
+        super().__init__(df=None, **kwargs)
         self.__citations__.append("Sanders&Binney2015")
 
     def _precompute_interpolations(self):
@@ -1380,7 +1400,7 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
         J_r, J_z, J_phi = J.T
 
         # only compute the DF where the prior interpolations are valid
-        df_val = np.full_like(J_r, np.nan)
+        df_val = np.zeros_like(J_r)
         valid = (J_phi >= 1e-5) & (J_phi <= 100)
 
         R_d = 3.45 if component == "thin_disc" else 2.31
@@ -1449,7 +1469,7 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
         is_thin_disc = self.tau < self.tau_T
         sizes = [np.sum(is_thin_disc), np.sum(~is_thin_disc)]
 
-        self._which_comp = np.where(self.tau < self.tau_T, "thin_disc", "thick_disc")
+        which_comp = np.where(is_thin_disc, "thin_disc", "thick_disc")
 
         self._x = np.zeros(size) * u.kpc
         self._y = np.zeros(size) * u.kpc
@@ -1462,10 +1482,10 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
         self._v_R = np.zeros(size) * u.km / u.s
         self._v_T = np.zeros(size) * u.km / u.s
 
-        for com_size, com in zip(sizes, self.components):
+        for com_size, com in zip(sizes, ["thin_disc", "thick_disc"]):
             if com_size == 0:          # pragma: no cover
                 continue
-            com_mask = self._which_comp == com
+            com_mask = which_comp == com
 
             if com == "thin_disc":
                 time_bin_edges = np.linspace(0, self.tau_T.to(u.Gyr).value, self.time_bins + 1) * u.Gyr
@@ -1673,13 +1693,10 @@ def load(file_name, key="sfh"):
     loaded_sfh._y = df["y"].values * u.kpc
     loaded_sfh._z = df["z"].values * u.kpc
 
-    if "which_comp" in df:
-        loaded_sfh._which_comp = df["which_comp"].values
-
     # additionally read in velocity components if they exist
-    for attr in ["v_R", "v_T", "v_z", "v_x", "v_y", "v_z"]:
+    for attr in ["_v_R", "_v_T", "_v_z", "_v_x", "_v_y", "_v_z"]:
         if attr in df:
-            setattr(loaded_sfh, "_" + attr, df[attr].values * u.km / u.s)
+            setattr(loaded_sfh, attr, df[attr].values * u.km / u.s)
 
     # return the newly created class
     return loaded_sfh
