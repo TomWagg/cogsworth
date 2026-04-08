@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import tarfile
+import shutil
 import logging
 
 import requests
@@ -134,10 +135,14 @@ class MISTBolometricCorrectionGrid:
         Extract a downloaded tarball into a subdirectory of cache_dir.
         """
         extract_dir = self.cache_dir / filter_set
-        extract_dir.mkdir(parents=True, exist_ok=True)
 
-        if not self.rebuild and any(extract_dir.iterdir()):
+        if not self.rebuild and extract_dir.exists() and any(extract_dir.iterdir()):
             return extract_dir
+
+        # remove stale files before re-extracting so old and new format files don't mix
+        if extract_dir.exists():
+            shutil.rmtree(extract_dir)
+        extract_dir.mkdir(parents=True, exist_ok=True)
 
         tarball_path = self.download_filter_set(filter_set)
 
@@ -160,11 +165,15 @@ class MISTBolometricCorrectionGrid:
         dfs: list[pd.DataFrame] = []
 
         for fp in sorted(self._iter_data_files(extract_dir)):
-            # read the header row (row 5 from the file)
+            # find the header line (starts with # and contains the first column name)
             with open(fp, "r") as f:
-                for _ in range(5 + 1):
-                    header_line = f.readline()
-            names = [s.replace("[Fe/H]", "feh") for s in header_line.strip().lstrip("#").split()]
+                for line in f:
+                    stripped = line.strip().lstrip("#").strip()
+                    if stripped.startswith(("Teff", "lgTef")):
+                        header_line = stripped
+                        break
+            names = [s.replace("[Fe/H]", "feh").replace("Fe_H", "feh").replace("lgTef", "Teff")
+                     for s in header_line.split()]
             df = pd.read_csv(
                 fp,
                 sep="\\s+",
@@ -179,6 +188,11 @@ class MISTBolometricCorrectionGrid:
             raise FileNotFoundError(f"no BC files found in {extract_dir}")
 
         df = pd.concat(dfs, copy=False)
+
+        # new MIST format includes an a_Fe (alpha enhancement) column; keep only solar alpha (0.0)
+        if "a_Fe" in df.columns:
+            df = df[df["a_Fe"] == 0.0].drop(columns="a_Fe")
+
         df.set_index(["Teff", "logg", "feh", "Av"], inplace=True)
         return df
 
