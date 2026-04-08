@@ -161,9 +161,6 @@ class StarFormationHistory():
             # only keep attributes that have no underscores and aren't velocity components
             if key[0] != "_" and key not in array_attributes:
                 actual_kwargs[key] = kwargs[key]
-            # also keep any component specific attributes
-            elif key.startswith("_component"):
-                actual_kwargs[key[1:]] = kwargs[key]
             # save other attributes for later
             elif key not in array_attributes and key != "_size":
                 saved_attributes[key] = kwargs[key]
@@ -733,7 +730,7 @@ class CompositeStarFormationHistory():
 
     def get_citations(self, filename=None):
         """Print the citations for the packages/papers used in the star formation history"""
-        if not hasattr(self, "__citations__") or len(self.__citations__) == 0:
+        if not hasattr(self, "__citations__") or len(self.__citations__) == 0:      # pragma: no cover
             print("No citations needed for this star formation history model")
             return
 
@@ -1163,7 +1160,7 @@ class DistributionFunctionBasedSFH(StarFormationHistory):
             self._df = agama.DistributionFunction(potential=self.agama_pot, **df)
         elif isinstance(df, FunctionType):
             self._df = df
-        elif df is not None:
+        elif df is not None:            # pragma: no cover
             raise ValueError(("`df` must be either a function or a dict of keyword arguments to pass "
                               "to `agama.DistributionFunction`"))
 

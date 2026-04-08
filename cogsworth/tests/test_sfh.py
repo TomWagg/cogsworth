@@ -439,6 +439,17 @@ class Test(unittest.TestCase):
         g_sub._tau = new_sub_tau
         self.assertTrue(np.allclose(g_sub.tau.value, new_sub_tau.value))
 
+    def test_composite_setattr_list(self):
+        """Test __setattr__ for COMBINE_ATTRS when the value is a list"""
+        g = sfh.Wagg2022()
+        g.sample(20)
+
+        # setting a COMBINE_ATTR distributes values to components and reads back correctly
+        new_tau = [1] * len(g)
+        g._tau = new_tau
+
+        self.assertTrue(np.allclose(g.tau, new_tau))
+
     def test_composite_add(self):
         """Test CompositeStarFormationHistory.__add__ with all operand types"""
         comp = sfh.Wagg2022()
