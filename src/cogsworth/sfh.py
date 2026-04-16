@@ -26,6 +26,7 @@ from cogsworth.citations import CITATIONS
 
 __all__ = ["StarFormationHistory", "CompositeStarFormationHistory",
            "DistributionFunctionBasedSFH", "Wagg2022",
+           "Frankel2018SFH", "LowAlphaDiscWagg2022", "HighAlphaDiscWagg2022", "BulgeWagg2022",
            "BurstUniformDisc", "ConstantUniformDisc", "ConstantPlummerSphere",
            "SandersBinney2015", "SpheroidalDwarf", "CarinaDwarf", "load", "concat"]
 
@@ -1132,6 +1133,152 @@ class Wagg2022(CompositeStarFormationHistory):
 
         super().__init__(components=components, component_ratios=component_ratios, **kwargs)
 
+
+class MilkyWayBarSormani2022(StarFormationHistory):
+    """A star formation history for the Milky Way bar, based on
+    `Sormani+2022 <https://ui.adsabs.harvard.edu/abs/2022MNRAS.514L...1S/abstract>`_.
+
+    Parameters are the same as :class:`StarFormationHistory` but additionally with the following:
+
+    Parameters
+    ----------
+    
+    """
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.__citations__.extend(["Sormani+2022"])
+
+    def _bar_comp_1_density(self, x, y, z):
+        """Density of the X-shaped/boxy-peanut bulge component from
+        `Sormani+2022 <https://ui.adsabs.harvard.edu/abs/2022MNRAS.514L...1S/abstract>`_ Table 1.
+
+        Parameters
+        ----------
+        x, y, z : float or array-like
+            Galactocentric Cartesian coordinates in kpc, in the bar frame (x-axis along bar major axis)
+
+        Returns
+        -------
+        rho : float or array-like
+            Density in units of 10^10 M_sun / kpc^3
+        """
+        # Table 1 parameters for component 1 (X-shaped/boxy-peanut bulge)
+        p = {
+            "rho0":  0.316,   # 10^10 M_sun kpc^-3, central density normalisation
+            "x0":    0.490,   # kpc, scale length along bar major axis
+            "y0":    0.392,   # kpc, scale length along bar minor axis
+            "z0":    0.229,   # kpc, scale length along vertical axis
+            "c_par": 1.991,   # exponent for combining in-plane and vertical components
+            "c_per": 2.232,   # exponent for combining x and y components
+            "m":     0.873,   # exponent in the sech argument
+            "n":     1.940,   # exponent for the X-shape arm radii
+            "alpha": 0.626,   # X-shape strength
+            "c":     1.342,   # X-shape arm tilt (z slope)
+            "xc":    0.751,   # kpc, x scale length for X-shape arms
+            "yc":    0.469,   # kpc, y scale length for X-shape arms
+            "r_cut": 4.370,   # kpc, outer exponential cutoff radius
+        }
+
+        # 3D generalised ellipsoidal radius: {[(|x|/x0)^c_per + (|y|/y0)^c_per]^(c_par/c_per) + (|z|/z0)^c_par}^(1/c_par)
+        xy_term = (np.abs(x) / p["x0"])**p["c_per"] + (np.abs(y) / p["y0"])**p["c_per"]
+        a1 = (xy_term**(p["c_par"] / p["c_per"]) + (np.abs(z) / p["z0"])**p["c_par"])**(1.0 / p["c_par"])
+
+        # X-shape arm radii: a_± = sqrt(((x ± c*z)/xc)^2 + (y/yc)^2)
+        a_plus  = np.sqrt(((x + p["c"] * z) / p["xc"])**2 + (y / p["yc"])**2)
+        a_minus = np.sqrt(((x - p["c"] * z) / p["xc"])**2 + (y / p["yc"])**2)
+
+        # Spherical radius for outer Gaussian cutoff
+        r = np.sqrt(x**2 + y**2 + z**2)
+
+        boxy_profile = 1.0 / np.cosh(a1**p["m"])   # sech(a1^m)
+        x_shape = 1.0 + p["alpha"] * (np.exp(-a_plus**p["n"]) + np.exp(-a_minus**p["n"]))
+        outer_cut = np.exp(-(r / p["r_cut"])**2)
+
+        return p["rho0"] * boxy_profile * x_shape * outer_cut
+
+    def _bar_comp_2_density(self, x, y, z):
+        """Density of the extended bar component from
+        `Sormani+2022 <https://ui.adsabs.harvard.edu/abs/2022MNRAS.514L...1S/abstract>`_ Table 1.
+
+        Parameters
+        ----------
+        x, y, z : float or array-like
+            Galactocentric Cartesian coordinates in kpc, in the bar frame (x-axis along bar major axis)
+
+        Returns
+        -------
+        rho : float or array-like
+            Density in units of 10^10 M_sun / kpc^3
+        """
+        # Table 1 parameters for component 2 (extended bar)
+        p = {
+            "rho0":  0.050,    # 10^10 M_sun kpc^-3, central density normalisation
+            "x0":    5.364,    # kpc, scale length along bar major axis
+            "y0":    0.959,    # kpc, scale length along bar minor axis
+            "z0":    0.611,    # kpc, scale height
+            "c_per": 0.970,    # exponent for combining x and y components
+            "n":     3.051,    # in-plane density exponent
+            "R_out": 3.190,    # kpc, outer radial cutoff scale
+            "n_out": 16.731,   # outer radial cutoff exponent (large positive → sharp outer edge)
+            "R_in":  0.558,    # kpc, inner radial cutoff scale
+            "n_in":  3.196,    # inner radial cutoff exponent (central density hole)
+        }
+
+        # In-plane generalised ellipsoidal radius: [(|x|/x0)^c_per + (|y|/y0)^c_per]^(1/c_per)
+        a2 = ((np.abs(x) / p["x0"])**p["c_per"] + (np.abs(y) / p["y0"])**p["c_per"])**(1.0 / p["c_per"])
+
+        # Cylindrical radius; guarded against R=0 for the inner-cutoff term
+        R = np.sqrt(x**2 + y**2)
+        R_safe = np.maximum(R, np.finfo(float).tiny)
+
+        in_plane  = np.exp(-a2**p["n"])
+        z_profile = (1.0 / np.cosh(z / p["z0"]))**2                      # sech^2(z/z0)
+        outer_cut = np.exp(-(R / p["R_out"])**p["n_out"])
+        inner_cut = np.exp(-(p["R_in"] / R_safe)**p["n_in"])
+
+        return p["rho0"] * in_plane * z_profile * outer_cut * inner_cut
+
+    def _bar_comp_3_density(self, x, y, z):
+        """Density of the long bar component from
+        `Sormani+2022 <https://ui.adsabs.harvard.edu/abs/2022MNRAS.514L...1S/abstract>`_ Table 1.
+
+        Parameters
+        ----------
+        x, y, z : float or array-like
+            Galactocentric Cartesian coordinates in kpc, in the bar frame (x-axis along bar major axis)
+
+        Returns
+        -------
+        rho : float or array-like
+            Density in units of 10^10 M_sun / kpc^3
+        """
+        # Table 1 parameters for component 3 (long bar)
+        p = {
+            "rho0":  1743.049,  # 10^10 M_sun kpc^-3, central density normalisation
+            "x0":    0.478,     # kpc, scale length along bar major axis
+            "y0":    0.267,     # kpc, scale length along bar minor axis
+            "z0":    0.252,     # kpc, scale height
+            "c_per": 1.879,     # exponent for combining x and y components
+            "n":     0.980,     # in-plane density exponent
+            "R_out": 2.204,     # kpc, radial cutoff scale
+            "n_out": -27.291,   # radial cutoff exponent (negative → acts as inner cutoff at R_out)
+            "R_in":  7.607,     # kpc, radial cutoff scale (outer edge of long bar)
+            "n_in":  1.630,     # radial cutoff exponent
+        }
+
+        # In-plane generalised ellipsoidal radius: [(|x|/x0)^c_per + (|y|/y0)^c_per]^(1/c_per)
+        a3 = ((np.abs(x) / p["x0"])**p["c_per"] + (np.abs(y) / p["y0"])**p["c_per"])**(1.0 / p["c_per"])
+
+        # Cylindrical radius; guarded against R=0 for the inner-cutoff term
+        R = np.sqrt(x**2 + y**2)
+        R_safe = np.maximum(R, np.finfo(float).tiny)
+
+        in_plane  = np.exp(-a3**p["n"])
+        z_profile = (1.0 / np.cosh(z / p["z0"]))**2                      # sech^2(z/z0)
+        outer_cut = np.exp(-(R / p["R_out"])**p["n_out"])
+        inner_cut = np.exp(-(p["R_in"] / R_safe)**p["n_in"])
+
+        return p["rho0"] * in_plane * z_profile * outer_cut * inner_cut
 
 class DistributionFunctionBasedSFH(StarFormationHistory):
     """A star formation history based on a distribution function.
