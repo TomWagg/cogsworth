@@ -146,6 +146,18 @@ class Population():
                 "made.\nRun `cogsworth.utils.list_BSE_defaults()` to see these."
             )
 
+        if ini_file is not None:
+            if BSE_settings != {}:
+                self._warn(
+                    "You have provided both `BSE_settings` and an `ini_file`. Using ini file and ignoring "
+                    "BSE_settings"
+                )
+            if sampling_params != {}:
+                self._warn(
+                    "You have provided both `sampling_params` and an `ini_file`. Using ini file and ignoring "
+                    "sampling_params"
+                )
+
         # work out how many CPUs are available for multiprocessing, fallback to 1
         max_cpus = os.cpu_count() if os.cpu_count() is not None else 1
 
@@ -195,8 +207,11 @@ class Population():
 
         self.__citations__ = ["cogsworth", "cosmic", "gala"]
 
+        if ini_file is not None:
+            BSE_settings, _, _, _, sampling_params = parse_inifile(ini_file)
+
         self.BSE_settings = get_default_BSE_settings() if use_default_BSE_settings else {}
-        self.BSE_settings.update(BSE_settings if ini_file is None else parse_inifile(ini_file)[0])
+        self.BSE_settings.update(BSE_settings)
 
         self.sampling_params = {
             'primary_model': 'kroupa01', 'ecc_model': 'sana12', 'porb_model': 'sana12',
