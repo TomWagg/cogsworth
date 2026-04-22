@@ -763,6 +763,9 @@ def plot_sfh(
     if isinstance(colour_by, str):
         if cbar_label is None:
             cbar_label = CBAR_LABEL_CONVERTER.get(colour_by, None)
+        if colour_by == "Z":
+            if cbar_norm is None:
+                cbar_norm = mpl.colors.LogNorm(vmin=sfh.Z.min(), vmax=sfh.Z.max())
         colour_by = getattr(sfh, colour_by)
 
     random_order = np.random.permutation(len(sfh))
