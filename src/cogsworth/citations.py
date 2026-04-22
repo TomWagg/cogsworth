@@ -192,7 +192,7 @@ archivePrefix = {arXiv},
 }"""
         },
         "Pascale+2019": {
-            "tags": ["Pascale+2019"],
+            "tags": ["Pascale+2019:2019MNRAS.488.2423P"],
             "bibtex": r"""@ARTICLE{Pascale+2019:2019MNRAS.488.2423P,
        author = {{Pascale}, Raffaele and {Binney}, James and {Nipoti}, Carlo and {Posti}, Lorenzo},
         title = "{Action-based models for dwarf spheroidal galaxies and globular clusters}",
@@ -211,6 +211,27 @@ archivePrefix = {arXiv},
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}
 }"""
         },
+        "Sormani+2022": {
+            "tags": ["Sormani+2022:2022MNRAS.514L...1S"],
+            "bibtex": r"""@ARTICLE{Sormani+2022:2022MNRAS.514L...1S,
+       author = {{Sormani}, Mattia C. and {Gerhard}, Ortwin and {Portail}, Matthieu and {Vasiliev}, Eugene and {Clarke}, Jonathan},
+        title = "{The stellar mass distribution of the Milky Way's bar: an analytical model}",
+      journal = {\mnras},
+     keywords = {Galaxy: bulge, Galaxy: centre, Galaxy: kinematics and dynamics, Galaxy: structure, galaxies: bar, Astrophysics - Astrophysics of Galaxies},
+         year = 2022,
+        month = jul,
+       volume = {514},
+       number = {1},
+        pages = {L1-L5},
+          doi = {10.1093/mnrasl/slac046},
+archivePrefix = {arXiv},
+       eprint = {2204.13114},
+ primaryClass = {astro-ph.GA},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2022MNRAS.514L...1S},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
+"""
+        }
     },
     "observables": {
         "isochrones": {

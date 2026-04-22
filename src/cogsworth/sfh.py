@@ -343,6 +343,12 @@ class StarFormationHistory():
         if self._v_y is not None:
             return self._v_y
         return self.v_R * np.sin(self.phi) + self.v_T * np.cos(self.phi)
+    
+    @property
+    def velocities(self):
+        return [self.v_x.to(u.km / u.s).value,
+                self.v_y.to(u.km / u.s).value,
+                self.v_z.to(u.km / u.s).value] * (u.km / u.s)
 
     @staticmethod
     def sfh_citation_statement(citations, filename=None):
@@ -1139,9 +1145,7 @@ class MilkyWayBarSormani2022(StarFormationHistory):
     """A star formation history for the Milky Way bar, based on
     `Sormani+2022 <https://ui.adsabs.harvard.edu/abs/2022MNRAS.514L...1S/abstract>`_.
 
-    Positions are sampled from the 3-component bar density model using Metropolis-Hastings
-    MCMC. Coordinates are in the bar frame with the x-axis along the bar major axis.
-    Lookback times follow the old bar population (beta distribution), and metallicities
+    Positions and velocities use the agama Density sampler, and metallicities
     use the `Frankel+2018 <https://ui.adsabs.harvard.edu/abs/2018ApJ...865...96F/abstract>`_
     gradient relation.
 
@@ -1149,12 +1153,18 @@ class MilkyWayBarSormani2022(StarFormationHistory):
 
     Parameters
     ----------
-    n_burn : `int`, optional
-        Number of MCMC steps to discard as burn-in before collecting samples, by default 1000
-    thin : `int`, optional
-        Thinning factor: retain every ``thin``-th MCMC step after burn-in, by default 1
-    step_size : `float`, optional
-        Standard deviation of the isotropic Gaussian MCMC proposal in kpc, by default 0.5
+    potential : :class:`~gala.potential.PotentialBase`
+        A potential to use for sampling velocities
+    present_day_bar_angle : :class:`~astropy.units.Quantity` [angle], optional
+        Present-day angle of the bar major axis with respect to the Galactocentric x-axis (Sun-GC line), by default 28*u.deg
+    pattern_speed : :class:`~astropy.units.Quantity` [angle/time], optional
+        Pattern speed of the bar, by default 40*u.km/u.s/u.kpc
+    x_max : :class:`~astropy.units.Quantity` [length], optional
+        Maximum x coordinate (bar major axis), by default 20*u.kpc
+    y_max : :class:`~astropy.units.Quantity` [length], optional
+        Maximum y coordinate (bar intermediate axis), by default 20*u.kpc
+    z_max : :class:`~astropy.units.Quantity` [length], optional
+        Maximum z coordinate (bar minor axis), by default 20*u.kpc
     Fm : `float`, optional
         Metallicity at the Galactic centre at lookback time ``galaxy_age``, by default -1
     gradient : :class:`~astropy.units.Quantity` [1/length], optional
@@ -1168,27 +1178,35 @@ class MilkyWayBarSormani2022(StarFormationHistory):
     galaxy_age : :class:`~astropy.units.Quantity` [time], optional
         Maximum lookback time, by default 12*u.Gyr
     """
-    def __init__(self,
+    def __init__(self, potential, kappa=0.7,
                  present_day_bar_angle=28 * u.deg, pattern_speed=40 * u.km / u.s / u.kpc,
-                 n_burn=1000, thin=1, step_size=0.5,
+                 x_max=20 * u.kpc, y_max=20 * u.kpc, z_max=20 * u.kpc,
                  Fm=-1, gradient=-0.075 / u.kpc, Rnow=8.7 * u.kpc,
-                 gamma=0.3, zsun=0.0142, galaxy_age=12 * u.Gyr, **kwargs):
+                 gamma=0.3, zsun=0.0142, galaxy_age=8 * u.Gyr, **kwargs):
         self.present_day_bar_angle = present_day_bar_angle
         self.pattern_speed = pattern_speed
-        self.n_burn = n_burn
-        self.thin = thin
-        self.step_size = step_size
+        self.x_max = x_max
+        self.y_max = y_max
+        self.z_max = z_max
         self.Fm = Fm
         self.gradient = gradient
         self.Rnow = Rnow
         self.gamma = gamma
         self.zsun = zsun
         self.galaxy_age = galaxy_age
+        self.potential = potential
         super().__init__(**kwargs)
-        self.__citations__.extend(["Sormani+2022"])
+        self.__citations__.extend(["Sormani+2022", "Frankel+2018", "Sanders&Binney2015"])
+
+        tau_range = np.linspace(0, self.galaxy_age.to(u.Gyr).value, 100000)
+        valid = (tau_range >= 0) & (tau_range < 12)
+        tau_pdf = np.zeros_like(tau_range)
+        tau_pdf[valid] = np.exp(tau_range[valid] / 8 - 0.43 / (12 - tau_range[valid]))
+        tau_cdf = cumulative_trapezoid(tau_pdf, tau_range, initial=0)
+        self._inv_cdf = interp1d(tau_cdf / tau_cdf[-1], tau_range, bounds_error=True)
 
     def draw_lookback_times(self, size):
-        """Set all lookback times to the present day
+        """Use inverse CDF sampling to draw lookback times from SB15 model, only between 0 and ``galaxy_age``
 
         Parameters
         ----------
@@ -1200,7 +1218,7 @@ class MilkyWayBarSormani2022(StarFormationHistory):
         tau : :class:`~astropy.units.Quantity` [time]
             Random lookback times
         """
-        return np.repeat(0.0, size) * u.Gyr
+        return self._inv_cdf(np.random.rand(size)) * u.Gyr
 
     def get_metallicity(self):
         """Compute metallicities using the
@@ -1215,16 +1233,17 @@ class MilkyWayBarSormani2022(StarFormationHistory):
 
     def _bar_density(self, x, y, z):
         """Total bar density (sum of all three Sormani+2022 components) in 10^10 M_sun kpc^-3"""
-        return (self._bar_comp_1_density(x, y, z)
-                + self._bar_comp_2_density(x, y, z)
-                + self._bar_comp_3_density(x, y, z))
+        valid = ((np.abs(x) < self.x_max.to(u.kpc).value)
+                 & (np.abs(y) < self.y_max.to(u.kpc).value)
+                 & (np.abs(z) < self.z_max.to(u.kpc).value))
+        density = np.zeros_like(x)
+        density[valid] = (self._bar_comp_1_density(x[valid], y[valid], z[valid])
+                          + self._bar_comp_2_density(x[valid], y[valid], z[valid])
+                          + self._bar_comp_3_density(x[valid], y[valid], z[valid]))
+        return density
 
     def sample(self, size):
-        """Sample from the bar density using Metropolis-Hastings MCMC.
-
-        Runs a single chain for ``n_burn + size * thin`` steps, discards the first ``n_burn``
-        steps as burn-in, then returns every ``thin``-th subsequent position. The chain uses
-        an isotropic Gaussian proposal with standard deviation ``step_size`` kpc.
+        """Sample from the bar density using Agama's Density sampler
 
         Parameters
         ----------
@@ -1234,30 +1253,20 @@ class MilkyWayBarSormani2022(StarFormationHistory):
         for attr in ["_tau", "_Z", "_x", "_y", "_z", "_v_R", "_v_T", "_v_z", "_v_x", "_v_y"]:
             setattr(self, attr, None)
 
-        # initialise at the origin where comp 1 has maximum density
-        pos = np.zeros(3)
-        current_dens = self._bar_density(*pos)
+        assert check_dependencies("agama")
+        import agama
+        agama.setUnits(**{k: galactic[k] for k in ['length', 'mass', 'time']})
 
-        n_steps = self.n_burn + size * self.thin
-        samples = np.empty((size, 3))
-        n_collected = 0
+        # convert potential to agama potential if necessary
+        if not isinstance(self.potential, agama.Potential):
+            self.potential = self.potential.as_interop('agama')
 
-        for i in range(n_steps):
-            # isotropic Gaussian proposal
-            proposal = pos + np.random.normal(0.0, self.step_size, 3)
-            prop_dens = self._bar_density(*proposal)
+        def density_func(x):
+            return self._bar_density(x[:, 0], x[:, 1], x[:, 2])
 
-            # Metropolis-Hastings acceptance
-            if prop_dens > 0:
-                ratio = prop_dens / current_dens if current_dens > 0 else np.inf
-                if ratio >= 1.0 or np.random.rand() < ratio:
-                    pos = proposal
-                    current_dens = prop_dens
-
-            # collect after burn-in, applying thinning
-            if i >= self.n_burn and (i - self.n_burn) % self.thin == 0:
-                samples[n_collected] = pos
-                n_collected += 1
+        # use agama.Density
+        density = agama.Density(density_func, symmetry='t')
+        xv, _ = density.sample(size, potential=self.potential, kappa=0.7)
 
         # draw lookback times first — needed to determine the bar angle at each star's birth
         self._tau = self.draw_lookback_times(size)
@@ -1271,11 +1280,23 @@ class MilkyWayBarSormani2022(StarFormationHistory):
         omega_p = self.pattern_speed.to(u.Gyr**-1) / (2 * np.pi) # convert pattern speed to radians per Gyr
         phi_birth = phi_0 - (omega_p * self._tau).to(u.dimensionless_unscaled).value
 
-        x_bar = samples[:, 0]
-        y_bar = samples[:, 1]
+        x_bar = xv[:, 0]
+        y_bar = xv[:, 1]
         self._x = (x_bar * np.cos(phi_birth) - y_bar * np.sin(phi_birth)) * u.kpc
         self._y = (x_bar * np.sin(phi_birth) + y_bar * np.cos(phi_birth)) * u.kpc
-        self._z = samples[:, 2] * u.kpc
+        self._z = xv[:, 2] * u.kpc
+
+        # also rotate velocities
+        v_x = xv[:, 3] * u.kpc / u.Myr
+        v_y = xv[:, 4] * u.kpc / u.Myr
+        self._v_x = (v_x * np.cos(phi_birth) - v_y * np.sin(phi_birth))
+        self._v_y = (v_x * np.sin(phi_birth) + v_y * np.cos(phi_birth))
+        self._v_z = xv[:, 5] * u.kpc / u.Myr
+
+        # convert to km/s
+        self._v_x = self._v_x.to(u.km / u.s)
+        self._v_y = self._v_y.to(u.km / u.s)
+        self._v_z = self._v_z.to(u.km / u.s)
 
         self._Z = self.get_metallicity()
 
@@ -1346,11 +1367,11 @@ class MilkyWayBarSormani2022(StarFormationHistory):
 
         # Cylindrical radius; guarded against R=0 for the inner-cutoff term
         R = np.sqrt(x**2 + y**2)
-        R_safe = np.maximum(R, np.finfo(float).tiny)
+        R_safe = np.maximum(R, 1e-5)
 
         in_plane  = np.exp(-a**p["n"])
         z_profile = (1.0 / np.cosh(z / p["z0"]))**2                      # sech^2(z/z0)
-        outer_cut = np.exp(-(R / p["R_out"])**p["n_out"])
+        outer_cut = np.exp(-(R_safe / p["R_out"])**p["n_out"])
         inner_cut = np.exp(-(p["R_in"] / R_safe)**p["n_in"])
 
         return p["rho0"] * in_plane * z_profile * outer_cut * inner_cut
