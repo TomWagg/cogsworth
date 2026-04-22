@@ -30,6 +30,18 @@ class Test(unittest.TestCase):
         self.assertTrue(os.path.exists("test.bib"))
         os.remove("test.bib")
 
+    def test_utils_dependencies(self):
+        """Test that the utils module imports all dependencies correctly"""
+        import cogsworth.utils
+
+        it_worked = True
+        try:
+            cogsworth.utils.check_dependencies("fake_package")
+        except AttributeError:
+            it_worked = False
+            
+        self.assertFalse(it_worked, "check_dependencies correctly raised an AttributeError for fake package")
+
 
 def test_cite_stdin_pop(monkeypatch):
     """Test citations when using stdin/stdout (monkeypatch time!)"""

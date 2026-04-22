@@ -179,7 +179,8 @@ class Test(unittest.TestCase):
         g = sfh.SandersBinney2015(potential=gp.MilkyWayPotential(version='v2'))
         len(g)
 
-        attrs = ["tau", "Z", "x", "y", "z", "positions", "phi", "rho", "v_x", "v_y", "v_z", "v_R", "v_T", "v_z", "v_phi"]
+        attrs = ["tau", "Z", "x", "y", "z", "positions", "velocities", "phi", "rho",
+                 "v_x", "v_y", "v_z", "v_R", "v_T", "v_z", "v_phi"]
 
         for attr in attrs:
             it_broke = False
