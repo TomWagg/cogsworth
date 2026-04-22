@@ -24,9 +24,4 @@ def __getattr__(name):
         from .interop.compas.pop import COMPASPopulation
         globals()["COMPASPopulation"] = COMPASPopulation
         return COMPASPopulation
-    if name in ("CITATIONS", "__bibtex__", "__citation__"):
-        from .citations import CITATIONS
-        globals()["CITATIONS"] = CITATIONS
-        globals()["__bibtex__"] = globals()["__citation__"] = CITATIONS["general"]["cogsworth"]["bibtex"]
-        return globals()[name]
     raise AttributeError(f"module 'cogsworth' has no attribute {name!r}")

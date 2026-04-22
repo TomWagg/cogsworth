@@ -95,7 +95,6 @@ class COMPASPopulation(Population):
         initial_binaries = get_initial_binaries(compas_output_file, tphysf=lookback_times)
         pop = cls(n_binaries=len(initial_binaries), **kwargs)
         pop._initial_binaries = initial_binaries
-        pop._initC = initial_binaries.copy()
         pop._bpp = get_bpp(compas_output_file)
         pop._kick_info = get_kick_info(compas_output_file)
         pop._append_kicks()
@@ -133,7 +132,7 @@ class COMPASPopulation(Population):
         self._escaped = None
 
         # if no initial binaries have been sampled then we need to create some
-        if self._initial_binaries is None and self._initC is None:
+        if self._initial_binaries is None:
             logging.getLogger("cogsworth").warning(("cogsworth warning: Initial binaries not yet sampled, "
                                                     "performing sampling now."))
             self.sample_initial_binaries()
@@ -154,12 +153,10 @@ class COMPASPopulation(Population):
 
         self._bpp = get_bpp(f"{self.output_directory}/COMPAS_Output.h5")
         self._kick_info = get_kick_info(f"{self.output_directory}/COMPAS_Output.h5")
-        self._initC = self.initial_binaries
 
         self.initial_binaries["bin_num"] = self.final_bpp["bin_num"].values
         self.initial_binaries.index = self.final_bpp["bin_num"].values
         self._append_kicks()
-        self._initC = self.initial_binaries
 
     def to_Population(self, **kwargs):
         """Convert this COMPASPopulation to a generic Population object that uses COSMIC"""

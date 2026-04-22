@@ -26,6 +26,8 @@ from cogsworth.citations import CITATIONS
 
 __all__ = ["StarFormationHistory", "CompositeStarFormationHistory",
            "DistributionFunctionBasedSFH", "Wagg2022",
+           "Frankel2018SFH", "LowAlphaDiscWagg2022", "HighAlphaDiscWagg2022", "BulgeWagg2022",
+           "MilkyWayBarSormani2022",
            "BurstUniformDisc", "ConstantUniformDisc", "ConstantPlummerSphere",
            "SandersBinney2015", "SpheroidalDwarf", "CarinaDwarf", "load", "concat"]
 
@@ -341,6 +343,12 @@ class StarFormationHistory():
         if self._v_y is not None:
             return self._v_y
         return self.v_R * np.sin(self.phi) + self.v_T * np.cos(self.phi)
+    
+    @property
+    def velocities(self):
+        return [self.v_x.to(u.km / u.s).value,
+                self.v_y.to(u.km / u.s).value,
+                self.v_z.to(u.km / u.s).value] * (u.km / u.s)
 
     @staticmethod
     def sfh_citation_statement(citations, filename=None):
@@ -441,7 +449,7 @@ class StarFormationHistory():
 
         See :func:`~cogsworth.plotting.plot_sfh` for more details and options.
         """
-        plot_sfh(self, **kwargs)
+        return plot_sfh(self, **kwargs)
 
     def save(self, file_name, key="sfh"):
         """Save the entire class to storage.
@@ -1131,6 +1139,303 @@ class Wagg2022(CompositeStarFormationHistory):
         component_ratios = [2.585e10, 2.585e10, 0.91e10]
 
         super().__init__(components=components, component_ratios=component_ratios, **kwargs)
+
+
+class MilkyWayBarSormani2022(StarFormationHistory):
+    """A star formation history for the Milky Way bar, based on
+    `Sormani+2022 <https://ui.adsabs.harvard.edu/abs/2022MNRAS.514L...1S/abstract>`_.
+
+    Positions and velocities use the agama Density sampler, and metallicities
+    use the `Frankel+2018 <https://ui.adsabs.harvard.edu/abs/2018ApJ...865...96F/abstract>`_
+    gradient relation.
+
+    Parameters are the same as :class:`StarFormationHistory` but additionally with the following:
+
+    Parameters
+    ----------
+    potential : :class:`~gala.potential.PotentialBase`
+        A potential to use for sampling velocities
+    kappa : `float`, optional
+        Kappa parameter for the axisymmetric Jeans equations, by default 0.7
+    present_day_bar_angle : :class:`~astropy.units.Quantity` [angle], optional
+        Present-day angle of the bar major axis with respect to the Galactocentric x-axis (Sun-GC line), by default 28*u.deg
+    pattern_speed : :class:`~astropy.units.Quantity` [angle/time], optional
+        Pattern speed of the bar, by default 40*u.km/u.s/u.kpc
+    x_max : :class:`~astropy.units.Quantity` [length], optional
+        Maximum x coordinate (bar major axis), by default 20*u.kpc
+    y_max : :class:`~astropy.units.Quantity` [length], optional
+        Maximum y coordinate (bar intermediate axis), by default 20*u.kpc
+    z_max : :class:`~astropy.units.Quantity` [length], optional
+        Maximum z coordinate (bar minor axis), by default 20*u.kpc
+    Fm : `float`, optional
+        Metallicity at the Galactic centre at lookback time ``galaxy_age``, by default -1
+    gradient : :class:`~astropy.units.Quantity` [1/length], optional
+        Radial metallicity gradient, by default -0.075/u.kpc
+    Rnow : :class:`~astropy.units.Quantity` [length], optional
+        Radius at which the present-day metallicity is solar, by default 8.7*u.kpc
+    gamma : `float`, optional
+        Time exponent for chemical enrichment, by default 0.3
+    zsun : `float`, optional
+        Solar metallicity, by default 0.0142
+    galaxy_age : :class:`~astropy.units.Quantity` [time], optional
+        Maximum lookback time, by default 12*u.Gyr
+    """
+    def __init__(self, potential, kappa=0.7,
+                 present_day_bar_angle=28 * u.deg, pattern_speed=40 * u.km / u.s / u.kpc,
+                 x_max=20 * u.kpc, y_max=20 * u.kpc, z_max=20 * u.kpc,
+                 Fm=-1, gradient=-0.075 / u.kpc, Rnow=8.7 * u.kpc,
+                 gamma=0.3, zsun=0.0142, galaxy_age=8 * u.Gyr, **kwargs):
+        self.present_day_bar_angle = present_day_bar_angle
+        self.pattern_speed = pattern_speed
+        self.x_max = x_max
+        self.y_max = y_max
+        self.z_max = z_max
+        self.Fm = Fm
+        self.gradient = gradient
+        self.Rnow = Rnow
+        self.gamma = gamma
+        self.zsun = zsun
+        self.galaxy_age = galaxy_age
+        self.potential = potential
+        self.kappa = kappa
+        super().__init__(**kwargs)
+        self.__citations__.extend(["Sormani+2022", "Frankel+2018", "Sanders&Binney2015"])
+
+        tau_range = np.linspace(0, self.galaxy_age.to(u.Gyr).value, 100000)
+        valid = (tau_range >= 0) & (tau_range < 12)
+        tau_pdf = np.zeros_like(tau_range)
+        tau_pdf[valid] = np.exp(tau_range[valid] / 8 - 0.43 / (12 - tau_range[valid]))
+        tau_cdf = cumulative_trapezoid(tau_pdf, tau_range, initial=0)
+        self._inv_cdf = interp1d(tau_cdf / tau_cdf[-1], tau_range, bounds_error=True)
+
+    def draw_lookback_times(self, size):
+        """Use inverse CDF sampling to draw lookback times from SB15 model, only between 0 and ``galaxy_age``
+
+        Parameters
+        ----------
+        size : `int`
+            Number of lookback times to draw
+
+        Returns
+        -------
+        tau : :class:`~astropy.units.Quantity` [time]
+            Random lookback times
+        """
+        return self._inv_cdf(np.random.rand(size)) * u.Gyr
+
+    def get_metallicity(self):
+        """Compute metallicities using the
+        `Frankel+2018 <https://ui.adsabs.harvard.edu/abs/2018ApJ...865...96F/abstract>`_ relation.
+
+        Returns
+        -------
+        Z : :class:`~astropy.units.Quantity` [dimensionless]
+            Metallicities
+        """
+        return _frankel2018_metallicity_relation(self)
+
+    def _bar_density(self, x, y, z):
+        """Total bar density (sum of all three Sormani+2022 components) in 10^10 M_sun kpc^-3"""
+        valid = ((np.abs(x) < self.x_max.to(u.kpc).value)
+                 & (np.abs(y) < self.y_max.to(u.kpc).value)
+                 & (np.abs(z) < self.z_max.to(u.kpc).value))
+        density = np.zeros_like(x)
+        density[valid] = (self._bar_comp_1_density(x[valid], y[valid], z[valid])
+                          + self._bar_comp_2_density(x[valid], y[valid], z[valid])
+                          + self._bar_comp_3_density(x[valid], y[valid], z[valid]))
+        return density
+
+    def sample(self, size):
+        """Sample from the bar density using Agama's Density sampler
+
+        Parameters
+        ----------
+        size : `int`
+            Number of samples to return
+        """
+        for attr in ["_tau", "_Z", "_x", "_y", "_z", "_v_R", "_v_T", "_v_z", "_v_x", "_v_y"]:
+            setattr(self, attr, None)
+
+        assert check_dependencies("agama")
+        import agama
+        agama.setUnits(**{k: galactic[k] for k in ['length', 'mass', 'time']})
+
+        # convert potential to agama potential if necessary
+        if not isinstance(self.potential, agama.Potential):
+            self.potential = self.potential.as_interop('agama')
+
+        def density_func(x):
+            return self._bar_density(x[:, 0], x[:, 1], x[:, 2])
+
+        # use agama.Density
+        density = agama.Density(density_func, symmetry='t')
+        xv, _ = density.sample(size, potential=self.potential, kappa=self.kappa)
+
+        # draw lookback times first — needed to determine the bar angle at each star's birth
+        self._tau = self.draw_lookback_times(size)
+
+        # rotate bar-frame positions into the Galactocentric frame.
+        # assuming constant pattern speed, the bar major axis was at angle
+        #   phi_birth = phi_0 - omega_p * tau
+        # at each star's birth (lookback time tau), where phi_0 is the present-day bar angle
+        # measured from the Galactocentric x-axis (Sun-GC direction).
+        phi_0 = self.present_day_bar_angle.to(u.rad).value
+        omega_p = self.pattern_speed.to(u.Gyr**-1) / (2 * np.pi) # convert pattern speed to radians per Gyr
+        phi_birth = phi_0 - (omega_p * self._tau).to(u.dimensionless_unscaled).value
+
+        x_bar = xv[:, 0]
+        y_bar = xv[:, 1]
+        self._x = (x_bar * np.cos(phi_birth) - y_bar * np.sin(phi_birth)) * u.kpc
+        self._y = (x_bar * np.sin(phi_birth) + y_bar * np.cos(phi_birth)) * u.kpc
+        self._z = xv[:, 2] * u.kpc
+
+        # also rotate velocities
+        v_x = xv[:, 3] * u.kpc / u.Myr
+        v_y = xv[:, 4] * u.kpc / u.Myr
+        self._v_x = (v_x * np.cos(phi_birth) - v_y * np.sin(phi_birth))
+        self._v_y = (v_x * np.sin(phi_birth) + v_y * np.cos(phi_birth))
+        self._v_z = xv[:, 5] * u.kpc / u.Myr
+
+        # convert to km/s
+        self._v_x = self._v_x.to(u.km / u.s)
+        self._v_y = self._v_y.to(u.km / u.s)
+        self._v_z = self._v_z.to(u.km / u.s)
+
+        self._Z = self.get_metallicity()
+
+    def _bar_comp_1_density(self, x, y, z):
+        """Density of the X-shaped/boxy-peanut bulge component from
+        `Sormani+2022 <https://ui.adsabs.harvard.edu/abs/2022MNRAS.514L...1S/abstract>`_ Table 1.
+
+        Parameters
+        ----------
+        x, y, z : float or array-like
+            Galactocentric Cartesian coordinates in kpc, in the bar frame (x-axis along bar major axis)
+
+        Returns
+        -------
+        rho : float or array-like
+            Density in units of 10^10 M_sun / kpc^3
+        """
+        # Table 1 parameters for component 1 (X-shaped/boxy-peanut bulge)
+        p = {
+            "rho0":  0.316,   # 10^10 M_sun kpc^-3, central density normalisation
+            "x0":    0.490,   # kpc, scale length along bar major axis
+            "y0":    0.392,   # kpc, scale length along bar minor axis
+            "z0":    0.229,   # kpc, scale length along vertical axis
+            "c_par": 1.991,   # exponent for combining in-plane and vertical components
+            "c_per": 2.232,   # exponent for combining x and y components
+            "m":     0.873,   # exponent in the sech argument
+            "n":     1.940,   # exponent for the X-shape arm radii
+            "alpha": 0.626,   # X-shape strength
+            "c":     1.342,   # X-shape arm tilt (z slope)
+            "xc":    0.751,   # kpc, x scale length for X-shape arms
+            "yc":    0.469,   # kpc, y scale length for X-shape arms
+            "r_cut": 4.370,   # kpc, outer exponential cutoff radius
+        }
+
+        # 3D generalised ellipsoidal radius: {[(|x|/x0)^c_per + (|y|/y0)^c_per]^(c_par/c_per) + (|z|/z0)^c_par}^(1/c_par)
+        xy_term = (np.abs(x) / p["x0"])**p["c_per"] + (np.abs(y) / p["y0"])**p["c_per"]
+        a1 = (xy_term**(p["c_par"] / p["c_per"]) + (np.abs(z) / p["z0"])**p["c_par"])**(1.0 / p["c_par"])
+
+        # X-shape arm radii: a_± = sqrt(((x ± c*z)/xc)^2 + (y/yc)^2)
+        a_plus  = np.sqrt(((x + p["c"] * z) / p["xc"])**2 + (y / p["yc"])**2)
+        a_minus = np.sqrt(((x - p["c"] * z) / p["xc"])**2 + (y / p["yc"])**2)
+
+        # Spherical radius for outer Gaussian cutoff
+        r = np.sqrt(x**2 + y**2 + z**2)
+
+        boxy_profile = 1.0 / np.cosh(a1**p["m"])   # sech(a1^m)
+        x_shape = 1.0 + p["alpha"] * (np.exp(-a_plus**p["n"]) + np.exp(-a_minus**p["n"]))
+        outer_cut = np.exp(-(r / p["r_cut"])**2)
+
+        return p["rho0"] * boxy_profile * x_shape * outer_cut
+
+    def _bar_elongated_density(self, x, y, z, p):
+        """Shared density kernel for the elongated bar components (2 and 3) from
+        `Sormani+2022 <https://ui.adsabs.harvard.edu/abs/2022MNRAS.514L...1S/abstract>`_.
+
+        The functional form is:
+        rho = rho0 * exp(-a^n) * sech^2(z/z0) * exp(-(R/R_out)^n_out) * exp(-(R_in/R)^n_in)
+
+        Parameters
+        ----------
+        x, y, z : float or array-like
+            Galactocentric Cartesian coordinates in kpc, in the bar frame
+        p : dict
+            Parameter dictionary with keys: rho0, x0, y0, z0, c_per, n, R_out, n_out, R_in, n_in
+        """
+        # In-plane generalised ellipsoidal radius: [(|x|/x0)^c_per + (|y|/y0)^c_per]^(1/c_per)
+        a = ((np.abs(x) / p["x0"])**p["c_per"] + (np.abs(y) / p["y0"])**p["c_per"])**(1.0 / p["c_per"])
+
+        # Cylindrical radius; guarded against R=0 for the inner-cutoff term
+        R = np.sqrt(x**2 + y**2)
+        R_safe = np.maximum(R, 1e-5)
+
+        in_plane  = np.exp(-a**p["n"])
+        z_profile = (1.0 / np.cosh(z / p["z0"]))**2                      # sech^2(z/z0)
+        outer_cut = np.exp(-(R_safe / p["R_out"])**p["n_out"])
+        inner_cut = np.exp(-(p["R_in"] / R_safe)**p["n_in"])
+
+        return p["rho0"] * in_plane * z_profile * outer_cut * inner_cut
+
+    def _bar_comp_2_density(self, x, y, z):
+        """Density of the extended bar component from
+        `Sormani+2022 <https://ui.adsabs.harvard.edu/abs/2022MNRAS.514L...1S/abstract>`_ Table 1.
+
+        Parameters
+        ----------
+        x, y, z : float or array-like
+            Galactocentric Cartesian coordinates in kpc, in the bar frame (x-axis along bar major axis)
+
+        Returns
+        -------
+        rho : float or array-like
+            Density in units of 10^10 M_sun / kpc^3
+        """
+        # Table 1 parameters for component 2 (extended bar)
+        p = {
+            "rho0":  0.050,    # 10^10 M_sun kpc^-3, central density normalisation
+            "x0":    5.364,    # kpc, scale length along bar major axis
+            "y0":    0.959,    # kpc, scale length along bar minor axis
+            "z0":    0.611,    # kpc, scale height
+            "c_per": 0.970,    # exponent for combining x and y components
+            "n":     3.051,    # in-plane density exponent
+            "R_out": 3.190,    # kpc, outer radial cutoff scale
+            "n_out": 16.731,   # outer radial cutoff exponent (large positive → sharp outer edge)
+            "R_in":  0.558,    # kpc, inner radial cutoff scale
+            "n_in":  3.196,    # inner radial cutoff exponent (central density hole)
+        }
+        return self._bar_elongated_density(x, y, z, p)
+
+    def _bar_comp_3_density(self, x, y, z):
+        """Density of the long bar component from
+        `Sormani+2022 <https://ui.adsabs.harvard.edu/abs/2022MNRAS.514L...1S/abstract>`_ Table 1.
+
+        Parameters
+        ----------
+        x, y, z : float or array-like
+            Galactocentric Cartesian coordinates in kpc, in the bar frame (x-axis along bar major axis)
+
+        Returns
+        -------
+        rho : float or array-like
+            Density in units of 10^10 M_sun / kpc^3
+        """
+        # Table 1 parameters for component 3 (long bar)
+        p = {
+            "rho0":  1743.049,  # 10^10 M_sun kpc^-3, central density normalisation
+            "x0":    0.478,     # kpc, scale length along bar major axis
+            "y0":    0.267,     # kpc, scale length along bar minor axis
+            "z0":    0.252,     # kpc, scale height
+            "c_per": 1.879,     # exponent for combining x and y components
+            "n":     0.980,     # in-plane density exponent
+            "R_out": 2.204,     # kpc, radial cutoff scale
+            "n_out": -27.291,   # radial cutoff exponent (negative → acts as inner cutoff at R_out)
+            "R_in":  7.607,     # kpc, radial cutoff scale (outer edge of long bar)
+            "n_in":  1.630,     # radial cutoff exponent
+        }
+        return self._bar_elongated_density(x, y, z, p)
 
 
 class DistributionFunctionBasedSFH(StarFormationHistory):
