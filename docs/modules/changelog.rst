@@ -4,10 +4,20 @@ Full changelog
 
 This page tracks all of the changes that have been made to ``cogsworth``. We follow the standard versioning convention of A.B.C, where C is a patch/bugfix, B is a large bugfix or new feature and A is a major new breaking change. B/C are backwards compatible but A changes may be breaking.
 
-3.9.0
+4.0.0
 =====
 
-This version overhauls the StarFormationHistory framework to allow for CompositeStarFormationHistory objects and combining things.
+The release of version 4 of cogsworth has breaking changes for StarFormationHistory objects and includes several new features.
+
+- Breaking change: There is a new ``CompositeStarFormationHistory`` class that allows users to combine multiple SFHs together to create more complex SFHs. This is a major change to the way SFHs are handled in cogsworth, and it may require users to update their code if they were using the old way of combining SFHs.
+    - Wagg2022 in particular is now a CompositeStarFormationHistory
+- Added a model for the Milky Way bar star formation history
+- Populations can now draw sampling_params directly from an ini_file
+- New interoptability with COMPAS is now available, allowing users to run COMPAS directly, or post-process COMPAS outputs, within the cogsworth framework.
+    - You can also switch between COMPAS and COSMIC Populations and compare identical initial conditions with the two codes
+- Population.initC is now just an alias for Population.initial_binaries to avoid duplicating information
+- New MIST file formats are accounted for (this was broken in v3.8.1 - well and previous versions - due to changes in the MIST file formats, but should now be fixed)
+
 
 3.8.1
 =====
