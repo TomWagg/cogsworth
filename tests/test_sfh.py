@@ -281,6 +281,16 @@ class Test(unittest.TestCase):
                                   verbose=True)
         s.sample(100)
 
+    def test_sormani_bar(self):
+        """Test the Sormani & Binney (2022) SFH class"""
+        # sample with a gala potential
+        s = sfh.MilkyWayBarSormani2022(potential=gp.MilkyWayPotential(version='v2'))
+        s.sample(100)
+
+        # same with an agama potential
+        s = sfh.MilkyWayBarSormani2022(potential=gp.MilkyWayPotential(version='v2').as_interop("agama"))
+        s.sample(100)
+
     def test_custom_df(self):
         """Test a custom DF-based SFH class"""
         class SimpleDF(sfh.DistributionFunctionBasedSFH):

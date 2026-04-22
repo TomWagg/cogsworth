@@ -1155,6 +1155,8 @@ class MilkyWayBarSormani2022(StarFormationHistory):
     ----------
     potential : :class:`~gala.potential.PotentialBase`
         A potential to use for sampling velocities
+    kappa : `float`, optional
+        Kappa parameter for the axisymmetric Jeans equations, by default 0.7
     present_day_bar_angle : :class:`~astropy.units.Quantity` [angle], optional
         Present-day angle of the bar major axis with respect to the Galactocentric x-axis (Sun-GC line), by default 28*u.deg
     pattern_speed : :class:`~astropy.units.Quantity` [angle/time], optional
@@ -1195,6 +1197,7 @@ class MilkyWayBarSormani2022(StarFormationHistory):
         self.zsun = zsun
         self.galaxy_age = galaxy_age
         self.potential = potential
+        self.kappa = kappa
         super().__init__(**kwargs)
         self.__citations__.extend(["Sormani+2022", "Frankel+2018", "Sanders&Binney2015"])
 
@@ -1266,7 +1269,7 @@ class MilkyWayBarSormani2022(StarFormationHistory):
 
         # use agama.Density
         density = agama.Density(density_func, symmetry='t')
-        xv, _ = density.sample(size, potential=self.potential, kappa=0.7)
+        xv, _ = density.sample(size, potential=self.potential, kappa=self.kappa)
 
         # draw lookback times first — needed to determine the bar angle at each star's birth
         self._tau = self.draw_lookback_times(size)
