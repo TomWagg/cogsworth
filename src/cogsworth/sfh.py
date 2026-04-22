@@ -27,6 +27,7 @@ from cogsworth.citations import CITATIONS
 __all__ = ["StarFormationHistory", "CompositeStarFormationHistory",
            "DistributionFunctionBasedSFH", "Wagg2022",
            "Frankel2018SFH", "LowAlphaDiscWagg2022", "HighAlphaDiscWagg2022", "BulgeWagg2022",
+           "MilkyWayBarSormani2022",
            "BurstUniformDisc", "ConstantUniformDisc", "ConstantPlummerSphere",
            "SandersBinney2015", "SpheroidalDwarf", "CarinaDwarf", "load", "concat"]
 
@@ -442,7 +443,7 @@ class StarFormationHistory():
 
         See :func:`~cogsworth.plotting.plot_sfh` for more details and options.
         """
-        plot_sfh(self, **kwargs)
+        return plot_sfh(self, **kwargs)
 
     def save(self, file_name, key="sfh"):
         """Save the entire class to storage.
@@ -1138,15 +1139,145 @@ class MilkyWayBarSormani2022(StarFormationHistory):
     """A star formation history for the Milky Way bar, based on
     `Sormani+2022 <https://ui.adsabs.harvard.edu/abs/2022MNRAS.514L...1S/abstract>`_.
 
+    Positions are sampled from the 3-component bar density model using Metropolis-Hastings
+    MCMC. Coordinates are in the bar frame with the x-axis along the bar major axis.
+    Lookback times follow the old bar population (beta distribution), and metallicities
+    use the `Frankel+2018 <https://ui.adsabs.harvard.edu/abs/2018ApJ...865...96F/abstract>`_
+    gradient relation.
+
     Parameters are the same as :class:`StarFormationHistory` but additionally with the following:
 
     Parameters
     ----------
-    
+    n_burn : `int`, optional
+        Number of MCMC steps to discard as burn-in before collecting samples, by default 1000
+    thin : `int`, optional
+        Thinning factor: retain every ``thin``-th MCMC step after burn-in, by default 1
+    step_size : `float`, optional
+        Standard deviation of the isotropic Gaussian MCMC proposal in kpc, by default 0.5
+    Fm : `float`, optional
+        Metallicity at the Galactic centre at lookback time ``galaxy_age``, by default -1
+    gradient : :class:`~astropy.units.Quantity` [1/length], optional
+        Radial metallicity gradient, by default -0.075/u.kpc
+    Rnow : :class:`~astropy.units.Quantity` [length], optional
+        Radius at which the present-day metallicity is solar, by default 8.7*u.kpc
+    gamma : `float`, optional
+        Time exponent for chemical enrichment, by default 0.3
+    zsun : `float`, optional
+        Solar metallicity, by default 0.0142
+    galaxy_age : :class:`~astropy.units.Quantity` [time], optional
+        Maximum lookback time, by default 12*u.Gyr
     """
-    def __init__(self, **kwargs):
+    def __init__(self,
+                 present_day_bar_angle=28 * u.deg, pattern_speed=40 * u.km / u.s / u.kpc,
+                 n_burn=1000, thin=1, step_size=0.5,
+                 Fm=-1, gradient=-0.075 / u.kpc, Rnow=8.7 * u.kpc,
+                 gamma=0.3, zsun=0.0142, galaxy_age=12 * u.Gyr, **kwargs):
+        self.present_day_bar_angle = present_day_bar_angle
+        self.pattern_speed = pattern_speed
+        self.n_burn = n_burn
+        self.thin = thin
+        self.step_size = step_size
+        self.Fm = Fm
+        self.gradient = gradient
+        self.Rnow = Rnow
+        self.gamma = gamma
+        self.zsun = zsun
+        self.galaxy_age = galaxy_age
         super().__init__(**kwargs)
         self.__citations__.extend(["Sormani+2022"])
+
+    def draw_lookback_times(self, size):
+        """Set all lookback times to the present day
+
+        Parameters
+        ----------
+        size : `int`
+            Number of lookback times to draw
+
+        Returns
+        -------
+        tau : :class:`~astropy.units.Quantity` [time]
+            Random lookback times
+        """
+        return np.repeat(0.0, size) * u.Gyr
+
+    def get_metallicity(self):
+        """Compute metallicities using the
+        `Frankel+2018 <https://ui.adsabs.harvard.edu/abs/2018ApJ...865...96F/abstract>`_ relation.
+
+        Returns
+        -------
+        Z : :class:`~astropy.units.Quantity` [dimensionless]
+            Metallicities
+        """
+        return _frankel2018_metallicity_relation(self)
+
+    def _bar_density(self, x, y, z):
+        """Total bar density (sum of all three Sormani+2022 components) in 10^10 M_sun kpc^-3"""
+        return (self._bar_comp_1_density(x, y, z)
+                + self._bar_comp_2_density(x, y, z)
+                + self._bar_comp_3_density(x, y, z))
+
+    def sample(self, size):
+        """Sample from the bar density using Metropolis-Hastings MCMC.
+
+        Runs a single chain for ``n_burn + size * thin`` steps, discards the first ``n_burn``
+        steps as burn-in, then returns every ``thin``-th subsequent position. The chain uses
+        an isotropic Gaussian proposal with standard deviation ``step_size`` kpc.
+
+        Parameters
+        ----------
+        size : `int`
+            Number of samples to return
+        """
+        for attr in ["_tau", "_Z", "_x", "_y", "_z", "_v_R", "_v_T", "_v_z", "_v_x", "_v_y"]:
+            setattr(self, attr, None)
+
+        # initialise at the origin where comp 1 has maximum density
+        pos = np.zeros(3)
+        current_dens = self._bar_density(*pos)
+
+        n_steps = self.n_burn + size * self.thin
+        samples = np.empty((size, 3))
+        n_collected = 0
+
+        for i in range(n_steps):
+            # isotropic Gaussian proposal
+            proposal = pos + np.random.normal(0.0, self.step_size, 3)
+            prop_dens = self._bar_density(*proposal)
+
+            # Metropolis-Hastings acceptance
+            if prop_dens > 0:
+                ratio = prop_dens / current_dens if current_dens > 0 else np.inf
+                if ratio >= 1.0 or np.random.rand() < ratio:
+                    pos = proposal
+                    current_dens = prop_dens
+
+            # collect after burn-in, applying thinning
+            if i >= self.n_burn and (i - self.n_burn) % self.thin == 0:
+                samples[n_collected] = pos
+                n_collected += 1
+
+        # draw lookback times first — needed to determine the bar angle at each star's birth
+        self._tau = self.draw_lookback_times(size)
+
+        # rotate bar-frame positions into the Galactocentric frame.
+        # assuming constant pattern speed, the bar major axis was at angle
+        #   phi_birth = phi_0 - omega_p * tau
+        # at each star's birth (lookback time tau), where phi_0 is the present-day bar angle
+        # measured from the Galactocentric x-axis (Sun-GC direction).
+        phi_0 = self.present_day_bar_angle.to(u.rad).value
+        omega_p = self.pattern_speed.to(u.Gyr**-1) / (2 * np.pi) # convert pattern speed to radians per Gyr
+        phi_birth = phi_0 - (omega_p * self._tau).to(u.dimensionless_unscaled).value
+
+        x_bar = samples[:, 0]
+        y_bar = samples[:, 1]
+        self._x = (x_bar * np.cos(phi_birth) - y_bar * np.sin(phi_birth)) * u.kpc
+        self._y = (x_bar * np.sin(phi_birth) + y_bar * np.cos(phi_birth)) * u.kpc
+        self._z = samples[:, 2] * u.kpc
+
+        self._Z = self.get_metallicity()
 
     def _bar_comp_1_density(self, x, y, z):
         """Density of the X-shaped/boxy-peanut bulge component from
@@ -1196,6 +1327,34 @@ class MilkyWayBarSormani2022(StarFormationHistory):
 
         return p["rho0"] * boxy_profile * x_shape * outer_cut
 
+    def _bar_elongated_density(self, x, y, z, p):
+        """Shared density kernel for the elongated bar components (2 and 3) from
+        `Sormani+2022 <https://ui.adsabs.harvard.edu/abs/2022MNRAS.514L...1S/abstract>`_.
+
+        The functional form is:
+        rho = rho0 * exp(-a^n) * sech^2(z/z0) * exp(-(R/R_out)^n_out) * exp(-(R_in/R)^n_in)
+
+        Parameters
+        ----------
+        x, y, z : float or array-like
+            Galactocentric Cartesian coordinates in kpc, in the bar frame
+        p : dict
+            Parameter dictionary with keys: rho0, x0, y0, z0, c_per, n, R_out, n_out, R_in, n_in
+        """
+        # In-plane generalised ellipsoidal radius: [(|x|/x0)^c_per + (|y|/y0)^c_per]^(1/c_per)
+        a = ((np.abs(x) / p["x0"])**p["c_per"] + (np.abs(y) / p["y0"])**p["c_per"])**(1.0 / p["c_per"])
+
+        # Cylindrical radius; guarded against R=0 for the inner-cutoff term
+        R = np.sqrt(x**2 + y**2)
+        R_safe = np.maximum(R, np.finfo(float).tiny)
+
+        in_plane  = np.exp(-a**p["n"])
+        z_profile = (1.0 / np.cosh(z / p["z0"]))**2                      # sech^2(z/z0)
+        outer_cut = np.exp(-(R / p["R_out"])**p["n_out"])
+        inner_cut = np.exp(-(p["R_in"] / R_safe)**p["n_in"])
+
+        return p["rho0"] * in_plane * z_profile * outer_cut * inner_cut
+
     def _bar_comp_2_density(self, x, y, z):
         """Density of the extended bar component from
         `Sormani+2022 <https://ui.adsabs.harvard.edu/abs/2022MNRAS.514L...1S/abstract>`_ Table 1.
@@ -1223,20 +1382,7 @@ class MilkyWayBarSormani2022(StarFormationHistory):
             "R_in":  0.558,    # kpc, inner radial cutoff scale
             "n_in":  3.196,    # inner radial cutoff exponent (central density hole)
         }
-
-        # In-plane generalised ellipsoidal radius: [(|x|/x0)^c_per + (|y|/y0)^c_per]^(1/c_per)
-        a2 = ((np.abs(x) / p["x0"])**p["c_per"] + (np.abs(y) / p["y0"])**p["c_per"])**(1.0 / p["c_per"])
-
-        # Cylindrical radius; guarded against R=0 for the inner-cutoff term
-        R = np.sqrt(x**2 + y**2)
-        R_safe = np.maximum(R, np.finfo(float).tiny)
-
-        in_plane  = np.exp(-a2**p["n"])
-        z_profile = (1.0 / np.cosh(z / p["z0"]))**2                      # sech^2(z/z0)
-        outer_cut = np.exp(-(R / p["R_out"])**p["n_out"])
-        inner_cut = np.exp(-(p["R_in"] / R_safe)**p["n_in"])
-
-        return p["rho0"] * in_plane * z_profile * outer_cut * inner_cut
+        return self._bar_elongated_density(x, y, z, p)
 
     def _bar_comp_3_density(self, x, y, z):
         """Density of the long bar component from
@@ -1265,20 +1411,8 @@ class MilkyWayBarSormani2022(StarFormationHistory):
             "R_in":  7.607,     # kpc, radial cutoff scale (outer edge of long bar)
             "n_in":  1.630,     # radial cutoff exponent
         }
+        return self._bar_elongated_density(x, y, z, p)
 
-        # In-plane generalised ellipsoidal radius: [(|x|/x0)^c_per + (|y|/y0)^c_per]^(1/c_per)
-        a3 = ((np.abs(x) / p["x0"])**p["c_per"] + (np.abs(y) / p["y0"])**p["c_per"])**(1.0 / p["c_per"])
-
-        # Cylindrical radius; guarded against R=0 for the inner-cutoff term
-        R = np.sqrt(x**2 + y**2)
-        R_safe = np.maximum(R, np.finfo(float).tiny)
-
-        in_plane  = np.exp(-a3**p["n"])
-        z_profile = (1.0 / np.cosh(z / p["z0"]))**2                      # sech^2(z/z0)
-        outer_cut = np.exp(-(R / p["R_out"])**p["n_out"])
-        inner_cut = np.exp(-(p["R_in"] / R_safe)**p["n_in"])
-
-        return p["rho0"] * in_plane * z_profile * outer_cut * inner_cut
 
 class DistributionFunctionBasedSFH(StarFormationHistory):
     """A star formation history based on a distribution function.
