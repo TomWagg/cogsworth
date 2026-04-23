@@ -736,7 +736,7 @@ class CompositeStarFormationHistory():
 
         See :func:`~cogsworth.plotting.plot_sfh` for more details and options.
         """
-        plot_sfh(self, **kwargs)
+        return plot_sfh(self, **kwargs)
 
     def save(self, file_name, key="sfh"):
         """Save the entire class to storage.
