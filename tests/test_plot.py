@@ -66,7 +66,7 @@ class Test(unittest.TestCase):
         """Test you can plot the star formation history"""
         g = cogsworth.sfh.Wagg2022()
         g.sample(10_000)
-        g._Z = np.logspace(-4, 0, len(g))
+        g._Z = np.logspace(-4, 0, len(g)) * u.dimensionless_unscaled
         g.plot(show=False, colour_by="Z")
 
         plt.close('all')
