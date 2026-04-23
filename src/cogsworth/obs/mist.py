@@ -169,10 +169,10 @@ class MISTBolometricCorrectionGrid:
             with open(fp, "r") as f:
                 for line in f:
                     stripped = line.strip().lstrip("#").strip()
-                    if stripped.startswith(("Teff", "lgTef")):
+                    if stripped.startswith("lgTef"):
                         header_line = stripped
                         break
-            names = [s.replace("[Fe/H]", "feh").replace("Fe_H", "feh").replace("lgTef", "Teff")
+            names = [s.replace("[Fe/H]", "feh").replace("Fe_H", "feh")
                      for s in header_line.split()]
             df = pd.read_csv(
                 fp,
@@ -182,6 +182,11 @@ class MISTBolometricCorrectionGrid:
                 engine="python",
                 names=names,
             )
+
+            # convert from log10(Teff) to Teff and drop the lgTef column
+            df["Teff"] = 10**df["lgTef"]
+            df.drop(columns="lgTef", inplace=True)
+
             dfs.append(df)
 
         if not dfs:     # pragma: no cover
