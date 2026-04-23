@@ -1137,7 +1137,7 @@ class Population():
             self._kick_info = self._kick_info[~self._kick_info["bin_num"].isin(nan_bin_nums)]
             self._initial_binaries = self._initial_binaries[~self._initial_binaries["bin_num"].isin(nan_bin_nums)]
 
-            not_nan = ~self.final_bpp["bin_num"].isin(nan_bin_nums)
+            not_nan = ~self.final_bpp["bin_num"].isin(nan_bin_nums).values
             self._initial_galaxy = self._initial_galaxy[not_nan]
 
             # reset final bpp
