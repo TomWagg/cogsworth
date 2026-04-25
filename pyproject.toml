@@ -128,7 +128,7 @@ testpaths = ["tests"]
 [tool.coverage.run]
 omit = [
     "tests/*",
-    "cogsworth/__init__.py",
+    "**/__init__.py",
 ]
 concurrency = ["multiprocessing"]
 

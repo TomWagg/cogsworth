@@ -5,6 +5,22 @@ import astropy.units as u
 
 
 class Test(unittest.TestCase):
+    def test_imports(self):
+        """Test that the imports work"""
+        try:
+            from cogsworth import obs
+            from cogsworth.obs import mist
+            from cogsworth.obs import observables
+        except ImportError:
+            self.fail("Failed to import mist or observables")
+
+        try:
+            from cogsworth.obs import nonsense
+        except ImportError:
+            pass
+        else:
+            self.fail("Should have failed to import nonsense")
+
     def test_magnitudes(self):
         """Test the magnitude functions"""
         # check using ints and lists is the same as floats and arrays

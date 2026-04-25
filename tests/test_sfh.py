@@ -176,28 +176,42 @@ class Test(unittest.TestCase):
         """Test getting attributes"""
         it_broke = False
 
-        g = sfh.SandersBinney2015(potential=gp.MilkyWayPotential(version='v2'))
-        len(g)
+        sfhs = [
+            sfh.SandersBinney2015(potential=gp.MilkyWayPotential(version='v2')),
+            sfh.Wagg2022(),
+        ]
 
-        attrs = ["tau", "Z", "x", "y", "z", "positions", "velocities", "phi", "rho",
-                 "v_x", "v_y", "v_z", "v_R", "v_T", "v_z", "v_phi"]
+        for s in sfhs:
 
-        for attr in attrs:
-            it_broke = False
-            try:
-                getattr(g, attr)
-            except Exception as e:
-                it_broke = True
-            self.assertTrue(it_broke)
+            len(s)
 
-        g.sample(1000)
-        for attr in attrs:
-            it_broke = False
-            try:
-                getattr(g, attr)
-            except Exception as e:
-                it_broke = True
-            self.assertFalse(it_broke)
+            attrs = ["tau", "Z", "x", "y", "z", "positions", "velocities", "phi", "rho",
+                    "v_x", "v_y", "v_z", "v_R", "v_T", "v_z", "v_phi"]
+
+            for attr in attrs:
+                it_broke = False
+                try:
+                    getattr(s, attr)
+                except Exception as e:
+                    print(f"Getting attribute {attr} before sampling raised an exception: {e}")
+                    it_broke = True
+                self.assertTrue(it_broke)
+
+            s.sample(1000)
+
+            # give it some fake velocities if necessary for testing velocity getters
+            for attr in ["_v_R", "_v_T", "_v_z"]:
+                if getattr(s, attr, None) is None:
+                    setattr(s, attr, np.random.rand(len(s)) * u.km/u.s)
+
+            for attr in attrs:
+                it_broke = False
+                try:
+                    getattr(s, attr)
+                except Exception as e:
+                    print(f"Getting attribute {attr} after sampling raised an exception: {e}")
+                    it_broke = True
+                self.assertFalse(it_broke)
         
     def test_custom_galaxy(self):
         """Test saving a custom galaxy class"""

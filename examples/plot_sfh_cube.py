@@ -42,32 +42,25 @@ plt.rcParams.update(params)
 # sphinx_gallery_end_ignore
 
 class TheCube(cogsworth.sfh.StarFormationHistory):
-    def __init__(self, size, components=None, 
-                 component_masses=None, immediately_sample=True):
-        super().__init__(size=size, components=components,
-                         component_masses=component_masses,
-                         immediately_sample=immediately_sample)
-
-    def sample(self):
-        self.draw_lookback_times()
-        self.draw_positions()
+    def sample(self, size):
+        self.draw_lookback_times(size)
+        self.draw_positions(size)
         self.get_metallicity()
-        self._which_comp = np.repeat("CUBE", self.size)
 
-    def draw_lookback_times(self):
-        self._tau = np.repeat(42, self.size) * u.Myr
+    def draw_lookback_times(self, size):
+        self._tau = np.repeat(42, size) * u.Myr
 
-    def draw_positions(self):
-        self._x = np.random.uniform(-30, 30, self.size) * u.kpc
-        self._y = np.random.uniform(-30, 30, self.size) * u.kpc
-        self._z = np.random.uniform(-30, 30, self.size) * u.kpc
+    def draw_positions(self, size):
+        self._x = np.random.uniform(-30, 30, size) * u.kpc
+        self._y = np.random.uniform(-30, 30, size) * u.kpc
+        self._z = np.random.uniform(-30, 30, size) * u.kpc
 
     def get_metallicity(self):
         nonsense = np.abs(self._x * self._y * self._z)
         self._Z = (nonsense - nonsense.min()) / nonsense.max()
 
 
-p_cube = cogsworth.pop.Population(1000, sfh_model=TheCube, processes=1,
+p_cube = cogsworth.pop.Population(1000, sfh_model=TheCube(), processes=1,
                                   use_default_BSE_settings=True)
 p_cube.create_population()
 

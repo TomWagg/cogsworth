@@ -65,7 +65,8 @@ custom_cmap = restrict_cmap('inferno', 0, 0.9)
 if DARK_VERSION:
     plt.style.use("dark_background")
 
-g = cogsworth.sfh.Wagg2022(size=500000)
+s = cogsworth.sfh.Wagg2022()
+s.sample(size=500000)
 
 # create a 2x2 plot with no space between axes
 fig, axes = plt.subplots(2, 2, figsize=(15, 15),
@@ -84,11 +85,11 @@ N_BINS_2D = 100
 rasterized = True
 
 # add histograms to each axis
-axes[0, 0].hist(g.rho.value, np.geomspace(*xlims, N_BINS), edgecolor="tab:blue", rasterized=rasterized)
-hexbin = axes[1, 0].hexbin(x=g.rho.value, y=g.Z.value, bins="log",
+axes[0, 0].hist(s.rho.value, np.geomspace(*xlims, N_BINS), edgecolor="tab:blue", rasterized=rasterized)
+hexbin = axes[1, 0].hexbin(x=s.rho.value, y=s.Z.value, bins="log",
                            xscale="log", yscale="log", gridsize=N_BINS_2D,
                            extent=np.log10((*xlims, *ylims)), rasterized=rasterized)
-axes[1, 1].hist(g.Z.value, np.geomspace(*ylims, N_BINS),
+axes[1, 1].hist(s.Z.value, np.geomspace(*ylims, N_BINS),
                 orientation="horizontal", edgecolor="tab:blue", rasterized=rasterized)
 
 # create an inset axis and add a colourbar
@@ -125,7 +126,7 @@ axes[0, 1].axis("off")
 time_bins = [(i, i + 3) for i in range(0, 12, 3)] * u.Gyr
 
 # add histograms to each axis
-c = axes[0, 0].hist([g.rho.value[(g.tau >= low) & (g.tau < high)]
+c = axes[0, 0].hist([s.rho.value[(s.tau >= low) & (s.tau < high)]
                      for low, high in time_bins],
                     np.geomspace(*xlims, N_BINS), stacked=True,
                     color=None if DARK_VERSION else [custom_cmap(i / 3) for i in range(4)],
@@ -136,11 +137,11 @@ for i, patches in enumerate(c):
     for patch in patches:
         patch.set_edgecolor(custom_cmap(i / 3))
 axes[0, 0].legend(loc="center left", ncol=2, fontsize=0.7*fs)
-hexbin = axes[1, 0].hexbin(x=g.rho.value, y=g.Z.value, C=g.tau.value,
+hexbin = axes[1, 0].hexbin(x=s.rho.value, y=s.Z.value, C=s.tau.value,
                            xscale="log", yscale="log", vmin=0, vmax=12, gridsize=N_BINS_2D,
                            extent=np.log10((*xlims, *ylims)), cmap="plasma" if DARK_VERSION else custom_cmap,
                            rasterized=rasterized)
-c = axes[1, 1].hist([g.Z.value[(g.tau >= low) & (g.tau < high)]
+c = axes[1, 1].hist([s.Z.value[(s.tau >= low) & (s.tau < high)]
                      for low, high in time_bins],
                     np.geomspace(*ylims, N_BINS),
                     color=None if DARK_VERSION else [custom_cmap(i / 3) for i in range(4)],

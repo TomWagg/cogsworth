@@ -258,7 +258,7 @@ By default, ``cogsworth`` uses ``COSMIC`` as its population synthesis code. Curr
 
 COMPAS
 ------
-If you'd like to use ``COMPAS`` then you'll need to install it separately. You can find instructions for installing ``COMPAS`` `here <https://compas.readthedocs.io/en/latest/pages/Getting%20started/getting-started.html>`_, or use the page inset below.
+If you'd like to use ``COMPAS`` then you'll need to install it separately. You can find instructions for installing ``COMPAS`` `in their docs <https://compas.readthedocs.io/en/latest/pages/Getting%20started/getting-started.html>`_, or use the page inset below.
 
 .. raw:: html
 

@@ -13,6 +13,21 @@ import tempfile
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class Test(unittest.TestCase):
+    def test_imports(self):
+        """Test that the imports work"""
+        try:
+            from cogsworth import Population
+            from cogsworth import COMPASPopulation
+        except ImportError:
+            self.fail("Failed to import Population or COMPASPopulation")
+
+        try:
+            import cogsworth.nonsense
+        except ImportError:
+            pass
+        else:
+            self.fail("Should have failed to import nonsense")
+
     def test_bad_inputs(self):
         """Ensure the class fails with bad input"""
         it_broke = False

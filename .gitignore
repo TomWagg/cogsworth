@@ -160,4 +160,6 @@ paper/ApJS/*
 scratch/
 
 COMPAS_Output*/
+!tests/test_data/COMPAS_Output*/
+!tests/test_data/COMPAS_Output*/COMPAS_Output.h5
 sg_execution_times.rst

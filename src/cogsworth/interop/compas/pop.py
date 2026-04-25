@@ -122,7 +122,7 @@ class COMPASPopulation(Population):
                 self.initial_binaries.index = self.initial_binaries["bin_num"].values
             f.write('\n'.join(self.initial_binaries.apply(_stringify_initC, axis=1).values))
 
-    def perform_stellar_evolution(self):
+    def perform_stellar_evolution(self):        # pragma: no cover (requires COMPAS installation)
         """Perform the (binary) stellar evolution of the sampled binaries"""
         # delete any cached variables
         self._final_bpp = None
@@ -163,7 +163,7 @@ class COMPASPopulation(Population):
         use_defaults = kwargs.pop("use_default_BSE_settings", True)
         pop = Population(self.n_binaries, use_default_BSE_settings=use_defaults, **kwargs)
         attrs_to_copy = ["n_binaries", "n_binaries_match", "processes", "final_kstar1", "final_kstar2",
-                         "sfh_model", "sfh_params", "galactic_potential", "v_dispersion", "max_ev_time",
+                         "sfh_model", "galactic_potential", "v_dispersion", "max_ev_time",
                          "timestep_size", "pool", "store_entire_orbits", "bpp_columns", "bcm_columns",
                          "_file", "_initial_binaries", "_initial_galaxy", "_mass_singles", "_mass_binaries",
                          "_n_singles_req", "_n_bin_req", "_bpp", "_bcm", "_kick_info",
@@ -187,7 +187,7 @@ class COMPASPopulation(Population):
             del pop.BSE_settings["natal_kick_array"]
 
         # if not using defaults, warn the user that their settings will overwrite COMPAS kicks
-        elif any_were_present and not use_defaults:
+        elif any_were_present and not use_defaults:     # pragma: no cover
             logging.getLogger("cogsworth").warning(
                 "cogsworth warning: Natal kick settings found in BSE_settings will overwrite "
                 "the kicks calculated by COMPAS."

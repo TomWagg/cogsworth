@@ -16,7 +16,7 @@ Using ``cogsworth`` you can evolve a population of stars using population synthe
 
 In this documentation you'll find everything you need to get ``cogsworth`` working for you! For the new user, we have :doc:`instructions for the installation <install>` of the package, a quick :doc:`getting started page <getting_started>` and a collection of extensive :doc:`tutorials <tutorials>`. For some simple use cases we have a :doc:`gallery of examples <../auto_examples/index>`. Additionally if you're looking for some more detailed examples we have a series of case studies demonstrating potential science use cases. Finally, we include exhaustive API documentations in the :doc:`User Guide <modules>`.
 
-.. figure:: https://www.tomwagg.com/img/circle_me.png
+.. figure:: https://www.tomwagg.com/img/cca_headshot.jpg
    :figwidth: 20%
    :alt: tom wagg headshot
    :align: left

@@ -9,6 +9,24 @@ THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 class Test(unittest.TestCase):
+    def test_imports(self):
+        """Test that the imports work"""
+        try:
+            from cogsworth import hydro
+            from cogsworth.hydro import utils
+            from cogsworth.hydro import potential
+            from cogsworth.hydro import rewind
+            from cogsworth.hydro import pop
+        except ImportError:
+            self.fail("Failed to import hydro modules")
+
+        try:
+            from cogsworth.hydro import nonsense
+        except ImportError:
+            pass
+        else:
+            self.fail("Should have failed to import nonsense")
+
     def test_snapshot_prep_changa(self):
         """Test that we can prepare a snapshot of a hydrodynamical simulation in ChaNGa format"""
         snap = cogsworth.hydro.utils.prepare_snapshot(os.path.join(THIS_DIR, "test_data/hydro_test"))

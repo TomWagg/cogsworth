@@ -623,7 +623,7 @@ class CompositeStarFormationHistory():
 
     def __getattr__(self, name):
         """When we try to access an attribute, if it's one that needs combining from the components"""
-        COMBINE_ATTRS = ["tau", "Z", "x", "y", "z", "positions", "phi", "rho",
+        COMBINE_ATTRS = ["tau", "Z", "x", "y", "z", "phi", "rho",
                          "v_x", "v_y", "v_z", "v_R", "v_T", "v_phi"]
         if name in COMBINE_ATTRS or (name[0] == "_" and name[1:] in COMBINE_ATTRS):
             component_vals = [getattr(component, name) for component in self.components]
@@ -694,6 +694,30 @@ class CompositeStarFormationHistory():
             )
         else:
             return NotImplemented
+        
+    @property
+    def positions(self):
+        """The galactocentric positions of the sampled points
+
+        Returns
+        -------
+        positions : :class:`~astropy.units.Quantity` [length], shape=(3, :attr:`~size`)
+            The galactocentric positions of the sampled points
+        """
+        return [self.x.to(u.kpc).value, self.y.to(u.kpc).value, self.z.to(u.kpc).value] * u.kpc
+    
+    @property
+    def velocities(self):
+        """The galactocentric velocities of the sampled points
+
+        Returns
+        -------
+        velocities : :class:`~astropy.units.Quantity` [velocity], shape=(3, :attr:`~size`)
+            The galactocentric velocities of the sampled points
+        """
+        return [self.v_x.to(u.km / u.s).value,
+                self.v_y.to(u.km / u.s).value,
+                self.v_z.to(u.km / u.s).value] * (u.km / u.s)
 
     def sample(self, size):
         """Sample from the distributions for each component, combine and save in class attributes"""
@@ -712,7 +736,7 @@ class CompositeStarFormationHistory():
 
         See :func:`~cogsworth.plotting.plot_sfh` for more details and options.
         """
-        plot_sfh(self, **kwargs)
+        return plot_sfh(self, **kwargs)
 
     def save(self, file_name, key="sfh"):
         """Save the entire class to storage.
