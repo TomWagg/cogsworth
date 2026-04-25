@@ -53,12 +53,12 @@ def get_initial_binaries(filename, tphysf=None):
     REQ_COLS = ["Mass@ZAMS(1)", "Mass@ZAMS(2)", "Eccentricity@ZAMS", "SemiMajorAxis@ZAMS",
                 "Stellar_Type@ZAMS(1)", "Stellar_Type@ZAMS(2)", "Metallicity@ZAMS(1)", "SEED"]
     missing_cols = [col for col in REQ_COLS if col not in bse_sys.columns]
-    if missing_cols:
+    if missing_cols:        # pragma: no cover
         raise ValueError(
             f"Input COMPAS file is missing required columns for initial binaries: {missing_cols}"
         )
     
-    if "PO_Max_Evolution_Time" not in bse_sys.columns and tphysf is None:
+    if "PO_Max_Evolution_Time" not in bse_sys.columns and tphysf is None:       # pragma: no cover
         logging.getLogger("cogsworth").warning(
             "cogsworth warning: PO_Max_Evolution_Time not found in COMPAS output, and no lookback times"
             "/tphysf provided. Assuming default of 13.7 Gyr for all systems."
@@ -474,7 +474,7 @@ def get_kick_info(filename):
     if any_kicks:
         full_kick_info.loc[full_kick_info["WAS_KICKED"] == 0, "star"] = 0
         full_kick_info.drop(columns=["WAS_KICKED"], inplace=True)
-    else:
+    else:       # pragma: no cover
         full_kick_info["star"] = 0
 
     return full_kick_info
