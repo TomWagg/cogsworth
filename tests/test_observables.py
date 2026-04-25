@@ -8,14 +8,14 @@ class Test(unittest.TestCase):
     def test_imports(self):
         """Test that the imports work"""
         try:
-            import cogsworth.obs
-            import cogsworth.obs.mist
-            import cogsworth.obs.observables
+            from cogsworth import obs
+            from cogsworth.obs import mist
+            from cogsworth.obs import observables
         except ImportError:
             self.fail("Failed to import mist or observables")
 
         try:
-            import cogsworth.obs.nonsense
+            from cogsworth.obs import nonsense
         except ImportError:
             pass
         else:

@@ -12,16 +12,16 @@ class Test(unittest.TestCase):
     def test_imports(self):
         """Test that the imports work"""
         try:
-            import cogsworth.hydro
-            import cogsworth.hydro.utils
-            import cogsworth.hydro.potential
-            import cogsworth.hydro.rewind
-            import cogsworth.hydro.pop
+            from cogsworth import hydro
+            from cogsworth.hydro import utils
+            from cogsworth.hydro import potential
+            from cogsworth.hydro import rewind
+            from cogsworth.hydro import pop
         except ImportError:
             self.fail("Failed to import hydro modules")
 
         try:
-            import cogsworth.hydro.nonsense
+            from cogsworth.hydro import nonsense
         except ImportError:
             pass
         else:
