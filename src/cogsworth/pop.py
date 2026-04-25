@@ -1790,7 +1790,7 @@ class Population():
         from .interop.compas.pop import COMPASPopulation
         cp = COMPASPopulation(n_binaries=len(self), **kwargs)
         attrs_to_copy = ["n_binaries", "n_binaries_match", "processes", "final_kstar1", "final_kstar2",
-                         "sfh_model", "sfh_params", "galactic_potential", "v_dispersion", "max_ev_time",
+                         "sfh_model", "galactic_potential", "v_dispersion", "max_ev_time",
                          "timestep_size", "pool", "store_entire_orbits", "bpp_columns", "bcm_columns",
                          "_file", "_initial_binaries", "_initial_galaxy", "_mass_singles", "_mass_binaries",
                          "_n_singles_req", "_n_bin_req", "_bpp", "_bcm", "_kick_info",
