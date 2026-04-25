@@ -7,7 +7,7 @@ HERE = os.path.dirname(__file__)
 DEFAULT_CONFIG_FILE = os.path.join(HERE, 'compasConfigDefault.yaml')
 REPO_ROOT = os.path.abspath(os.path.join(HERE, "../../"))
 
-class pythonProgramOptions:
+class pythonProgramOptions:         # pragma: no cover (requires COMPAS installation)
     """
     A class to store and access COMPAS program options in python
     """
@@ -111,7 +111,7 @@ class pythonProgramOptions:
 
         self.makeCommandString()
 
-    def makeCommandString(self):
+    def makeCommandString(self):            # pragma: no cover (requires COMPAS installation)
         """
         This function generates a dictionary mapping COMPAS options to their specified
         values (or empty strings for boolean options). These are then combined into a string
