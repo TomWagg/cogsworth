@@ -23,6 +23,7 @@ The release of version 4 of cogsworth has breaking changes for StarFormationHist
 =====
 
 - Introduce ``sampling_mask`` as an parameter of ``Population`` to allow users to specify criteria for sampling initial binaries, this is more flexible than the old m1_cutoff
+- Make cogsworth use the new COSMIC multiprocessing functionality for initial condition sampling, this should speed up sampling for large populations
 
 3.8.0
 =====

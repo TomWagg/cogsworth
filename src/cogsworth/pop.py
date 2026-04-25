@@ -953,6 +953,8 @@ class Population():
             start = time.time()
             print(f"Run for {self.n_binaries} binaries")
 
+        self._ensure_pool()
+
         self.sample_initial_binaries()
         if with_timing:
             sampling_msg = f"Sampled {self.n_binaries_match} binaries"
@@ -965,7 +967,6 @@ class Population():
         if self.bcm_timestep_conditions != []:
             set_checkstates(self.bcm_timestep_conditions)
 
-        self._ensure_pool()
         self.perform_stellar_evolution()
         if with_timing:
             print(f"[{time.time() - lap:1.1f}s] Evolve binaries (run COSMIC)")
@@ -1017,6 +1018,10 @@ class Population():
         self._final_bpp = None
         self._initial_binaries = None
 
+        no_pool_existed = self.pool is None and self.processes > 1
+        if no_pool_existed:
+            self._ensure_pool()
+
         if self.sampling_params["binfrac_model"] == 0.0 and not self.sampling_params["keep_singles"]:
             raise ValueError(("You've chosen a binary fraction of 0.0 but set `keep_singles=False` (in "
                                 "self.sampling_params), so you'll draw 0 samples...I don't think you "
@@ -1025,11 +1030,8 @@ class Population():
             self._n_bin_req = InitialBinaryTable.sampler(
                 'independent', self.final_kstar1, self.final_kstar2,
                 SF_start=self.max_ev_time.to(u.Myr).value, SF_duration=0.0, met=0.02,
-                size=self.n_binaries, **self.sampling_params
+                size=self.n_binaries, pool=self.pool, **self.sampling_params
             )
-
-        # reset index to match new `bin_num`s
-        self._initial_binaries.reset_index(inplace=True)
 
         # count how many binaries actually match the criteria (may be larger than `n_binaries` due to sampler)
         if self.sampling_mask != "":
@@ -1055,6 +1057,9 @@ class Population():
         self._initial_binaries.loc[self._initial_binaries["metallicity"] < 1e-4, "metallicity"] = 1e-4
         self._initial_binaries.loc[self._initial_binaries["metallicity"] > 0.03, "metallicity"] = 0.03
 
+        if no_pool_existed:
+            self._close_pool()
+
     def perform_stellar_evolution(self):
         """Perform the (binary) stellar evolution of the sampled binaries"""
         # delete any cached variables
@@ -1067,14 +1072,14 @@ class Population():
         if self.bcm_timestep_conditions != []:
             set_checkstates(self.bcm_timestep_conditions)
 
+        no_pool_existed = self.pool is None and self.processes > 1
+        if no_pool_existed:
+            self._ensure_pool()
+
         # if no initial binaries have been sampled then we need to create some
         if self._initial_binaries is None:
             self._warn(("Initial binaries not yet sampled, performing sampling now."))
             self.sample_initial_binaries()
-
-        no_pool_existed = self.pool is None and self.processes > 1
-        if no_pool_existed:
-            self._ensure_pool()
 
         # catch any warnings about overwrites
         with warnings.catch_warnings():
