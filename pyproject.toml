@@ -22,7 +22,7 @@ dependencies = [
     "scipy >= 1.8",
     "pandas >= 2.1",
     "gala >= 1.11.0",
-    "cosmic-popsynth >= 3.6.2",
+    "cosmic-popsynth >= 3.7.6",
 ]
 
 [project.urls]
