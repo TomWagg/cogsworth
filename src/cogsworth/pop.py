@@ -2184,7 +2184,7 @@ def concat(*pops):
     return final_pop
 
 
-def _init_pool(potential, t2, store_all, integrator, integrator_kwargs, max_retries, timestep_multiplier):
+def _init_pool(potential, t2, store_all, integrator, integrator_kwargs, max_retries, timestep_multiplier):      # pragma: no cover
     _GLOBAL["potential"] = potential
     _GLOBAL["t2"] = t2
     _GLOBAL["store_all"] = store_all
@@ -2193,7 +2193,7 @@ def _init_pool(potential, t2, store_all, integrator, integrator_kwargs, max_retr
     _GLOBAL["max_retries"] = max_retries
     _GLOBAL["timestep_multiplier"] = timestep_multiplier
 
-def _orbit_worker(w0, t1, dt, events):
+def _orbit_worker(w0, t1, dt, events):      # pragma: no cover
     return integrate_orbit_with_events(
         w0, t1, _GLOBAL["t2"], dt, _GLOBAL["potential"], events, _GLOBAL["store_all"],
         _GLOBAL["integrator"], _GLOBAL["integrator_kwargs"],
