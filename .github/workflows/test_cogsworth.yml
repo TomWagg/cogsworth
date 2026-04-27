@@ -67,7 +67,7 @@ jobs:
     - name: Test package with pytest and generate coverage report
       run: |
         # test with as many cores as possible for speed
-        pytest cogsworth -n=auto --cov=./ --cov-report=xml
+        pytest -n=auto --cov=./ --cov-report=xml
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v5
       with:

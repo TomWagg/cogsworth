@@ -73,7 +73,8 @@ b_lims = [-45, 45]
 fig, ax = plt.subplots(figsize=(12, 10))
 
 # sample the background and turn into galactic coordinates (shifting l in the same way)
-background = cogsworth.sfh.Wagg2022(size=500000)
+background = cogsworth.sfh.Wagg2022()
+background.sample(size=500000)
 background_coords = SkyCoord(x=background.x, y=background.y, z=background.z,
                              unit="kpc", frame="galactocentric").galactic
 background_l = background_coords.l.value + 180

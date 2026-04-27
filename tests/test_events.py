@@ -1,0 +1,69 @@
+import unittest
+import cogsworth
+import pandas as pd
+
+
+class Test(unittest.TestCase):
+    def test_various_events(self):
+        """Ensure functions work for different kinds of events
+
+        I'm going to use fake bpp and kick_info tables for this. There will be four binaries
+            - One with no events
+            - One with a bound binary and a kick
+            - One with a disruption from the first SN
+            - One with a disruption from the second SN
+        """
+
+        bpp_dict = {
+            "mass_1": [1, 10, 20, 1.4, 20, 20, 8],
+            "mass_2": [1, 10, 20, 20, 20, 20, 1.4],
+            "tphys": [0, 0, 0, 1, 0, 1, 2],
+            "sep": [10, 10, 10, -1.0, 10, 10, -1.0],
+            "ecc": [0, 0, 0, -1.0, 0, 0.1, -1.0],
+            "evol_type": [-1, 15, 15, 11, 15, 16, 11],
+            "bin_num": [0, 1, 2, 2, 3, 3, 3],
+        }
+        bpp = pd.DataFrame(data=bpp_dict)
+        bpp.index = bpp["bin_num"].values
+
+        kick_info_dict = {
+            "star": [0, 1, 1, 1, 2],
+            "disrupted": [0, 0, 1, 0, 1],
+            "delta_vsysx_1": [0, 0, 0, 0, 0],
+            "delta_vsysy_1": [0, 0, 0, 0, 0],
+            "delta_vsysz_1": [0, 0, 0, 0, 0],
+            "delta_vsysx_2": [0, 0, 0, 0, 0],
+            "delta_vsysy_2": [0, 0, 0, 0, 0],
+            "delta_vsysz_2": [0, 0, 0, 0, 0],
+            "bin_num": [0, 1, 2, 3, 3],
+        }
+        kick_info = pd.DataFrame(data=kick_info_dict)
+        kick_info.index = kick_info["bin_num"].values
+
+        p = cogsworth.pop.Population(4, use_default_BSE_settings=True)
+        p._bpp = bpp
+        p._kick_info = kick_info
+        p._initial_binaries = pd.DataFrame(
+            data={"metallicity": [1e-2, 1e-2, 1e-2, 1e-2],
+                  "bin_num": [0, 1, 2, 3]}
+        )
+        p._initial_binaries.index = p._initial_binaries["bin_num"].values
+        p.final_bpp
+
+        primary_events, secondary_events = cogsworth.events.identify_events(p)
+
+        # 4 supernovae occurred
+        self.assertTrue(len(primary_events) == 4)
+
+        # 3 supernovae occurred in bound binaries
+        self.assertTrue(len(secondary_events) == 3)
+
+        # the first binary had no events so should not be present in either
+        self.assertTrue(0 not in primary_events.index)
+        self.assertTrue(0 not in secondary_events.index)
+
+        # the secondary binary didn't disrupt, so shouldn't be in the secondary events table
+        self.assertTrue(1 not in secondary_events.index)
+        
+        # the last binary had two supernovae so should have two events in the secondary table
+        self.assertTrue(len(secondary_events.loc[[3]]) > len(secondary_events.loc[[2]]))
