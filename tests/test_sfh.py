@@ -170,7 +170,17 @@ class Test(unittest.TestCase):
         self.assertTrue(np.all(g.tau == g_loaded.tau))
         self.assertTrue(np.all(g.rho == g_loaded.rho))
         self.assertTrue(np.all(g.z == g_loaded.z))
-        self.assertTrue(g.potential == g_loaded.potential)
+
+        g = sfh.SandersBinney2015(time_bins=4, potential=gp.MilkyWayPotential(version='v2'), include_bar=True)
+        g.sample(1000)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            g.save(os.path.join(tmpdir, "testing-galaxy-io-sb15"))
+            g_loaded = sfh.load(os.path.join(tmpdir, "testing-galaxy-io-sb15"))
+
+        self.assertTrue(np.all(g.tau == g_loaded.tau))
+        self.assertTrue(np.all(g.rho == g_loaded.rho))
+        self.assertTrue(np.all(g.z == g_loaded.z))
 
     def test_getters(self):
         """Test getting attributes"""
@@ -179,11 +189,13 @@ class Test(unittest.TestCase):
         sfhs = [
             sfh.SandersBinney2015(potential=gp.MilkyWayPotential(version='v2')),
             sfh.Wagg2022(),
+            sfh.BurstUniformDisc(t_burst=5 * u.Gyr),
         ]
 
         for s in sfhs:
 
             len(s)
+            repr(s)
 
             attrs = ["tau", "Z", "x", "y", "z", "positions", "velocities", "phi", "rho",
                     "v_x", "v_y", "v_z", "v_R", "v_T", "v_z", "v_phi"]
@@ -305,6 +317,16 @@ class Test(unittest.TestCase):
         # same with an agama potential
         s = sfh.MilkyWayBarSormani2022(potential=gp.MilkyWayPotential(version='v2').as_interop("agama"))
         s.sample(100)
+
+    def test_sb15_bad_bar(self):
+        """Test that including a bar in SB15 with an incompatible age raises an error"""
+        it_broke = False
+        try:
+            s = sfh.SandersBinney2015(time_bins=1, potential=gp.MilkyWayPotential(version='v2'),
+                                      include_bar=True, bar_params={'galaxy_age': 20 * u.Gyr})
+        except ValueError:
+            it_broke = True
+        self.assertTrue(it_broke)
 
     def test_custom_df(self):
         """Test a custom DF-based SFH class"""
