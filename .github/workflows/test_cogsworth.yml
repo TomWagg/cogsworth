@@ -4,9 +4,8 @@ on:
   pull_request:
     branches: [ main ]
     paths:
-      - 'cogsworth/**'
-      - 'setup.cfg'
-      - 'setup.py'
+      - 'src/cogsworth/**'
+      - 'tests/**'
       - 'pyproject.toml'
   workflow_dispatch:
 
