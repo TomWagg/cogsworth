@@ -1285,16 +1285,17 @@ class MilkyWayBarSormani2022(StarFormationHistory):
         import agama
         agama.setUnits(**{k: galactic[k] for k in ['length', 'mass', 'time']})
 
-        # convert potential to agama potential if necessary
-        if not isinstance(self.potential, agama.Potential):
-            self.potential = self.potential.as_interop('agama')
+        if isinstance(self.potential, agama.Potential):
+            self._agama_pot = self.potential
+        else:
+            self._agama_pot = self.potential.as_interop("agama")
 
         def density_func(x):
             return self._bar_density(x[:, 0], x[:, 1], x[:, 2])
 
         # use agama.Density
         density = agama.Density(density_func, symmetry='t')
-        xv, _ = density.sample(size, potential=self.potential, kappa=self.kappa)
+        xv, _ = density.sample(size, potential=self._agama_pot, kappa=self.kappa)
 
         # draw lookback times first — needed to determine the bar angle at each star's birth
         self._tau = self.draw_lookback_times(size)
@@ -1478,7 +1479,7 @@ class DistributionFunctionBasedSFH(StarFormationHistory):
         or the keyword arguments to pass to the distribution function(s) using
         :class:`agama.DistributionFunction`.
     """
-    def __init__(self, potential, df, **kwargs):
+    def __init__(self, potential, df=None, **kwargs):
         assert check_dependencies("agama")
         import agama
         agama.setUnits(**{k: galactic[k] for k in ['length', 'mass', 'time']})
@@ -1623,6 +1624,16 @@ class SandersBinney2015(CompositeStarFormationHistory):
         If `include_bar` is True, the keyword arguments to pass to the bar component,
         which is an instance of :class:`MilkyWayBarSormani2022`. By default an empty dict,
         which will use the default parameters for that class.
+    tau_m : :class:`~astropy.units.Quantity` [time], optional
+        Maximum lookback time, by default 12*u.Gyr
+    tau_S : :class:`~astropy.units.Quantity` [time], optional
+        Star formation timescale, by default 0.43*u.Gyr
+    tau_T : :class:`~astropy.units.Quantity` [time], optional
+        Lookback time separating thin and thick disc components, by default 10*u.Gyr
+    tau_F : :class:`~astropy.units.Quantity` [time], optional
+        Timescale for the exponential decline of the star formation rate, by default 8*u.Gyr
+    tau_1 : :class:`~astropy.units.Quantity` [time], optional
+        Timescale for the initial rise of the star formation rate, by default 0.11*u.Gyr
     """
     def __init__(self, potential, time_bins=5, include_bar=False, bar_params={},
                  tau_m=12 * u.Gyr, tau_S=0.43 * u.Gyr, tau_T=10 * u.Gyr,
