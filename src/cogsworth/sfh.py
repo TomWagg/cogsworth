@@ -1549,7 +1549,57 @@ class DistributionFunctionBasedSFH(StarFormationHistory):
         self.get_metallicity()
 
 
-class SandersBinney2015(DistributionFunctionBasedSFH):
+class SandersBinney2015Component(DistributionFunctionBasedSFH):
+    """A single component of the Sanders & Binney 2015 model, following the quasi-isothermal DF described in
+    Section 2.2 of that paper. This is not intended to be used directly, but rather as a component of
+    :class:`SandersBinney2015`.
+
+    Parameters are inherited from :class:`DistributionFunctionBasedSFH`
+    """
+    def __init__(self, tau_min, tau_max,
+                 tau_m=12 * u.Gyr, tau_S=0.43 * u.Gyr, tau_F=8 * u.Gyr,
+                 Fm=-1, gradient=-0.075 / u.kpc, Rnow=8.7 * u.kpc, gamma=0.3, zsun=0.0142,
+                 **kwargs):
+        self.tau_min = tau_min
+        self.tau_max = tau_max
+        self.tau_m = tau_m
+        self.tau_S = tau_S
+        self.tau_F = tau_F
+        self.Fm = Fm
+        self.gradient = gradient
+        self.Rnow = Rnow
+        self.gamma = gamma
+        self.zsun = zsun
+
+        # interpolate the inverse CDF for lookback time distribution
+        # pdf taken from Sanders & Binney 2015 Eq. 10
+        tau_range = np.linspace(max(self.tau_min, 0), min(self.tau_max, self.tau_m * (1 - 1e-10)), 100_000)
+        tau_pdf = np.exp(tau_range / self.tau_F - self.tau_S / (self.tau_m - tau_range))
+        tau_cdf = cumulative_trapezoid(tau_pdf, tau_range, initial=0)
+        self._inv_cdf = interp1d(tau_cdf / tau_cdf[-1], tau_range, bounds_error=True)
+        self.galaxy_age = self.tau_m
+
+        super().__init__(**kwargs)
+
+    def draw_lookback_times(self, size):
+        U = np.random.rand(size)
+        self._tau = self._inv_cdf(U) * u.Gyr
+        return self._tau
+    
+    def get_metallicity(self):
+        """Compute metallicities using the
+        `Frankel+2018 <https://ui.adsabs.harvard.edu/abs/2018ApJ...865...96F/abstract>`_ relation.
+
+        Returns
+        -------
+        Z : :class:`~astropy.units.Quantity` [dimensionless]
+            Metallicities
+        """
+        self._Z = _frankel2018_metallicity_relation(self)
+        return self._Z
+
+
+class SandersBinney2015(CompositeStarFormationHistory):
     """Star formation history model based on a Quasi-Isothermal Disc distribution function from
     `Sanders & Binney 2015 <https://ui.adsabs.harvard.edu/abs/2015MNRAS.449.3479S/abstract>`_.
 
@@ -1567,49 +1617,130 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
         Number of time bins to use when computing different radial and vertical velocity dispersions, which
         accounts for how these parameters evolve with time. More bins means a more accurate representation
         of the SFH but takes longer to compute. By default 5.
-    verbose : `bool`, optional
-        Whether to print out information about the setup and sampling of the model, by default False
+    include_bar : `bool`, optional
+        Whether to include the bar component in the model, by default False
+    bar_params : `dict`, optional
+        If `include_bar` is True, the keyword arguments to pass to the bar component,
+        which is an instance of :class:`MilkyWayBarSormani2022`. By default an empty dict,
+        which will use the default parameters for that class.
     """
-    def __init__(self, time_bins=5, verbose=False,
+    def __init__(self, potential, time_bins=5, include_bar=False, bar_params={},
                  tau_m=12 * u.Gyr, tau_S=0.43 * u.Gyr, tau_T=10 * u.Gyr,
                  tau_F=8 * u.Gyr, tau_1=0.11 * u.Gyr,
                  **kwargs):
         self.time_bins = time_bins
+        self.include_bar = include_bar
         self.tau_m = tau_m
         self.tau_S = tau_S
         self.tau_T = tau_T
         self.tau_F = tau_F
         self.tau_1 = tau_1
-        self.verbose = verbose
-        self._inv_cdf = None
+        self.potential = potential
+        self._tau_cdf = None
         self._guiding_radius_interp = None
         self._omega_interp = None
         self._kappa_interp = None
         self._nu_interp = None
 
-        # ensure we don't pass components twice
-        for var in ["components", "component_masses"]:          # pragma: no cover
-            if var in kwargs:
-                kwargs.pop(var)
+        self._precompute_interpolations()
 
-        super().__init__(df=None, **kwargs)
+        self.time_bin_edges = np.linspace(0, self.tau_T.to(u.Gyr).value, self.time_bins + 1) * u.Gyr
+        if include_bar:
+            bar_age = bar_params.get("galaxy_age", 8.0 * u.Gyr)
+
+            # ensure bar age is reasonable (bar is made of thin disc stars)
+            if bar_age > self.tau_T:
+                raise ValueError("Bar lookback time must be less than tau_T "
+                                 "(the maximum lookback time for the thin disc components)")
+            
+            # splice the time bins edges to include the bar age as a boundary between two thin disc
+            # components, so that the bar component can be assigned the appropriate fraction of the
+            # thin disc mass
+            if not np.isclose(self.time_bin_edges, bar_age).any():
+                self.time_bin_edges = np.sort(np.append(self.time_bin_edges, bar_age))
+
+        f_thin_disc = self._tau_cdf(self.tau_T.to(u.Gyr).value)
+
+        thick_disc = SandersBinney2015Component(
+            tau_min=self.tau_T, tau_max=(1 - 1e-10) * self.tau_m, tau_m=self.tau_m,
+            tau_S=self.tau_S, tau_F=self.tau_F,
+            potential=self.potential,
+            df=lambda J: self._generate_df(J=J, component="thick_disc", tau=12 * u.Gyr)
+        )
+
+        thin_disc_components = [SandersBinney2015Component(
+            tau_min=tau_min, tau_max=(1 - 1e-10) * tau_max, tau_m=self.tau_m,
+            tau_S=self.tau_S, tau_F=self.tau_F,
+            potential=self.potential,
+            df=lambda J: self._generate_df(J=J, component="thin_disc", tau=(tau_min + tau_max) / 2)
+        ) for tau_min, tau_max in zip(self.time_bin_edges[:-1], self.time_bin_edges[1:])]
+
+        thick_disc_frac = 1.0
+        thin_disc_fracs = []
+        for t0, t1 in zip(self.time_bin_edges[:-1], self.time_bin_edges[1:]):
+            frac = self._tau_cdf(t1.to(u.Gyr).value) - self._tau_cdf(t0.to(u.Gyr).value)
+            thin_disc_fracs.append(frac)
+            thick_disc_frac -= frac
+        thin_disc_fracs = np.array(thin_disc_fracs)
+
+        if include_bar:
+            bar_component = MilkyWayBarSormani2022(potential=self.potential, **bar_params)
+            components = thin_disc_components + [thick_disc] + [bar_component]
+
+            total_stellar_mass = 6e10      # Liquia & Newman 2015
+            bar_mass = 1.83e10             # Sormani+2022
+            implied_disc_mass = total_stellar_mass - bar_mass
+            thin_disc_mass = implied_disc_mass * f_thin_disc
+
+            # bar mass should entirely come from the thin disc, rescale thin_disc_fracs accordingly
+            f_thin_thats_bar = bar_mass / (thin_disc_mass + bar_mass)
+
+            adjusted_thin_disc_fracs = thin_disc_fracs.copy()
+            for i, left_edge in enumerate(self.time_bin_edges[:-1]):
+                if left_edge < bar_age:
+                    adjusted_thin_disc_fracs[i] = thin_disc_fracs[i] * (1 - f_thin_thats_bar)
+
+            component_ratios = np.concatenate((
+                adjusted_thin_disc_fracs,
+                [thick_disc_frac],
+                [1 - adjusted_thin_disc_fracs.sum() - thick_disc_frac]
+            ))
+        else:
+            components = thin_disc_components + [thick_disc]
+            component_ratios = np.append(thin_disc_fracs, thick_disc_frac)
+
+        super().__init__(components=components, component_ratios=component_ratios, **kwargs)
         self.__citations__.append("Sanders&Binney2015")
 
+    def __repr__(self):
+        time_bin_edges = self.time_bin_edges.to(u.Gyr).value
+        titles = (
+            [f"ThinDisc ({t0:.1f}-{t1:.1f} Gyr)" for t0, t1 in zip(time_bin_edges[:-1], time_bin_edges[1:])]
+            + ["ThickDisc"]
+            + (["Bar"] if self.include_bar else [])
+        )
+        component_string = ', '.join([f"{title} ({ratio:.0%})"
+                                      for title, ratio in zip(titles, self.component_ratios)])
+        length_str = f"size={len(self)}" if len(self) > 0 else "[not yet sampled]"
+        return (
+            f"<{self.__class__.__name__}, {length_str}, {len(self.components)} "
+            f"components | {component_string}>"
+        )
+
     def _precompute_interpolations(self):
-        interp_needed = (self._inv_cdf is None or self._guiding_radius_interp is None
+        interp_needed = (self._tau_cdf is None or self._guiding_radius_interp is None
                          or self._omega_interp is None or self._kappa_interp is None
                          or self._nu_interp is None)
         if not interp_needed:       # pragma: no cover
             return
-        if self.verbose:
-            print("Pre-computing lookback time, guiding radius and frequency interpolations")
 
         # interpolate the inverse CDF for lookback time distribution
         # pdf taken from Sanders & Binney 2015 Eq. 10
         tau_range = np.linspace(0, self.tau_m * (1 - 1e-10), 100000)
         tau_pdf = np.exp(tau_range / self.tau_F - self.tau_S / (self.tau_m - tau_range))
-        tau_cdf = cumulative_trapezoid(tau_pdf, tau_range, initial=0)
-        self._inv_cdf = interp1d(tau_cdf / tau_cdf[-1], tau_range, bounds_error=True)
+        tau_cdf_vals = cumulative_trapezoid(tau_pdf, tau_range, initial=0)
+        tau_cdf_vals /= tau_cdf_vals[-1]  # normalize to 1
+        self._tau_cdf = interp1d(tau_range, tau_cdf_vals, bounds_error=False, fill_value=(0, 1))
         self.galaxy_age = self.tau_m
 
         # pre-compute frequencies at a range of guiding radii
@@ -1758,106 +1889,6 @@ class SandersBinney2015(DistributionFunctionBasedSFH):
         ]
         df_val[valid] = prefactor * np.prod(exp_terms, axis=0)                      # units of Myr^3/kpc^6
         return df_val
-
-    def draw_lookback_times(self, size):
-        """Draw lookback times for all stars using inverse CDF sampling
-
-        Returns
-        -------
-        tau : :class:`~astropy.units.Quantity` [time]
-            Random lookback times
-        """
-        U = np.random.rand(size)
-        self._tau = self._inv_cdf(U) * u.Gyr
-        return self._tau
-
-    def get_metallicity(self):
-        """Calculate the metallicity based on the radius and lookback time 
-        BUT use the prescription from Frankel+2018, the SB15 one is outdated.
-        """
-        Fm, gradient, Rnow, gamma = -1, -0.075 / u.kpc, 8.7 * u.kpc, 0.3
-        FeH = Fm + gradient * self.rho - (Fm + gradient * Rnow) * (1 - (self.tau / self.galaxy_age))**gamma
-        self._Z = np.power(10, FeH + np.log10(0.0142))
-        return self._Z
-
-    def sample(self, size):
-        """Sample from the distributions for each component, combine and save in class attributes"""
-        assert check_dependencies("agama")
-        import agama
-        agama.setUnits(**{k: galactic[k] for k in ['length', 'mass', 'time']})
-
-        self._precompute_interpolations()
-
-        if self.verbose:
-            print("Initiating sampling procedure")
-
-        self.draw_lookback_times(size)
-
-        is_thin_disc = self.tau < self.tau_T
-        sizes = [np.sum(is_thin_disc), np.sum(~is_thin_disc)]
-
-        which_comp = np.where(is_thin_disc, "thin_disc", "thick_disc")
-
-        self._x = np.zeros(size) * u.kpc
-        self._y = np.zeros(size) * u.kpc
-        self._z = np.zeros(size) * u.kpc
-
-        self._v_x = np.zeros(size) * u.km / u.s
-        self._v_y = np.zeros(size) * u.km / u.s
-        self._v_z = np.zeros(size) * u.km / u.s
-
-        self._v_R = np.zeros(size) * u.km / u.s
-        self._v_T = np.zeros(size) * u.km / u.s
-
-        for com_size, com in zip(sizes, ["thin_disc", "thick_disc"]):
-            if com_size == 0:          # pragma: no cover
-                continue
-            com_mask = which_comp == com
-
-            if com == "thin_disc":
-                time_bin_edges = np.linspace(0, self.tau_T.to(u.Gyr).value, self.time_bins + 1) * u.Gyr
-            else:
-                time_bin_edges = np.array([self.tau_T.to(u.Gyr).value, self.tau_m.to(u.Gyr).value]) * u.Gyr
-
-            if self.verbose:
-                print(f"  Sampling {com_size} stars from the {com}")
-
-            # loop over each bin of time and sample from the corresponding DF
-            for t0, t1 in zip(time_bin_edges[:-1], time_bin_edges[1:]):
-                in_bin = com_mask & (self.tau >= t0) & (self.tau < t1)
-                n_in_bin = np.sum(in_bin)
-                if n_in_bin == 0:           # pragma: no cover
-                    continue
-
-                if self.verbose:
-                    print(f"    Sampling {n_in_bin} stars with lookback times between {t0:.2f} and {t1:.2f}")
-
-                df = agama.DistributionFunction(lambda J: self._generate_df(J=J, component=com,
-                                                                            tau=(t0 + t1) / 2))
-                xv, _ = agama.GalaxyModel(self._agama_pot, df).sample(n_in_bin)
-
-                # convert units for velocity
-                xv[:, 3:] *= (u.kpc / u.Myr).to(u.km / u.s)
-
-                # save the positions/velocities
-                self._x[in_bin] = xv[:, 0] * u.kpc
-                self._y[in_bin] = xv[:, 1] * u.kpc
-                self._z[in_bin] = xv[:, 2] * u.kpc
-                self._v_x[in_bin] = xv[:, 3] * u.km / u.s
-                self._v_y[in_bin] = xv[:, 4] * u.km / u.s
-                self._v_z[in_bin] = xv[:, 5] * u.km / u.s
-
-        # work out the velocities by rotating using SkyCoord
-        full_coord = SkyCoord(x=self._x, y=self._y, z=self._z, v_x=self._v_x, v_y=self._v_y, v_z=self._v_z,
-                              frame="galactocentric").represent_as("cylindrical")
-
-        with u.set_enabled_equivalencies(u.dimensionless_angles()):
-            self._v_R = full_coord.differentials['s'].d_rho
-            self._v_T = (full_coord.differentials['s'].d_phi * full_coord.rho).to(u.km / u.s)
-            self._v_z = full_coord.differentials['s'].d_z
-
-        # compute the metallicity given the other values
-        self.get_metallicity()
 
 
 class SpheroidalDwarf(DistributionFunctionBasedSFH):
