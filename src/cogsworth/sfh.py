@@ -1256,7 +1256,8 @@ class MilkyWayBarSormani2022(StarFormationHistory):
         Z : :class:`~astropy.units.Quantity` [dimensionless]
             Metallicities
         """
-        return _frankel2018_metallicity_relation(self)
+        self._Z = _frankel2018_metallicity_relation(self)
+        return self._Z
 
     def _bar_density(self, x, y, z):
         """Total bar density (sum of all three Sormani+2022 components) in 10^10 M_sun kpc^-3"""
