@@ -27,6 +27,7 @@ class Test(unittest.TestCase):
         bpp.index = bpp["bin_num"].values
 
         kick_info_dict = {
+            "tphys": [0, 1, 2, 3, 4],
             "star": [0, 1, 1, 1, 2],
             "disrupted": [0, 0, 1, 0, 1],
             "delta_vsysx_1": [0, 0, 0, 0, 0],
