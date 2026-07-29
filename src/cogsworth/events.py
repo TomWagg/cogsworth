@@ -7,15 +7,9 @@ def identify_events(p):
 
     # reduce kick info to just the rows that contain supernova events
     sn_kicks = p.kick_info[p.kick_info["star"] > 0.0][
-        ["star", "disrupted", "delta_vsysx_1", "delta_vsysy_1", "delta_vsysz_1",
+        ["tphys", "star", "disrupted", "delta_vsysx_1", "delta_vsysy_1", "delta_vsysz_1",
         "delta_vsysx_2", "delta_vsysy_2", "delta_vsysz_2", "bin_num"]
     ]
-
-    # reduce bpp to just SN rows
-    sn_bpp = p.bpp[p.bpp["evol_type"].isin([15, 16])][["tphys", "evol_type", "bin_num", "sep"]]
-
-    # add a star column for joining to kick_info, evol_type = 15 -> star 1 and evol_type = 16 -> star 2
-    sn_bpp["star"] = sn_bpp["evol_type"].map({15: 1, 16: 2})
 
     # randomly drawn phase and inclination angles as necessary
     for col in ["phase_sn_1", "phase_sn_2"]:
@@ -26,8 +20,8 @@ def identify_events(p):
             p.initC[col] = np.arccos(2 * np.random.rand(len(p.initC)) - 1.0)
 
     # same for initC
-    sn_initC = p.initC.loc[sn_bpp.index][["inc_sn_1", "phase_sn_1", "inc_sn_2", "phase_sn_2", "bin_num"]]
-    sn_initC["star"] = sn_bpp["star"].values
+    sn_initC = p.initC.loc[sn_kicks.index][["inc_sn_1", "phase_sn_1", "inc_sn_2", "phase_sn_2", "bin_num"]]
+    sn_initC["star"] = sn_kicks["star"].values
 
     # put inc_sn and phase_sn in their own columns based on star
     sn_initC["inc"] = None
@@ -41,7 +35,7 @@ def identify_events(p):
     sn_initC = sn_initC.drop(columns=["inc_sn_1", "phase_sn_1", "inc_sn_2", "phase_sn_2"])
 
     # join the tables together to get all the relevant info in one place
-    sn_info = sn_bpp.merge(sn_kicks, on=["bin_num", "star"]).merge(sn_initC, on=["bin_num", "star"])
+    sn_info = sn_kicks.merge(sn_initC, on=["bin_num", "star"])
     sn_info.index = sn_info["bin_num"].values
 
     # primary stars use delta_vsysx_1 for every supernova

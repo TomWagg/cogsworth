@@ -8,6 +8,7 @@ This page tracks all of the changes that have been made to ``cogsworth``. We fol
 =====
 
 - Bug fix: Ensure workers in the multiprocessing pool have different random seeds to avoid duplicate samples when sampling initial binaries with multiple processes.
+- Code cleanup: events.py now uses the tphys column directly from the kick_info table rather than the bpp table (recent update to COSMIC)
 
 4.0.1
 =====
