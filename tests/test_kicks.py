@@ -1,7 +1,9 @@
 import unittest
 import cogsworth
 import numpy as np
-
+import gala.dynamics as gd
+import astropy.units as u
+import pandas as pd
 
 class Test(unittest.TestCase):
     def test_duplicated_timesteps(self):
@@ -50,3 +52,30 @@ class Test(unittest.TestCase):
         second_pos = p.final_pos.copy()
 
         self.assertTrue(np.allclose(first_pos, second_pos))
+
+    def test_events_outside_range(self):
+        """Test that events outside the integration range don't affect an orbit"""
+
+        w0 = gd.PhaseSpacePosition(pos=[8, 0, 0] * u.kpc, vel=[0, 220, 0] * u.km / u.s)
+        t1 = 0 * u.Myr
+        t2 = 50 * u.Myr
+        dt = 1 * u.Myr
+
+        # the second event is outside the integration range and should be ignored
+        events = pd.DataFrame({
+            "tphys": [10, 60],
+            "delta_vsys_x": [0, 0],
+            "delta_vsys_y": [0, 0],
+            "delta_vsys_z": [0, 100],
+            "inc": [0, 0],
+            "phase": [0, 0]
+        })
+
+        orbit = cogsworth.kicks.integrate_orbit_with_events(
+            w0, t1, t2, dt, events=events,
+        )
+
+        # the orbit should still be close to the plane if nothing went wrong
+        self.assertTrue(
+            np.all(orbit.z.to(u.kpc) < 0.1 * u.kpc)
+        )
