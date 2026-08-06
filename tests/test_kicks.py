@@ -79,3 +79,35 @@ class Test(unittest.TestCase):
         self.assertTrue(
             np.all(orbit.z.to(u.kpc) < 0.1 * u.kpc)
         )
+
+    def test_out_of_order_events(self):
+        """Test that events that are out of order in time are still applied correctly"""
+
+        w0 = gd.PhaseSpacePosition(pos=[8, 0, 0] * u.kpc, vel=[0, 220, 0] * u.km / u.s)
+        t1 = 0 * u.Myr
+        t2 = 50 * u.Myr
+        dt = 1 * u.Myr
+
+        # the second event is outside the integration range and should be ignored
+        events = pd.DataFrame({
+            "tphys": [10, 20],
+            "delta_vsys_x": [0, 0],
+            "delta_vsys_y": [10, 0],
+            "delta_vsys_z": [0, 10],
+            "inc": [0, 0],
+            "phase": [0, 0]
+        })
+
+        backwards_events = events.iloc[::-1].reset_index(drop=True)
+
+        orbit = cogsworth.kicks.integrate_orbit_with_events(
+            w0, t1, t2, dt, events=events,
+        )
+        backwards_orbit = cogsworth.kicks.integrate_orbit_with_events(
+            w0, t1, t2, dt, events=backwards_events,
+        )
+
+        # the orbits should be the same regardless of the order of the events
+        self.assertTrue(
+            np.allclose(orbit.x.to(u.kpc), backwards_orbit.x.to(u.kpc))
+        )

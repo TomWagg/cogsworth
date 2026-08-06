@@ -113,6 +113,9 @@ def integrate_orbit_with_events(
             full_orbit = full_orbit[-1:]
         return full_orbit
 
+    # sort the events by time (in case they are out of order)
+    events = events.sort_values(by="tphys").reset_index(drop=True)
+
     # allow two retries with smaller timesteps
     for _ in range(max_retries):
         try:

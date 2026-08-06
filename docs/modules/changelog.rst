@@ -8,6 +8,7 @@ This page tracks all of the changes that have been made to ``cogsworth``. We fol
 =====
 
 - Code cleanup: Ensure that events outside the integration range are masked out before orbit integration to avoid issues with events that occur after the end of the integration time. This will never get hit for regular cogsworth usage, but is a good safety check for users who are using the ``integrate_orbit_with_events`` function directly (i.e. Tom when using this with STROOPWAFEL...)
+- Bug fix: Ensure that events are sorted by time before orbit integration to avoid issues with events that are out of order. This could happen for rare cases in which the secondary reaches core-collapse before the primary, and the events are not in chronological order.
 
 4.0.2
 =====
