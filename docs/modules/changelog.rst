@@ -4,6 +4,11 @@ Full changelog
 
 This page tracks all of the changes that have been made to ``cogsworth``. We follow the standard versioning convention of A.B.C, where C is a patch/bugfix, B is a large bugfix or new feature and A is a major new breaking change. B/C are backwards compatible but A changes may be breaking.
 
+4.0.3
+=====
+
+- Code cleanup: Ensure that events outside the integration range are masked out before orbit integration to avoid issues with events that occur after the end of the integration time. This will never get hit for regular cogsworth usage, but is a good safety check for users who are using the ``integrate_orbit_with_events`` function directly (i.e. Tom when using this with STROOPWAFEL...)
+
 4.0.2
 =====
 
