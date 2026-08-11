@@ -98,7 +98,7 @@ def integrate_orbit_with_events(
 
     # mask out any events that occur outside the integration time
     if events is not None:
-        events = events[(events["tphys"] >= 0) & (events["tphys"] * u.Myr <= t2 - t1)]
+        events = events[(events["tphys"] >= 0) & (events["tphys"].values * u.Myr <= t2 - t1)]
 
     # if there are no events then just integrate the whole thing
     if events is None or len(events) == 0:
