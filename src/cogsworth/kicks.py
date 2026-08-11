@@ -96,8 +96,12 @@ def integrate_orbit_with_events(
     # ensure timestep isn't larger than integration time
     dt = min(dt, t2 - t1)
 
+    # mask out any events that occur outside the integration time
+    if events is not None:
+        events = events[(events["tphys"] >= 0) & (events["tphys"].values * u.Myr <= t2 - t1)]
+
     # if there are no events then just integrate the whole thing
-    if events is None:
+    if events is None or len(events) == 0:
         try:
             full_orbit = potential.integrate_orbit(
                 w0, t1=t1, t2=t2, dt=dt, Integrator=integrator, Integrator_kwargs=integrator_kwargs,
@@ -108,6 +112,9 @@ def integrate_orbit_with_events(
         if not store_all:
             full_orbit = full_orbit[-1:]
         return full_orbit
+
+    # sort the events by time (in case they are out of order)
+    events = events.sort_values(by="tphys").reset_index(drop=True)
 
     # allow two retries with smaller timesteps
     for _ in range(max_retries):
