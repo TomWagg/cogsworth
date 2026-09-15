@@ -192,8 +192,20 @@ def integrate_orbit_with_events(
 
         except Exception as e:   # pragma: no cover
             # if the error is not a runtime error that starts with "Integration failed" then raise it
-            if not (isinstance(e, RuntimeError) and str(e).startswith("Integration failed")):
+            if not (isinstance(e, RuntimeError) and str(e).startswith("Integration failed")) \
+            and not (isinstance(e, ValueError)):
                 raise e
+
+            if isinstance(e, ValueError):
+                # save all inputs to a file for debugging root cause
+                with open("bad_orbit_debug.txt", "w") as debug_file:
+                    debug_file.write("w0: " + str(w0) + "\n")
+                    debug_file.write("t1: " + str(t1) + "\n")
+                    debug_file.write("t2: " + str(t2) + "\n")
+                    debug_file.write("dt: " + str(dt) + "\n")
+                    debug_file.write("events: " + str(events) + "\n")
+                    debug_file.write("error: " + str(e) + "\n")
+                    
 
             # otherwise, try again with a smaller timestep
             dt *= timestep_multiplier
