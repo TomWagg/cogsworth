@@ -41,7 +41,7 @@ lisa = [
     "legwork >= 0.4.6",
 ]
 hydro = [
-    "pynbody >= 2.0.0, < 2.7.2",
+    "pynbody >= 2.0.0, < 2.4",
 ]
 extras = [
     "cogsworth[observables,actions,lisa,hydro]",
