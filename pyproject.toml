@@ -41,23 +41,13 @@ lisa = [
     "legwork >= 0.4.6",
 ]
 hydro = [
-    "pynbody >= 2.0.0",
+    "pynbody >= 2.0.0, < 2.4",
 ]
 extras = [
-    "dustmaps",
-    "healpy",
-    "gaiaunlimited >= 0.2.0",
-    "agama",
-    "pynbody >= 2.0.0",
-    "legwork >= 0.4.6",
+    "cogsworth[observables,actions,lisa,hydro]",
 ]
 test = [
-    "dustmaps",
-    "healpy",
-    "gaiaunlimited >= 0.2.0",
-    "agama",
-    "legwork >= 0.4.6",
-    "pynbody >= 2.0.0",
+    "cogsworth[extras]",
     "pytest",
     "flake8",
     "coverage",
@@ -66,10 +56,7 @@ test = [
     "pytest-cov",
 ]
 docs = [
-    "dustmaps",
-    "healpy",
-    "gaiaunlimited >= 0.2.0",
-    "pynbody >= 2.0.0",
+    "cogsworth[extras]",
     "sphinx < 7.2",
     "matplotlib < 3.9",
     "nbsphinx >= 0.8.6",
@@ -85,31 +72,7 @@ docs = [
     "sphinx-togglebutton",
 ]
 all = [
-    "dustmaps",
-    "healpy",
-    "gaiaunlimited >= 0.2.0",
-    "agama",
-    "legwork >= 0.4.6",
-    "pynbody >= 2.0.0",
-    "pytest",
-    "flake8",
-    "coverage",
-    "pytest-xdist",
-    "nbmake",
-    "pytest-cov",
-    "sphinx < 7.2",
-    "matplotlib < 3.9",
-    "nbsphinx >= 0.8.6",
-    "numpydoc",
-    "pydata-sphinx-theme",
-    "sphinx-automodapi",
-    "sphinxcontrib-bibtex",
-    "IPython",
-    "ipykernel",
-    "sphinx-copybutton",
-    "sphinx-gallery >= 0.13.0",
-    "sphinx-design >= 0.4.1",
-    "sphinx-togglebutton",
+    "cogsworth[extras,test,docs]"
 ]
 
 [tool.setuptools.dynamic]

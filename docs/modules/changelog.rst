@@ -4,6 +4,16 @@ Full changelog
 
 This page tracks all of the changes that have been made to ``cogsworth``. We follow the standard versioning convention of A.B.C, where C is a patch/bugfix, B is a large bugfix or new feature and A is a major new breaking change. B/C are backwards compatible but A changes may be breaking.
 
+4.0.3
+=====
+
+This version is mostly just about MIST filter sets.
+
+- Bug fix: Update ``obs.mist`` for the MIST v2 bolometric correction tables. Several filter sets were renamed (``CFHT`` -> ``CFHTugriz``, ``HST_ACSWF`` -> ``HST_ACS_WFC``, ``HST_ACSHR`` -> ``HST_ACS_HRC``), which broke downloads for these sets. Downloads now come directly from ``mist.science``.
+- Breaking change: Some filter names changed in MIST v2, notably JWST filters now have a ``NIRCAM_`` prefix (e.g. ``F070W`` -> ``NIRCAM_F070W``) and Spitzer filters no longer have a decimal point (e.g. ``IRAC_3.6`` -> ``IRAC_36``). The v1 filter sets are kept (unused) as ``obs.mist.MIST_FILTER_SETS_V1``.
+- New feature: Added all filter sets that are new in MIST v2 (Euclid, HSC, HST_ACS_SBC, IPHAS, NIRISS, RoboAO, Roman, SPHEREx, SPLUS, Swift, UVIT, VISTA, WashDDOuvby), plus new filters in existing sets.
+- New feature: Added ``obs.mist.list_filter_sets`` and ``obs.mist.list_filters`` to print the available filter sets and filters. Unknown filters now raise an error (``MISTFilterError``, a subclass of ``KeyError``) that suggests similarly named filters and points to these functions. Old MIST v1 filter or filter set names are flagged as such, along with their v2 equivalent.
+
 4.0.2
 =====
 

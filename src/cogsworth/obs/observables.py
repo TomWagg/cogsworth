@@ -7,7 +7,7 @@ from copy import copy
 
 import logging
 from cogsworth.utils import check_dependencies
-from cogsworth.obs.mist import MISTBolometricCorrectionGrid
+from cogsworth.obs.mist import MISTBolometricCorrectionGrid, check_filters
 
 import sys
 import os
@@ -238,7 +238,8 @@ def get_photometry(filters, population=None, final_bpp=None, final_pos=None, dis
     Parameters
     ----------
     filters : `list` of `str`
-        Which filters to compute photometry for (e.g. ['Gaia_G_EDR3', 'Gaia_BP_EDR3', 'Gaia_RP_EDR3'])
+        Which filters to compute photometry for (e.g. ['Gaia_G_EDR3', 'Gaia_BP_EDR3', 'Gaia_RP_EDR3']).
+        Use :func:`~cogsworth.obs.mist.list_filters` to see the available filters
     population : :class:`~cogsworth.pop.Population`
         The population for which to compute photometry (either supply this or a final_bpp and final_pos)
     final_bpp : :class:`~pandas.DataFrame`
@@ -271,7 +272,12 @@ def get_photometry(filters, population=None, final_bpp=None, final_pos=None, dis
         raise ValueError("Must supply either distances or have `assume_mw_galactocentric=True`")
     if not ignore_extinction and not assume_mw_galactocentric:
         raise ValueError("Cannot calculate extinction due to dust without `assume_mw_galactocentric=True`")
+    if isinstance(filters, str):
+        filters = [filters]
+    check_filters(filters)
     main_filter = filters[0] if main_filter is None else main_filter
+    if main_filter not in filters:
+        raise ValueError(f"main_filter '{main_filter}' must be one of the supplied filters {filters}")
 
     if population is not None:
         final_bpp = population.final_bpp
