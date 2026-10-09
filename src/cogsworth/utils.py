@@ -158,11 +158,10 @@ def list_BSE_defaults():            # pragma: no cover
 
 
 _deps = {
-    "nose": ("nose", "observables predictions"),
-    "tables": ("tables", "observables predictions"),
     "dustmaps": ("dustmaps", "observables predictions"),
+    "requests": ("requests", "HTTP requests for downloading data for MIST filter sets"),
     "healpy": ("healpy", "healpix maps"),
-    "gaiaunlimited": ("gaiaunlimited", "GAIA observation predictions"),
+    "gaiaunlimited": ("gaiaunlimited", "Gaia observation predictions"),
     "agama": ("agama", "action-based potentials"),
     "legwork": ("legwork", "LISA gravitational wave predictions"),
     "pynbody": ("pynbody", "loading hydrodynamical snapshots"),

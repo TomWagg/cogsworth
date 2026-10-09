@@ -7,11 +7,11 @@ import shutil
 import logging
 import difflib
 
-import requests
 import pandas as pd
 from scipy.interpolate import RegularGridInterpolator
 import numpy as np
 
+from cogsworth.utils import check_dependencies
 
 __all__ = [
     "MISTBolometricCorrectionGrid", "list_filter_sets", "list_filters", "check_filters",
@@ -325,6 +325,9 @@ class MISTBolometricCorrectionGrid:
         """
         Download the MIST BC tarball for a given filter set (e.g. 'LSST').
         """
+        assert check_dependencies("requests")
+        import requests
+
         tarball_path = self.cache_dir / f"{filter_set}.txz"
 
         if tarball_path.exists() and not self.rebuild:
