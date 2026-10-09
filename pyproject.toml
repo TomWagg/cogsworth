@@ -33,6 +33,7 @@ observables = [
     "dustmaps",
     "healpy",
     "gaiaunlimited >= 0.2.0",
+    "requests"
 ]
 actions = [
     "agama",
