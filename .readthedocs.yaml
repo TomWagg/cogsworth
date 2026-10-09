@@ -11,6 +11,17 @@ build:
     python: "3.11"
   apt_packages:
     - graphviz
+    - libgsl-dev
+    - libhdf5-serial-dev
+  jobs:
+    # Agama can't be installed directly by pip (needs numpy/setuptools present
+    # and build isolation disabled), so build it from source first. See also
+    # .github/workflows/test_cogsworth.yml
+    pre_install:
+      - python -m pip install --upgrade pip
+      - python -m pip install numpy setuptools wheel --no-build-isolation
+      - git clone --depth 1 https://github.com/GalacticDynamics-Oxford/Agama.git /tmp/agama
+      - python -m pip install /tmp/agama --config-settings --build-option=--yes --no-build-isolation
 
 # Build documentation in the docs/ directory with Sphinx
 sphinx:
