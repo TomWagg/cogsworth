@@ -17,7 +17,7 @@ dependencies = [
     "numpy >= 1.23",
     "numba >= 0.58",
     "pip",
-    "matplotlib >= 3.7",
+    "matplotlib < 4",
     "astropy >= 5.0",
     "scipy >= 1.8",
     "pandas >= 2.1",
@@ -41,7 +41,7 @@ lisa = [
     "legwork >= 0.4.6",
 ]
 hydro = [
-    "pynbody >= 2.0.0, < 2.4",
+    "pynbody >= 2.8",
 ]
 extras = [
     "cogsworth[observables,actions,lisa,hydro]",
@@ -58,7 +58,6 @@ test = [
 docs = [
     "cogsworth[extras]",
     "sphinx < 7.2",
-    "matplotlib < 3.9",
     "nbsphinx >= 0.8.6",
     "numpydoc",
     "pydata-sphinx-theme",
