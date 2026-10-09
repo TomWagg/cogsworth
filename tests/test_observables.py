@@ -72,3 +72,12 @@ class Test(unittest.TestCase):
         except ValueError:
             it_worked = False
         self.assertFalse(it_worked)
+
+    def test_bad_filters(self):
+        """Test that unknown filters and main filters are caught before any computation"""
+        with self.assertRaises(KeyError):
+            obs.get_photometry(filters=["NOT A FILTER"], population="dummy", distances="dummy",
+                               ignore_extinction=True)
+        with self.assertRaises(ValueError):
+            obs.get_photometry(filters=["Gaia_G_EDR3"], population="dummy", distances="dummy",
+                               ignore_extinction=True, main_filter="Gaia_BP_EDR3")
