@@ -297,8 +297,8 @@ def get_photometry(filters, population=None, final_bpp=None, final_pos=None, dis
         # get extinction for bound binaries and primary of disrupted binaries
         photometry['Av_1'] = get_extinction(final_coords[:len(final_bpp)])
 
-        # get extinction for secondaries of disrupted binaries (leave as np.inf otherwise)
-        photometry['Av_2'] = np.repeat(np.inf, len(final_bpp))
+        # get extinction for secondaries of disrupted binaries (match primary otherwise)
+        photometry['Av_2'] = photometry['Av_1']
         photometry.loc[disrupted, "Av_2"] = get_extinction(final_coords[len(final_bpp):])
 
         # ensure extinction remains in MIST grid range (<= 6) and is not NaN
