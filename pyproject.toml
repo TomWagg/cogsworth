@@ -21,8 +21,8 @@ dependencies = [
     "astropy >= 5.0",
     "scipy >= 1.8",
     "pandas >= 2.1",
-    "gala >= 1.11.0",
-    "cosmic-popsynth >= 4.2, < 4.3",
+    "gala >= 1.12.0",
+    "cosmic-popsynth >= 4.3, < 4.4",
 ]
 
 [project.urls]

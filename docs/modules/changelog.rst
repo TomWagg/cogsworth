@@ -4,6 +4,11 @@ Full changelog
 
 This page tracks all of the changes that have been made to ``cogsworth``. We follow the standard versioning convention of A.B.C, where C is a patch/bugfix, B is a large bugfix or new feature and A is a major new breaking change. B/C are backwards compatible but A changes may be breaking.
 
+4.0.4
+=====
+
+- Update version pins for COSMIC to allow for 4.3+ releases and update Gala to v1.12+
+
 4.0.3
 =====
 
