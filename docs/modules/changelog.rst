@@ -8,6 +8,7 @@ This page tracks all of the changes that have been made to ``cogsworth``. We fol
 =====
 
 - Update version pins for COSMIC to allow for 4.3+ releases and update Gala to v1.12+
+- Support Python 3.14, drop support for Python 3.11
 
 4.0.3
 =====

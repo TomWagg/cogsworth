@@ -9,7 +9,7 @@ description = "A framework for performing self-consistent population synthesis a
 readme = {file = "README.md", content-type = "text/markdown"}
 license = {file = "LICENSE"}
 authors = [{name = "Tom Wagg", email = "tomjwagg@gmail.com"}]
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 # NOTE: any changes in the requirements must also be reflected in
 #   - environment.yml
 #   - install.rst
