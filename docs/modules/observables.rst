@@ -24,3 +24,14 @@ but there are also some helper functions for dealing with magnitudes.
 
 .. automodapi:: cogsworth.obs.observables
     :no-heading:
+
+
+Gaia astrometry (``obs.gaia``)
+==============================
+
+The ``gaia`` submodule uses :mod:`gaiamock` to predict Gaia astrometric solutions for binaries with a
+luminous star and a dark companion. Most users will want to use
+:meth:`~cogsworth.pop.Population.get_gaia_astrometry` rather than these functions directly.
+
+.. automodapi:: cogsworth.obs.gaia
+    :no-heading:
