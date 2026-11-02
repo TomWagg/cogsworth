@@ -263,7 +263,8 @@ def get_photometry(filters, population=None, final_bpp=None, final_pos=None, dis
     Returns
     -------
     photometry : :class:`~pandas.DataFrame`
-        Photometry and extinction information for supplied COSMIC binaries in desired `filters`. For each
+        Photometry and extinction information for supplied COSMIC binaries in desired `filters`, indexed in
+        the same way as `final_bpp` (i.e. by ``bin_num``). For each
         filter, ``{filter}_app`` and ``{filter}_abs`` give the combined apparent and absolute magnitudes of
         bound binaries and mergers (NaN for disrupted binaries), whilst ``{filter}_app_1``/``{filter}_app_2``
         (and similarly for ``abs``) always give the magnitudes of the primary and secondary star individually.
@@ -294,8 +295,8 @@ def get_photometry(filters, population=None, final_bpp=None, final_pos=None, dis
         final_coords = SkyCoord(x=final_pos[:, 0], y=final_pos[:, 1], z=final_pos[:, 2],
                                 frame="galactocentric", unit=u.kpc, representation_type="cartesian")
 
-    # set up empty photometry table
-    photometry = pd.DataFrame()
+    # set up empty photometry table (indexed by bin_num in the same way as final_bpp)
+    photometry = pd.DataFrame(index=final_bpp.index)
 
     if not ignore_extinction:       # pragma: no cover
         # get extinction for bound binaries and primary of disrupted binaries
