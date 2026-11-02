@@ -162,6 +162,7 @@ _deps = {
     "requests": ("requests", "HTTP requests for downloading data for MIST filter sets"),
     "healpy": ("healpy", "healpix maps"),
     "gaiaunlimited": ("gaiaunlimited", "Gaia observation predictions"),
+    "gaiamock": ("gaiamock", "Gaia astrometry predictions"),
     "agama": ("agama", "action-based potentials"),
     "legwork": ("legwork", "LISA gravitational wave predictions"),
     "pynbody": ("pynbody", "loading hydrodynamical snapshots"),
