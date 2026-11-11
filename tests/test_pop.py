@@ -803,6 +803,49 @@ class Test(unittest.TestCase):
                 assert_matched(pop.load(path, parts=["initial_binaries", "initial_galaxy"]))
                 assert_matched(pop.load(path, parts=["initial_galaxy"]))
 
+    def test_galaxy_unlabelled(self):
+        """Without labels the galaxy should fall back to positional indexing and not be realigned"""
+        p = pop.Population(30, use_default_BSE_settings=True, processes=1)
+        p.sample_initial_binaries()
+        p.initial_galaxy._bin_num = None
+
+        # indexing falls back to positions, which still match for a freshly sampled population
+        bin_nums = p.bin_nums[[7, 2, 11]]
+        q = p[bin_nums]
+        self.assertIsNone(getattr(q.initial_galaxy, "_bin_num", None))
+        self.assertTrue(np.allclose(q.initial_galaxy.tau.to(u.Myr).value,
+                                    q.initial_binaries["tphysf"].values))
+
+        # aligning without labels leaves the galaxy untouched
+        galaxy = p._initial_galaxy
+        p._align_initial_galaxy()
+        self.assertIs(p._initial_galaxy, galaxy)
+
+        # same if there are labels but no binaries to align to
+        p._label_initial_galaxy()
+        initial_binaries, p._initial_binaries = p._initial_binaries, None
+        p._align_initial_galaxy()
+        self.assertIs(p._initial_galaxy, galaxy)
+        p._initial_binaries = initial_binaries
+
+    def test_galaxy_realign(self):
+        """The galaxy should be reordered/subset to match the binaries when they get out of sync"""
+        p = pop.Population(30, use_default_BSE_settings=True, processes=1)
+        p.sample_initial_binaries()
+
+        # already aligned: nothing changes
+        galaxy = p._initial_galaxy
+        p._align_initial_galaxy()
+        self.assertIs(p._initial_galaxy, galaxy)
+
+        # shuffle and subset the binaries behind the galaxy's back, then realign
+        p._initial_binaries = p._initial_binaries.iloc[np.random.permutation(len(p._initial_binaries))[:20]]
+        p._align_initial_galaxy()
+        self.assertEqual(len(p._initial_galaxy), 20)
+        self.assertTrue(np.array_equal(p._initial_galaxy._bin_num, p._initial_binaries.index.values))
+        self.assertTrue(np.allclose(p._initial_galaxy.tau.to(u.Myr).value,
+                                    p._initial_binaries["tphysf"].values))
+
     def test_label_inds(self):
         """Check selecting by label matches pandas .loc semantics"""
         labels = np.array([5, 2, 9, 2, 7])
