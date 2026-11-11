@@ -765,6 +765,45 @@ class Test(unittest.TestCase):
         sum_individual_unique_bin_nums = sum(p.initial_binaries["bin_num"].nunique() for p in pops)
         self.assertEqual(total_unique_bin_nums, sum_individual_unique_bin_nums)
 
+    def test_galaxy_labels(self):
+        """The initial galaxy should be labelled by bin_num and stay matched to the binaries"""
+        def assert_matched(p):
+            self.assertTrue(np.array_equal(p.initial_galaxy._bin_num, p.initial_binaries.index.values))
+            self.assertTrue(np.allclose(p.initial_galaxy.tau.to(u.Myr).value,
+                                        p.initial_binaries["tphysf"].values))
+
+        for model in [sfh.Wagg2022(), sfh.BurstUniformDisc(t_burst=1 * u.Gyr)]:
+            p = pop.Population(30, use_default_BSE_settings=True, processes=1, sfh_model=model)
+            p.sample_initial_binaries()
+            assert_matched(p)
+
+            # shuffled indexing, then indexing again (bin_nums here are no longer in galaxy order)
+            q = p[np.random.permutation(p.bin_nums)]
+            assert_matched(q)
+            assert_matched(q[q.bin_nums[:5]])
+            assert_matched(q[[q.bin_nums[3], q.bin_nums[3], q.bin_nums[0]]])
+
+            # concatenation shifts the labels in the same way as the tables
+            r = pop.concat(p, q, q)
+            assert_matched(r)
+
+            # stellar evolution keeps them matched, and labels are reconstructed on load
+            r.perform_stellar_evolution()
+            assert_matched(r)
+            with tempfile.TemporaryDirectory() as tmpdir:
+                path = os.path.join(tmpdir, "r.h5")
+                r.save(path)
+                assert_matched(pop.load(path, parts=["initial_binaries", "initial_galaxy"]))
+                assert_matched(pop.load(path, parts=["initial_galaxy"]))
+
+    def test_label_inds(self):
+        """Check selecting by label matches pandas .loc semantics"""
+        labels = np.array([5, 2, 9, 2, 7])
+        self.assertTrue(np.array_equal(pop._label_inds(labels, [9, 5]), [2, 0]))
+        self.assertTrue(np.array_equal(pop._label_inds(labels, [2, 7, 2]), [1, 3, 4, 1, 3]))
+        with self.assertRaises(ValueError):
+            pop._label_inds(labels, [3])
+
     def test_concat_galaxy_aligned(self):
         """Check that the initial galaxy stays aligned with the binaries after concatenation"""
         for model in [sfh.Wagg2022(), sfh.BurstUniformDisc(t_burst=1 * u.Gyr)]:

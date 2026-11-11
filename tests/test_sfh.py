@@ -607,6 +607,37 @@ class Test(unittest.TestCase):
             g.save(path)
             self.assertIsNone(sfh.load(path)._sort_order)
 
+    def test_bin_num_labels(self):
+        """Labels should follow their points through indexing and concatenation, but not be saved"""
+        for g in [sfh.BurstUniformDisc(t_burst=5 * u.Gyr), sfh.Wagg2022()]:
+            g.sample(200)
+            self.assertIsNone(g._bin_num)
+
+            # use the lookback times to check labels stay with their points
+            g._bin_num = np.arange(len(g)) + 1000
+            labels_to_tau = dict(zip(g._bin_num, g.tau.value))
+
+            order = np.random.permutation(len(g))
+            parts = [g[order[:50]], g[order[50:]], g[[3, 3, 7]]]
+            self.assertTrue(np.array_equal(parts[0]._bin_num, g._bin_num[order[:50]]))
+            self.assertTrue(np.array_equal(parts[2]._bin_num, [1003, 1003, 1007]))
+            combined = sfh.concat(*parts)
+            expected = np.concatenate([order, [3, 3, 7]]) + 1000
+            self.assertTrue(np.array_equal(combined._bin_num, expected))
+            self.assertTrue(np.array_equal(combined.tau.value, [labels_to_tau[b] for b in expected]))
+
+            # if any input is unlabelled, the result is unlabelled
+            unlabelled = g[:10]
+            unlabelled._bin_num = None
+            self.assertIsNone(unlabelled._bin_num)
+            self.assertIsNone(sfh.concat(g[10:20], unlabelled)._bin_num)
+
+            # labels aren't saved to file
+            with tempfile.TemporaryDirectory() as tmpdir:
+                path = os.path.join(tmpdir, "g.h5")
+                combined.save(path)
+                self.assertIsNone(sfh.load(path)._bin_num)
+
     def test_load_bad_key(self):
         """Test that loading from a nonexistent key raises ValueError"""
         g = sfh.Wagg2022()
