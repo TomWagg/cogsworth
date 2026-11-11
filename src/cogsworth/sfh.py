@@ -567,11 +567,14 @@ class CompositeStarFormationHistory():
             while f"{key}_{n_components}" in file:
                 n_components += 1
                 component_ratios.append(file[f"{key}_{n_components - 1}"].attrs.get("component_ratio", 1.0))
+            sort_order = file[f"{key}_sort_order"][()] if f"{key}_sort_order" in file else None
 
-        return cls(
+        csfh = cls(
             components=[load(file_name, key=f"{key}_{i}") for i in range(n_components)],
             component_ratios=component_ratios
         )
+        csfh._sort_order = sort_order
+        return csfh
 
 
     def __getitem__(self, ind):
@@ -759,6 +762,12 @@ class CompositeStarFormationHistory():
         with h5.File(file_name, "a") as file:
             for i, cr in enumerate(self.component_ratios):
                 file[f"{key}_{i}"].attrs["component_ratio"] = cr
+
+            # store the sort order (if any) so that the order of the samples is preserved
+            if f"{key}_sort_order" in file:
+                del file[f"{key}_sort_order"]
+            if self._sort_order is not None:
+                file[f"{key}_sort_order"] = self._sort_order
 
     def get_citations(self, filename=None):
         """Print the citations for the packages/papers used in the star formation history"""
@@ -2097,12 +2106,39 @@ def concat(*sfhs):
         if len(set(n_comps)) != 1:
             raise ValueError(("All CompositeStarFormationHistory objects to concatenate must have the "
                               "same number of components"))
-        components = [concat(*[sfhs[i].components[j] for i in range(len(sfhs))]) for j in range(n_comps[0])]
+        n_comp = n_comps[0]
 
-        return CompositeStarFormationHistory(
+        # storage stays component-wise: new component j is component j of each input, in input order
+        components = [concat(*[sfh.components[j] for sfh in sfhs]) for j in range(n_comp)]
+
+        # but the logical order should be all of the first input, then all of the second etc. So we work
+        # out where each input's points end up in the new internal order and record a sort order
+        # lengths[i, j] = number of points in component j of input i
+        lengths = np.array([[len(c) for c in sfh.components] for sfh in sfhs], dtype=int)
+        new_internal = np.arange(lengths.sum())
+        comp_starts = np.concatenate([[0], np.cumsum(lengths.sum(axis=0))])
+
+        sort_order = []
+        for i, sfh in enumerate(sfhs):
+            # map this input's internal indices to the new internal indices
+            offsets = comp_starts[:-1] + lengths[:i].sum(axis=0)
+            internal_to_new = np.concatenate([new_internal[offsets[j]:offsets[j] + lengths[i, j]]
+                                              for j in range(n_comp)])
+
+            # then apply the input's own logical order (which may reorder or duplicate points)
+            sort_order.append(internal_to_new if sfh._sort_order is None
+                              else internal_to_new[sfh._sort_order])
+        sort_order = np.concatenate(sort_order).astype(int)
+
+        new_csfh = CompositeStarFormationHistory(
             components=components,
             component_ratios=sfhs[0].component_ratios       # assume the same ratios as the first
         )
+
+        # only store a sort order if it isn't the identity (matching __getitem__)
+        if not np.array_equal(sort_order, np.arange(len(sort_order))):
+            new_csfh._sort_order = sort_order
+        return new_csfh
 
     elif all([isinstance(sfh, StarFormationHistory) for sfh in sfhs]):
 
