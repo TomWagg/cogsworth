@@ -5,12 +5,8 @@ import astropy.constants as const
 from astropy.coordinates import SkyCoord
 from copy import copy
 
-import logging
-from cogsworth.utils import check_dependencies
 from cogsworth.obs.mist import MISTBolometricCorrectionGrid, check_filters
-
-import sys
-import os
+from cogsworth.obs.dust import DUSTMAPS, DEFAULT_DUSTMAPS, _parse_dustmaps, load_dustmap, query_dustmaps
 
 __all__ = ["get_log_g", "get_absolute_bol_mag", "get_apparent_mag", "get_absolute_mag", "add_mags",
            "get_extinction", "get_photometry"]
@@ -158,81 +154,99 @@ def add_mags(*mags, remove_nans=True):
         return -2.5 * np.log10(total_mag)
 
 
-def get_extinction(coords):     # pragma: no cover
-    """Calculates the visual extinction values for a set of coordinates
+def get_extinction(coords, dustmaps=DEFAULT_DUSTMAPS, dustmap_kwargs=None, R_V=3.3, reflect=True):
+    """Calculates the visual extinction values for a set of coordinates using 3D dust maps
 
-    Reddening due to dust is calculated using the Bayestar dustmap. Then the conversion from this to a visual
-    extension is done assuming a total-to-selective extinction ratio of 3.3, as is used by
-    `Green+2019 <https://iopscience.iop.org/article/10.3847/1538-4357/ab5362#apjab5362s2>`_
+    Reddening due to dust is calculated using one or more 3D dust maps from :mod:`dustmaps` (see
+    :func:`~cogsworth.obs.dust.list_dustmaps` for options and :mod:`cogsworth.obs.dust` for details). Maps
+    are queried in the order given, with each subsequent map only used for positions not covered by earlier
+    maps. For example, ``dustmaps=["bayestar2019", "decaps"]`` uses
+    Bayestar wherever possible and fills in the southern Galactic plane with DECaPS.
+
+    The reddening from each map is converted to E(B-V) and then to a visual extinction, assuming a
+    total-to-selective extinction ratio of ``R_V`` (default of 3.3, as used by
+    `Green+2019 <https://iopscience.iop.org/article/10.3847/1538-4357/ab5362#apjab5362s2>`_).
 
     .. warning::
-        The dustmap used only covers declinations > -30 degrees, any supplied coordinates below this will be
-        reflected around the galactic plane (any of [(-l, b), (l, -b), (-l, -b)]) and the dust at these
-        locations will be used instead
+        If ``reflect=True``, any positions not covered by any of the maps (outside of each map's footprint,
+        e.g. declinations < -30 degrees for Bayestar, or anywhere that a map returns NaN) will be reflected
+        around the galactic plane (trying each of [(-l, b), (l, -b), (-l, -b)] in turn) and the dust at the
+        first reflected location with coverage will be used instead
+
+    Each map has its own random draws for the probabilistic query modes, which use the global
+    :mod:`numpy` random state, so use :func:`numpy.random.seed` for reproducible results.
 
     Parameters
     ----------
     coords : :class:`~astropy.coordinates.SkyCoord`
-        The coordinates at which you wish to calculate extinction values
+        The coordinates at which you wish to calculate extinction values. Must include distances.
+    dustmaps : `str` or `list` of `str`
+        Name(s) of the dust map(s) to use, in order of priority. See
+        :func:`~cogsworth.obs.dust.list_dustmaps` for options.
+    dustmap_kwargs : `dict`
+        Keyword arguments for each dust map, overriding the defaults in
+        :data:`~cogsworth.obs.dust.DUSTMAPS`. Keys are dust map
+        names and values are dicts with (optional) keys ``"init"`` (passed when loading the map) and
+        ``"query"`` (passed when querying the map). For example, if you only downloaded the mean DECaPS map
+        then use ``{"decaps": {"init": {"mean_only": True}, "query": {"mode": "mean"}}}``.
+    R_V : `float`
+        Total-to-selective extinction ratio used to convert E(B-V) to A_V, default of 3.3 (as used by Green+2019)
+    reflect : `bool`
+        Whether to reflect positions without coverage about the galactic plane (see warning above)
 
     Returns
     -------
     Av : :class:`~numpy.ndarray`
-        Visual extinction values for each set of coordinates
+        Visual extinction values for each set of coordinates (NaN where no map has coverage)
     """
-    assert check_dependencies("dustmaps")
-    from dustmaps.bayestar import BayestarQuery
+    dustmaps = _parse_dustmaps(dustmaps)
+    dustmap_kwargs = {} if dustmap_kwargs is None else dustmap_kwargs
+    for name, kwargs in dustmap_kwargs.items():
+        if name not in dustmaps:
+            raise ValueError(f"`dustmap_kwargs` given for '{name}', which is not in `dustmaps` ({dustmaps})")
+        if not set(kwargs).issubset({"init", "query"}):
+            raise ValueError(f"`dustmap_kwargs['{name}']` can only have the keys 'init' and 'query', "
+                             f"got {list(kwargs)}")
 
-    # following section performs reflections for coordinates below -30 deg declination
-    # convert to galactic coordinates
+    # convert to galactic coordinates, ensuring we have distances for the 3D maps
     galactic = coords.galactic
+    if not galactic.distance.unit.is_equivalent(u.kpc):
+        raise ValueError("`coords` must include distances to use 3D dust maps")
+    shape = galactic.shape
+    lon = np.atleast_1d(galactic.l.deg).astype(float).ravel()
+    lat = np.atleast_1d(galactic.b.deg).astype(float).ravel()
+    dist = np.atleast_1d(galactic.distance.to(u.kpc).value).astype(float).ravel()
 
-    # try all possible reflections about the galactic plane
-    for ref_l, ref_b in [(-1, 1), (1, -1), (-1, -1)]:
-        # check which things are too low for the dustmap
-        too_low = galactic.icrs.dec < (-30 * u.deg)
+    # only query positions that are well-defined (e.g. not missing orbits)
+    ebv = np.full(len(lon), np.nan)
+    finite = np.isfinite(lon) & np.isfinite(lat) & np.isfinite(dist)
+    if finite.any():
+        # load each dust map (once)
+        loaded = []
+        for name in dustmaps:
+            user_kwargs = dustmap_kwargs.get(name, {})
+            query = load_dustmap(name, user_kwargs.get("init"))
+            loaded.append((name, query, {**DUSTMAPS[name].query_kwargs, **user_kwargs.get("query", {})}))
 
-        # if everything is fine now then stop
-        if not too_low.any():
-            break
+        ebv[finite] = query_dustmaps(loaded, lon[finite], lat[finite], dist[finite])
 
-        # apply the reflection to the subset that are too low
-        reflected = galactic[too_low]
-        reflected.data.lon[()] *= ref_l
-        reflected.data.lat[()] *= ref_b
-        reflected.cache.clear()
-
-        # check which are fixed now, and reverse the reflection if not
-        fixed = reflected.icrs.dec > (-30 * u.deg)
-        reflected.data.lon[~fixed] *= ref_l
-        reflected.data.lat[~fixed] *= ref_b
-
-        # set the data back in the main coord object
-        galactic.data.lon[too_low] = reflected.data.lon
-        galactic.data.lat[too_low] = reflected.data.lat
-
-        # clear the cache to ensure consistency
-        galactic.cache.clear()
-
-    # briefly disable print statements to hide the messy output from dustmaps
-    sys.stdout = open(os.devnull, 'w')
-
-    bayestar = BayestarQuery(max_samples=2, version='bayestar2019')
-
-    # calculate the reddening due to dust
-    ebv = bayestar(galactic, mode='random_sample')
-
-    # bring print statements back
-    sys.stdout = sys.__stdout__
+        # try reflecting anything that isn't covered by the maps
+        if reflect:
+            for ref_l, ref_b in [(-1, 1), (1, -1), (-1, -1)]:
+                todo = finite & np.isnan(ebv)
+                if not todo.any():
+                    break
+                ebv[todo] = query_dustmaps(loaded, (ref_l * lon[todo]) % 360, ref_b * lat[todo], dist[todo])
 
     # convert this to a visual extinction
-    Av = 3.3 * ebv
-    return Av
+    Av = R_V * ebv
+    return Av.reshape(shape)
 
 
 def get_photometry(filters, population=None, final_bpp=None, final_pos=None, distances=None,
                    ignore_extinction=False, assume_mw_galactocentric=False,
-                   main_filter=None, silence_bounds_warning=False):
+                   main_filter=None, silence_bounds_warning=False,
+                   dustmaps=DEFAULT_DUSTMAPS, extinction_kwargs=None):
     """Computes photometry subject to dust extinction using the MIST boloemtric correction grid
 
     Parameters
@@ -258,6 +272,12 @@ def get_photometry(filters, population=None, final_bpp=None, final_pos=None, dis
         The main filter to use for calculating which star is observed as the brighter one
     silence_bounds_warning : `bool`
         Whether to silence the out-of-bounds warning from the MIST bolometric correction grid
+    dustmaps : `str` or `list` of `str`
+        Name(s) of the 3D dust map(s) to use for extinction, in order of priority. See
+        :func:`~cogsworth.obs.dust.list_dustmaps` for options and :func:`get_extinction` for details.
+    extinction_kwargs : `dict`
+        Additional keyword arguments to pass to :func:`get_extinction` (e.g. ``dustmap_kwargs``, ``R_V``,
+        ``reflect``)
 
 
     Returns
@@ -298,13 +318,17 @@ def get_photometry(filters, population=None, final_bpp=None, final_pos=None, dis
     # set up empty photometry table (indexed by bin_num in the same way as final_bpp)
     photometry = pd.DataFrame(index=final_bpp.index)
 
-    if not ignore_extinction:       # pragma: no cover
-        # get extinction for bound binaries and primary of disrupted binaries
-        photometry['Av_1'] = get_extinction(final_coords[:len(final_bpp)])
+    if not ignore_extinction:
+        # get extinction for every star at once (so each dust map is only loaded once)
+        extinction_kwargs = {} if extinction_kwargs is None else extinction_kwargs
+        Av = get_extinction(final_coords, dustmaps=dustmaps, **extinction_kwargs)
 
-        # get extinction for secondaries of disrupted binaries (match primary otherwise)
+        # first len(final_bpp) are bound binaries and primaries of disrupted binaries
+        photometry['Av_1'] = Av[:len(final_bpp)]
+
+        # secondaries of disrupted binaries follow (match primary otherwise)
         photometry['Av_2'] = photometry['Av_1']
-        photometry.loc[disrupted, "Av_2"] = get_extinction(final_coords[len(final_bpp):])
+        photometry.loc[disrupted, "Av_2"] = Av[len(final_bpp):]
 
         # ensure extinction remains in MIST grid range (<= 6) and is not NaN
         photometry.loc[photometry.Av_1 > 6, ['Av_1']] = 6

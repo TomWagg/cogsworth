@@ -26,6 +26,18 @@ but there are also some helper functions for dealing with magnitudes.
     :no-heading:
 
 
+Dust maps (``obs.dust``)
+========================
+
+The ``dust`` submodule specifies the 3D dust maps from :mod:`dustmaps` that can be used to calculate extinction
+(see :func:`~cogsworth.obs.dust.list_dustmaps`), along with functions for loading and querying them for
+E(B-V). Most users will want to use :func:`~cogsworth.obs.observables.get_extinction` (or the ``dustmaps``
+argument of :meth:`~cogsworth.pop.Population.get_observables`) rather than these functions directly.
+
+.. automodapi:: cogsworth.obs.dust
+    :no-heading:
+
+
 Gaia astrometry (``obs.gaia``)
 ==============================
 

@@ -31,6 +31,7 @@ from cogsworth.kicks import integrate_orbit_with_events
 from cogsworth.events import identify_events
 from cogsworth.classify import determine_final_classes
 from cogsworth.obs.observables import get_photometry
+from cogsworth.obs.dust import DUSTMAPS, DEFAULT_DUSTMAPS
 from cogsworth.plot import plot_cartoon_evolution, plot_galactic_orbit, plot_hrd
 from cogsworth.utils import translate_COSMIC_tables, get_default_BSE_settings, check_dependencies
 
@@ -1439,8 +1440,14 @@ class Population():
         ----------
         **kwargs to pass to :func:`~cogsworth.obs.observables.get_photometry`
         """
-        self.__citations__.extend(["MIST", "MESA", "bayestar2019"])
+        citations = ["MIST", "MESA"]
+        if not kwargs.get("ignore_extinction", False):
+            dustmaps = kwargs.get("dustmaps", DEFAULT_DUSTMAPS)
+            dustmaps = [dustmaps] if isinstance(dustmaps, str) else dustmaps
+            citations.extend(DUSTMAPS[name].citation for name in dustmaps if name in DUSTMAPS)
+
         self._observables = get_photometry(population=self, **kwargs)
+        self.__citations__.extend(c for c in citations if c not in self.__citations__)
         return self._observables
 
     def get_gaia_observed_bin_nums(self, ra=None, dec=None, gaia_G_filter="Gaia_G_EDR3"):

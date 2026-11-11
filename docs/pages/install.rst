@@ -243,6 +243,16 @@ already::
     if not os.path.exists(bayestar_path):
         dustmaps.bayestar.fetch()
 
+You can also combine multiple 3D dust maps (see :func:`~cogsworth.obs.dust.list_dustmaps` for the
+options). For example, the DECaPS map covers the southern Galactic plane that Bayestar misses, and can be
+downloaded with the following (beware that this is a 30 GB file, use ``fetch(mean_only=True)`` for a 7 GB
+file with just the mean map)::
+
+    import dustmaps.decaps
+    dustmaps.decaps.fetch()
+
+Then use both maps with e.g. ``p.get_observables(..., dustmaps=["bayestar2019", "decaps"])``.
+
 Gaia empirical selection function
 ---------------------------------
 

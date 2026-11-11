@@ -4,6 +4,16 @@ Full changelog
 
 This page tracks all of the changes that have been made to ``cogsworth``. We follow the standard versioning convention of A.B.C, where C is a patch/bugfix, B is a large bugfix or new feature and A is a major new breaking change. B/C are backwards compatible but A changes may be breaking.
 
+4.2.0
+=====
+
+This release focuses on dust maps and extinction!
+
+- New feature: Extinction can now use multiple 3D dust maps. ``obs.observables.get_extinction`` (and ``get_photometry``/``Population.get_observables`` via ``dustmaps=...``) accepts a list of dust maps that are queried in order of priority, with later maps filling in positions not covered by earlier ones. For now ``"bayestar2019"`` (the default) and ``"decaps"`` (Zucker+2025, southern Galactic plane) are available, e.g. ``dustmaps=["bayestar2019", "decaps"]`` covers the whole Galactic plane. The dust map specifications and helpers live in a new ``obs.dust`` module, use ``obs.dust.list_dustmaps`` to see the options. Map-specific settings can be passed with ``extinction_kwargs={"dustmap_kwargs": {...}}`` and ``R_V`` and the reflection fallback are now configurable too. If you want to add more dustmaps please let me know!
+- Bug fix: When reflecting positions about the Galactic plane to get around a dust map's footprint (e.g. dec < -30 degrees for Bayestar), each reflection is now tried in turn until one lands on a location with data. Previously, a reflection that moved a position inside the footprint but onto a pixel without data was kept, which resulted in a NaN and therefore an extinction of ``Av = 6``.
+- Dust maps are now only loaded once per call to ``get_photometry`` (previously Bayestar was loaded twice whenever there were disrupted binaries).
+- Citations for dust maps are now only added to a ``Population`` when extinction is actually calculated, and match the maps used.
+
 4.1.1
 =====
 
@@ -11,7 +21,6 @@ This page tracks all of the changes that have been made to ``cogsworth``. We fol
 - Bug fix: ``pop.concat`` now combines the initial galaxies with ``sfh.concat``. Previously it used ``+``, which creates a new composite with extra components on every concatenation (or turns a plain SFH into a composite) and lost the order of populations whose galaxy had been indexed out of order, so the galaxy could be misaligned with the binaries.
 - Bug fix: Saving and loading a ``CompositeStarFormationHistory`` now preserves its sample order (previously lost for composites that had been indexed out of order)
 - Issue https://github.com/TomWagg/cogsworth/issues/213: The initial galaxy of a ``Population`` is now labelled with the ``bin_num`` of each binary (``initial_galaxy._bin_num``). Indexing a population now selects galaxy points by ``bin_num``, the same way as the ``bpp``, ``bcm`` and ``kick_info`` tables, rather than by position. Previously, indexing a population that had already been indexed out of order (e.g. ``p[shuffled][...]``) could pair binaries with the wrong galaxy points. Labels are also shifted in ``pop.concat``, used when removing NaN binaries, and rebuilt from ``initial_binaries`` on load, so the file format is unchanged.
-
 
 
 4.1.0

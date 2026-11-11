@@ -1,6 +1,6 @@
 def __getattr__(name):
     import importlib
-    if name in ("mist", "observables", "gaia"):
+    if name in ("mist", "observables", "gaia", "dust"):
         mod = importlib.import_module(f".{name}", __name__)
         globals()[name] = mod
         return mod
