@@ -765,6 +765,34 @@ class Test(unittest.TestCase):
         sum_individual_unique_bin_nums = sum(p.initial_binaries["bin_num"].nunique() for p in pops)
         self.assertEqual(total_unique_bin_nums, sum_individual_unique_bin_nums)
 
+    def test_concat_galaxy_aligned(self):
+        """Check that the initial galaxy stays aligned with the binaries after concatenation"""
+        for model in [sfh.Wagg2022(), sfh.BurstUniformDisc(t_burst=1 * u.Gyr)]:
+            p = pop.Population(30, use_default_BSE_settings=True, processes=1, sfh_model=model)
+            p.sample_initial_binaries()
+            q = p[np.random.permutation(p.bin_nums)]
+
+            total = pop.concat(p, q, q)
+
+            # the galaxy should stay composite (or not) with the same number of components as the inputs
+            is_composite = isinstance(p.initial_galaxy, sfh.CompositeStarFormationHistory)
+            self.assertEqual(isinstance(total.initial_galaxy, sfh.CompositeStarFormationHistory), is_composite)
+            if is_composite:
+                self.assertEqual(len(total.initial_galaxy.components), len(p.initial_galaxy.components))
+
+            # each point should be in the same order as the inputs, matching the binaries
+            expected = np.concatenate([p.initial_galaxy.tau, q.initial_galaxy.tau, q.initial_galaxy.tau])
+            self.assertTrue(np.array_equal(total.initial_galaxy.tau, expected))
+            self.assertTrue(np.allclose(total.initial_binaries["tphysf"].values,
+                                        total.initial_galaxy.tau.to(u.Myr).value))
+
+            # and this should survive a save/load round trip
+            with tempfile.TemporaryDirectory() as tmpdir:
+                path = os.path.join(tmpdir, "total.h5")
+                total.save(path)
+                loaded = pop.load(path, parts=["initial_binaries", "initial_galaxy"])
+                self.assertTrue(np.array_equal(loaded.initial_galaxy.tau, expected))
+
     def test_concat_final_pos(self):
         """Check that final_pos is consistent after concatenation"""
         pops = [
