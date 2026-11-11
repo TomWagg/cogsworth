@@ -263,7 +263,12 @@ def get_photometry(filters, population=None, final_bpp=None, final_pos=None, dis
     Returns
     -------
     photometry : :class:`~pandas.DataFrame`
-        Photometry and extinction information for supplied COSMIC binaries in desired `filters`
+        Photometry and extinction information for supplied COSMIC binaries in desired `filters`, indexed in
+        the same way as `final_bpp` (i.e. by ``bin_num``). For each
+        filter, ``{filter}_app`` and ``{filter}_abs`` give the combined apparent and absolute magnitudes of
+        bound binaries and mergers (NaN for disrupted binaries), whilst ``{filter}_app_1``/``{filter}_app_2``
+        (and similarly for ``abs``) always give the magnitudes of the primary and secondary star individually.
+        Stars without any flux (neutron stars, black holes and massless remnants) have infinite magnitudes.
     """
     # check that the input is valid
     if population is None and (final_bpp is None or final_pos is None):
@@ -290,8 +295,8 @@ def get_photometry(filters, population=None, final_bpp=None, final_pos=None, dis
         final_coords = SkyCoord(x=final_pos[:, 0], y=final_pos[:, 1], z=final_pos[:, 2],
                                 frame="galactocentric", unit=u.kpc, representation_type="cartesian")
 
-    # set up empty photometry table
-    photometry = pd.DataFrame()
+    # set up empty photometry table (indexed by bin_num in the same way as final_bpp)
+    photometry = pd.DataFrame(index=final_bpp.index)
 
     if not ignore_extinction:       # pragma: no cover
         # get extinction for bound binaries and primary of disrupted binaries
@@ -360,17 +365,14 @@ def get_photometry(filters, population=None, final_bpp=None, final_pos=None, dis
             filter_mags = [photometry[f"{prefix}_{mag_type}_{ind}"].values - bc[mag_type][ind - 1][:, i]
                            for ind in [1, 2]]
 
-            # total the magnitudes (removing any NaNs)
+            # total the magnitudes (removing any NaNs), which is only meaningful for bound systems
             total_filter_mag = add_mags(*filter_mags, remove_nans=True)
+            total_filter_mag[disrupted] = np.nan
+            photometry[f"{filter}_{mag_type}"] = total_filter_mag
 
-            # default to assuming all systems are bound - in this case total magnitude is listed
-            # in primary filter mag, and secondary is non-existent
-            photometry[f"{filter}_{mag_type}_1"] = total_filter_mag
-            photometry[f"{filter}_{mag_type}_2"] = np.repeat(np.inf, len(photometry))
-
-            # for disrupted systems, change filter apparent magnitudes to the values for each individual star
+            # always also store the magnitudes of each individual star
             for ind in [1, 2]:
-                photometry.loc[disrupted, f"{filter}_{mag_type}_{ind}"] = filter_mags[ind - 1][disrupted]
+                photometry[f"{filter}_{mag_type}_{ind}"] = filter_mags[ind - 1]
 
             # for the G filter in particular, see which temperature/log-g is getting measured
             if filter == main_filter and mag_type == "app":

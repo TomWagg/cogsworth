@@ -13,6 +13,9 @@ class Test(unittest.TestCase):
         p.perform_stellar_evolution()
 
         p._observables = pd.DataFrame({
+            "Gaia_G_EDR3_abs": np.ones(len(p)),
+            "Gaia_BP_EDR3_app": np.ones(len(p)),
+            "Gaia_RP_EDR3_app": np.ones(len(p)),
             "Gaia_G_EDR3_abs_1": np.ones(len(p)),
             "Gaia_BP_EDR3_app_1": np.ones(len(p)),
             "Gaia_RP_EDR3_app_1": np.ones(len(p)),

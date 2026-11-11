@@ -108,7 +108,7 @@ def plot_cmd(pop, m_filter="Gaia_G_EDR3", c_filter_1="Gaia_BP_EDR3", c_filter_2=
     # plot everything up to neutron stars
     for kstar in range(13):
         # loop over bound binaries, disrupted primaries and disrupted secondaries
-        for dis, marker, suffix in zip([False, True, True], ["o", "^", "v"], ["1", "1", "2"]):
+        for dis, marker, suffix in zip([False, True, True], ["o", "^", "v"], ["", "_1", "_2"]):
             # select stars with the right kstar (based on which is brighter)
             mask = np.where(pop.observables["secondary_brighter"], 
                             pop.final_bpp["kstar_2"] == kstar,
@@ -117,9 +117,9 @@ def plot_cmd(pop, m_filter="Gaia_G_EDR3", c_filter_1="Gaia_BP_EDR3", c_filter_2=
             # apply disruption mask
             mask = (mask & pop.disrupted) if dis else (mask & ~pop.disrupted)
 
-            ax.scatter(pop.observables[f'{c_filter_1}_app_{suffix}'][mask]
-                       - pop.observables[f'{c_filter_2}_app_{suffix}'][mask],
-                       pop.observables[f'{m_filter}_abs_{suffix}'][mask],
+            ax.scatter(pop.observables[f'{c_filter_1}_app{suffix}'][mask]
+                       - pop.observables[f'{c_filter_2}_app{suffix}'][mask],
+                       pop.observables[f'{m_filter}_abs{suffix}'][mask],
                        color=kstar_translator[kstar]["colour"],
                        marker=marker, **kwargs)
 
