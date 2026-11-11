@@ -353,7 +353,7 @@ class Population():
         inds = np.asarray(list(bin_num_to_ind.values()))[sort_idx][idx]
 
         if self._initial_galaxy is not None:
-            new_pop._initial_galaxy = self._initial_galaxy[inds]
+            new_pop._initial_galaxy = self._initial_galaxy[self._galaxy_inds(bin_nums, inds)]
         if self._initial_binaries is not None:
             new_pop._initial_binaries = self._initial_binaries.loc[bin_nums]
 
@@ -492,6 +492,9 @@ class Population():
         if self._initial_galaxy is None and self._file is not None:
             self._initial_galaxy = sfh.load(self._file, key="initial_galaxy")
             self.sfh_model = self._initial_galaxy
+
+            # labels aren't saved, the galaxy is always saved in the same order as the initial binaries
+            self._label_initial_galaxy()
         elif self._initial_galaxy is None:
             raise ValueError("No galaxy sampled yet, run `sample_initial_galaxy` to generate one.")
         return self._initial_galaxy
@@ -995,11 +998,49 @@ class Population():
         if with_timing:
             print(f"Overall: {time.time() - start:1.1f}s")
 
+    def _label_initial_galaxy(self):
+        """Label each point in the initial galaxy with the bin_num of the binary in the same row of
+        :attr:`initial_binaries`. Use this only when the two are known to be in the same order (e.g. just
+        after sampling, loading, or a positional renumbering of the binaries)."""
+        if self._initial_galaxy is None:
+            return
+        try:
+            bin_nums = self.initial_binaries.index.values
+        except ValueError:
+            bin_nums = None
+
+        # leave unlabelled if there are no binaries yet (or they don't match up)
+        if bin_nums is None or len(bin_nums) != len(self._initial_galaxy):
+            self._initial_galaxy._bin_num = None
+        else:
+            self._initial_galaxy._bin_num = np.asarray(bin_nums)
+
+    def _align_initial_galaxy(self):
+        """Reorder (or subset) the initial galaxy by label to match the rows of :attr:`initial_binaries`"""
+        labels = getattr(self._initial_galaxy, "_bin_num", None)
+        if labels is None or self._initial_binaries is None:
+            return
+        bin_nums = self._initial_binaries.index.values
+        if not np.array_equal(labels, bin_nums):
+            self._initial_galaxy = self._initial_galaxy[_label_inds(labels, bin_nums)]
+
+    def _galaxy_inds(self, bin_nums, fallback):
+        """Get the indices of the initial galaxy points corresponding to some bin_nums
+
+        Uses the labels on the initial galaxy if available (matching ``.loc`` on the tables: every point
+        with a requested bin_num is returned, in order), otherwise returns `fallback`.
+        """
+        labels = getattr(self._initial_galaxy, "_bin_num", None)
+        if labels is None:
+            return fallback
+        return _label_inds(labels, bin_nums)
+
     def sample_initial_galaxy(self):
         """Sample the initial galactic times, positions and velocities"""
         # initialise the initial galaxy class with correct number of binaries
         self._initial_galaxy = self.sfh_model
         self._initial_galaxy.sample(size=self.n_binaries_match)
+        self._label_initial_galaxy()
 
         # add relevant citations
         self.__citations__.extend([c for c in self._initial_galaxy.__citations__ if c != "cogsworth"])
@@ -1171,7 +1212,10 @@ class Population():
             self._kick_info = self._kick_info[~self._kick_info["bin_num"].isin(nan_bin_nums)]
             self._initial_binaries = self._initial_binaries[~self._initial_binaries["bin_num"].isin(nan_bin_nums)]
 
-            not_nan = ~self.final_bpp["bin_num"].isin(nan_bin_nums).values
+            if getattr(self._initial_galaxy, "_bin_num", None) is not None:
+                not_nan = ~np.isin(self._initial_galaxy._bin_num, nan_bin_nums)
+            else:
+                not_nan = ~self.final_bpp["bin_num"].isin(nan_bin_nums).values
             self._initial_galaxy = self._initial_galaxy[not_nan]
 
             # reset final bpp
@@ -1181,6 +1225,9 @@ class Population():
                 (f"{n_nan} bad binaries removed from tables - but normalisation may be off. I've added the "
                  "offending binaries to a `nan.h5` file with the initial_binaries, bpp, and kick_info tables")
             )
+
+        # make sure the galaxy still matches the evolved binaries
+        self._align_initial_galaxy()
 
     def _iter_orbit_args(self, w0s, primary_events, secondary_events):
         """A generator that yields the arguments to be passed to the orbit worker for each binary.
@@ -1321,7 +1368,9 @@ class Population():
                 self.initial_binaries.loc[bad_bin_nums].to_hdf(file_name, key="initial_binaries")
                 self.bpp.loc[bad_bin_nums].to_hdf(file_name, key="bpp")
                 self.kick_info.loc[bad_bin_nums].to_hdf(file_name, key="kick_info")
-                self.initial_galaxy[np.isin(self.bin_nums, bad_bin_nums)].save(file_name, key="sfh")
+                self.initial_galaxy[self._galaxy_inds(bad_bin_nums,
+                                                      np.isin(self.bin_nums, bad_bin_nums))].save(file_name,
+                                                                                                  key="sfh")
         
                 warning_message += (f" Information for these systems was saved to `{file_name}`."
                                     " This includes their initial_binaries, bpp, kick_info, "
@@ -2133,6 +2182,39 @@ def load(file_name, parts=["initial_binaries", "initial_galaxy", "stellar_evolut
     return p
 
 
+def _label_inds(labels, requested):
+    """Find the positions of `requested` labels in `labels`, in the same way as pandas ``.loc``
+
+    Each requested label gives every position with that label (in order), so duplicates are supported.
+
+    Parameters
+    ----------
+    labels : :class:`~numpy.ndarray`
+        The labels of each element
+    requested : :class:`~numpy.ndarray`
+        The labels to select
+
+    Returns
+    -------
+    inds : :class:`~numpy.ndarray`
+        The positions of the requested labels
+
+    Raises
+    ------
+    ValueError
+        If a requested label is not in `labels`
+    """
+    labels, requested = np.asarray(labels), np.atleast_1d(requested)
+    order = np.argsort(labels, kind="stable")
+    sorted_labels = labels[order]
+    left = np.searchsorted(sorted_labels, requested, side="left")
+    counts = np.searchsorted(sorted_labels, requested, side="right") - left
+    if (counts == 0).any():
+        raise ValueError(f"bin_num {requested[counts == 0][0]} not found in the initial galaxy")
+    within = np.arange(counts.sum()) - np.repeat(np.cumsum(counts) - counts, counts)
+    return order[np.repeat(left, counts) + within].astype(int)
+
+
 def concat(*pops):
     """Concatenate multiple populations into a single population
 
@@ -2193,17 +2275,19 @@ def concat(*pops):
     final_pop._escaped = None
     final_pop._observables = None
 
+    # track the bin_num offset applied to each population (to relabel the galaxies)
+    offsets = [0]
+
     # loop over the remaining populations
     for pop in pops[1:]:
+        offsets.append(bin_num_offset)
+
         # sum the total numbers of binaries
         final_pop.n_binaries += pop.n_binaries
 
-        # combine the star formation history distributions
-        if final_pop._initial_galaxy is not None:
-            if pop._initial_galaxy is None:
-                raise ValueError(f"Population {pop} does not have an initial galaxy, but the first does")
-
-            final_pop._initial_galaxy += pop._initial_galaxy
+        # check the star formation history distributions can be combined (done after the loop)
+        if final_pop._initial_galaxy is not None and pop._initial_galaxy is None:
+            raise ValueError(f"Population {pop} does not have an initial galaxy, but the first does")
 
         # loop through pandas tables that may need to be copied
         for table in ["_initial_binaries", "_bpp", "_bcm", "_kick_info"]:
@@ -2247,6 +2331,17 @@ def concat(*pops):
 
         final_pop._bin_nums = None
         bin_num_offset = max(final_pop.bin_nums) + 1
+
+    # combine the star formation history distributions, keeping them in the same order as the binaries
+    if final_pop._initial_galaxy is not None:
+        galaxies = [final_pop._initial_galaxy] + [pop._initial_galaxy for pop in pops[1:]]
+        labels = [getattr(galaxy, "_bin_num", None) for galaxy in galaxies]
+        final_pop._initial_galaxy = sfh.concat(*galaxies)
+
+        # shift the labels in the same way as the bin_nums of the tables
+        if all(label is not None for label in labels):
+            final_pop._initial_galaxy._bin_num = np.concatenate([label + offset
+                                                                 for label, offset in zip(labels, offsets)])
 
     # set the final positions and velocities if they were loaded
     if bound_pos is not None:
