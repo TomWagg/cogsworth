@@ -1055,3 +1055,20 @@ class Test(unittest.TestCase):
             p.sample_initial_binaries()
 
             self.assertTrue(len(p.initial_binaries) == len(p.initial_binaries.drop_duplicates(subset=["mass_1", "mass_2", "porb", "ecc"])))
+
+
+def test_observables_dustmap_citations(fake_dustmaps, monkeypatch):
+    """Dust map citations should only be added when extinction is used, and only once"""
+    monkeypatch.setattr(pop, "get_photometry", lambda population, **kwargs: "photometry")
+    p = pop.Population(2)
+
+    p.get_observables(filters="Gaia_G_EDR3", ignore_extinction=True)
+    assert "MIST" in p.__citations__ and "bayestar2019" not in p.__citations__
+
+    p.get_observables(filters="Gaia_G_EDR3")
+    assert "bayestar2019" in p.__citations__
+
+    p.get_observables(filters="Gaia_G_EDR3", dustmaps="north")
+    p.get_observables(filters="Gaia_G_EDR3", dustmaps=["north", "south"])
+    assert p.__citations__.count("north") == 1 and "south" in p.__citations__
+    assert p.__citations__.count("MIST") == 1

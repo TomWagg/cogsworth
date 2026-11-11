@@ -104,3 +104,19 @@ def test_bayestar_footprint():
     """The Bayestar footprint should be a strict cut at dec = -30 deg"""
     coords = SkyCoord(ra=[0, 0, 0] * u.deg, dec=[-29.9, -30.1, 45] * u.deg, distance=[1, 1, 1] * u.kpc)
     assert dust.DUSTMAPS["bayestar2019"].footprint(coords.galactic).tolist() == [True, False, True]
+
+
+def test_query_dustmaps_skips_later_maps(fake_dustmaps):
+    """Later maps shouldn't be queried at all if earlier maps already cover every position"""
+    north, everywhere = dust.load_dustmap("north"), dust.load_dustmap("everywhere")
+    ebv = dust.query_dustmaps([("north", north, {}), ("everywhere", everywhere, {})],
+                              np.array([90., 120.]), np.array([45., 30.]), np.array([1., 2.]))
+    assert np.allclose(ebv, [0.1, 0.2])
+    assert fake_dustmaps.EverywhereQuery.queried == []
+
+
+def test_load_real_dustmap_missing_file(tmp_path):
+    """A real dustmaps map that fails to load should point users to how to download it"""
+    with pytest.raises(RuntimeError, match=r"dustmaps\.bayestar\.fetch") as exc_info:
+        dust.load_dustmap("bayestar2019", {"map_fname": str(tmp_path / "missing.h5")})
+    assert isinstance(exc_info.value.__cause__, OSError)
