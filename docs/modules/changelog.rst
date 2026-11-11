@@ -4,6 +4,16 @@ Full changelog
 
 This page tracks all of the changes that have been made to ``cogsworth``. We follow the standard versioning convention of A.B.C, where C is a patch/bugfix, B is a large bugfix or new feature and A is a major new breaking change. B/C are backwards compatible but A changes may be breaking.
 
+4.2.0
+=====
+
+This release focuses on dust maps and extinction!
+
+- New feature: Extinction can now use multiple 3D dust maps. ``obs.observables.get_extinction`` (and ``get_photometry``/``Population.get_observables`` via ``dustmaps=...``) accepts a list of dust maps that are queried in order of priority, with later maps filling in positions not covered by earlier ones. For now ``"bayestar2019"`` (the default) and ``"decaps"`` (Zucker+2025, southern Galactic plane) are available, e.g. ``dustmaps=["bayestar2019", "decaps"]`` covers the whole Galactic plane. The dust map specifications and helpers live in a new ``obs.dust`` module, use ``obs.dust.list_dustmaps`` to see the options. Map-specific settings can be passed with ``extinction_kwargs={"dustmap_kwargs": {...}}`` and ``R_V`` and the reflection fallback are now configurable too. If you want to add more dustmaps please let me know!
+- Bug fix: When reflecting positions about the Galactic plane to get around a dust map's footprint (e.g. dec < -30 degrees for Bayestar), each reflection is now tried in turn until one lands on a location with data. Previously, a reflection that moved a position inside the footprint but onto a pixel without data was kept, which resulted in a NaN and therefore an extinction of ``Av = 6``.
+- Dust maps are now only loaded once per call to ``get_photometry`` (previously Bayestar was loaded twice whenever there were disrupted binaries).
+- Citations for dust maps are now only added to a ``Population`` when extinction is actually calculated, and match the maps used.
+
 4.1.0
 =====
 
