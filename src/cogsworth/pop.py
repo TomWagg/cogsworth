@@ -2149,12 +2149,9 @@ def concat(*pops):
         # sum the total numbers of binaries
         final_pop.n_binaries += pop.n_binaries
 
-        # combine the star formation history distributions
-        if final_pop._initial_galaxy is not None:
-            if pop._initial_galaxy is None:
-                raise ValueError(f"Population {pop} does not have an initial galaxy, but the first does")
-
-            final_pop._initial_galaxy += pop._initial_galaxy
+        # check the star formation history distributions can be combined (done after the loop)
+        if final_pop._initial_galaxy is not None and pop._initial_galaxy is None:
+            raise ValueError(f"Population {pop} does not have an initial galaxy, but the first does")
 
         # loop through pandas tables that may need to be copied
         for table in ["_initial_binaries", "_bpp", "_bcm", "_kick_info"]:
@@ -2198,6 +2195,11 @@ def concat(*pops):
 
         final_pop._bin_nums = None
         bin_num_offset = max(final_pop.bin_nums) + 1
+
+    # combine the star formation history distributions, keeping them in the same order as the binaries
+    if final_pop._initial_galaxy is not None:
+        final_pop._initial_galaxy = sfh.concat(final_pop._initial_galaxy,
+                                               *[pop._initial_galaxy for pop in pops[1:]])
 
     # set the final positions and velocities if they were loaded
     if bound_pos is not None:
