@@ -772,6 +772,116 @@ class Test(unittest.TestCase):
         sum_individual_unique_bin_nums = sum(p.initial_binaries["bin_num"].nunique() for p in pops)
         self.assertEqual(total_unique_bin_nums, sum_individual_unique_bin_nums)
 
+    def test_galaxy_labels(self):
+        """The initial galaxy should be labelled by bin_num and stay matched to the binaries"""
+        def assert_matched(p):
+            self.assertTrue(np.array_equal(p.initial_galaxy._bin_num, p.initial_binaries.index.values))
+            self.assertTrue(np.allclose(p.initial_galaxy.tau.to(u.Myr).value,
+                                        p.initial_binaries["tphysf"].values))
+
+        for model in [sfh.Wagg2022(), sfh.BurstUniformDisc(t_burst=1 * u.Gyr)]:
+            p = pop.Population(30, use_default_BSE_settings=True, processes=1, sfh_model=model)
+            p.sample_initial_binaries()
+            assert_matched(p)
+
+            # shuffled indexing, then indexing again (bin_nums here are no longer in galaxy order)
+            q = p[np.random.permutation(p.bin_nums)]
+            assert_matched(q)
+            assert_matched(q[q.bin_nums[:5]])
+            assert_matched(q[[q.bin_nums[3], q.bin_nums[3], q.bin_nums[0]]])
+
+            # concatenation shifts the labels in the same way as the tables
+            r = pop.concat(p, q, q)
+            assert_matched(r)
+
+            # stellar evolution keeps them matched, and labels are reconstructed on load
+            r.perform_stellar_evolution()
+            assert_matched(r)
+            with tempfile.TemporaryDirectory() as tmpdir:
+                path = os.path.join(tmpdir, "r.h5")
+                r.save(path)
+                assert_matched(pop.load(path, parts=["initial_binaries", "initial_galaxy"]))
+                assert_matched(pop.load(path, parts=["initial_galaxy"]))
+
+    def test_galaxy_unlabelled(self):
+        """Without labels the galaxy should fall back to positional indexing and not be realigned"""
+        p = pop.Population(30, use_default_BSE_settings=True, processes=1)
+        p.sample_initial_binaries()
+        p.initial_galaxy._bin_num = None
+
+        # indexing falls back to positions, which still match for a freshly sampled population
+        bin_nums = p.bin_nums[[7, 2, 11]]
+        q = p[bin_nums]
+        self.assertIsNone(getattr(q.initial_galaxy, "_bin_num", None))
+        self.assertTrue(np.allclose(q.initial_galaxy.tau.to(u.Myr).value,
+                                    q.initial_binaries["tphysf"].values))
+
+        # aligning without labels leaves the galaxy untouched
+        galaxy = p._initial_galaxy
+        p._align_initial_galaxy()
+        self.assertIs(p._initial_galaxy, galaxy)
+
+        # same if there are labels but no binaries to align to
+        p._label_initial_galaxy()
+        initial_binaries, p._initial_binaries = p._initial_binaries, None
+        p._align_initial_galaxy()
+        self.assertIs(p._initial_galaxy, galaxy)
+        p._initial_binaries = initial_binaries
+
+    def test_galaxy_realign(self):
+        """The galaxy should be reordered/subset to match the binaries when they get out of sync"""
+        p = pop.Population(30, use_default_BSE_settings=True, processes=1)
+        p.sample_initial_binaries()
+
+        # already aligned: nothing changes
+        galaxy = p._initial_galaxy
+        p._align_initial_galaxy()
+        self.assertIs(p._initial_galaxy, galaxy)
+
+        # shuffle and subset the binaries behind the galaxy's back, then realign
+        p._initial_binaries = p._initial_binaries.iloc[np.random.permutation(len(p._initial_binaries))[:20]]
+        p._align_initial_galaxy()
+        self.assertEqual(len(p._initial_galaxy), 20)
+        self.assertTrue(np.array_equal(p._initial_galaxy._bin_num, p._initial_binaries.index.values))
+        self.assertTrue(np.allclose(p._initial_galaxy.tau.to(u.Myr).value,
+                                    p._initial_binaries["tphysf"].values))
+
+    def test_label_inds(self):
+        """Check selecting by label matches pandas .loc semantics"""
+        labels = np.array([5, 2, 9, 2, 7])
+        self.assertTrue(np.array_equal(pop._label_inds(labels, [9, 5]), [2, 0]))
+        self.assertTrue(np.array_equal(pop._label_inds(labels, [2, 7, 2]), [1, 3, 4, 1, 3]))
+        with self.assertRaises(ValueError):
+            pop._label_inds(labels, [3])
+
+    def test_concat_galaxy_aligned(self):
+        """Check that the initial galaxy stays aligned with the binaries after concatenation"""
+        for model in [sfh.Wagg2022(), sfh.BurstUniformDisc(t_burst=1 * u.Gyr)]:
+            p = pop.Population(30, use_default_BSE_settings=True, processes=1, sfh_model=model)
+            p.sample_initial_binaries()
+            q = p[np.random.permutation(p.bin_nums)]
+
+            total = pop.concat(p, q, q)
+
+            # the galaxy should stay composite (or not) with the same number of components as the inputs
+            is_composite = isinstance(p.initial_galaxy, sfh.CompositeStarFormationHistory)
+            self.assertEqual(isinstance(total.initial_galaxy, sfh.CompositeStarFormationHistory), is_composite)
+            if is_composite:
+                self.assertEqual(len(total.initial_galaxy.components), len(p.initial_galaxy.components))
+
+            # each point should be in the same order as the inputs, matching the binaries
+            expected = np.concatenate([p.initial_galaxy.tau, q.initial_galaxy.tau, q.initial_galaxy.tau])
+            self.assertTrue(np.array_equal(total.initial_galaxy.tau, expected))
+            self.assertTrue(np.allclose(total.initial_binaries["tphysf"].values,
+                                        total.initial_galaxy.tau.to(u.Myr).value))
+
+            # and this should survive a save/load round trip
+            with tempfile.TemporaryDirectory() as tmpdir:
+                path = os.path.join(tmpdir, "total.h5")
+                total.save(path)
+                loaded = pop.load(path, parts=["initial_binaries", "initial_galaxy"])
+                self.assertTrue(np.array_equal(loaded.initial_galaxy.tau, expected))
+
     def test_concat_final_pos(self):
         """Check that final_pos is consistent after concatenation"""
         pops = [

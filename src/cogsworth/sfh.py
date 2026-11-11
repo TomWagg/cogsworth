@@ -98,6 +98,9 @@ class StarFormationHistory():
         self._v_x = None
         self._v_y = None
 
+        # labels for each sampled point (the matching `bin_num` when used in a Population)
+        self._bin_num = None
+
         self._composite_weight = 1.0
 
         # check for any extra parameters that have been passed
@@ -158,7 +161,7 @@ class StarFormationHistory():
         kwargs = self.__dict__
         actual_kwargs = {}
         saved_attributes = {}
-        array_attributes = ["_tau", "_Z", "_x", "_y", "_z", "_v_R", "_v_T", "_v_z", "_v_x", "_v_y"]
+        array_attributes = ["_tau", "_Z", "_x", "_y", "_z", "_v_R", "_v_T", "_v_z", "_v_x", "_v_y", "_bin_num"]
         for key in list(kwargs.keys()):
             # only keep attributes that have no underscores and aren't velocity components
             if key[0] != "_" and key not in array_attributes:
@@ -178,8 +181,8 @@ class StarFormationHistory():
         new_sfh._y = np.atleast_1d(self._y[ind])
         new_sfh._z = np.atleast_1d(self._z[ind])
 
-        # if we have any of the velocity components then we need to slice them too
-        vel_comps = ["_v_R", "_v_T", "_v_z", "_v_x", "_v_y"]
+        # if we have any of the velocity components or labels then we need to slice them too
+        vel_comps = ["_v_R", "_v_T", "_v_z", "_v_x", "_v_y", "_bin_num"]
         for vel in vel_comps:
             if hasattr(self, vel) and getattr(self, vel) is not None:
                 setattr(new_sfh, vel, np.atleast_1d(getattr(self, vel)[ind]))
@@ -567,11 +570,14 @@ class CompositeStarFormationHistory():
             while f"{key}_{n_components}" in file:
                 n_components += 1
                 component_ratios.append(file[f"{key}_{n_components - 1}"].attrs.get("component_ratio", 1.0))
+            sort_order = file[f"{key}_sort_order"][()] if f"{key}_sort_order" in file else None
 
-        return cls(
+        csfh = cls(
             components=[load(file_name, key=f"{key}_{i}") for i in range(n_components)],
             component_ratios=component_ratios
         )
+        csfh._sort_order = sort_order
+        return csfh
 
 
     def __getitem__(self, ind):
@@ -625,8 +631,10 @@ class CompositeStarFormationHistory():
         """When we try to access an attribute, if it's one that needs combining from the components"""
         COMBINE_ATTRS = ["tau", "Z", "x", "y", "z", "phi", "rho",
                          "v_x", "v_y", "v_z", "v_R", "v_T", "v_phi"]
-        if name in COMBINE_ATTRS or (name[0] == "_" and name[1:] in COMBINE_ATTRS):
-            component_vals = [getattr(component, name) for component in self.components]
+        if name in COMBINE_ATTRS or (name[0] == "_" and name[1:] in COMBINE_ATTRS) or name == "_bin_num":
+            # labels may be missing from custom components that don't call the base __init__
+            component_vals = [getattr(component, name) if name != "_bin_num" else getattr(component, name, None)
+                              for component in self.components]
             if all(val is not None for val in component_vals):
                 result = np.concatenate(component_vals)
                 if self._sort_order is not None:
@@ -640,8 +648,11 @@ class CompositeStarFormationHistory():
     def __setattr__(self, name, value):
         """When we try to set an attribute, if it's one that needs combining from the components then we set it on the
         relevant component instead"""
-        COMBINE_ATTRS = ["_tau", "_Z", "_x", "_y", "_z", "_v_x", "_v_y", "_v_z", "_v_R", "_v_T"]
-        if name in COMBINE_ATTRS:
+        COMBINE_ATTRS = ["_tau", "_Z", "_x", "_y", "_z", "_v_x", "_v_y", "_v_z", "_v_R", "_v_T", "_bin_num"]
+        if name in COMBINE_ATTRS and value is None:
+            for component in self.components:
+                setattr(component, name, None)
+        elif name in COMBINE_ATTRS:
             if not isinstance(value, (np.ndarray, list, int, float)):
                 raise ValueError(f"Can only set attribute `{name}` using an `int`, `float`, `list` or `ndarray`, you supplied a `{type(value).__name__}`")
             if isinstance(value, list):
@@ -759,6 +770,12 @@ class CompositeStarFormationHistory():
         with h5.File(file_name, "a") as file:
             for i, cr in enumerate(self.component_ratios):
                 file[f"{key}_{i}"].attrs["component_ratio"] = cr
+
+            # store the sort order (if any) so that the order of the samples is preserved
+            if f"{key}_sort_order" in file:
+                del file[f"{key}_sort_order"]
+            if self._sort_order is not None:
+                file[f"{key}_sort_order"] = self._sort_order
 
     def get_citations(self, filename=None):
         """Print the citations for the packages/papers used in the star formation history"""
@@ -2097,12 +2114,39 @@ def concat(*sfhs):
         if len(set(n_comps)) != 1:
             raise ValueError(("All CompositeStarFormationHistory objects to concatenate must have the "
                               "same number of components"))
-        components = [concat(*[sfhs[i].components[j] for i in range(len(sfhs))]) for j in range(n_comps[0])]
+        n_comp = n_comps[0]
 
-        return CompositeStarFormationHistory(
+        # storage stays component-wise: new component j is component j of each input, in input order
+        components = [concat(*[sfh.components[j] for sfh in sfhs]) for j in range(n_comp)]
+
+        # but the logical order should be all of the first input, then all of the second etc. So we work
+        # out where each input's points end up in the new internal order and record a sort order
+        # lengths[i, j] = number of points in component j of input i
+        lengths = np.array([[len(c) for c in sfh.components] for sfh in sfhs], dtype=int)
+        new_internal = np.arange(lengths.sum())
+        comp_starts = np.concatenate([[0], np.cumsum(lengths.sum(axis=0))])
+
+        sort_order = []
+        for i, sfh in enumerate(sfhs):
+            # map this input's internal indices to the new internal indices
+            offsets = comp_starts[:-1] + lengths[:i].sum(axis=0)
+            internal_to_new = np.concatenate([new_internal[offsets[j]:offsets[j] + lengths[i, j]]
+                                              for j in range(n_comp)])
+
+            # then apply the input's own logical order (which may reorder or duplicate points)
+            sort_order.append(internal_to_new if sfh._sort_order is None
+                              else internal_to_new[sfh._sort_order])
+        sort_order = np.concatenate(sort_order).astype(int)
+
+        new_csfh = CompositeStarFormationHistory(
             components=components,
             component_ratios=sfhs[0].component_ratios       # assume the same ratios as the first
         )
+
+        # only store a sort order if it isn't the identity (matching __getitem__)
+        if not np.array_equal(sort_order, np.arange(len(sort_order))):
+            new_csfh._sort_order = sort_order
+        return new_csfh
 
     elif all([isinstance(sfh, StarFormationHistory) for sfh in sfhs]):
 
@@ -2113,6 +2157,10 @@ def concat(*sfhs):
         for attr in ["_tau", "_Z", "_x", "_y", "_z", "_v_R", "_v_T", "_v_z", "_v_x", "_v_y"]:
             if hasattr(sfhs[0], attr) and not getattr(sfhs[0], attr) is None:
                 setattr(new_sfh, attr, np.concatenate([getattr(sfh, attr) for sfh in sfhs]))
+
+        # only keep labels if every input has them
+        labels = [getattr(sfh, "_bin_num", None) for sfh in sfhs]
+        new_sfh._bin_num = None if any(label is None for label in labels) else np.concatenate(labels)
 
         new_sfh._size = len(new_sfh._tau)
 
@@ -2125,7 +2173,7 @@ def concat(*sfhs):
 def simplify_params(params, dont_save=["_tau", "_Z", "_x", "_y", "_z", "_which_comp", "_v_R", "_v_T", "_v_z",
                                        "_v_x", "_v_y", "_df", "_agama_pot", "potential", "__citations__",
                                        "_guiding_radius_interp", "_omega_interp",
-                                       "_kappa_interp", "_nu_interp", "_inv_cdf"]):
+                                       "_kappa_interp", "_nu_interp", "_inv_cdf", "_bin_num"]):
     # delete any keys that we don't want to save
     delete_keys = [key for key in params.keys() if key in dont_save]
     for key in delete_keys:

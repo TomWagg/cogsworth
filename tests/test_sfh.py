@@ -549,6 +549,95 @@ class Test(unittest.TestCase):
         with self.assertRaises(ValueError):
             sfh.concat(g1, c1)
 
+    def test_concat_composite_preserves_order(self):
+        """Concatenating composite chunks should give all of the first chunk, then all of the second, etc.,
+        respecting any reordering or duplication from indexing the inputs"""
+        g = sfh.Wagg2022()
+        g.sample(1000)
+
+        # unsorted chunks plus one with duplicates
+        order = np.random.permutation(len(g))
+        chunks = [g[order[i:i + 100]] for i in range(0, 1000, 100)] + [g[[5, 5, 2]]]
+        combined = sfh.concat(*chunks)
+
+        expected = np.concatenate([order, [5, 5, 2]])
+        self.assertEqual(len(combined), len(expected))
+        for attr in ["tau", "Z", "x", "y", "z"]:
+            self.assertTrue(np.array_equal(getattr(combined, attr).value, getattr(g, attr).value[expected]))
+
+    def test_concat_composite_masks(self):
+        """Concatenating boolean-mask chunks of a composite should match applying the masks in sequence"""
+        g = sfh.Wagg2022()
+        g.sample(500)
+
+        mask = g.tau.value > np.median(g.tau.value)
+        combined = sfh.concat(g[mask], g[~mask])
+        expected = np.concatenate([np.where(mask)[0], np.where(~mask)[0]])
+        for attr in ["tau", "Z", "x", "y", "z"]:
+            self.assertTrue(np.array_equal(getattr(combined, attr).value, getattr(g, attr).value[expected]))
+
+    def test_concat_composite_then_index_and_set(self):
+        """Indexing, setting attributes and saving should still work on a concatenated composite"""
+        g = sfh.Wagg2022()
+        g.sample(300)
+        order = np.random.permutation(len(g))
+        combined = sfh.concat(g[order[:150]], g[order[150:]], g[[3, 3]])
+        expected = np.concatenate([order, [3, 3]])
+
+        # indexing with masks and with unsorted/duplicated indices
+        mask = combined.Z.value > np.median(combined.Z.value)
+        self.assertTrue(np.array_equal(combined[mask].tau.value, g.tau.value[expected][mask]))
+        inds = [10, 2, 2, 301, 0]
+        self.assertTrue(np.array_equal(combined[inds].x.value, g.x.value[expected][inds]))
+
+        # setting attributes (duplicated points share their value so only use per-point values)
+        new_Z = np.arange(len(g), dtype=float)[expected]
+        combined._Z = new_Z
+        self.assertTrue(np.array_equal(combined.Z, new_Z))
+
+        # saving and loading should preserve the order
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "combined.h5")
+            combined.save(path)
+            loaded = sfh.load(path)
+            self.assertTrue(np.array_equal(loaded.tau.value, combined.tau.value))
+            self.assertTrue(np.array_equal(loaded.Z, combined.Z))
+
+            # resaving without a sort order should remove the old one
+            g.save(path)
+            self.assertIsNone(sfh.load(path)._sort_order)
+
+    def test_bin_num_labels(self):
+        """Labels should follow their points through indexing and concatenation, but not be saved"""
+        for g in [sfh.BurstUniformDisc(t_burst=5 * u.Gyr), sfh.Wagg2022()]:
+            g.sample(200)
+            self.assertIsNone(g._bin_num)
+
+            # use the lookback times to check labels stay with their points
+            g._bin_num = np.arange(len(g)) + 1000
+            labels_to_tau = dict(zip(g._bin_num, g.tau.value))
+
+            order = np.random.permutation(len(g))
+            parts = [g[order[:50]], g[order[50:]], g[[3, 3, 7]]]
+            self.assertTrue(np.array_equal(parts[0]._bin_num, g._bin_num[order[:50]]))
+            self.assertTrue(np.array_equal(parts[2]._bin_num, [1003, 1003, 1007]))
+            combined = sfh.concat(*parts)
+            expected = np.concatenate([order, [3, 3, 7]]) + 1000
+            self.assertTrue(np.array_equal(combined._bin_num, expected))
+            self.assertTrue(np.array_equal(combined.tau.value, [labels_to_tau[b] for b in expected]))
+
+            # if any input is unlabelled, the result is unlabelled
+            unlabelled = g[:10]
+            unlabelled._bin_num = None
+            self.assertIsNone(unlabelled._bin_num)
+            self.assertIsNone(sfh.concat(g[10:20], unlabelled)._bin_num)
+
+            # labels aren't saved to file
+            with tempfile.TemporaryDirectory() as tmpdir:
+                path = os.path.join(tmpdir, "g.h5")
+                combined.save(path)
+                self.assertIsNone(sfh.load(path)._bin_num)
+
     def test_load_bad_key(self):
         """Test that loading from a nonexistent key raises ValueError"""
         g = sfh.Wagg2022()

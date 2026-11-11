@@ -4,6 +4,16 @@ Full changelog
 
 This page tracks all of the changes that have been made to ``cogsworth``. We follow the standard versioning convention of A.B.C, where C is a patch/bugfix, B is a large bugfix or new feature and A is a major new breaking change. B/C are backwards compatible but A changes may be breaking.
 
+4.1.1
+=====
+
+- Bug fix: ``sfh.concat`` for ``CompositeStarFormationHistory`` objects now preserves the order of the samples (all of the first input, then all of the second, etc.). Previously points were grouped by component, which misaligned the galaxy with anything paired to it by position. It also now respects the order of inputs that were indexed with unsorted or repeated indices, rather than dropping that reordering and any duplicates.
+- Bug fix: ``pop.concat`` now combines the initial galaxies with ``sfh.concat``. Previously it used ``+``, which creates a new composite with extra components on every concatenation (or turns a plain SFH into a composite) and lost the order of populations whose galaxy had been indexed out of order, so the galaxy could be misaligned with the binaries.
+- Bug fix: Saving and loading a ``CompositeStarFormationHistory`` now preserves its sample order (previously lost for composites that had been indexed out of order)
+- Issue https://github.com/TomWagg/cogsworth/issues/213: The initial galaxy of a ``Population`` is now labelled with the ``bin_num`` of each binary (``initial_galaxy._bin_num``). Indexing a population now selects galaxy points by ``bin_num``, the same way as the ``bpp``, ``bcm`` and ``kick_info`` tables, rather than by position. Previously, indexing a population that had already been indexed out of order (e.g. ``p[shuffled][...]``) could pair binaries with the wrong galaxy points. Labels are also shifted in ``pop.concat``, used when removing NaN binaries, and rebuilt from ``initial_binaries`` on load, so the file format is unchanged.
+
+
+
 4.1.0
 =====
 

@@ -156,7 +156,7 @@ class HydroPopulation(Population):
         all_inds = np.concatenate((inds, inds_with_disruptions)).astype(int)
 
         if self._initial_galaxy is not None:
-            new_pop._initial_galaxy = self._initial_galaxy[inds]
+            new_pop._initial_galaxy = self._initial_galaxy[self._galaxy_inds(bin_nums, inds)]
 
         # checking whether stellar evolution has been done
         if self._bpp is not None:
@@ -264,6 +264,7 @@ class HydroPopulation(Population):
         self._initial_galaxy._v_R = v_R
         self._initial_galaxy._v_T = v_T
         self._initial_galaxy._v_z = v_z
+        self._label_initial_galaxy()
 
     def perform_stellar_evolution(self, **kwargs):
         """Perform stellar evolution on systems sampled from the star particles
