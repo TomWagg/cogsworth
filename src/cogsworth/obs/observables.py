@@ -190,7 +190,7 @@ def get_extinction(coords, dustmaps=DEFAULT_DUSTMAPS, dustmap_kwargs=None, R_V=3
         ``"query"`` (passed when querying the map). For example, if you only downloaded the mean DECaPS map
         then use ``{"decaps": {"init": {"mean_only": True}, "query": {"mode": "mean"}}}``.
     R_V : `float`
-        Total-to-selective extinction ratio used to convert E(B-V) to A_V
+        Total-to-selective extinction ratio used to convert E(B-V) to A_V, default of 3.3 (as used by Green+2019)
     reflect : `bool`
         Whether to reflect positions without coverage about the galactic plane (see warning above)
 

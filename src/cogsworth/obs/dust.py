@@ -1,9 +1,3 @@
-"""Specifications and helpers for the 3D dust maps from :mod:`dustmaps` used to calculate extinction.
-
-Each available dust map is described by a :class:`DustMapSpec` in :data:`DUSTMAPS`. The functions here load
-and query the maps to give E(B-V), whilst :func:`~cogsworth.obs.observables.get_extinction` converts this to
-a visual extinction.
-"""
 import contextlib
 import importlib
 import os
@@ -71,18 +65,19 @@ DUSTMAPS = {
         query_class="BayestarQuery",
         init_kwargs={"max_samples": 2, "version": "bayestar2019"},
         query_kwargs={"mode": "random_sample"},
-        # TODO: Bayestar19 reports reddening in an arbitrary unit (see Green+2019, Table 1). For now this is
-        # treated as E(B-V) to match previous cogsworth behaviour, but the conversion should be revisited
-        to_ebv=1.0,
+        # 0.883 based on dustmaps documentation. "We use the relation E(B−V) = 0.883 × E_Bayestar19. This
+        # conversion factor is based on Equation 30 from Green et al. (2019), which gives
+        # E(g−r) = 0.901 × E_Bayestar19, combined with the relation E(B−V) = 0.98 × E(g−r)
+        # from Schlafly & Finkbeiner (2011)."
+        to_ebv=0.883,
         citation="bayestar2019",
         fetch_hint="import dustmaps.bayestar; dustmaps.bayestar.fetch(version='bayestar2019')",
         coverage="dec >= -30 deg (Pan-STARRS 1 footprint)",
-        # the map has some pixels slightly below -30 deg, but we follow the documented footprint
         footprint=_pan_starrs_footprint,
     ),
     "decaps": DustMapSpec(
         module="dustmaps.decaps",
-        # memory-mapped version of the query, the full DECaPSQuery loads ~30 GB into RAM
+        # memory-mapped version of the query, the full DECaPSQuery loads ~30 GB into RAM OOF
         query_class="DECaPSQueryLite",
         init_kwargs={},
         query_kwargs={"mode": "random_sample"},
@@ -93,11 +88,8 @@ DUSTMAPS = {
         coverage="southern Galactic plane (239 < l < 6 deg, |b| < 10 deg)",
     ),
 }
-"""Available 3D dust maps, keyed by the names accepted by :func:`~cogsworth.obs.observables.get_extinction`"""
-
+# by default we just use the Bayestar map
 DEFAULT_DUSTMAPS = ("bayestar2019",)
-"""Dust maps used by default in :func:`~cogsworth.obs.observables.get_extinction`"""
-
 
 def list_dustmaps():
     """Print the dust maps that are available and their coverage"""
