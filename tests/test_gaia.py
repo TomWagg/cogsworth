@@ -1,5 +1,7 @@
 import importlib.util
+import os
 import unittest
+from unittest import mock
 import warnings
 import numpy as np
 import pandas as pd
@@ -10,6 +12,9 @@ import cogsworth.obs.gaia as gaia
 import cogsworth.obs.observables as obs
 
 HAS_GAIAMOCK = importlib.util.find_spec("gaiamock") is not None
+
+# the full scanning law is ~1 GB, so we only ship the one healpix file that test_end_to_end needs
+GAIAMOCK_TEST_DATA = os.path.join(os.path.dirname(__file__), "test_data", "gaiamock")
 
 
 class FakePopulation():
@@ -135,6 +140,7 @@ class Test(unittest.TestCase):
         self.assertIn("solution_type", d.columns)
 
     @unittest.skipUnless(HAS_GAIAMOCK, "gaiamock not installed")
+    @mock.patch.dict(os.environ, {"GAIAMOCK_DATA_DIR": GAIAMOCK_TEST_DATA})
     def test_end_to_end(self):
         """A 15 Msun BH on a 300 d orbit around a G = 14 star at 1 kpc should be a clear DR4 orbit"""
         sources = pd.DataFrame([dict(ra=120.0, dec=-30.0, parallax=1.0, pmra=-5.0, pmdec=3.0, m1=1.0, m2=15.0,
