@@ -120,6 +120,7 @@ class COMPASPopulation(Population):
             if "bin_num" not in self.initial_binaries.columns:
                 self.initial_binaries["bin_num"] = np.arange(1, len(self.initial_binaries) + 1, dtype=int)
                 self.initial_binaries.index = self.initial_binaries["bin_num"].values
+                self._label_initial_galaxy()      # binaries were renumbered in place
             f.write('\n'.join(self.initial_binaries.apply(_stringify_initC, axis=1).values))
 
     def perform_stellar_evolution(self):        # pragma: no cover (requires COMPAS installation)
@@ -156,6 +157,7 @@ class COMPASPopulation(Population):
 
         self.initial_binaries["bin_num"] = self.final_bpp["bin_num"].values
         self.initial_binaries.index = self.final_bpp["bin_num"].values
+        self._label_initial_galaxy()              # binaries were renumbered in place
         self._append_kicks()
 
     def to_Population(self, **kwargs):
