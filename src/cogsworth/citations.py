@@ -386,7 +386,7 @@ archivePrefix = {arXiv},
     "gaia": {
         "gaia-selection-function": {
             "tags": ["gaia-selection-function"],
-            "bibtex": r"""@ARTICLE{Cantat-Gaudin+2023,
+            "bibtex": r"""@ARTICLE{gaia-selection-function,
        author = {{Cantat-Gaudin}, Tristan and {Fouesneau}, Morgan and {Rix}, Hans-Walter and {Brown}, Anthony G.~A. and {Castro-Ginard}, Alfred and et al.},
         title = "{An empirical model of the Gaia DR3 selection function}",
       journal = {\aap},
@@ -401,6 +401,26 @@ archivePrefix = {arXiv},
        eprint = {2208.09335},
  primaryClass = {astro-ph.GA},
        adsurl = {https://ui.adsabs.harvard.edu/abs/2023A&A...669A..55C},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}}"""
+        }
+    },
+    "gaiamock": {
+        "gaiamock": {
+            "tags": ["gaiamock"],
+            "bibtex": r"""@ARTICLE{gaiamock,
+       author = {{El-Badry}, Kareem and {Lam}, Casey and {Holl}, Berry and {Halbwachs}, Jean-Louis and {Rix}, Hans-Walter and {Mazeh}, Tsevi and {Shahaf}, Sahar},
+        title = "{A generative model for Gaia astrometric orbit catalogs: selection functions for binary stars, giant planets, and compact object companions}",
+      journal = {The Open Journal of Astrophysics},
+         year = 2024,
+        month = nov,
+       volume = {7},
+          eid = {100},
+        pages = {100},
+          doi = {10.33232/001c.125461},
+archivePrefix = {arXiv},
+       eprint = {2411.00088},
+ primaryClass = {astro-ph.SR},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2024OJAp....7E.100E},
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}}"""
         }
     },

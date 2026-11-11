@@ -4,6 +4,17 @@ Full changelog
 
 This page tracks all of the changes that have been made to ``cogsworth``. We follow the standard versioning convention of A.B.C, where C is a patch/bugfix, B is a large bugfix or new feature and A is a major new breaking change. B/C are backwards compatible but A changes may be breaking.
 
+4.1.0
+=====
+
+This release is centred around photometry and the new ``gaiamock`` interface.
+
+- New feature: Added ``obs.gaia`` and ``Population.get_gaia_astrometry`` for predicting Gaia astrometric solutions (single star, acceleration or orbital) for bound binaries using `gaiamock <https://github.com/kareemelbadry/gaiamock>`_. This code is based on a script by the wonderful Aditya Vijaykumar.
+    - A new tutorial explaining this feature is available at ``docs/tutorials/observables/gaiamock.ipynb``.
+- Breaking change: Photometry tables (``Population.observables`` and ``obs.observables.get_photometry``) now have a ``{filter}_app`` (and ``{filter}_abs``) column with the combined magnitude of bound binaries and mergers (NaN for disrupted binaries), whilst ``{filter}_app_1`` and ``{filter}_app_2`` always give the magnitudes of the primary and secondary individually. Previously ``{filter}_app_1`` held the combined magnitude for bound binaries and ``{filter}_app_2`` was infinite. This should be less confusing 😅.
+- Bug fix: Photometry tables are now indexed by ``bin_num`` (matching ``final_bpp``) rather than by position. Previously, looking up observables by ``bin_num`` (e.g. ``p.observables.loc[bin_nums]``) gave the wrong rows for any population whose ``bin_nums`` weren't exactly ``0..N-1``, such as a masked population or one where failed orbit integrations had been removed.
+- ``gaiaunlimited`` has moved from the ``observables`` optional dependencies to a new ``gaia`` group (alongside ``gaiamock``). Install with ``pip install 'cogsworth[gaia]'``.
+
 4.0.4
 =====
 

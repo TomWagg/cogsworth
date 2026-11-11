@@ -408,6 +408,7 @@ class Population():
             "sfh": r"The \texttt{cogsworth} population used a star formation history model based on the following papers",
             "observables": "Population observables were estimated using dust maps and MIST isochrones",
             "gaia": "Observability of systems with Gaia was predicted using an empirical selection function",
+            "gaiamock": r"Gaia astrometric solutions were predicted using \texttt{gaiamock}",
             "legwork": "Calculation of LISA gravitational wave signatures was performed using LEGWORK",
             "FIRE": "The initial conditions for the population were sampled from the FIRE simulations",
             "hydro": "Hydrodynamical simulations used to inform the star formation history and galactic potential were processed using pynbody",
@@ -1430,9 +1431,9 @@ class Population():
         These include: extinction due to dust, absolute and apparent bolometric magnitudes for each star,
         apparent magnitudes in each filter and observed temperature and surface gravity for each binary.
 
-        For bound binaries and stellar mergers, only the column `{filter}_app_1` is relevant. For
-        disrupted binaries, `{filter}_app_1` is for the primary star and `{filter}_app_2` is for
-        the secondary star.
+        For bound binaries and stellar mergers, the column `{filter}_app` gives the combined magnitude of the
+        system (it is NaN for disrupted binaries). The columns `{filter}_app_1` and `{filter}_app_2` always
+        give the magnitudes of the primary and secondary star individually.
 
         Parameters
         ----------
@@ -1489,9 +1490,13 @@ class Population():
 
         # loop over first (all bound binaries & primaries from disrupted binaries)
         # and then (secondaries from disrupted binaries)
+        # combined magnitude for bound binaries and the primary's magnitude for disrupted binaries
+        primary_g_mags = self.observables[f"{gaia_G_filter}_app"].fillna(
+            self.observables[f"{gaia_G_filter}_app_1"]).values
+
         observed = []
         for pix, g_mags, bin_nums in zip([pix_inds[:len(self)], pix_inds[len(self):]],
-                                         [self.observables[f"{gaia_G_filter}_app_1"].values,
+                                         [primary_g_mags,
                                           self.observables[f"{gaia_G_filter}_app_2"][self.disrupted].values],
                                          [self.bin_nums, self.bin_nums[self.disrupted]]):
             # get the coordinates of the corresponding pixels
@@ -1517,6 +1522,43 @@ class Population():
 
         primary_observed, secondary_observed = observed
         return primary_observed, secondary_observed
+
+    def get_gaia_astrometry(self, data_release="dr4", seed=None, **kwargs):
+        """Predict Gaia astrometric solutions for bound binaries.
+
+        This uses :mod:`gaiamock` to simulate Gaia epoch astrometry for each system based on the Gaia scanning
+        law and then fits the cascade of astrometric models (single star, acceleration, orbital) used by Gaia.
+        Systems are selected with :func:`~cogsworth.obs.gaia.get_gaiamock_sources` and the cascade is run
+        with :func:`~cogsworth.obs.gaia.run_gaiamock`.
+
+        .. warning::
+
+            This function assumes the final positions and velocities are in the MW galactocentric frame and
+            requires observables (with a Gaia G-band filter) to have already been calculated with
+            :meth:`get_observables`.
+
+        Parameters
+        ----------
+        data_release : `str`, optional
+            Which Gaia data release to simulate, one of "dr3", "dr4" or "dr5", by default "dr4"
+        seed : `int`, optional
+            Random seed for orbital orientations and measurement noise, by default None
+        **kwargs to pass to :func:`~cogsworth.obs.gaia.get_gaiamock_sources`
+
+        Returns
+        -------
+        astrometry : :class:`~pandas.DataFrame`
+            Table indexed by ``bin_num`` with the inputs to gaiamock and the results of the astrometric cascade
+            (see :func:`~cogsworth.obs.gaia.decode_cascade` for a description of the columns)
+        """
+        assert check_dependencies("gaiamock")
+        from cogsworth.obs.gaia import get_gaiamock_sources, run_gaiamock
+
+        self.__citations__.append("gaiamock")
+        orientation_seed, noise_seed = np.random.SeedSequence(seed).spawn(2)
+        sources = get_gaiamock_sources(self, seed=orientation_seed, **kwargs)
+        results = run_gaiamock(sources, data_release=data_release, seed=noise_seed, processes=self.processes)
+        return pd.concat([sources, results], axis=1)
 
     def get_final_mw_skycoord(self):
         """Get the final positions and velocities as an astropy SkyCoord object

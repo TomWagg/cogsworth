@@ -32,8 +32,12 @@ Homepage = "https://github.com/TomWagg/cogsworth"
 observables = [
     "dustmaps",
     "healpy",
-    "gaiaunlimited >= 0.2.0",
     "requests"
+]
+gaia = [
+    "cogsworth[observables]",
+    "gaiaunlimited >= 0.2.0",
+    "gaiamock",
 ]
 actions = [
     "agama",
@@ -45,7 +49,7 @@ hydro = [
     "pynbody >= 2.8",
 ]
 extras = [
-    "cogsworth[observables,actions,lisa,hydro]",
+    "cogsworth[observables,gaia,actions,lisa,hydro]",
 ]
 test = [
     "cogsworth[extras]",

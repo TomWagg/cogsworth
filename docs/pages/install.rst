@@ -199,7 +199,11 @@ Dependencies
 
             - :mod:`isochrones` for applying bolometric corrections using stellar isochrones
             - :mod:`dustmaps` for accounting for dust extinction
+
+            **Gaia predictions** (``pip install 'cogsworth[gaia]'``):
+
             - :mod:`gaiaunlimited` for applying the empirical Gaia selection function
+            - :mod:`gaiamock` for predicting Gaia astrometric solutions
 
             **Postprocessing hydrodynamical simulations**:
 

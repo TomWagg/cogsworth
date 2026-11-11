@@ -72,6 +72,7 @@ If you're new to ``cogsworth`` I recommend going through the whole basics sectio
 
             ../tutorials/observables/photometry.ipynb
             ../tutorials/observables/gaia.ipynb
+            ../tutorials/observables/gaiamock.ipynb
 
     .. grid-item-card::
 

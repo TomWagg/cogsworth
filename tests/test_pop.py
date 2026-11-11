@@ -272,6 +272,13 @@ class Test(unittest.TestCase):
         except ValueError:
             pass
         p.get_observables(filters="Gaia_G_EDR3", assume_mw_galactocentric=True, ignore_extinction=True)
+        self.assertTrue(np.array_equal(p.observables.index, p.bin_nums))
+
+        # indexing should still match bin_nums after masking the population
+        sub = p[p.bin_nums[1::2]]
+        sub.get_observables(filters="Gaia_G_EDR3", assume_mw_galactocentric=True, ignore_extinction=True)
+        self.assertTrue(np.array_equal(sub.observables.index, sub.bin_nums))
+
         p.get_observables(filters=["Gaia_G_EDR3", "Gaia_BP_EDR3", "Gaia_RP_EDR3"],
                           assume_mw_galactocentric=True, ignore_extinction=True)
         obs.get_photometry(filters=["Gaia_G_EDR3", "Gaia_BP_EDR3", "Gaia_RP_EDR3"], final_bpp=p.final_bpp,
@@ -279,7 +286,7 @@ class Test(unittest.TestCase):
         p.observables
 
         # cheat and make sure at least one binary is bright enough
-        p.observables.loc[p.observables.index[0], "Gaia_G_EDR3_app_1"] = 18.0
+        p.observables.loc[p.observables.index[0], ["Gaia_G_EDR3_app", "Gaia_G_EDR3_app_1"]] = 18.0
         p.get_gaia_observed_bin_nums(ra="auto", dec="auto")
 
         it_worked = True
