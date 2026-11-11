@@ -10,16 +10,20 @@ import astropy.coordinates as coords
 
 import cogsworth.obs.gaia as gaia
 import cogsworth.obs.observables as obs
+import cogsworth.pop as pop
 
 HAS_GAIAMOCK = importlib.util.find_spec("gaiamock") is not None
 
-# the full scanning law is ~1 GB, so we only ship the one healpix file that test_end_to_end needs
+# the full scanning law is ~1 GB, so we only ship the healpix files for the sky positions used in these tests
 GAIAMOCK_TEST_DATA = os.path.join(os.path.dirname(__file__), "test_data", "gaiamock")
 
 
 class FakePopulation():
     """Just enough of a Population to select gaiamock sources"""
     def __init__(self):
+        self.processes = 1
+        self.__citations__ = []
+
         # BH+MS, MS+NS, BH+BH, disrupted BH+MS, faint BH+MS, WD+MS, wide MS+MS, merger
         self.final_bpp = pd.DataFrame({
             "kstar_1": [14, 1, 14, 14, 14, 11, 1, 1],
@@ -159,3 +163,20 @@ class Test(unittest.TestCase):
         sources = pd.concat([sources] * 2, ignore_index=True)
         serial = gaia.run_gaiamock(sources, seed=0)
         self.assertTrue(serial.equals(gaia.run_gaiamock(sources, seed=0, processes=2)))
+
+    @unittest.skipUnless(HAS_GAIAMOCK, "gaiamock not installed")
+    @mock.patch.dict(os.environ, {"GAIAMOCK_DATA_DIR": GAIAMOCK_TEST_DATA})
+    def test_population_astrometry(self):
+        """Test the Population wrapper combines sources and cascade results"""
+        p = FakePopulation()
+        astrometry = pop.Population.get_gaia_astrometry(p, seed=42, remove_wide_binaries=True)
+
+        # kwargs should be passed through to source selection
+        self.assertEqual(astrometry.index.tolist(), [10, 11, 15])
+        self.assertTrue(set(gaia.CASCADE_ARGS) <= set(astrometry.columns))
+        self.assertIn("solution_type", astrometry.columns)
+        self.assertIn("gaiamock", p.__citations__)
+
+        # same seed, same result
+        again = pop.Population.get_gaia_astrometry(p, seed=42, remove_wide_binaries=True)
+        self.assertTrue(astrometry.equals(again))
